@@ -156,7 +156,7 @@ lib.mkIf enable {
       fi
     ''}
     dotfilesBackupBorder() {
-      printf '%s${border}${colorReset}\n' "$1"
+      printf '%b${border}${colorReset}\n' "$1"
     }
 
     dotfilesBackupStart="$(date +%s.%N)"
