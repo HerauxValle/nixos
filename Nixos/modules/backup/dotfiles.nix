@@ -56,6 +56,24 @@ let
   # the push by hand to see why it failed. false = generic "push failed"
   # only, no raw command output shown.
   logPushErrors = true;
+
+  # Deploy key algorithm. No real reason to change this, but it's a
+  # genuine independent choice (unlike keyComment below, which is derived,
+  # not chosen) so it lives here rather than under DO NOT TOUCH.
+  keyType = "ed25519";
+
+  # ANSI color codes used in the bordered blocks below -- change these to
+  # reskin the output. Empty string ("") for any of them disables that
+  # color (still valid, just prints plain).
+  colorRed    = ''\033[0;31m'';
+  colorYellow = ''\033[0;33m'';
+  colorGreen  = ''\033[0;32m'';
+  colorReset  = ''\033[0m'';
+
+  # Printed at the top/bottom of every warning/error/success block so
+  # they're unmistakably one unit and clearly attributed to this module
+  # amid the rest of the rebuild output.
+  border = "[dotfiles-backup] ============================================";
   # -----------------------------------------------------------------
 
   # -----------------------------------------------------------------
@@ -66,6 +84,18 @@ let
   # (see modules/security/sudo-keyfile.nix, Nixos/modules/system/users.nix)
   # so this doesn't bloat the flat /etc/nixos-secrets/ directory.
   secretsDir = "/etc/nixos-secrets/github";
+
+  # Derived from dotfilesPath's own last path component (not an
+  # independent literal) so it always matches reality -- point this
+  # module at a differently-named folder and the key's label follows,
+  # instead of silently staying a stale "dotfiles-backup" string.
+  keyComment = "${baseNameOf dotfilesPath}-backup";
+
+  # GitHub's own fixed API endpoint / error code -- not something you'd
+  # ever want to change, kept as named constants here purely for
+  # visibility rather than buried inline in the script below.
+  githubMetaApiUrl = "https://api.github.com/meta";
+  githubSecretScanErrorCode = "GH013";
 
   # This repo's own deploy key -- read-only for anyone but root, scoped to
   # pushing this one remote. Rotate any time by hand with `secrets
@@ -86,6 +116,17 @@ let
   gitSshCommand = "${pkgs.openssh}/bin/ssh -i ${keyFile} -o UserKnownHostsFile=${knownHostsFile} -o StrictHostKeyChecking=yes";
 
   repoCache = "${secretsDir}/repo-cache";
+
+  # Mirrors dotfilesPath into repoCache and commits -- used both for the
+  # normal per-activation snapshot and, unchanged, to rebuild the commit
+  # right after a git-filter-repo history rewrite (see the GH013 recovery
+  # below). Kept as one shared block so both call sites can't drift apart.
+  cacheSyncAndCommit = ''
+    ${pkgs.rsync}/bin/rsync -a --delete --exclude=.git "${dotfilesPath}/" "${repoCache}/"
+    ${lib.concatMapStringsSep "\n    " (f: ''rm -rf "${repoCache}/${f}"'') excludeFiles}
+    ${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" add -A
+    ${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit -q --allow-empty -m "$tag" || true
+  '';
 
 in
 
@@ -120,8 +161,8 @@ lib.mkIf enable {
     chown root:root "${secretsDir}"
 
     tmpKnownHosts="$(mktemp)"
-    if ${pkgs.curl}/bin/curl -fsS https://api.github.com/meta 2>/dev/null \
-         | ${pkgs.jq}/bin/jq -r '.ssh_keys[] | select(startswith("ssh-ed25519 ")) | "github.com " + .' \
+    if ${pkgs.curl}/bin/curl -fsS ${githubMetaApiUrl} 2>/dev/null \
+         | ${pkgs.jq}/bin/jq -r '.ssh_keys[] | select(startswith("${keyType} ")) | "github.com " + .' \
          > "$tmpKnownHosts" 2>/dev/null \
        && [ -s "$tmpKnownHosts" ]; then
       mv "$tmpKnownHosts" "${knownHostsFile}"
@@ -132,20 +173,20 @@ lib.mkIf enable {
     fi
 
     if [ ! -f "${keyFile}" ]; then
-      ${pkgs.openssh}/bin/ssh-keygen -q -t ed25519 -N "" -C "dotfiles-backup" -f "${keyFile}"
+      ${pkgs.openssh}/bin/ssh-keygen -q -t ${keyType} -N "" -C "${keyComment}" -f "${keyFile}"
       chmod 600 "${keyFile}"
       chmod 644 "${keyFile}.pub"
       chown root:root "${keyFile}" "${keyFile}.pub"
-      printf '\033[0;31m[dotfiles-backup] ============================================\033[0m\n' >&2
-      printf '\033[0;31mwarning: no deploy key existed -- generated a new one at ${keyFile}.\033[0m\n' >&2
-      printf '\033[0;31mAdd the public key below to the Dotfiles repo on GitHub (Settings -> Deploy\033[0m\n' >&2
-      printf '\033[0;31mkeys -> Add deploy key, tick "Allow write access") -- nothing will push\033[0m\n' >&2
-      printf '\033[0;31muntil you do:\033[0m\n' >&2
-      printf '\033[0;33m%s\033[0m\n' "$(cat "${keyFile}.pub")" >&2
-      printf '\033[0;32mnote: this backup push is optional -- set enable = false in\033[0m\n' >&2
-      printf '\033[0;32mNixos/modules/backup/dotfiles.nix to turn it off, or just ignore this\033[0m\n' >&2
-      printf '\033[0;32mwarning if you do not care about it right now.\033[0m\n' >&2
-      printf '\033[0;31m[dotfiles-backup] ============================================\033[0m\n' >&2
+      printf '${colorRed}${border}${colorReset}\n' >&2
+      printf '${colorRed}warning: no deploy key existed -- generated a new one at ${keyFile}.${colorReset}\n' >&2
+      printf '${colorRed}Add the public key below to the Dotfiles repo on GitHub (Settings -> Deploy${colorReset}\n' >&2
+      printf '${colorRed}keys -> Add deploy key, tick "Allow write access") -- nothing will push${colorReset}\n' >&2
+      printf '${colorRed}until you do:${colorReset}\n' >&2
+      printf '${colorYellow}%s${colorReset}\n' "$(cat "${keyFile}.pub")" >&2
+      printf '${colorGreen}note: this backup push is optional -- set enable = false in${colorReset}\n' >&2
+      printf '${colorGreen}Nixos/modules/backup/dotfiles.nix to turn it off, or just ignore this${colorReset}\n' >&2
+      printf '${colorGreen}warning if you do not care about it right now.${colorReset}\n' >&2
+      printf '${colorRed}${border}${colorReset}\n' >&2
     fi
 
     if [ -f "${keyFile}" ]; then
@@ -156,10 +197,8 @@ lib.mkIf enable {
           ${pkgs.git}/bin/git -c safe.directory="${repoCache}" init -q -b "${branch}" "${repoCache}"
           chmod 700 "${repoCache}"
         fi
-        ${pkgs.rsync}/bin/rsync -a --delete --exclude=.git "${dotfilesPath}/" "${repoCache}/"
-        ${lib.concatMapStringsSep "\n        " (f: ''rm -rf "${repoCache}/${f}"'') excludeFiles}
+        ${cacheSyncAndCommit}
         repoPath="${repoCache}"
-        commitArgs="-q --allow-empty"
         pushForce=""
         # The remote can end up not sharing history with this cache for
         # reasons outside this script's control (repo deleted/recreated,
@@ -180,14 +219,12 @@ lib.mkIf enable {
         rm -rf "$tmp/.git"
         ${lib.concatMapStringsSep "\n        " (f: ''rm -rf "$tmp/${f}"'') excludeFiles}
         ${pkgs.git}/bin/git -c safe.directory="$tmp" init -q -b "${branch}" "$tmp"
+        ${pkgs.git}/bin/git -C "$tmp" -c safe.directory="$tmp" add -A
+        ${pkgs.git}/bin/git -C "$tmp" -c safe.directory="$tmp" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit -q -m "$tag" || true
         repoPath="$tmp"
-        commitArgs="-q"
         pushForce="-f"
         retryForce=""
       ''}
-
-      ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" add -A
-      ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit $commitArgs -m "$tag" || true
 
       pushOutput="$(${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q $pushForce "${remoteUrl}" "${branch}" 2>&1 1>/dev/null)"
       pushRc=$?
@@ -196,27 +233,47 @@ lib.mkIf enable {
         pushRc=$?
       fi
 
+      ${lib.optionalString useRepoCache ''
+        # GitHub's push protection rejects a push whose HISTORY contains a
+        # secret, even if the current snapshot no longer does -- excluding
+        # a file only keeps it out of NEW commits, it doesn't erase it from
+        # commits already sitting in this cache. Rather than requiring a
+        # full manual purge (throws away the whole cache's benefit) or
+        # blindly retrying forever, surgically strip every currently
+        # configured excludeFiles path from the cache's entire history with
+        # git-filter-repo, then rebuild and retry once. If the actual
+        # offending file isn't in excludeFiles yet, this changes nothing
+        # and the retry fails again with the same clear error -- no silent
+        # success, no repeated full rebuilds.
+        if [ $pushRc -ne 0 ] && printf '%s' "$pushOutput" | grep -q "${githubSecretScanErrorCode}"; then
+          ${pkgs.git-filter-repo}/bin/git-filter-repo --repo "${repoCache}" --force ${lib.concatMapStringsSep " " (f: ''--path "${f}"'') excludeFiles} --invert-paths >/dev/null 2>&1 || true
+          ${cacheSyncAndCommit}
+          pushOutput="$(${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" -c core.sshCommand="${gitSshCommand}" push -q -f "${remoteUrl}" "${branch}" 2>&1 1>/dev/null)"
+          pushRc=$?
+        fi
+      ''}
+
       if [ $pushRc -eq 0 ]; then
         ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" tag "$tag"
         ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q "${remoteUrl}" "$tag" 2>/dev/null || echo "warning: dotfiles-backup pushed ${branch} but the tag push failed" >&2
-        printf '\033[0;32m[dotfiles-backup] ============================================\033[0m\n'
-        printf '\033[0;32msuccessfully pushed %s to %s\033[0m\n' "$tag" "${remoteUrl}"
-        printf '\033[0;32m[dotfiles-backup] ============================================\033[0m\n'
+        printf '${colorGreen}${border}${colorReset}\n'
+        printf '${colorGreen}successfully pushed %s to %s${colorReset}\n' "$tag" "${remoteUrl}"
+        printf '${colorGreen}${border}${colorReset}\n'
       else
-        printf '\033[0;31m[dotfiles-backup] ============================================\033[0m\n' >&2
+        printf '${colorRed}${border}${colorReset}\n' >&2
         ${if logPushErrors then ''
-          printf '\033[0;31merror: failed to push %s to %s. git said:\033[0m\n' "${branch}" "${remoteUrl}" >&2
-          printf '\033[0;31m%s\033[0m\n' "$pushOutput" >&2
+          printf '${colorRed}error: failed to push %s to %s. git said:${colorReset}\n' "${branch}" "${remoteUrl}" >&2
+          printf '${colorRed}%s${colorReset}\n' "$pushOutput" >&2
         '' else ''
-          printf '\033[0;31merror: failed to push %s to %s.\033[0m\n' "${branch}" "${remoteUrl}" >&2
+          printf '${colorRed}error: failed to push %s to %s.${colorReset}\n' "${branch}" "${remoteUrl}" >&2
         ''}
-        printf '\033[0;31mPublic key, in case it needs (re-)adding as a deploy key with write\033[0m\n' >&2
-        printf '\033[0;31maccess (Settings -> Deploy keys):\033[0m\n' >&2
-        printf '\033[0;33m%s\033[0m\n' "$(cat "${keyFile}.pub")" >&2
-        printf '\033[0;32mnote: this backup push is optional -- set enable = false in\033[0m\n' >&2
-        printf '\033[0;32mNixos/modules/backup/dotfiles.nix to turn it off, or just ignore this\033[0m\n' >&2
-        printf '\033[0;32merror if you do not care about it right now.\033[0m\n' >&2
-        printf '\033[0;31m[dotfiles-backup] ============================================\033[0m\n' >&2
+        printf '${colorRed}Public key, in case it needs (re-)adding as a deploy key with write${colorReset}\n' >&2
+        printf '${colorRed}access (Settings -> Deploy keys):${colorReset}\n' >&2
+        printf '${colorYellow}%s${colorReset}\n' "$(cat "${keyFile}.pub")" >&2
+        printf '${colorGreen}note: this backup push is optional -- set enable = false in${colorReset}\n' >&2
+        printf '${colorGreen}Nixos/modules/backup/dotfiles.nix to turn it off, or just ignore this${colorReset}\n' >&2
+        printf '${colorGreen}error if you do not care about it right now.${colorReset}\n' >&2
+        printf '${colorRed}${border}${colorReset}\n' >&2
         exit 1
       fi
     fi

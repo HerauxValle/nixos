@@ -21,6 +21,14 @@ set -euo pipefail
 
 SECRETS_DIR="/etc/nixos-secrets/github"
 KEY_FILE="$SECRETS_DIR/dotfiles-backup"
+KEY_TYPE="ed25519"
+
+# Derived relative to this script's own location (Scripts/Secrets/cmd/ is
+# three levels below the Dotfiles root) rather than a separately hardcoded
+# name -- stays correct even if the checkout is ever renamed, and matches
+# Nixos/modules/backup/dotfiles.nix's own keyComment derivation.
+DOTFILES_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../.." && pwd)"
+KEY_COMMENT="$(basename "$DOTFILES_ROOT")-backup"
 
 if [ -f "$KEY_FILE" ]; then
     echo "A deploy key already exists at $KEY_FILE — this will replace it."
@@ -29,7 +37,7 @@ fi
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-ssh-keygen -q -t ed25519 -N "" -C "dotfiles-backup" -f "$tmp/key"
+ssh-keygen -q -t "$KEY_TYPE" -N "" -C "$KEY_COMMENT" -f "$tmp/key"
 
 sudo install -d -m 700 -o root -g root "$SECRETS_DIR"
 sudo install -m 600 -o root -g root "$tmp/key" "$KEY_FILE"
