@@ -40,6 +40,7 @@ in
     wl-clipboard                # Clipboard
     fastfetch                   # Fetch
     tree                        # Tree
+    eza                         # Colorized ls replacement, used by ls alias in alias.fish
     mangohud                    # FPS/frametime/temp overlay, use via `mangohud %command%` in Steam
     zoxide                      # Frecency-based cd, used by cd.fish
     fzf                         # Interactive picker, used by cd.fish's `run -i`
