@@ -42,6 +42,15 @@ let
   # every time (no persistent history, always pushes).
   useRepoCache = true;
 
+  # Seconds to wait for a TCP connection before giving up, on every
+  # network call this module makes (the push's SSH connection, and the
+  # known_hosts HTTPS fetch). Without this, a genuinely dead connection
+  # (DSL down, no route at all) doesn't fail fast -- it hangs for the
+  # OS's own default TCP retry timeout, which can be 60-130+ seconds. A
+  # dead connection can't be fixed by retrying anyway, so failing fast
+  # here matters more than tolerating a slow-but-working one.
+  connectTimeoutSeconds = 5;
+
   # How much this module prints -- doesn't change what it actually does
   # (push/recovery behavior is identical either way), only output:
   #   "normal" -- everything: success message, notes, and on failure the
@@ -93,6 +102,13 @@ let
   githubSecretScanErrorCode = "GH013";
   hostKeyFailureMarker = "Host key verification failed";
 
+  # OpenSSH/curl's own fixed wording for "no network route at all" --
+  # matched to short-circuit straight to a plain network-failure message
+  # instead of working through the other recovery paths (host-key
+  # refresh, force retry, GH013 rewrite), none of which can fix a dead
+  # connection and would just waste time repeating doomed network calls.
+  networkFailureMarker = "Could not resolve hostname|Connection timed out|Network is unreachable|No route to host";
+
   # This repo's own deploy key -- read-only for anyone but root, scoped to
   # pushing this one remote. Rotate any time by hand with `secrets
   # dotfiles` (Scripts/Secrets/cmd/dotfiles.sh); this activation script
@@ -110,7 +126,7 @@ let
   # detects that specific failure and refreshes it automatically.
   knownHostsFile = "${secretsDir}/known_hosts";
 
-  gitSshCommand = "${pkgs.openssh}/bin/ssh -i ${keyFile} -o UserKnownHostsFile=${knownHostsFile} -o StrictHostKeyChecking=yes";
+  gitSshCommand = "${pkgs.openssh}/bin/ssh -i ${keyFile} -o UserKnownHostsFile=${knownHostsFile} -o StrictHostKeyChecking=yes -o ConnectTimeout=${toString connectTimeoutSeconds}";
 
   repoCache = "${secretsDir}/repo-cache";
 
@@ -120,7 +136,7 @@ let
   # Used both for the initial bootstrap and the reactive recovery below.
   refreshKnownHosts = ''
     dotfilesBackupTmpKnownHosts="$(mktemp)"
-    if ${pkgs.curl}/bin/curl -fsS ${githubMetaApiUrl} 2>/dev/null \
+    if ${pkgs.curl}/bin/curl -fsS --connect-timeout ${toString connectTimeoutSeconds} ${githubMetaApiUrl} 2>/dev/null \
          | ${pkgs.jq}/bin/jq -r '.ssh_keys[] | select(startswith("${keyType} ")) | "github.com " + .' \
          > "$dotfilesBackupTmpKnownHosts" 2>/dev/null \
        && [ -s "$dotfilesBackupTmpKnownHosts" ]; then
@@ -235,13 +251,24 @@ lib.mkIf enable {
         dotfilesBackupPushOutput="$(${gitPush "$dotfilesBackupPushForce"})"
         dotfilesBackupPushRc=$?
 
+        # A dead connection (DSL down, no route at all) can't be fixed by
+        # any of the recovery below -- host-key refresh, force retry, and
+        # GH013 rewrite are all network calls that would just fail the
+        # same way again, slowly. Detect it once, right here, and skip
+        # straight past all of that to the plain error below instead of
+        # wasting time repeating doomed network calls.
+        dotfilesBackupNetworkFailure=0
+        if [ $dotfilesBackupPushRc -ne 0 ] && printf '%s' "$dotfilesBackupPushOutput" | grep -qE "${networkFailureMarker}"; then
+          dotfilesBackupNetworkFailure=1
+        fi
+
         # Each recovery below fires only on its own specific, detected
         # failure signature -- zero cost when the push just works, which
         # is the common case. Bounded to exactly one retry each; a retry
         # that also fails falls through to the real error below, not
         # another attempt.
         dotfilesBackupHostKeyRefreshed=0
-        if [ $dotfilesBackupPushRc -ne 0 ] && printf '%s' "$dotfilesBackupPushOutput" | grep -q "${hostKeyFailureMarker}"; then
+        if [ "$dotfilesBackupNetworkFailure" != "1" ] && [ $dotfilesBackupPushRc -ne 0 ] && printf '%s' "$dotfilesBackupPushOutput" | grep -q "${hostKeyFailureMarker}"; then
           ${refreshKnownHosts}
           dotfilesBackupHostKeyRefreshed=1
           dotfilesBackupPushOutput="$(${gitPush "$dotfilesBackupPushForce"})"
@@ -249,13 +276,13 @@ lib.mkIf enable {
         fi
 
         ${lib.optionalString useRepoCache ''
-          if [ $dotfilesBackupPushRc -ne 0 ]; then
+          if [ "$dotfilesBackupNetworkFailure" != "1" ] && [ $dotfilesBackupPushRc -ne 0 ]; then
             dotfilesBackupPushOutput="$(${gitPush "-f"})"
             dotfilesBackupPushRc=$?
           fi
 
           dotfilesBackupSecretPaths=""
-          if [ $dotfilesBackupPushRc -ne 0 ] && printf '%s' "$dotfilesBackupPushOutput" | grep -q "${githubSecretScanErrorCode}"; then
+          if [ "$dotfilesBackupNetworkFailure" != "1" ] && [ $dotfilesBackupPushRc -ne 0 ] && printf '%s' "$dotfilesBackupPushOutput" | grep -q "${githubSecretScanErrorCode}"; then
             dotfilesBackupSecretPaths="$(printf '%s' "$dotfilesBackupPushOutput" | grep -oE 'path: [^[:space:]]+' | sed 's/^path: //' | sort -u | tr '\n' ' ')"
             printf '${colorYellow}note: GitHub secret scan triggered -- rewriting local backup history to strip: %s${colorReset}\n' "$dotfilesBackupSecretPaths" >&2
             ( cd "${repoCache}" && ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${lib.concatMapStringsSep " " (f: ''--path "${f}"'') excludeFiles} --invert-paths ) || true
@@ -284,6 +311,12 @@ lib.mkIf enable {
             fi
             dotfilesBackupBorder "${colorGreen}"
           ''}
+        elif [ "$dotfilesBackupNetworkFailure" = "1" ]; then
+          dotfilesBackupBorder "${colorRed}" >&2
+          printf '${colorRed}error: could not reach %s (took %ss) -- internet/network problem, not${colorReset}\n' "${remoteUrl}" "$dotfilesBackupElapsed" >&2
+          printf '${colorRed}something this script can fix. Try again once your connection is back.${colorReset}\n' >&2
+          dotfilesBackupBorder "${colorRed}" >&2
+          exit 1
         else
           dotfilesBackupBorder "${colorRed}" >&2
           printf '${colorRed}error: failed to push %s to %s (took %ss).${colorReset}\n' "${branch}" "${remoteUrl}" "$dotfilesBackupElapsed" >&2
