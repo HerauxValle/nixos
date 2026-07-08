@@ -71,7 +71,9 @@ alias ss="sudo pacman -Ss"                                              #&help:"
 # NAVIGATION
 alias back="cd .."                                                      #&help:"Go to parent dir"
 alias home="cd ~"                                                       #&help:"Go to $HOME"
-alias ls="eza -la --group-directories-first --color=always"             #&help:"List dir contents, alphabetical, colored type/perms"
+alias ls="eza"                                                          #&help:"List dir contents (colorized eza)"
+alias lsa="eza -la --group-directories-first --color=always"            #&help:"List dir contents, alphabetical, colored type/perms"
+alias lsr="eza -1 --color=always"                                       #&help:"List dir contents, alphabetical, one per line, colored"
 
 # CUSTOM SUDO
 alias approve="sudo --adv:approve"                                       #&help:"Approve latest sudo broker request"
