@@ -1,0 +1,58 @@
+#
+# ~/.bashrc
+#
+
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+PS1='[\u@\h \W]\$ '
+
+alias dolphin='dolphin -stylesheet ~/.config/nostripes.qss'                                 #&help:"Opens Dolphin"
+alias clean-system='sudo pacman -Rns $(pacman -Qdtq); sudo paccache -r; sudo pacman -Sc'    #&help:"Cleans PKG cache"
+alias timeshift-gui="sudo GDK_BACKEND=x11 timeshift-gtk"                                    #&help:"Opens Timeshift GUI"
+alias grubreload="sudo grub-mkconfig -o /boot/grub/grub.cfg"                                #&help:"Reloads Grubs config"
+
+
+alias :b:="bash -i"       #&help:"Execute cmd as BASH shell"
+alias :n:="nu"            #&help:"Execute cmd as NU shell"
+alias :p:="pwsh -NoLogo"  #&help:"Execute cmd as PWSH shell"
+alias :f:="fish"          #&help:"Execute cmd as FISH shell"
+
+#&help:"Edit bash config"
+editbashrc() {
+    nano ~/.bashrc
+    source ~/.bashrc && echo "✓ .bashrc reloaded"
+}
+
+#&help:"Creates quick timeshift backup"
+ts-save() {
+    echo "What should we name this snapshot?"
+    read -p "Description: " desc
+    if [ -z "$desc" ]; then
+        desc="Manual Backup $(date +'%Y-%m-%d %H:%M')"
+    fi
+    sudo timeshift --create --comments "$desc"
+    sudo grub-mkconfig -o /boot/grub/grub.cfg
+}
+
+# --- Modern Bash Upgrades ---
+
+bind "set completion-ignore-case on"
+bind "set show-all-if-ambiguous on"
+bind "set menu-complete-display-prefix on"
+bind '"\e[A": history-search-backward'
+bind '"\e[B": history-search-forward'
+
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+export LS_COLORS='rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32'
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias diff='diff --color=auto'
+
+shopt -s cdspell

@@ -1,0 +1,5 @@
+singleton Audio      1.0 Audio.qml
+singleton Network    1.0 Network.qml
+singleton OsdState   1.0 OsdState.qml
+singleton ShellState          1.0 ShellState.qml
+singleton NotificationService 1.0 NotificationService.qml

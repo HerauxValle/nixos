@@ -1,0 +1,3 @@
+QAbstractItemView, QTreeView, QTableView {
+    alternating-row-colors: 0;
+}
