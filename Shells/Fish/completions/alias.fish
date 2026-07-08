@@ -71,6 +71,7 @@ alias ss="sudo pacman -Ss"                                              #&help:"
 # NAVIGATION
 alias back="cd .."                                                      #&help:"Go to parent dir"
 alias home="cd ~"                                                       #&help:"Go to $HOME"
+alias ls="ls -la --group-directories-first"                             #&help:"List dir contents, alphabetical, with type/perms"
 
 # CUSTOM SUDO
 alias approve="sudo --adv:approve"                                       #&help:"Approve latest sudo broker request"
