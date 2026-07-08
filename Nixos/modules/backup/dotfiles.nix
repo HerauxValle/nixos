@@ -219,8 +219,10 @@ lib.mkIf enable {
         # is the common case. Bounded to exactly one retry each; a retry
         # that also fails falls through to the real error below, not
         # another attempt.
+        dotfilesBackupHostKeyRefreshed=0
         if [ $pushRc -ne 0 ] && printf '%s' "$pushOutput" | grep -q "${hostKeyFailureMarker}"; then
           ${refreshKnownHosts}
+          dotfilesBackupHostKeyRefreshed=1
           pushOutput="$(${gitPush "$pushForce"})"
           pushRc=$?
         fi
@@ -231,7 +233,9 @@ lib.mkIf enable {
             pushRc=$?
           fi
 
+          dotfilesBackupSecretPaths=""
           if [ $pushRc -ne 0 ] && printf '%s' "$pushOutput" | grep -q "${githubSecretScanErrorCode}"; then
+            dotfilesBackupSecretPaths="$(printf '%s' "$pushOutput" | grep -oE 'path: [^[:space:]]+' | sed 's/^path: //' | sort -u | tr '\n' ' ')"
             ( cd "${repoCache}" && ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${lib.concatMapStringsSep " " (f: ''--path "${f}"'') excludeFiles} --invert-paths ) || true
             ${pkgs.rsync}/bin/rsync -a --delete --exclude=.git "${dotfilesPath}/" "${repoCache}/"
             ${lib.concatMapStringsSep "\n            " (f: ''rm -rf "${repoCache}/${f}"'') excludeFiles}
@@ -249,6 +253,12 @@ lib.mkIf enable {
           ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q "${remoteUrl}" "$tag" 2>/dev/null || echo "warning: dotfiles-backup pushed ${branch} but the tag push failed" >&2
           printf '${colorGreen}${border}${colorReset}\n'
           printf '${colorGreen}successfully pushed %s to %s (took %ss)${colorReset}\n' "$tag" "${remoteUrl}" "$dotfilesBackupElapsed"
+          if [ "$dotfilesBackupHostKeyRefreshed" = "1" ]; then
+            printf '${colorYellow}note: github.com'"'"'s host key had changed -- refreshed known_hosts automatically.${colorReset}\n'
+          fi
+          if [ -n "''${dotfilesBackupSecretPaths:-}" ]; then
+            printf '${colorYellow}note: a secret was found and stripped from history in: %s${colorReset}\n' "$dotfilesBackupSecretPaths"
+          fi
           printf '${colorGreen}${border}${colorReset}\n'
         else
           printf '${colorRed}${border}${colorReset}\n' >&2
