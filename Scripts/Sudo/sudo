@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sudo — single entrypoint.
+# sudo -- single entrypoint.
 #
 # Normal usage (TTY present):    passes straight through to the real sudo
 # Non-interactive (no TTY):      submits a broker request for async human approval
@@ -29,11 +29,11 @@
 
 set -euo pipefail
 
-# Fixed, XDG-stable location — not derived from $0 — so lib/*.sh always
+# Fixed, XDG-stable location -- not derived from $0 -- so lib/*.sh always
 # resolves the same way regardless of how/where "sudo" itself is reached
 # (a plain symlink, a Nix store copy, whatever). Whatever deploys
 # dotfiles on a given system (here: home-manager's "scripts" xdg.configFile
-# entry, on rebuild) is responsible for putting Scripts/ here — same as
+# entry, on rebuild) is responsible for putting Scripts/ here -- same as
 # any other XDG config dir, Nix or not.
 SCRIPT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/scripts/Sudo"
 source "$SCRIPT_DIR/lib/common.sh"
@@ -49,7 +49,7 @@ source "$SCRIPT_DIR/lib/live.sh"
 
 do_install() {
     if grep -qi '^ID=nixos' /etc/os-release 2>/dev/null; then
-        echo "NixOS detected — this symlinks $INSTALL_DIR/sudo by hand, outside" >&2
+        echo "NixOS detected -- this symlinks $INSTALL_DIR/sudo by hand, outside" >&2
         echo "Nix's management. On NixOS this is normally done declaratively" >&2
         echo "instead (e.g. via home.file), so it's reproducible/rollback-safe." >&2
         local _reply
@@ -104,11 +104,11 @@ case "${1:-}" in
     --adv:uninstall) do_uninstall ;;
     --adv:help)
         cat <<'EOF'
-sudo broker — async sudo approval for non-interactive sessions (e.g. AI agents)
+sudo broker -- async sudo approval for non-interactive sessions (e.g. AI agents)
 
 When no TTY is detected, sudo queues a request instead of running directly.
 A human must approve it from another terminal. With a TTY, sudo passes straight
-through to the real sudo — no change in behaviour.
+through to the real sudo -- no change in behaviour.
 
 BROKER FLAGS
   sudo --adv:approve [id]         Approve a pending request. Omit id for latest.
@@ -143,7 +143,7 @@ BLACKLIST (commands that always require a password, even in auto mode)
                                            (falls back to nano/vim/vi/micro).
 
   The live blacklist lives at $XDG_DATA_HOME/sudo-broker/blacklist.conf
-  (usually ~/.local/share/sudo-broker/blacklist.conf) — seeded once from
+  (usually ~/.local/share/sudo-broker/blacklist.conf) -- seeded once from
   Scripts/Sudo/lib/blacklist.conf in the Dotfiles checkout on first use,
   then edited directly from there on, no rebuild needed. Not tracked by
   Nix/Dotfiles itself past that seed, so back it up if you want your
@@ -174,7 +174,7 @@ EOF
         ;;
     --adv:*)
         # Any --adv: flag not matched by a specific case above is a typo/
-        # unknown flag, not a real command — falling through to the
+        # unknown flag, not a real command -- falling through to the
         # generic case below would silently hand it to real sudo, which
         # doesn't understand --adv: at all and just prints its own usage.
         echo "Unknown broker flag: $1" >&2
@@ -182,25 +182,25 @@ EOF
         exit 1
         ;;
     *)
-        # -n means "never prompt/block — fail immediately if a password
+        # -n means "never prompt/block -- fail immediately if a password
         # would be needed" per real sudo's own contract. Queuing a broker
         # request (which blocks awaiting human approval) violates that
-        # contract just as much as an interactive password prompt would —
+        # contract just as much as an interactive password prompt would --
         # so any -n call always goes straight to real sudo, transparently,
         # before any auto-mode/TTY/broker logic runs at all. Without this,
         # anything that does its own `sudo -n ...` liveness check (e.g. the
         # fish prompt's sudo-status indicator, run on every single prompt
-        # render) gets treated as a real command needing approval —
+        # render) gets treated as a real command needing approval --
         # spamming a broker request on every keystroke.
         for _arg in "$@"; do
             [[ "$_arg" == "-n" ]] && exec "$REAL_SUDO" "$@"
         done
 
-        # Auto mode check — scoped to the current terminal (or global)
+        # Auto mode check -- scoped to the current terminal (or global)
         _cur_tty=$(tty 2>/dev/null || echo "")
         if auto_is_active_for_tty "$_cur_tty"; then
             if _bl_match=$(blacklist_check "$@"); then
-                echo "[sudo broker] Blacklisted pattern: $_bl_match — password required." >&2
+                echo "[sudo broker] Blacklisted pattern: $_bl_match -- password required." >&2
                 auto_run_blacklisted "$@"
                 exit $?
             else

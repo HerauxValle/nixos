@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# secrets passwd — (re)set the account password's hash file, any time.
+# secrets passwd -- (re)set the account password's hash file, any time.
 #
 # Prompts for a password (confirmed twice, asterisk feedback per keystroke
 # instead of either a blank/invisible read or echoing it in plain text),
@@ -9,14 +9,14 @@
 # hashedPasswordFile (a file reference, read by the activation script at
 # rebuild time) instead of hashedPassword (a literal hash string baked
 # directly into the Nix config) keeps the hash out of the world-readable
-# /nix/store. That file deliberately lives outside /etc/nixos — /etc/nixos
+# /nix/store. That file deliberately lives outside /etc/nixos -- /etc/nixos
 # IS the Dotfiles checkout (symlinked there by install.sh), so anything
 # placed inside it would sit inside the checkout itself, at real risk of
 # ending up git-tracked/shared. /etc/nixos-secrets/ is a sibling directory
 # instead, never part of the checkout.
 #
 # A rebuild is still what actually deploys the new hash to the running
-# system — this only writes the file.
+# system -- this only writes the file.
 set -euo pipefail
 
 HASH_FILE="/etc/nixos-secrets/herauxvalle-password.hash"
@@ -57,14 +57,14 @@ fi
 # users via /proc/<pid>/cmdline while mkpasswd runs.
 #
 # mkpasswd is declared in installed.nix, so it's normally already on $PATH
-# — except on the very first run of install.sh, before installed.nix has
+# -- except on the very first run of install.sh, before installed.nix has
 # ever been deployed (nothing's rebuilt yet at that point). Falls back to
 # fetching it via nix-shell just for that one bootstrap case, rather than
 # always paying that cost.
 if command -v mkpasswd >/dev/null 2>&1; then
     hash="$(printf '%s' "$pass1" | mkpasswd -m sha-512 -s)"
 else
-    echo "mkpasswd not on \$PATH yet (pre-rebuild bootstrap) — fetching it via nix-shell..." >&2
+    echo "mkpasswd not on \$PATH yet (pre-rebuild bootstrap) -- fetching it via nix-shell..." >&2
     hash="$(printf '%s' "$pass1" | nix-shell -p mkpasswd --run "mkpasswd -m sha-512 -s")"
 fi
 unset pass1 pass2
@@ -80,7 +80,7 @@ echo "Password hash written to $HASH_FILE (root:root, 600)."
 if command -v pacnix >/dev/null 2>&1; then
     echo "Run 'pacnix rebuild' to deploy it."
 else
-    # pacnix itself is a Dotfiles-provided command (via scripts.nix) — on a
+    # pacnix itself is a Dotfiles-provided command (via scripts.nix) -- on a
     # genuinely fresh system (install.sh's first run), nothing's been
     # rebuilt yet, so it doesn't exist on $PATH either.
     echo "Run 'sudo nixos-rebuild switch --flake /etc/nixos#herauxvalle' to deploy it"

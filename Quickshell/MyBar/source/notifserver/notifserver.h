@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <iostream>
 
-// Core server object — holds state and emits JSON to stdout.
+// Core server object -- holds state and emits JSON to stdout.
 class NotifServer : public QObject {
     Q_OBJECT
 public:
@@ -28,7 +28,7 @@ private:
     uint _nextId = 1;
 };
 
-// D-Bus adaptor — properly exports all methods including out-param ones.
+// D-Bus adaptor -- properly exports all methods including out-param ones.
 class NotifAdaptor : public QDBusAbstractAdaptor {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.freedesktop.Notifications")

@@ -6,7 +6,7 @@ let
   mybarBackend = pkgs.callPackage ../../../Quickshell/MyBar/backend.nix { };
 
   # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups (shifted
-  # symbol keybinds like ctrl+dollar/asterisk/exclam) — that's not a normal
+  # symbol keybinds like ctrl+dollar/asterisk/exclam) -- that's not a normal
   # linked dependency, so listing libxkbcommon in systemPackages alone never
   # helps; NixOS doesn't add packages' lib/ outputs to the dynamic loader's
   # search path. Has to be wired in directly via LD_LIBRARY_PATH on kitty itself.
@@ -44,10 +44,10 @@ in
     zoxide                      # Frecency-based cd, used by cd.fish
     fzf                         # Interactive picker, used by cd.fish's `run -i`
     mkpasswd                    # Used by Scripts/Secrets/cmd/passwd.sh (secrets passwd)
-    e2fsprogs                   # debugfs — no-mount ext4 keyfile read, modules/security/sudo-keyfile.nix
-    mtools                      # mcopy — no-mount FAT/FAT32 keyfile read, modules/security/sudo-keyfile.nix
-    ntfs3g                      # ntfscat — no-mount NTFS keyfile read, modules/security/sudo-keyfile.nix
-    btrfs-progs                 # btrfs restore — no-mount btrfs keyfile read, modules/security/sudo-keyfile.nix
+    e2fsprogs                   # debugfs -- no-mount ext4 keyfile read, modules/security/sudo-keyfile.nix
+    mtools                      # mcopy -- no-mount FAT/FAT32 keyfile read, modules/security/sudo-keyfile.nix
+    ntfs3g                      # ntfscat -- no-mount NTFS keyfile read, modules/security/sudo-keyfile.nix
+    btrfs-progs                 # btrfs restore -- no-mount btrfs keyfile read, modules/security/sudo-keyfile.nix
 
     # Shells
     fish                        # Main

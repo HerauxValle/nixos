@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# modules/conflicts.sh — check hyprfloat keybinds against live hyprland binds
+# modules/conflicts.sh -- check hyprfloat keybinds against live hyprland binds
 
 check_conflicts() {
     local project_conf="${SCRIPT_DIR}/hyprland/hyprfloat.conf"
@@ -9,7 +9,7 @@ check_conflicts() {
         return 1
     fi
     if ! command -v hyprctl &>/dev/null; then
-        echo "[hyprfloat] ERROR: hyprctl not found — is Hyprland running?" >&2
+        echo "[hyprfloat] ERROR: hyprctl not found -- is Hyprland running?" >&2
         return 1
     fi
 
@@ -31,7 +31,7 @@ MOD_BITS = {
 }
 
 def parse_mods(mod_str, variables):
-    # resolve hyprland variables like $mainMod — longest key first to avoid prefix collisions
+    # resolve hyprland variables like $mainMod -- longest key first to avoid prefix collisions
     for var, val in sorted(variables.items(), key=lambda kv: len(kv[0]), reverse=True):
         mod_str = mod_str.replace(var, val)
     mask = 0
@@ -66,7 +66,7 @@ def collect_variables(root):
                     sm = re.match(r'^source\s*=\s*([^#]+)', stripped)
                     if sm:
                         src = sm.group(1).strip()
-                        # resolve variables in source path — longest key first
+                        # resolve variables in source path -- longest key first
                         for var, val in sorted(variables.items(), key=lambda kv: len(kv[0]), reverse=True):
                             src = src.replace(var, val)
                         src = os.path.expanduser(src)
@@ -173,7 +173,7 @@ for b in live_binds_json:
     entry = config_index.get((mask, key, disp, arg), b)
     live_index.setdefault((mask, key), []).append(entry)
 
-# project binds — seeded with global vars so $mainMod resolves correctly
+# project binds -- seeded with global vars so $mainMod resolves correctly
 conf_path = sys.argv[1]
 proj_binds = parse_conf(conf_path, seed_vars=global_vars)
 
@@ -204,7 +204,7 @@ for pb in proj_binds:
         print()
 
 if conflicts == 0:
-    print(f"✓ No conflicts — all {len(proj_binds)} project binds are clean.")
+    print(f"✓ No conflicts -- all {len(proj_binds)} project binds are clean.")
 else:
     print(f"✗ {conflicts} conflict(s) found.")
     sys.exit(1)

@@ -27,7 +27,7 @@ sleep 0.3
 command -v pypr >/dev/null 2>&1 && pypr &
 command -v mpc  >/dev/null 2>&1 && mpc update &
 
-# Launch custom bar — via the XDG config path (home-manager symlinks
+# Launch custom bar -- via the XDG config path (home-manager symlinks
 # Dotfiles/Quickshell -> ~/.config/quickshell), not the Dotfiles repo path,
 # so this keeps working no matter where the repo itself lives/moves.
 bash ~/.config/quickshell/MyBar/main.sh --launch >/dev/null 2>&1 &

@@ -36,13 +36,13 @@ in
   #   gamemoderun gamescope -f -r 144 -- mangohud %command%
 
   # Sets up services.displayManager.sddm itself (theme, wayland.enable,
-  # extraPackages etc.) — see flake.nix for the silent-sddm input.
+  # extraPackages etc.) -- see flake.nix for the silent-sddm input.
   programs.silentSDDM = {
     enable = false;
     theme = "default";
 
     # Filename after copy is the basename of the wallpaper path, regardless
-    # of this attrset key — see silent-sddm's nix/package.nix.
+    # of this attrset key -- see silent-sddm's nix/package.nix.
     backgrounds = if wallpaper == null then { } else { inherit wallpaper; };
 
     settings =

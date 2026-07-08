@@ -5,7 +5,7 @@ BIN="$DIR/binary"
 mkdir -p "$BIN"
 
 # Binaries are named mybar-* (not just e.g. "netmonitor") so they can be
-# resolved unambiguously off $PATH regardless of how/where they were built —
+# resolved unambiguously off $PATH regardless of how/where they were built --
 # same convention whether this script ran directly (Arch/etc., binaries end
 # up in $BIN) or inside the Nix derivation (Quickshell/MyBar/backend.nix,
 # which runs this exact script during its buildPhase and installs the
@@ -16,21 +16,21 @@ echo "[compile] Building appscanner..."
 g++ -O2 -std=c++17 \
     -o "$BIN/mybar-appscanner" \
     "$DIR/source/appscanner/appscanner.cpp"
-echo "[compile] Done — $BIN/mybar-appscanner"
+echo "[compile] Done -- $BIN/mybar-appscanner"
 
 # ── cpumonitor ────────────────────────────────────────────────────────────────
 echo "[compile] Building cpumonitor..."
 g++ -O2 -std=c++17 \
     -o "$BIN/mybar-cpumonitor" \
     "$DIR/source/cpumonitor/cpumonitor.cpp"
-echo "[compile] Done — $BIN/mybar-cpumonitor"
+echo "[compile] Done -- $BIN/mybar-cpumonitor"
 
 # ── memmonitor ────────────────────────────────────────────────────────────────
 echo "[compile] Building memmonitor..."
 g++ -O2 -std=c++17 \
     -o "$BIN/mybar-memmonitor" \
     "$DIR/source/memmonitor/memmonitor.cpp"
-echo "[compile] Done — $BIN/mybar-memmonitor"
+echo "[compile] Done -- $BIN/mybar-memmonitor"
 
 # ── netmonitor (requires libnm + glib) ───────────────────────────────────────
 echo "[compile] Building netmonitor..."
@@ -41,7 +41,7 @@ g++ -O2 -std=c++17 \
     -o "$BIN/mybar-netmonitor" \
     "$DIR/source/netmonitor/netmonitor.cpp" \
     $NM_LIBS
-echo "[compile] Done — $BIN/mybar-netmonitor"
+echo "[compile] Done -- $BIN/mybar-netmonitor"
 
 # ── notifserver (requires Qt6DBus + moc) ─────────────────────────────────────
 echo "[compile] Building notifserver..."
@@ -81,4 +81,4 @@ g++ -O2 -std=c++17 \
     "$NOTIF_MOC" \
     $QT_LIBS
 rm -f "$NOTIF_MOC"
-echo "[compile] Done — $BIN/mybar-notifserver"
+echo "[compile] Done -- $BIN/mybar-notifserver"

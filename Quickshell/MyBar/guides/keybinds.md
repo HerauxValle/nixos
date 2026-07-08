@@ -12,7 +12,7 @@ Settings → **Keybinds** tab → **OPEN** section. Each row shows a label on th
 
 ## Step-by-step
 
-### 1. `modules/popups/BarSettings.qml` — add the UI row
+### 1. `modules/popups/BarSettings.qml` -- add the UI row
 
 Find `_bindDefs` (~line 870) and append your entry:
 
@@ -41,7 +41,7 @@ case "mything": BarConfig.bindMyThing = value; break
 
 ---
 
-### 2. `config/BarConfig.qml` — add the property, default, save, and apply
+### 2. `config/BarConfig.qml` -- add the property, default, save, and apply
 
 **Default** (~line 240, inside `_bindDefaults`):
 ```qml
@@ -70,7 +70,7 @@ _updateBind("mything", bindMyThing)
 
 ---
 
-### 3. `shell.qml` — add the IPC handler (~line 27)
+### 3. `shell.qml` -- add the IPC handler (~line 27)
 
 ```qml
 IpcHandler {
@@ -92,4 +92,4 @@ The IPC target name must match the `key` string used in all the steps above.
 | Bluetooth | `bluetooth` | `SUPER+SHIFT+B` | `BarConfig.togglePopup("bluetooth", "")` |
 | Workspace Menu | `workspacemenu` | `SUPER+SHIFT+W` | `BarConfig.togglePopup("workspacemenu", "")` |
 
-`toggleNotifications` is the most useful one missing — it's already on the bar icon but has no keyboard shortcut.
+`toggleNotifications` is the most useful one missing -- it's already on the bar icon but has no keyboard shortcut.

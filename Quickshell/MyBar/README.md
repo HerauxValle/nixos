@@ -27,11 +27,11 @@ exec-once = bash ~/Projects/MyBar/main.sh
 - Hyprland
 - `g++`, `pkg-config` (for compiling C++ backends)
 - `nmcli`, `bluetoothctl`, `wpctl`/`pipewire`, `hyprctl`
-- `libnm`, `qt6-base` (runtime libs — installed automatically by `--install`)
+- `libnm`, `qt6-base` (runtime libs -- installed automatically by `--install`)
 
 ## Keybinds
 
-Default binds registered automatically in Hyprland — no `hyprland.conf` edits needed.
+Default binds registered automatically in Hyprland -- no `hyprland.conf` edits needed.
 
 | Bind | Action |
 |---|---|
@@ -51,9 +51,9 @@ All binds are configurable in **Advanced Settings → Keybinds**.
 
 Variables are read from env files sourced in this order (last wins):
 
-1. `themes/<theme>.env` — built-in theme (default: `mountain`)
-2. `~/.config/mybar/theme.env` — saved UI state (written automatically)
-3. `~/.config/mybar/custom/*.env` — your overrides (highest priority)
+1. `themes/<theme>.env` -- built-in theme (default: `mountain`)
+2. `~/.config/mybar/theme.env` -- saved UI state (written automatically)
+3. `~/.config/mybar/custom/*.env` -- your overrides (highest priority)
 
 Copy `variables.env.example` or `keybind_defaults.env` from the repo root into `~/.config/mybar/custom/` to override defaults.
 

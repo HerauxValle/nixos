@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared state, dirs, and helpers — sourced by all lib scripts.
+# Shared state, dirs, and helpers -- sourced by all lib scripts.
 
 BROKER_DIR="/tmp/sudo-broker-$(id -u)"
 REQ_DIR="$BROKER_DIR/requests"
@@ -10,10 +10,10 @@ TIMEOUT="${SUDO_BROKER_TIMEOUT:-360}"
 INSTALL_DIR="${SUDO_BROKER_INSTALL_DIR:-$HOME/.local/bin}"
 
 # Real sudo's location varies by distro (e.g. /run/wrappers/bin/sudo on
-# NixOS vs /usr/bin/sudo elsewhere) — search $PATH for it instead of
+# NixOS vs /usr/bin/sudo elsewhere) -- search $PATH for it instead of
 # hardcoding one. Has to explicitly skip any match that's actually THIS
 # script (do_install symlinks it in as "sudo", earlier in $PATH, precisely
-# so it intercepts the real one — a naive `command -v sudo` would just find
+# so it intercepts the real one -- a naive `command -v sudo` would just find
 # itself again).
 _find_real_sudo() {
     local self_real dir candidate candidate_real
@@ -37,7 +37,7 @@ init_dirs() {
 }
 
 # 16 hex chars (8 random bytes), matching the old `openssl rand -hex 8`
-# output shape (do_approve/do_deny match IDs against a 16-char pattern) —
+# output shape (do_approve/do_deny match IDs against a 16-char pattern) --
 # via /dev/urandom + od + tr instead, since openssl isn't guaranteed
 # installed anywhere, while coreutils (od, tr, head) always is.
 gen_id() { head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n'; }

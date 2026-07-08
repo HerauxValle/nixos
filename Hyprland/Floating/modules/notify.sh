@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# modules/notify.sh — thin wrapper around notify-send
+# modules/notify.sh -- thin wrapper around notify-send
 # Usage: notify_user "Title" "Message" [urgency: low|normal|critical]
 
 notify_user() {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# secrets.sh — dispatcher for the root-owned secrets under /etc/nixos-secrets/.
+# secrets.sh -- dispatcher for the root-owned secrets under /etc/nixos-secrets/.
 # Same shape as Pacnix's main.sh: `secrets <command> [args]` runs
 # cmd/<command>.sh. The two command names are their own variables below
 # (not just filenames) so renaming what you type after `secrets` is a

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/request.sh — submit a broker request and block until approved/denied/timed out.
+# lib/request.sh -- submit a broker request and block until approved/denied/timed out.
 # Called by sudo when no TTY is detected. Not meant to be run directly.
 
 # Write to the real terminal regardless of stdout/stderr redirection.
@@ -35,7 +35,7 @@ do_request() {
         if _bl_match=$(blacklist_check "$CMD"); then
             {
                 box_top
-                box_line "SUDO BROKER — BLACKLISTED (auto mode bypassed)"
+                box_line "SUDO BROKER -- BLACKLISTED (auto mode bypassed)"
                 box_sep
                 box_line "Command : sudo $CMD"
                 box_line "Pattern : $_bl_match"
@@ -62,7 +62,7 @@ do_request() {
     # ── visible to the AI (stderr) ────────────────────────────────────────────
     {
         box_top
-        box_line "SUDO BROKER — REQUEST SUBMITTED"
+        box_line "SUDO BROKER -- REQUEST SUBMITTED"
         box_sep
         box_line "Request ID  : $ID"
         box_line "Command     : sudo $CMD"
@@ -88,7 +88,7 @@ do_request() {
     {
         tty_print ""
         tty_print "┌──────────────────────────────────────────────────────────────┐"
-        tty_print "│  SUDO REQUEST — action needed                                │"
+        tty_print "│  SUDO REQUEST -- action needed                                │"
         tty_print "├──────────────────────────────────────────────────────────────┤"
         tty_print "│  ID      : $ID"
         tty_print "│  Command : sudo $CMD"
@@ -120,7 +120,7 @@ do_request() {
             return 1
         }
         _pts=$(_find_ancestor_pts 2>/dev/null) && \
-            printf '\033]9;sudo approve — run: sudo --adv:approve %s\a' "$ID" > "$_pts" 2>/dev/null || true
+            printf '\033]9;sudo approve -- run: sudo --adv:approve %s\a' "$ID" > "$_pts" 2>/dev/null || true
     fi
 
     # ── desktop notification as a backup nudge ────────────────────────────────
@@ -132,7 +132,7 @@ do_request() {
     if ! RESPONSE=$(timeout "$TIMEOUT" cat "$PIPE" 2>/dev/null); then
         {
             box_top
-            box_line "SUDO BROKER — TIMED OUT [$ID]"
+            box_line "SUDO BROKER -- TIMED OUT [$ID]"
             box_sep
             box_line "No approval received within ${TIMEOUT}s. Request discarded."
             box_bot
@@ -154,7 +154,7 @@ do_request() {
     if [[ "$STATUS" == "DENIED" ]]; then
         {
             box_top
-            box_line "SUDO BROKER — DENIED [$ID]"
+            box_line "SUDO BROKER -- DENIED [$ID]"
             box_sep
             box_line "The user denied: sudo $CMD"
             [[ -n "$USER_MSG" ]] && box_line "Message   : $USER_MSG"
@@ -166,7 +166,7 @@ do_request() {
 
     {
         box_top
-        box_line "SUDO BROKER — APPROVED [$ID]"
+        box_line "SUDO BROKER -- APPROVED [$ID]"
         box_sep
         box_line "Command   : sudo $CMD"
         box_line "Exit code : $EXIT_CODE"

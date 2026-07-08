@@ -26,7 +26,7 @@ Copy `variables.env.example` from the repo into `~/.config/mybar/custom/` and ed
 | `AETHERA_UI_SCALE` | `1.0` | UI scale multiplier for all popups/drawer |
 | `AETHERA_FONT_SIZE` | `12` | Bar widget font size in px |
 | `AETHERA_TINT` | `0` | Accent preset index (0–5) |
-| `AETHERA_ACCENT` | — | Custom accent hex color, e.g. `#5C8FA5` |
+| `AETHERA_ACCENT` | -- | Custom accent hex color, e.g. `#5C8FA5` |
 
 ## Notifications
 

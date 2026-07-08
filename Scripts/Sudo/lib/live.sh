@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# lib/live.sh — watch for incoming requests and interactively approve/deny.
+# lib/live.sh -- watch for incoming requests and interactively approve/deny.
 
 do_live() {
     init_dirs
 
     echo "┌─────────────────────────────────────────────────────────────┐"
-    echo "│  sudo --adv:live  — waiting for requests  (Ctrl+C to stop) │"
+    echo "│  sudo --adv:live  -- waiting for requests  (Ctrl+C to stop) │"
     printf "│  Auto-deny after %ds\n" "$TIMEOUT"
     echo "└─────────────────────────────────────────────────────────────┘"
 
@@ -35,7 +35,7 @@ do_live() {
             local ANSWER=""
             read -r -t "$TTL" -p "  Approve? [y/N] " ANSWER || {
                 echo ""
-                echo "  (timed out — auto-denying)"
+                echo "  (timed out -- auto-denying)"
                 ANSWER="n"
             }
 
@@ -46,7 +46,7 @@ do_live() {
                 local OUT="$OUT_DIR/$ID.out" ERR="$OUT_DIR/$ID.err" EXIT_CODE=0
                 echo "  Running: sudo $CMD"
                 "$REAL_SUDO" bash -c "$CMD" > "$OUT" 2> "$ERR" || EXIT_CODE=$?
-                echo "  Done (exit $EXIT_CODE) — sending result back."
+                echo "  Done (exit $EXIT_CODE) -- sending result back."
                 printf 'APPROVED:%d\n' "$EXIT_CODE" > "$PIPE" &
                 sleep 0.2; kill $! 2>/dev/null || true
             else

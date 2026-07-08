@@ -18,7 +18,7 @@ fi
 
 sudo nixos-rebuild switch --flake "$FLAKE#$HOST"
 
-# Reuses the real reload.sh directly rather than duplicating its logic —
+# Reuses the real reload.sh directly rather than duplicating its logic --
 # only runs if the rebuild above actually succeeded (set -e already stops
 # the script on failure before reaching here).
 bash "$DIR/reload.sh"

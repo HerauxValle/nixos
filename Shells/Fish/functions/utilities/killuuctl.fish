@@ -8,7 +8,7 @@ function killuuctl
     end
 
     for pid in $pids
-        # kill uuctl's child (the actual menu picker window — backend varies,
+        # kill uuctl's child (the actual menu picker window -- backend varies,
         # so this is found by process tree, not by hardcoding dmenu/rofi/etc.)
         pkill -9 -P $pid 2>/dev/null
         kill -9 $pid 2>/dev/null

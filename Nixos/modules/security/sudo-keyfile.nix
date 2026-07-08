@@ -26,13 +26,13 @@ let
   wrapperPath = "${config.security.wrapperDir}/sudo-keyfile-check";
 
   # Runs on EVERY "sudo" PAM auth attempt (interactive, smg/pmg background
-  # jobs, the sudo broker's own re-exec — all of it, unscoped by design).
+  # jobs, the sudo broker's own re-exec -- all of it, unscoped by design).
   # Must fail fast, never hang: exit 1 for any missing/mismatched/erroring
   # step just falls through to the normal password prompt (this rule is
-  # `sufficient`, not `required` — see the pam rule below).
+  # `sufficient`, not `required` -- see the pam rule below).
   #
   # runtimeInputs wires the exact fs tools this needs directly into the
-  # script's PATH via the Nix closure — no `command -v` presence checks
+  # script's PATH via the Nix closure -- no `command -v` presence checks
   # needed anywhere, unlike an imperative install this would otherwise be
   # a runtime concern.
   #

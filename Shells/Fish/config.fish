@@ -15,7 +15,7 @@ for file in $config_dir/**/*.fish
     source $file
 end
 
-# Theme colors: written by theme.py (run manually, live — see
+# Theme colors: written by theme.py (run manually, live -- see
 # Scripts/Reload/theme.py) straight into Dotfiles/Fastfetch/,
 # copied to ~/.config/fastfetch/colors.env on rebuild, same as fastfetch's
 # own config.jsonc. Reproducible/rollback-safe; needs a rebuild to change,
@@ -39,7 +39,7 @@ end
 function fish_prompt
     set_color $theme_contrast_hex
     printf ' [%s] [%s] | ' (date '+%H:%M:%S') (prompt_pwd)
-    # sudo -n never prompts/hangs — succeeds only if a cached ticket already
+    # sudo -n never prompts/hangs -- succeeds only if a cached ticket already
     # lets sudo run without asking for a password right now.
     if sudo -n true 2>/dev/null
         set_color red

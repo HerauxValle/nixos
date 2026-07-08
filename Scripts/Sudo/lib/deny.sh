@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/deny.sh — deny a pending request (latest or by ID).
+# lib/deny.sh -- deny a pending request (latest or by ID).
 # Usage: do_deny [ID] [message...]
 
 do_deny() {
@@ -45,7 +45,7 @@ do_deny() {
         sleep 0.2
         kill "$WRITE_PID" 2>/dev/null || true
     else
-        echo "  Warning: pipe missing — requester may already be gone." >&2
+        echo "  Warning: pipe missing -- requester may already be gone." >&2
     fi
 
     rm -f "$REQ"

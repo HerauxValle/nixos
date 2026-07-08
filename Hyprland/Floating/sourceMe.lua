@@ -1,4 +1,4 @@
--- sourceMe.lua — require this from hyprland.lua only
+-- sourceMe.lua -- require this from hyprland.lua only
 
 
 
@@ -13,7 +13,7 @@ local hfMod      = "SUPER + CTRL + ALT"
 local hfModShift = "SUPER + CTRL + ALT + SHIFT"
 
 -- Reads DEFAULT_WIDTH_PCT/DEFAULT_HEIGHT_PCT straight from config/defaults.conf
--- instead of hardcoding them a second time here — same numbers main.sh's own
+-- instead of hardcoding them a second time here -- same numbers main.sh's own
 -- --center action already uses, kept in one place.
 local function readConfigValue(path, key)
     local f = io.open(path, "r")
@@ -35,13 +35,13 @@ local heightPct = readConfigValue(defaultsConf, "DEFAULT_HEIGHT_PCT") or "60"
 
 -- Any window that opens floating gets sized to the same percentage of ITS
 -- monitor (handles mixed-resolution multi-monitor setups correctly, unlike
--- a fixed pixel size) — instead of whatever size it happened to request,
+-- a fixed pixel size) -- instead of whatever size it happened to request,
 -- which for apps with no equivalent of kitty's own initial_window_width/
 -- height can mean filling most of a tiling column.
 --
 -- window_rule's own "size" field doesn't accept percentage values here
 -- (tested directly: "50% 50%" and "50%,50%" both silently no-op, falling
--- back to the window's own requested size) — so this computes actual
+-- back to the window's own requested size) -- so this computes actual
 -- pixels from the window's own monitor dimensions instead, via the
 -- window.open event, reusing the exact resize+move dispatch calls
 -- modules/move.sh already uses for --center.

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# modules/move.sh — snap and resize the active floating window
+# modules/move.sh -- snap and resize the active floating window
 # Requires: WINDOW_GAP_PCT, DEFAULT_WIDTH_PCT, DEFAULT_HEIGHT_PCT, STATE_FILE_DIR
 
-# Position state file: one line per window — "address:position"
+# Position state file: one line per window -- "address:position"
 _pos_file() { echo "${STATE_FILE_DIR:-/tmp}/hyprfloat_pos"; }
 
 _get_pos() {
@@ -109,9 +109,9 @@ declare -A TRANSITIONS=(
     [bottom-left:right]=bottom [bottom-left:up]=left
     # from bottom-right
     [bottom-right:left]=bottom [bottom-right:up]=right
-    # from fullscreen — break out to sides
+    # from fullscreen -- break out to sides
     [fullscreen:left]=left   [fullscreen:right]=right [fullscreen:up]=top [fullscreen:down]=bottom
-    # from center — treat like fullscreen for navigation
+    # from center -- treat like fullscreen for navigation
     [center:left]=left       [center:right]=right     [center:up]=top     [center:down]=bottom
 )
 
@@ -123,7 +123,7 @@ snap_dir() {
     local next="${TRANSITIONS[$key]:-}"
 
     if [ -z "$next" ]; then
-        # unknown/untracked position — treat as direct snap
+        # unknown/untracked position -- treat as direct snap
         case "$dir" in
             left)  next=left   ;;
             right) next=right  ;;

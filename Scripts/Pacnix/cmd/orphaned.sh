@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Manually runs the same thing nix.gc.automatic runs on its own schedule
-# (nix-collect-garbage, no --delete-older-than — generations/rollback
+# (nix-collect-garbage, no --delete-older-than -- generations/rollback
 # untouched, only genuinely orphaned paths removed). Nix's own freed-
 # bytes summary is the precise figure for what this operation actually
-# removed — surfaced explicitly below. The store-size before/after is a
+# removed -- surfaced explicitly below. The store-size before/after is a
 # separate, broader measurement: it reflects everything that changed in
 # the store during the run, not only what this removed. The full
 # per-path output is too spammy to read live, so it's captured silently
-# — a single updating line shows it's actually progressing (not stuck),
+# -- a single updating line shows it's actually progressing (not stuck),
 # the full summary prints once done.
 set -euo pipefail
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# main.sh — Aethera Shell entry point.
+# main.sh -- Aethera Shell entry point.
 #
 # Usage:
 #   bash main.sh               → install (if not installed) then launch
@@ -24,7 +24,7 @@ if [ $_curled -eq 1 ]; then
     # Clone latest release into ~/Projects/MyBar
     INSTALL_DIR="${AETHERA_DIR:-$HOME/Projects/MyBar}"
     REPO="HerauxValle/Aethera"
-    echo "[aethera] Curled — cloning latest release of $REPO into $INSTALL_DIR..."
+    echo "[aethera] Curled -- cloning latest release of $REPO into $INSTALL_DIR..."
 
     LATEST_URL=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
         | grep '"tarball_url"' | head -1 | sed 's/.*"tarball_url": "\([^"]*\)".*/\1/')
@@ -59,7 +59,7 @@ _mark_uninstalled() { echo "installed=false" > "$INSTALL_STATE"; }
 
 # ── Binary check ──────────────────────────────────────────────────────────────
 # On Nix, the mybar-* binaries are already on $PATH (built declaratively by
-# Quickshell/MyBar/backend.nix via environment.systemPackages) — check that
+# Quickshell/MyBar/backend.nix via environment.systemPackages) -- check that
 # before falling back to scanning $DIR/binary, which is only ever populated
 # by a manual (non-Nix) `--compile`/`--install` run.
 _binaries_exist() {
@@ -87,12 +87,12 @@ _do_install() {
 
 _do_default() {
     if ! _is_installed; then
-        echo "[aethera] Not installed — running install first..."
+        echo "[aethera] Not installed -- running install first..."
         bash "$DIR/scripts/build/install.sh"
         _mark_installed
     fi
     if ! _binaries_exist; then
-        echo "[aethera] Binaries missing — compiling..."
+        echo "[aethera] Binaries missing -- compiling..."
         _do_compile
     fi
     _do_launch
@@ -111,7 +111,7 @@ for arg in "$@"; do
         --install)   _do_install   ;;
         --uninstall)
             if ! _is_installed; then
-                echo "[aethera] Not installed — nothing to uninstall."
+                echo "[aethera] Not installed -- nothing to uninstall."
                 exit 1
             fi
             _do_uninstall

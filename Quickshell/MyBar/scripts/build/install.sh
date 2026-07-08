@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — compile binaries and install missing runtime dependencies.
+# install.sh -- compile binaries and install missing runtime dependencies.
 #
 # Dependency state is saved to ~/.config/mybar/state/pkgs.json so that
 # uninstall.sh only removes packages that were NOT already installed.

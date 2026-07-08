@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# lib/blacklist.sh — manage the auto-mode command blacklist.
+# lib/blacklist.sh -- manage the auto-mode command blacklist.
 
 # Same shape as run.sh's own DB (~/.local/share/lookup/): live, user-editable
 # state belongs in $XDG_DATA_HOME, not alongside the Nix-managed script
 # itself (which is read-only wherever it's deployed read-only). The
 # Dotfiles copy (lib/blacklist.conf, deployed alongside this file) is only
-# ever read once, as the seed for a fresh install — after that this is the
+# ever read once, as the seed for a fresh install -- after that this is the
 # one true copy, add/rem/edit write here directly, no env var needed.
 BLACKLIST_FILE="${SUDO_BROKER_BLACKLIST_FILE:-${XDG_DATA_HOME:-$HOME/.local/share}/sudo-broker/blacklist.conf}"
 if [[ ! -f "$BLACKLIST_FILE" ]]; then

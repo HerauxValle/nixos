@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 Fastfetch config + theme color generator. Run manually, live, whenever you
-want to refresh the theme (e.g. after switching distros) — writes straight
+want to refresh the theme (e.g. after switching distros) -- writes straight
 into Dotfiles/Fastfetch/, a normal writable directory, not the Nix store. A
 rebuild afterward copies that into ~/.config/fastfetch/ the same way
 Hyprland/Kitty/Quickshell are, making it reproducible and rollback-safe from
-that point on. Not run automatically at shell startup — deliberately a
+that point on. Not run automatically at shell startup -- deliberately a
 manual step, so the generated files are real, git-tracked dotfiles rather
 than a live-regenerated cache. Must be run from this file's actual location
 in the Dotfiles checkout (not the ~/.config/scripts symlinked copy) for the
@@ -18,7 +18,7 @@ HOME          = Path.home()
 SCRIPT_DIR    = Path(__file__).resolve().parent   # Scripts/Reload
 FASTFETCH_DIR = SCRIPT_DIR.parent.parent / 'Fastfetch'   # -> Dotfiles/Fastfetch
 CONFIG_OUT    = FASTFETCH_DIR / 'config.jsonc'
-# Plain KEY=value text, not shell syntax — whatever reads this parses it
+# Plain KEY=value text, not shell syntax -- whatever reads this parses it
 # however it wants, instead of only being sourceable by one specific shell.
 THEME_CACHE   = FASTFETCH_DIR / 'colors.env'
 
@@ -54,11 +54,11 @@ def hex_to_256(hexcolor: str) -> int:
     return cube_color if cube_dist <= gray_dist else gray_color
 
 
-# Primary/contrast color per distro, as plain hex (no '#') — this is the one
+# Primary/contrast color per distro, as plain hex (no '#') -- this is the one
 # canonical representation; fastfetch's own "38;5;N" 256-color codes are
 # derived from it at generation time via hex_to_256(). Keyed by
 # /etc/os-release's ID field (the standard, distro-agnostic way to identify
-# what's running — nothing here is Nix-specific detection logic). Falls back
+# what's running -- nothing here is Nix-specific detection logic). Falls back
 # to "arch" if the running distro has no theme defined below.
 THEMES = {
     "arch":  {"primary": "D78787", "contrast": "87AF87"},  # salmon/rose + sage green
@@ -66,7 +66,7 @@ THEMES = {
 
     # everything below: real brand-color primary + a programmatically
     # computed complementary-hue contrast, not hand-picked/eyeballed on
-    # that distro — treat as a starting point to tweak once someone has.
+    # that distro -- treat as a starting point to tweak once someone has.
     "ubuntu":               {"primary": "E95420", "contrast": "20B5E9"},  # not tested
     "debian":               {"primary": "A81D33", "contrast": "1DA892"},  # not tested
     "fedora":               {"primary": "3C6EB4", "contrast": "B4823C"},  # not tested
@@ -89,7 +89,7 @@ THEMES = {
     "endeavouros":          {"primary": "7F3FBF", "contrast": "7FBF3F"},  # not tested
 
     # niche but actively maintained (not abandoned/discontinued projects)
-    # — same "not tested" caveat as above, just a longer tail of coverage.
+    # -- same "not tested" caveat as above, just a longer tail of coverage.
     "artix":                {"primary": "00B39F", "contrast": "B30014"},  # not tested
     "garuda":               {"primary": "A020F0", "contrast": "70F020"},  # not tested
     "cachyos":              {"primary": "00A9E0", "contrast": "E03700"},  # not tested
@@ -99,29 +99,29 @@ THEMES = {
     "guix":                 {"primary": "F5C211", "contrast": "1144F5"},  # not tested
     "rocky":                {"primary": "10B981", "contrast": "B91048"},  # not tested
     "almalinux":            {"primary": "0072CE", "contrast": "CE5C00"},  # not tested
-    "ol":                   {"primary": "C74634", "contrast": "34B5C7"},  # not tested — Oracle Linux
-    "amzn":                 {"primary": "FF9900", "contrast": "0066FF"},  # not tested — Amazon Linux
+    "ol":                   {"primary": "C74634", "contrast": "34B5C7"},  # not tested -- Oracle Linux
+    "amzn":                 {"primary": "FF9900", "contrast": "0066FF"},  # not tested -- Amazon Linux
     "steamos":              {"primary": "1B2838", "contrast": "382B1B"},  # not tested
     "bazzite":              {"primary": "9C59D1", "contrast": "8ED159"},  # not tested
-    "neon":                 {"primary": "1D99F3", "contrast": "F3771D"},  # not tested — KDE neon
-    "chimera":              {"primary": "4DB6AC", "contrast": "B64D57"},  # not tested — Chimera Linux
-    "bedrock":              {"primary": "888888", "contrast": "888888"},  # not tested — Bedrock Linux
+    "neon":                 {"primary": "1D99F3", "contrast": "F3771D"},  # not tested -- KDE neon
+    "chimera":              {"primary": "4DB6AC", "contrast": "B64D57"},  # not tested -- Chimera Linux
+    "bedrock":              {"primary": "888888", "contrast": "888888"},  # not tested -- Bedrock Linux
     "tails":                {"primary": "56347C", "contrast": "5A7C34"},  # not tested
     "blackarch":            {"primary": "FF0000", "contrast": "00FFFF"},  # not tested
-    "parrot":               {"primary": "12C2E9", "contrast": "E93912"},  # not tested — Parrot Security OS
+    "parrot":               {"primary": "12C2E9", "contrast": "E93912"},  # not tested -- Parrot Security OS
     "mageia":               {"primary": "1489CB", "contrast": "CB5614"},  # not tested
     "pclinuxos":            {"primary": "1976D2", "contrast": "D27519"},  # not tested
-    "antix":                {"primary": "4A4A4A", "contrast": "4A4A4A"},  # not tested — antiX
+    "antix":                {"primary": "4A4A4A", "contrast": "4A4A4A"},  # not tested -- antiX
     "4mlinux":              {"primary": "4CAF50", "contrast": "AF4CAB"},  # not tested
     "nutyx":                {"primary": "F57C00", "contrast": "0079F5"},  # not tested
     "salix":                {"primary": "6AAB5A", "contrast": "9B5AAB"},  # not tested
-    "kaos":                 {"primary": "7C4DFF", "contrast": "D0FF4D"},  # not tested — KaOS
+    "kaos":                 {"primary": "7C4DFF", "contrast": "D0FF4D"},  # not tested -- KaOS
     "funtoo":               {"primary": "6A1B9A", "contrast": "4B9A1B"},  # not tested
-    "calculate":            {"primary": "009688", "contrast": "96000E"},  # not tested — Calculate Linux
+    "calculate":            {"primary": "009688", "contrast": "96000E"},  # not tested -- Calculate Linux
     "postmarketos":         {"primary": "6DB53F", "contrast": "873FB5"},  # not tested
     "openmandriva":         {"primary": "1197D4", "contrast": "D44E11"},  # not tested
-    "rosa":                 {"primary": "1B75BC", "contrast": "BC621B"},  # not tested — ROSA Linux
-    "sparky":               {"primary": "E64A19", "contrast": "19B5E6"},  # not tested — SparkyLinux
+    "rosa":                 {"primary": "1B75BC", "contrast": "BC621B"},  # not tested -- ROSA Linux
+    "sparky":               {"primary": "E64A19", "contrast": "19B5E6"},  # not tested -- SparkyLinux
 }
 DEFAULT_THEME = "arch"
 
@@ -200,7 +200,7 @@ def camel_to_kebab(name: str) -> str:
 def build_packages_format() -> str:
     """Discovers whatever package managers fastfetch actually detects on this
     machine (via its own structured JSON output) and builds a format string
-    from those — not hardcoded to any one distro/manager. On a pacman system
+    from those -- not hardcoded to any one distro/manager. On a pacman system
     this naturally yields "{pacman} (pacman)"; here it yields the nix-system/
     nix-user split. Falls back to the plain {all} count if detection fails."""
     try:
@@ -304,7 +304,7 @@ def write_theme_cache():
 
 if __name__ == '__main__':
     # --theme-only skips the three fastfetch subprocess calls main() makes
-    # to measure logo/column layout — just distro-detect + write the color
+    # to measure logo/column layout -- just distro-detect + write the color
     # file. Fast enough to run on every shell startup unprompted, so prompt
     # colors are always current without ever needing to run anything by hand.
     if '--theme-only' in sys.argv:

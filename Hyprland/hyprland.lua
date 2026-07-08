@@ -9,7 +9,7 @@ HYPR_DIR = scriptDir():gsub("/$", "")
 
 -- Scripts/ is a top-level Dotfiles folder (not Hyprland-specific), mapped
 -- to ~/.config/scripts the same way HYPR_DIR's own directory is mapped to
--- ~/.config/hypr — so it needs its own XDG-stable reference rather than
+-- ~/.config/hypr -- so it needs its own XDG-stable reference rather than
 -- being reachable via HYPR_DIR .. "/Scripts/...".
 SCRIPTS_DIR = os.getenv("HOME") .. "/.config/scripts"
 

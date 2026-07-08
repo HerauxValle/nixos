@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# modules/status.sh — report current hyprfloat state
+# modules/status.sh -- report current hyprfloat state
 
 show_status() {
     if [ -f "$STATE_FILE" ]; then

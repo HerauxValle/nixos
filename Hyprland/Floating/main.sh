@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# main.sh — hyprfloat entrypoint
+# main.sh -- hyprfloat entrypoint
 # Usage: main.sh [FLAGS]
 #
 # Flags:
@@ -40,7 +40,7 @@ source "${SCRIPT_DIR}/modules/grid.sh"
 # ── Argument parsing ──────────────────────────────────────────────────────────
 usage() {
     cat <<EOF
-hyprfloat — floating window manager helper for Hyprland
+hyprfloat -- floating window manager helper for Hyprland
 
 Usage: $(basename "$0") [FLAG]
 
@@ -49,7 +49,7 @@ Toggle flags:
   --enable                   Force float mode ON
   --disable                  Force float mode OFF
 
-Snap flags (context-aware — direction depends on current position):
+Snap flags (context-aware -- direction depends on current position):
   --dir:left                 Snap/transition left
   --dir:right                Snap/transition right
   --dir:up                   Snap/transition up
@@ -130,7 +130,7 @@ case "$ACTION" in
         # Always _float_enable (not float_enable) here: STATE_FILE lives in
         # plain /tmp and survives across Hyprland restarts within the same
         # boot, so on a genuine fresh compositor start it can be a stale
-        # leftover from the previous session — but the new compositor has
+        # leftover from the previous session -- but the new compositor has
         # no windowrule applied yet regardless of what that marker says.
         [[ "${AUTOSTART:-false}" == "true" ]] && _float_enable || true
         ;;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# modules/grid.sh — fill monitor with equal-area windows, each as square as possible
+# modules/grid.sh -- fill monitor with equal-area windows, each as square as possible
 
 snap_grid() {
     local gap_pct="${WINDOW_GAP_PCT:-3}"
@@ -37,7 +37,7 @@ if n == 0:
     print('[hyprfloat] No floating windows on active workspace.')
     sys.exit(0)
 if n > max_windows:
-    print(f'[hyprfloat] {n} windows exceeds MAX_GRID_WINDOWS={max_windows} — skipping.')
+    print(f'[hyprfloat] {n} windows exceeds MAX_GRID_WINDOWS={max_windows} -- skipping.')
     sys.exit(0)
 
 cache = {}

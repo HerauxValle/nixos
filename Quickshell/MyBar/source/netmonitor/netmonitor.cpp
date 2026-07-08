@@ -1,4 +1,4 @@
-// netmonitor — reactive WiFi + Bluetooth + LAN state monitor.
+// netmonitor -- reactive WiFi + Bluetooth + LAN state monitor.
 //
 // Uses libnm (GLib/GObject) for WiFi/ethernet (reactive, no polling),
 // and a polling thread for BlueZ via dbus-1 (BlueZ is system bus).

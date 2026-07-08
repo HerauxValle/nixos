@@ -2,7 +2,7 @@
 
 # Variables
 let
-  # 1. LUKS device name — must match hardware-configuration.nix's definition.
+  # 1. LUKS device name -- must match hardware-configuration.nix's definition.
   #    Used both as the attribute key below and inside the systemd unit name,
   #    since systemd-cryptsetup@<name>.service is generated from it.
   #    Current value: root
@@ -10,16 +10,16 @@ let
 
   # 2. Same "root" name as above, referenced via ${luksDeviceName} in the
   #    systemd unit name (systemd-cryptsetup@root.service). Not a separate
-  #    literal anymore — kept in sync automatically since it's interpolated.
+  #    literal anymore -- kept in sync automatically since it's interpolated.
 
   # 3. External USB partition's filesystem label holding the keyfile.
-  #    Stable external fact — only change if the USB partition is
+  #    Stable external fact -- only change if the USB partition is
   #    reformatted or relabeled.
   #    Current value: VirtualKeys
   usbKeyLabel = "VirtualKeys";
 
   # 4. Filename of the actual keyfile on that USB partition, as mounted at /key.
-  #    Stable external fact — only change if the keyfile is renamed
+  #    Stable external fact -- only change if the keyfile is renamed
   #    or regenerated under a different filename.
   #    Current value: root.key
   keyFileName = "root.key";
@@ -44,15 +44,15 @@ in
     services.mount-usb-key = {
 
       # before/wantedBy cryptsetup-pre.target: systemd's own hook point
-      # for "run before any LUKS unlock is attempted" — the mechanism
+      # for "run before any LUKS unlock is attempted" -- the mechanism
       # this is supposed to rely on (see the drop-in below for why that
       # alone wasn't enough).
       wantedBy = [ "cryptsetup-pre.target" ];
       before = [ "cryptsetup-pre.target" ];
       # Wait for the initrd's own early filesystem setup before touching
-      # disks — nothing's ready to mount onto until then.
+      # disks -- nothing's ready to mount onto until then.
       after = [ "local-fs-pre.target" ];
-      # Skip systemd's normal unit dependencies (sysinit.target etc.) —
+      # Skip systemd's normal unit dependencies (sysinit.target etc.) --
       # they're not set up yet this early in initrd.
       unitConfig.DefaultDependencies = false;
       # Runs once (the script below) and exits; not a long-running daemon.
@@ -74,13 +74,13 @@ in
     };
 
     # cryptsetup-pre.target ordering alone doesn't make
-    # systemd-cryptsetup@root.service actually wait for mount-usb-key —
+    # systemd-cryptsetup@root.service actually wait for mount-usb-key --
     # observed booting straight into the LUKS attempt before the USB
     # device even finished enumerating. systemd-cryptsetup@root.service
     # is a template-unit instance generated at runtime by
     # systemd-cryptsetup-generator, not a package-provided unit file, so
     # the default overrideStrategy (asDropinIfExists) can't detect it and
-    # falls back to writing a full replacement unit — which broke boot
+    # falls back to writing a full replacement unit -- which broke boot
     # (missing ExecStart etc, normally supplied by the generator). Forcing
     # asDropin makes this a drop-in that only adds the ordering, instead
     # of replacing the generated unit.
@@ -95,7 +95,7 @@ in
   boot.initrd.luks.devices.${luksDeviceName} = {
 
     keyFile = "/key/${keyFileName}";
-    # Must match root.key's actual byte size — systemd-cryptsetup reads
+    # Must match root.key's actual byte size -- systemd-cryptsetup reads
     # exactly this many bytes from the file as the key.
     keyFileSize = 4096;
 

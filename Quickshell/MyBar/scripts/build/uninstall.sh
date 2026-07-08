@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# uninstall.sh — remove only packages that install.sh added (not pre-existing ones).
+# uninstall.sh -- remove only packages that install.sh added (not pre-existing ones).
 # Reads ~/.config/mybar/state/pkgs.json to know what was installed.
 
 set -e
 PKG_STATE="$HOME/.config/mybar/state/pkgs.json"
 
 if [ ! -f "$PKG_STATE" ]; then
-    echo "[uninstall] No install state found at $PKG_STATE — nothing to remove."
+    echo "[uninstall] No install state found at $PKG_STATE -- nothing to remove."
     exit 0
 fi
 
@@ -25,7 +25,7 @@ for p in "${PKGS[@]}"; do
 done
 
 if [ ${#CLEAN_PKGS[@]} -eq 0 ]; then
-    echo "[uninstall] No packages were installed by Aethera — nothing to remove."
+    echo "[uninstall] No packages were installed by Aethera -- nothing to remove."
     exit 0
 fi
 
@@ -55,7 +55,7 @@ case "$PM" in
     apt)    sudo apt-get remove -y       "${TO_REMOVE[@]}" ;;
     dnf)    sudo dnf remove -y           "${TO_REMOVE[@]}" ;;
     zypper) sudo zypper remove -y        "${TO_REMOVE[@]}" ;;
-    *)      echo "[uninstall] Unknown package manager '$PM' — remove manually: ${TO_REMOVE[*]}" ;;
+    *)      echo "[uninstall] Unknown package manager '$PM' -- remove manually: ${TO_REMOVE[*]}" ;;
 esac
 
 # Update state file to remove the uninstalled packages

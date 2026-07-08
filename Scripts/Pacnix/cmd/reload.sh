@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Reuses the real `reload` fish function and the real `qsr` command directly
-# instead of duplicating their logic here — each stays the single source of
+# instead of duplicating their logic here -- each stays the single source of
 # truth for its own behavior. Checks both exist before running either; if
 # something's missing, warn and do nothing rather than half-run.
 
@@ -18,7 +18,7 @@ if ! command -v hyprctl >/dev/null 2>&1; then
 fi
 
 if [ -n "$missing" ]; then
-    printf 'warning: pacnix reload — nothing run, missing:\n%b' "$missing" >&2
+    printf 'warning: pacnix reload -- nothing run, missing:\n%b' "$missing" >&2
     exit 1
 fi
 

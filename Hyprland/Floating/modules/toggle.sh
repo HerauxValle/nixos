@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# modules/toggle.sh — enable / disable / toggle global float mode
+# modules/toggle.sh -- enable / disable / toggle global float mode
 # Requires: WINDOW_GAP, STATE_FILE (resolved by main.sh from config)
 
 _hyprctl_windowrule() {
@@ -43,7 +43,7 @@ _float_disable() {
 
 float_enable() {
     if [ -f "$STATE_FILE" ]; then
-        notify_user "Hyprfloat" "Already ON — no change" "low"
+        notify_user "Hyprfloat" "Already ON -- no change" "low"
         return 0
     fi
     _float_enable
@@ -51,7 +51,7 @@ float_enable() {
 
 float_disable() {
     if [ ! -f "$STATE_FILE" ]; then
-        notify_user "Hyprfloat" "Already OFF — no change" "low"
+        notify_user "Hyprfloat" "Already OFF -- no change" "low"
         return 0
     fi
     _float_disable

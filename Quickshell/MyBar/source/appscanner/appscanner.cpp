@@ -60,7 +60,7 @@ static void scanDir(const std::string &dir, std::vector<App> &out) {
 // XDG Base Directory spec: search $XDG_DATA_HOME/applications (falling back
 // to ~/.local/share/applications) plus every dir in $XDG_DATA_DIRS (falling
 // back to /usr/local/share/:/usr/share/). NixOS doesn't populate
-// /usr/share/applications at all — system packages land in
+// /usr/share/applications at all -- system packages land in
 // /run/current-system/sw/share/applications, which is only reachable via
 // XDG_DATA_DIRS, so hardcoding /usr/share/applications finds nothing there.
 static std::vector<std::string> xdgApplicationDirs() {

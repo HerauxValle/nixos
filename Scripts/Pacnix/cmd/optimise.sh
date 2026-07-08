@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Runs nix-store --optimise. Nix's own "X freed by hard-linking" line is
-# the precise figure for what this operation actually deduplicated —
+# the precise figure for what this operation actually deduplicated --
 # surfaced explicitly below. The store-size before/after is a separate,
 # broader measurement: it reflects everything that changed in the store
 # during the run, not only what optimise itself did, so it won't always
 # match Nix's own number exactly. The full per-path output is too spammy
-# to read live, so it's captured silently — a single updating line shows
+# to read live, so it's captured silently -- a single updating line shows
 # it's actually progressing (not stuck), the full summary prints once done.
 set -euo pipefail
 

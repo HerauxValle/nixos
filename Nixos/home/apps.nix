@@ -12,7 +12,7 @@
     "scripts".source = ../../Scripts;
 
     # Same plain copy as everything else above. theme.py (run manually,
-    # live — see Scripts/Reload/theme.py) writes config.jsonc and
+    # live -- see Scripts/Reload/theme.py) writes config.jsonc and
     # colors.env straight into Dotfiles/Fastfetch/; this just picks up
     # whatever's there at rebuild time, same as any other dotfile.
     "fastfetch".source = ../../Fastfetch;
@@ -25,7 +25,7 @@
   xdg.dataFile."Steam/compatibilitytools.d/GE-Proton".source = pkgs.proton-ge-bin;
 
   # ~/.local/bin is earlier in $PATH than real sudo (/run/wrappers/bin),
-  # so this is what actually makes it intercept "sudo" — lib/*.sh
+  # so this is what actually makes it intercept "sudo" -- lib/*.sh
   # resolves via the fixed XDG path in Scripts/Sudo/sudo itself, not via
   # this file's own location, so a plain copy is enough.
   #

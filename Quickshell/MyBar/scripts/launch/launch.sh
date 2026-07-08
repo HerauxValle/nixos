@@ -2,7 +2,7 @@
 DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
 # Match on "-p .*MyBar" (the actual qs/quickshell invocation), not bare
-# "MyBar" — this script's OWN invocation ("bash .../MyBar/scripts/launch/
+# "MyBar" -- this script's OWN invocation ("bash .../MyBar/scripts/launch/
 # launch.sh") also contains "MyBar", so a bare-substring pkill matches and
 # kills itself before ever reaching `exec qs`. Requiring "-p " first only
 # matches the real qs/quickshell process, never a wrapper script's own path.
@@ -35,7 +35,7 @@ hyprctl keyword layerrule "xray 1" "namespace:quickshell:mybar" 2>/dev/null || t
 # QML resolves the mybar-* backend binaries by bare name off $PATH. On Nix
 # they come from environment.systemPackages (Quickshell/MyBar/backend.nix);
 # on a manual/non-Nix install $DIR/binary (populated by
-# scripts/build/compile.sh) provides them instead — same binary names either
+# scripts/build/compile.sh) provides them instead -- same binary names either
 # way, so this is the only place that needs to know both can exist.
 export PATH="$DIR/binary:$PATH"
 

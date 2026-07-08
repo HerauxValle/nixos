@@ -140,9 +140,9 @@ if [ $# -gt 1 ] && command -v "$1" &>/dev/null && [ ! -e "$1" ]; then
     prog=("$1"); shift
 fi
 
-arg="$*"  # join remaining args — handles spaces in paths
+arg="$*"  # join remaining args -- handles spaces in paths
 
-# _search <db> <ql> <now> — runs all 4 passes, returns newline-separated paths
+# _search <db> <ql> <now> -- runs all 4 passes, returns newline-separated paths
 _search() {
     local sdb="$1" ql="$2" now="$3" result=""
 
@@ -183,7 +183,7 @@ _search() {
     printf '%s' "$result"
 }
 
-# check alias DB — exact then fuzzy via same search passes on alias names
+# check alias DB -- exact then fuzzy via same search passes on alias names
 alias_hit=$(awk -F'|' -v a="$arg" '$1==a{print $2"|"$3; exit}' "$ALIASDB")
 if [ -z "$alias_hit" ] && [ -s "$ALIASDB" ]; then
     now=$(date +%s)

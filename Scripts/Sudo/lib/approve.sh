@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/approve.sh — approve a pending request (latest or by ID).
+# lib/approve.sh -- approve a pending request (latest or by ID).
 # Usage: do_approve [ID] [message...]
 
 do_approve() {
@@ -39,7 +39,7 @@ do_approve() {
     echo "┌─ Approving [$ID]  (${AGE}s old, ${TTL}s left)"
     echo "│  Command : sudo $CMD"
     [[ -n "$MSG" ]] && echo "│  Message : $MSG"
-    echo "│  Running now — sudo password may be required."
+    echo "│  Running now -- sudo password may be required."
     echo "└─"
     echo ""
 
@@ -60,7 +60,7 @@ do_approve() {
         sleep 0.2
         kill "$WRITE_PID" 2>/dev/null || true
     else
-        echo "  Warning: pipe missing — requester may already be gone." >&2
+        echo "  Warning: pipe missing -- requester may already be gone." >&2
         rm -f "$OUT" "$ERR"
     fi
 

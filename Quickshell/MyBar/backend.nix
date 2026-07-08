@@ -2,7 +2,7 @@
 
 # Builds the mybar-* backend binaries (appscanner/cpumonitor/memmonitor/
 # netmonitor/notifserver) using the exact same recipe as
-# scripts/build/compile.sh — that script is plain bash so it also runs
+# scripts/build/compile.sh -- that script is plain bash so it also runs
 # standalone on non-Nix systems; this derivation just gives it a sandboxed
 # build with qt6/networkmanager/glib wired onto PATH/PKG_CONFIG_PATH instead
 # of relying on a distro package manager.
@@ -16,7 +16,7 @@ stdenv.mkDerivation {
   buildInputs = [ qt6.qtbase networkmanager glib ];
 
   # These are plain CLI binaries (notifserver uses QtDBus/QtCore only, no
-  # QML/plugins), not Qt GUI apps — nothing for wrapQtAppsHook to do.
+  # QML/plugins), not Qt GUI apps -- nothing for wrapQtAppsHook to do.
   dontWrapQtApps = true;
 
   buildPhase = ''

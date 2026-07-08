@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/pending.sh — list all pending broker requests.
+# lib/pending.sh -- list all pending broker requests.
 
 do_pending() {
     init_dirs

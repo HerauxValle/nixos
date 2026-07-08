@@ -9,5 +9,5 @@ usage: secrets <command>
   dotfiles
       (Re)generate the deploy key used to push the Dotfiles backup to
       GitHub, at /etc/nixos-secrets/github/dotfiles-backup. Prints the new
-      public key to register on GitHub yourself — no rebuild needed.
+      public key to register on GitHub yourself -- no rebuild needed.
 EOF

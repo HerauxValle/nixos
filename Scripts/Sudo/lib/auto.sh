@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# lib/auto.sh — auto mode with multi-session, per-terminal scoping.
+# lib/auto.sh -- auto mode with multi-session, per-terminal scoping.
 #
 # Two session types:
-#   global  — writes NOPASSWD sudoers rule, works across all terminals + no-TTY
-#   session — timestamp keepalive (sudo -v every 4min) for the specific PTY only,
+#   global  -- writes NOPASSWD sudoers rule, works across all terminals + no-TTY
+#   session -- timestamp keepalive (sudo -v every 4min) for the specific PTY only,
 #             no sudoers change; other terminals still require password
 #
 # Session files: $SESSIONS_DIR/<id>.session
@@ -63,7 +63,7 @@ _session_remove() {
 
 _auto_write_sudoers() {
     # /etc/sudoers.d/ isn't guaranteed to already exist (e.g. a fresh NixOS
-    # install with nothing ever dropped there yet) — `tee` won't create a
+    # install with nothing ever dropped there yet) -- `tee` won't create a
     # missing parent, so ensure it's there first. Relies on the distro's
     # sudoers already `@includedir`-ing /etc/sudoers.d (true by default on
     # effectively every mainstream distro, NixOS included); if it somehow
@@ -101,7 +101,7 @@ auto_is_active_for_tty() {
     return 1
 }
 
-# Convenience: no-TTY path (broker) — only global sessions
+# Convenience: no-TTY path (broker) -- only global sessions
 auto_is_active() { auto_is_active_for_tty ""; }
 
 # ── captcha ───────────────────────────────────────────────────────────────────
@@ -333,7 +333,7 @@ do_auto_status() {
 
 # Run a blacklisted command with mandatory password even in auto mode.
 auto_run_blacklisted() {
-    echo "[sudo broker] Blacklisted command — password required." >&2
+    echo "[sudo broker] Blacklisted command -- password required." >&2
     if _global_sessions_exist; then
         # Global mode: temporarily remove NOPASSWD rule, run, restore
         "$REAL_SUDO" -n rm -f "$AUTO_SUDOERS" 2>/dev/null || true

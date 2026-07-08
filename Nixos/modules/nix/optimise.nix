@@ -2,7 +2,7 @@
 
 let
 
-  # Wraps the automatic run with before/after stats — the stock service
+  # Wraps the automatic run with before/after stats -- the stock service
   # just runs bare `nix-store --optimise`. Output lands in the journal
   # same as any systemd service: `journalctl -u nix-optimise`.
 
@@ -31,7 +31,7 @@ in
 
 {
   # Hardlinks identical files across different store paths to save space
-  # — pure dedup, deletes nothing. "daily" + the default
+  # -- pure dedup, deletes nothing. "daily" + the default
   # randomizedDelaySec/persistent means roughly once a day, not a fixed
   # clock time, with catch-up at next boot if the machine was off.
 

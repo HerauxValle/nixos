@@ -1,4 +1,4 @@
-// notifserver — implements org.freedesktop.Notifications D-Bus service.
+// notifserver -- implements org.freedesktop.Notifications D-Bus service.
 //
 // For each Notify call, emits a JSON line to stdout:
 //   {"type":"notify","id":1,"app":"...","summary":"...","body":"...","actions":[...],"timeout":5000}
@@ -46,7 +46,7 @@ bool NotifServer::registerOnBus() {
     }
 
     // Kill any existing notification daemon that holds the name.
-    // ReplaceExistingService only works if the owner set AllowReplacement — most don't.
+    // ReplaceExistingService only works if the owner set AllowReplacement -- most don't.
     QDBusConnectionInterface *iface = bus.interface();
     auto ownerReply = iface->serviceOwner("org.freedesktop.Notifications");
     if (ownerReply.isValid() && !ownerReply.value().isEmpty()) {

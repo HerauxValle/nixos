@@ -57,7 +57,7 @@ function connectqc
     set connect_out (bluetoothctl connect $MAC 2>&1)
 
     if echo $connect_out | grep -q "key-missing"
-        echo "🔑 Key mismatch detected — re-pairing automatically..."
+        echo "🔑 Key mismatch detected -- re-pairing automatically..."
         echo ""
 
         sudo systemctl restart bluetooth
@@ -114,7 +114,7 @@ function connectqc
     end
 
     if test "$a2dp_ok" = "false"
-        echo "🔄 Profile not set — restarting PipeWire and retrying..."
+        echo "🔄 Profile not set -- restarting PipeWire and retrying..."
         systemctl --user restart pipewire pipewire-pulse wireplumber
         sleep 3
         for i in 1 2 3 4 5
@@ -127,7 +127,7 @@ function connectqc
     end
 
     if test "$a2dp_ok" = "false"
-        echo "⚠ Could not set A2DP profile — audio may be low quality"
+        echo "⚠ Could not set A2DP profile -- audio may be low quality"
     else
         set active (pactl list cards | grep -A5 "bluez_card" | grep "Active Profile" | string trim)
         echo "✅ $active"

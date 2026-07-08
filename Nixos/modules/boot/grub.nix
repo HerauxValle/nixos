@@ -7,7 +7,7 @@ let
   # terminal box borders, custom fonts, and theme.txt.
   # Points into Dotfiles/Themes/GRUB/BSOL, two levels up from this file's
   # location (Nixos/modules/boot/grub.nix).
-  # Genuine reproducible reference, not a hardcoded literal — the entire
+  # Genuine reproducible reference, not a hardcoded literal -- the entire
   # theme folder lives in the repo, resolves correctly on any fresh clone.
   grubThemePath = ../../../Themes/GRUB/BSOL;
 
@@ -47,7 +47,7 @@ in
 
   ];
 
-  # Newest available kernel — Arch (no USB hub reset-loop there) was on 7.0.12.
+  # Newest available kernel -- Arch (no USB hub reset-loop there) was on 7.0.12.
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
   # Same intent as the kernelParams above, applied to the console itself
@@ -63,7 +63,7 @@ in
     grub = {
 
       enable = false;
-      # "nodev": EFI-only install — don't write GRUB to a disk's MBR/boot
+      # "nodev": EFI-only install -- don't write GRUB to a disk's MBR/boot
       # sector, only to the EFI System Partition.
       device = "nodev";
       efiSupport = true;
@@ -76,7 +76,7 @@ in
       # /boot/background.png unconditionally, underneath whatever theme is
       # set. That default image is what stays on screen the moment GRUB's
       # theme/menu layer stops rendering (Enter pressed, loading the
-      # kernel/initrd) — it's not part of the custom theme, it's the base
+      # kernel/initrd) -- it's not part of the custom theme, it's the base
       # layer under it. Setting this to null skips installing it.
       splashImage = null;
 
