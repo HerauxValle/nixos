@@ -30,7 +30,7 @@ let
 
   # Paths, relative to dotfilesPath, stripped from the snapshot before
   # committing -- never pushed anywhere.
-  excludeFiles = [ "Claude/Global/config.json" ];
+  excludeFiles = [ "Claude/Global/config.json" "Shells/Fish/secrets.fish" ".envrc" ];
 
   # Git identity stamped on the snapshot commit (passed via -c, never
   # written to root's own global gitconfig).
@@ -49,6 +49,13 @@ let
   # false purges any existing cache below first -- cheap, it's a local
   # delete, no network involved.
   useRepoCache = true;
+
+  # true = include git's actual error output (e.g. GitHub's push
+  # protection message, auth rejections, non-fast-forward hints) in the
+  # red error block on failure -- self-diagnosing, no need to reproduce
+  # the push by hand to see why it failed. false = generic "push failed"
+  # only, no raw command output shown.
+  logPushErrors = true;
   # -----------------------------------------------------------------
 
   # -----------------------------------------------------------------
@@ -197,8 +204,12 @@ lib.mkIf enable {
         printf '\033[0;32m[dotfiles-backup] ============================================\033[0m\n'
       else
         printf '\033[0;31m[dotfiles-backup] ============================================\033[0m\n' >&2
-        printf '\033[0;31merror: failed to push %s to %s. git said:\033[0m\n' "${branch}" "${remoteUrl}" >&2
-        printf '\033[0;31m%s\033[0m\n' "$pushOutput" >&2
+        ${if logPushErrors then ''
+          printf '\033[0;31merror: failed to push %s to %s. git said:\033[0m\n' "${branch}" "${remoteUrl}" >&2
+          printf '\033[0;31m%s\033[0m\n' "$pushOutput" >&2
+        '' else ''
+          printf '\033[0;31merror: failed to push %s to %s.\033[0m\n' "${branch}" "${remoteUrl}" >&2
+        ''}
         printf '\033[0;31mPublic key, in case it needs (re-)adding as a deploy key with write\033[0m\n' >&2
         printf '\033[0;31maccess (Settings -> Deploy keys):\033[0m\n' >&2
         printf '\033[0;33m%s\033[0m\n' "$(cat "${keyFile}.pub")" >&2
