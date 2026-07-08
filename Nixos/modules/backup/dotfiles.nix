@@ -182,14 +182,14 @@ lib.mkIf enable {
       ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" add -A
       ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit $commitArgs -m "$tag" || true
 
-      pushOk=0
-      if ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q $pushForce "${remoteUrl}" "${branch}" 2>/dev/null; then
-        pushOk=1
-      elif [ -n "$retryForce" ] && ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q $retryForce "${remoteUrl}" "${branch}" 2>/dev/null; then
-        pushOk=1
+      pushOutput="$(${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q $pushForce "${remoteUrl}" "${branch}" 2>&1 1>/dev/null)"
+      pushRc=$?
+      if [ $pushRc -ne 0 ] && [ -n "$retryForce" ]; then
+        pushOutput="$(${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q $retryForce "${remoteUrl}" "${branch}" 2>&1 1>/dev/null)"
+        pushRc=$?
       fi
 
-      if [ "$pushOk" = 1 ]; then
+      if [ $pushRc -eq 0 ]; then
         ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" tag "$tag"
         ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q "${remoteUrl}" "$tag" 2>/dev/null || echo "warning: dotfiles-backup pushed ${branch} but the tag push failed" >&2
         printf '\033[0;32m[dotfiles-backup] ============================================\033[0m\n'
@@ -197,9 +197,10 @@ lib.mkIf enable {
         printf '\033[0;32m[dotfiles-backup] ============================================\033[0m\n'
       else
         printf '\033[0;31m[dotfiles-backup] ============================================\033[0m\n' >&2
-        printf '\033[0;31merror: failed to push %s to %s.\033[0m\n' "${branch}" "${remoteUrl}" >&2
-        printf '\033[0;31mThe deploy key may not be registered on GitHub yet (Settings -> Deploy\033[0m\n' >&2
-        printf '\033[0;31mkeys -> Add deploy key, tick "Allow write access"). Public key:\033[0m\n' >&2
+        printf '\033[0;31merror: failed to push %s to %s. git said:\033[0m\n' "${branch}" "${remoteUrl}" >&2
+        printf '\033[0;31m%s\033[0m\n' "$pushOutput" >&2
+        printf '\033[0;31mPublic key, in case it needs (re-)adding as a deploy key with write\033[0m\n' >&2
+        printf '\033[0;31maccess (Settings -> Deploy keys):\033[0m\n' >&2
         printf '\033[0;33m%s\033[0m\n' "$(cat "${keyFile}.pub")" >&2
         printf '\033[0;32mnote: this backup push is optional -- set enable = false in\033[0m\n' >&2
         printf '\033[0;32mNixos/modules/backup/dotfiles.nix to turn it off, or just ignore this\033[0m\n' >&2
