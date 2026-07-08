@@ -1,7 +1,6 @@
 { config, pkgs, lib, ... }:
 
 # Variables
-# (profiling touch)
 let
 
   # -----------------------------------------------------------------
@@ -111,16 +110,16 @@ let
   # on this system already relies on), not from SSH trust-on-first-use.
   # Used both for the initial bootstrap and the reactive recovery below.
   refreshKnownHosts = ''
-    tmpKnownHosts="$(mktemp)"
+    dotfilesBackupTmpKnownHosts="$(mktemp)"
     if ${pkgs.curl}/bin/curl -fsS ${githubMetaApiUrl} 2>/dev/null \
          | ${pkgs.jq}/bin/jq -r '.ssh_keys[] | select(startswith("${keyType} ")) | "github.com " + .' \
-         > "$tmpKnownHosts" 2>/dev/null \
-       && [ -s "$tmpKnownHosts" ]; then
-      mv "$tmpKnownHosts" "${knownHostsFile}"
+         > "$dotfilesBackupTmpKnownHosts" 2>/dev/null \
+       && [ -s "$dotfilesBackupTmpKnownHosts" ]; then
+      mv "$dotfilesBackupTmpKnownHosts" "${knownHostsFile}"
       chmod 644 "${knownHostsFile}"
       chown root:root "${knownHostsFile}"
     else
-      rm -f "$tmpKnownHosts"
+      rm -f "$dotfilesBackupTmpKnownHosts"
     fi
   '';
 
@@ -129,7 +128,7 @@ let
   # code -- `$(cmd 2>&1 1>/dev/null)` swaps the streams so only stderr
   # lands in the variable while `$?` still reflects the actual push.
   gitPush = force: ''
-    ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q ${force} "${remoteUrl}" "${branch}" 2>&1 1>/dev/null
+    ${pkgs.git}/bin/git -C "$dotfilesBackupRepoPath" -c safe.directory="$dotfilesBackupRepoPath" -c core.sshCommand="${gitSshCommand}" push -q ${force} "${remoteUrl}" "${branch}" 2>&1 1>/dev/null
   '';
 
 in
@@ -142,6 +141,12 @@ in
 # re-activates the current generation too. The tag is timestamp-based and
 # only created when something actually changed, so a no-op activation
 # costs nothing beyond a local diff check.
+#
+# All local shell state below is prefixed dotfilesBackup* deliberately:
+# NixOS concatenates EVERY system.activationScripts.* entry from every
+# module into one single shell script sharing one global variable/function
+# scope, not per-module isolation -- an unprefixed name here can collide
+# with some other module's activation script.
 lib.mkIf enable {
 
   system.activationScripts.dotfilesBackup.text = ''
@@ -150,6 +155,10 @@ lib.mkIf enable {
         exit 0
       fi
     ''}
+    dotfilesBackupBorder() {
+      printf '%s${border}${colorReset}\n' "$1"
+    }
+
     dotfilesBackupStart="$(date +%s.%N)"
     mkdir -p "${secretsDir}"
     chmod 700 "${secretsDir}"
@@ -160,7 +169,7 @@ lib.mkIf enable {
       chmod 600 "${keyFile}"
       chmod 644 "${keyFile}.pub"
       chown root:root "${keyFile}" "${keyFile}.pub"
-      printf '${colorRed}${border}${colorReset}\n' >&2
+      dotfilesBackupBorder "${colorRed}" >&2
       printf '${colorRed}warning: no deploy key existed -- generated a new one at ${keyFile}.${colorReset}\n' >&2
       printf '${colorRed}Add the public key below to the Dotfiles repo on GitHub (Settings -> Deploy${colorReset}\n' >&2
       printf '${colorRed}keys -> Add deploy key, tick "Allow write access") -- nothing will push${colorReset}\n' >&2
@@ -169,7 +178,7 @@ lib.mkIf enable {
       printf '${colorGreen}note: this backup push is optional -- set enable = false in${colorReset}\n' >&2
       printf '${colorGreen}Nixos/modules/backup/dotfiles.nix to turn it off, or just ignore this${colorReset}\n' >&2
       printf '${colorGreen}warning if you do not care about it right now.${colorReset}\n' >&2
-      printf '${colorRed}${border}${colorReset}\n' >&2
+      dotfilesBackupBorder "${colorRed}" >&2
     fi
 
     if [ ! -f "${knownHostsFile}" ]; then
@@ -177,43 +186,43 @@ lib.mkIf enable {
     fi
 
     if [ -f "${keyFile}" ]; then
-      tag="$(date "${tagDateFormat}")"
+      dotfilesBackupTag="$(date "${tagDateFormat}")"
       dotfilesBackupChanged=1
 
       ${if useRepoCache then ''
         if [ ! -d "${repoCache}/.git" ]; then
           ${pkgs.git}/bin/git -c safe.directory="${repoCache}" init -q -b "${branch}" "${repoCache}"
-          chmod 700 "${repoCache}"
         fi
+        chmod 700 "${repoCache}"
         ${pkgs.rsync}/bin/rsync -a --delete --exclude=.git "${dotfilesPath}/" "${repoCache}/"
         ${lib.concatMapStringsSep "\n        " (f: ''rm -rf "${repoCache}/${f}"'') excludeFiles}
         ${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" add -A
         if ${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" diff --cached --quiet; then
           dotfilesBackupChanged=0
         else
-          ${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit -q -m "$tag"
+          ${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit -q -m "$dotfilesBackupTag"
         fi
-        repoPath="${repoCache}"
-        pushForce=""
+        dotfilesBackupRepoPath="${repoCache}"
+        dotfilesBackupPushForce=""
       '' else ''
         if [ -d "${repoCache}" ]; then
           rm -rf "${repoCache}"
         fi
-        tmp="$(mktemp -d)"
-        trap 'rm -rf "$tmp"' EXIT
-        cp -a "${dotfilesPath}/." "$tmp/" 2>/dev/null || true
-        rm -rf "$tmp/.git"
-        ${lib.concatMapStringsSep "\n        " (f: ''rm -rf "$tmp/${f}"'') excludeFiles}
-        ${pkgs.git}/bin/git -c safe.directory="$tmp" init -q -b "${branch}" "$tmp"
-        ${pkgs.git}/bin/git -C "$tmp" -c safe.directory="$tmp" add -A
-        ${pkgs.git}/bin/git -C "$tmp" -c safe.directory="$tmp" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit -q -m "$tag" || true
-        repoPath="$tmp"
-        pushForce="-f"
+        dotfilesBackupTmp="$(mktemp -d)"
+        trap 'rm -rf "$dotfilesBackupTmp"' EXIT
+        cp -a "${dotfilesPath}/." "$dotfilesBackupTmp/" 2>/dev/null || true
+        rm -rf "$dotfilesBackupTmp/.git"
+        ${lib.concatMapStringsSep "\n        " (f: ''rm -rf "$dotfilesBackupTmp/${f}"'') excludeFiles}
+        ${pkgs.git}/bin/git -c safe.directory="$dotfilesBackupTmp" init -q -b "${branch}" "$dotfilesBackupTmp"
+        ${pkgs.git}/bin/git -C "$dotfilesBackupTmp" -c safe.directory="$dotfilesBackupTmp" add -A
+        ${pkgs.git}/bin/git -C "$dotfilesBackupTmp" -c safe.directory="$dotfilesBackupTmp" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit -q -m "$dotfilesBackupTag" || true
+        dotfilesBackupRepoPath="$dotfilesBackupTmp"
+        dotfilesBackupPushForce="-f"
       ''}
 
       if [ "$dotfilesBackupChanged" = "1" ]; then
-        pushOutput="$(${gitPush "$pushForce"})"
-        pushRc=$?
+        dotfilesBackupPushOutput="$(${gitPush "$dotfilesBackupPushForce"})"
+        dotfilesBackupPushRc=$?
 
         # Each recovery below fires only on its own specific, detected
         # failure signature -- zero cost when the push just works, which
@@ -221,52 +230,53 @@ lib.mkIf enable {
         # that also fails falls through to the real error below, not
         # another attempt.
         dotfilesBackupHostKeyRefreshed=0
-        if [ $pushRc -ne 0 ] && printf '%s' "$pushOutput" | grep -q "${hostKeyFailureMarker}"; then
+        if [ $dotfilesBackupPushRc -ne 0 ] && printf '%s' "$dotfilesBackupPushOutput" | grep -q "${hostKeyFailureMarker}"; then
           ${refreshKnownHosts}
           dotfilesBackupHostKeyRefreshed=1
-          pushOutput="$(${gitPush "$pushForce"})"
-          pushRc=$?
+          dotfilesBackupPushOutput="$(${gitPush "$dotfilesBackupPushForce"})"
+          dotfilesBackupPushRc=$?
         fi
 
         ${lib.optionalString useRepoCache ''
-          if [ $pushRc -ne 0 ]; then
-            pushOutput="$(${gitPush "-f"})"
-            pushRc=$?
+          if [ $dotfilesBackupPushRc -ne 0 ]; then
+            dotfilesBackupPushOutput="$(${gitPush "-f"})"
+            dotfilesBackupPushRc=$?
           fi
 
           dotfilesBackupSecretPaths=""
-          if [ $pushRc -ne 0 ] && printf '%s' "$pushOutput" | grep -q "${githubSecretScanErrorCode}"; then
-            dotfilesBackupSecretPaths="$(printf '%s' "$pushOutput" | grep -oE 'path: [^[:space:]]+' | sed 's/^path: //' | sort -u | tr '\n' ' ')"
+          if [ $dotfilesBackupPushRc -ne 0 ] && printf '%s' "$dotfilesBackupPushOutput" | grep -q "${githubSecretScanErrorCode}"; then
+            dotfilesBackupSecretPaths="$(printf '%s' "$dotfilesBackupPushOutput" | grep -oE 'path: [^[:space:]]+' | sed 's/^path: //' | sort -u | tr '\n' ' ')"
+            printf '${colorYellow}note: GitHub secret scan triggered -- rewriting local backup history to strip: %s${colorReset}\n' "$dotfilesBackupSecretPaths" >&2
             ( cd "${repoCache}" && ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${lib.concatMapStringsSep " " (f: ''--path "${f}"'') excludeFiles} --invert-paths ) || true
             ${pkgs.rsync}/bin/rsync -a --delete --exclude=.git "${dotfilesPath}/" "${repoCache}/"
             ${lib.concatMapStringsSep "\n            " (f: ''rm -rf "${repoCache}/${f}"'') excludeFiles}
             ${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" add -A
-            ${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit -q --allow-empty -m "$tag"
-            pushOutput="$(${gitPush "-f"})"
-            pushRc=$?
+            ${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit -q --allow-empty -m "$dotfilesBackupTag"
+            dotfilesBackupPushOutput="$(${gitPush "-f"})"
+            dotfilesBackupPushRc=$?
           fi
         ''}
 
         dotfilesBackupElapsed="$(${pkgs.gawk}/bin/awk -v s="$dotfilesBackupStart" -v e="$(date +%s.%N)" 'BEGIN{printf "%.2f", e-s}')"
 
-        if [ $pushRc -eq 0 ]; then
-          ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" tag "$tag"
-          ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q "${remoteUrl}" "$tag" 2>/dev/null || echo "warning: dotfiles-backup pushed ${branch} but the tag push failed" >&2
-          printf '${colorGreen}${border}${colorReset}\n'
-          printf '${colorGreen}successfully pushed %s to %s (took %ss)${colorReset}\n' "$tag" "${remoteUrl}" "$dotfilesBackupElapsed"
+        if [ $dotfilesBackupPushRc -eq 0 ]; then
+          ${pkgs.git}/bin/git -C "$dotfilesBackupRepoPath" -c safe.directory="$dotfilesBackupRepoPath" tag -f "$dotfilesBackupTag"
+          ${pkgs.git}/bin/git -C "$dotfilesBackupRepoPath" -c safe.directory="$dotfilesBackupRepoPath" -c core.sshCommand="${gitSshCommand}" push -q -f "${remoteUrl}" "$dotfilesBackupTag" 2>/dev/null || echo "warning: dotfiles-backup pushed ${branch} but the tag push failed" >&2
+          dotfilesBackupBorder "${colorGreen}"
+          printf '${colorGreen}successfully pushed %s to %s (took %ss)${colorReset}\n' "$dotfilesBackupTag" "${remoteUrl}" "$dotfilesBackupElapsed"
           if [ "$dotfilesBackupHostKeyRefreshed" = "1" ]; then
             printf '${colorYellow}note: github.com'"'"'s host key had changed -- refreshed known_hosts automatically.${colorReset}\n'
           fi
           if [ -n "''${dotfilesBackupSecretPaths:-}" ]; then
             printf '${colorYellow}note: a secret was found and stripped from history in: %s${colorReset}\n' "$dotfilesBackupSecretPaths"
           fi
-          printf '${colorGreen}${border}${colorReset}\n'
+          dotfilesBackupBorder "${colorGreen}"
         else
-          printf '${colorRed}${border}${colorReset}\n' >&2
+          dotfilesBackupBorder "${colorRed}" >&2
           printf '${colorRed}error: failed to push %s to %s (took %ss).${colorReset}\n' "${branch}" "${remoteUrl}" "$dotfilesBackupElapsed" >&2
           ${lib.optionalString logPushErrors ''
             printf '${colorRed}git said:${colorReset}\n' >&2
-            printf '${colorRed}%s${colorReset}\n' "$pushOutput" >&2
+            printf '${colorRed}%s${colorReset}\n' "$dotfilesBackupPushOutput" >&2
           ''}
           printf '${colorRed}Public key, in case it needs (re-)adding as a deploy key with write${colorReset}\n' >&2
           printf '${colorRed}access (Settings -> Deploy keys):${colorReset}\n' >&2
@@ -274,7 +284,7 @@ lib.mkIf enable {
           printf '${colorGreen}note: this backup push is optional -- set enable = false in${colorReset}\n' >&2
           printf '${colorGreen}Nixos/modules/backup/dotfiles.nix to turn it off, or just ignore this${colorReset}\n' >&2
           printf '${colorGreen}error if you do not care about it right now.${colorReset}\n' >&2
-          printf '${colorRed}${border}${colorReset}\n' >&2
+          dotfilesBackupBorder "${colorRed}" >&2
           exit 1
         fi
       fi
