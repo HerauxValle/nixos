@@ -156,6 +156,7 @@ lib.mkIf enable {
         exit 0
       fi
     ''}
+    dotfilesBackupStart="$(date +%s.%N)"
     mkdir -p "${secretsDir}"
     chmod 700 "${secretsDir}"
     chown root:root "${secretsDir}"
@@ -260,11 +261,14 @@ lib.mkIf enable {
       if [ $pushRc -eq 0 ]; then
         ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" tag "$tag"
         ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q "${remoteUrl}" "$tag" 2>/dev/null || echo "warning: dotfiles-backup pushed ${branch} but the tag push failed" >&2
+        dotfilesBackupElapsed="$(${pkgs.gawk}/bin/awk -v s="$dotfilesBackupStart" -v e="$(date +%s.%N)" 'BEGIN{printf "%.2f", e-s}')"
         printf '${colorGreen}${border}${colorReset}\n'
-        printf '${colorGreen}successfully pushed %s to %s${colorReset}\n' "$tag" "${remoteUrl}"
+        printf '${colorGreen}successfully pushed %s to %s (took %ss)${colorReset}\n' "$tag" "${remoteUrl}" "$dotfilesBackupElapsed"
         printf '${colorGreen}${border}${colorReset}\n'
       else
+        dotfilesBackupElapsed="$(${pkgs.gawk}/bin/awk -v s="$dotfilesBackupStart" -v e="$(date +%s.%N)" 'BEGIN{printf "%.2f", e-s}')"
         printf '${colorRed}${border}${colorReset}\n' >&2
+        printf '${colorRed}(took %ss before failing)${colorReset}\n' "$dotfilesBackupElapsed" >&2
         ${if logPushErrors then ''
           printf '${colorRed}error: failed to push %s to %s. git said:${colorReset}\n' "${branch}" "${remoteUrl}" >&2
           printf '${colorRed}%s${colorReset}\n' "$pushOutput" >&2
