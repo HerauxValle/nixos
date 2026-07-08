@@ -154,6 +154,15 @@ lib.mkIf enable {
         repoPath="${repoCache}"
         commitArgs="-q --allow-empty"
         pushForce=""
+        # The remote can end up not sharing history with this cache for
+        # reasons outside this script's control (repo deleted/recreated,
+        # manually force-pushed elsewhere, this is a brand new cache while
+        # the remote already has older content, etc). This backup is
+        # always meant to be authoritative over that remote, so retry once
+        # with -f rather than treating a plain divergence as a hard
+        # failure -- only a retry that ALSO fails (e.g. auth) is a real
+        # error.
+        retryForce="-f"
       '' else ''
         if [ -d "${repoCache}" ]; then
           rm -rf "${repoCache}"
@@ -167,12 +176,20 @@ lib.mkIf enable {
         repoPath="$tmp"
         commitArgs="-q"
         pushForce="-f"
+        retryForce=""
       ''}
 
       ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" add -A
       ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c user.name="${commitUserName}" -c user.email="${commitUserEmail}" commit $commitArgs -m "$tag" || true
 
+      pushOk=0
       if ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q $pushForce "${remoteUrl}" "${branch}" 2>/dev/null; then
+        pushOk=1
+      elif [ -n "$retryForce" ] && ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q $retryForce "${remoteUrl}" "${branch}" 2>/dev/null; then
+        pushOk=1
+      fi
+
+      if [ "$pushOk" = 1 ]; then
         ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" tag "$tag"
         ${pkgs.git}/bin/git -C "$repoPath" -c safe.directory="$repoPath" -c core.sshCommand="${gitSshCommand}" push -q "${remoteUrl}" "$tag" 2>/dev/null || echo "warning: dotfiles-backup pushed ${branch} but the tag push failed" >&2
         printf '\033[0;32m[dotfiles-backup] ============================================\033[0m\n'
