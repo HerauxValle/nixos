@@ -1,6 +1,5 @@
 { config, pkgs, lib, ... }:
 
-# (test touch -- remove after verifying)
 # Variables
 let
 
@@ -43,9 +42,18 @@ let
   # every time (no persistent history, always pushes).
   useRepoCache = true;
 
-  # true = include git's actual error output in the red error block on
-  # failure -- self-diagnosing, no need to reproduce the push by hand.
-  logPushErrors = true;
+  # How much this module prints -- doesn't change what it actually does
+  # (push/recovery behavior is identical either way), only output:
+  #   "normal" -- everything: success message, notes, and on failure the
+  #               full diagnostic including git's real error text.
+  #   "quiet"  -- no success message/notes; failures still show fully,
+  #               just without git's raw error text.
+  #   "silent" -- nothing at all, ever, success or failure. NixOS's own
+  #               generic "Activation script snippet failed" line still
+  #               shows on a real failure (printed by the activation
+  #               framework itself, not this module), but none of this
+  #               module's own output does.
+  logLevel = "normal";
 
   # Deploy key algorithm. No real reason to change this, but it's a
   # genuine independent choice (unlike keyComment below, which is derived,
@@ -125,9 +133,10 @@ let
   '';
 
   # One push attempt, capturing real stderr (needed for the reactive
-  # recovery checks below and for logPushErrors) without losing the exit
-  # code -- `$(cmd 2>&1 1>/dev/null)` swaps the streams so only stderr
-  # lands in the variable while `$?` still reflects the actual push.
+  # recovery checks below and for logLevel's "normal" diagnostic output)
+  # without losing the exit code -- `$(cmd 2>&1 1>/dev/null)` swaps the
+  # streams so only stderr lands in the variable while `$?` still reflects
+  # the actual push.
   gitPush = force: ''
     ${pkgs.git}/bin/git -C "$dotfilesBackupRepoPath" -c safe.directory="$dotfilesBackupRepoPath" -c core.sshCommand="${gitSshCommand}" push -q ${force} "${remoteUrl}" "${branch}" 2>&1 1>/dev/null
   '';
@@ -156,6 +165,7 @@ lib.mkIf enable {
         exit 0
       fi
     ''}
+  {
     dotfilesBackupBorder() {
       printf '%b${border}${colorReset}\n' "$1"
     }
@@ -263,19 +273,21 @@ lib.mkIf enable {
         if [ $dotfilesBackupPushRc -eq 0 ]; then
           ${pkgs.git}/bin/git -C "$dotfilesBackupRepoPath" -c safe.directory="$dotfilesBackupRepoPath" tag -f "$dotfilesBackupTag"
           ${pkgs.git}/bin/git -C "$dotfilesBackupRepoPath" -c safe.directory="$dotfilesBackupRepoPath" -c core.sshCommand="${gitSshCommand}" push -q -f "${remoteUrl}" "$dotfilesBackupTag" 2>/dev/null || echo "warning: dotfiles-backup pushed ${branch} but the tag push failed" >&2
-          dotfilesBackupBorder "${colorGreen}"
-          printf '${colorGreen}successfully pushed %s to %s (took %ss)${colorReset}\n' "$dotfilesBackupTag" "${remoteUrl}" "$dotfilesBackupElapsed"
-          if [ "$dotfilesBackupHostKeyRefreshed" = "1" ]; then
-            printf '${colorYellow}note: github.com'"'"'s host key had changed -- refreshed known_hosts automatically.${colorReset}\n'
-          fi
-          if [ -n "''${dotfilesBackupSecretPaths:-}" ]; then
-            printf '${colorYellow}note: a secret was found and stripped from history in: %s${colorReset}\n' "$dotfilesBackupSecretPaths"
-          fi
-          dotfilesBackupBorder "${colorGreen}"
+          ${lib.optionalString (logLevel == "normal") ''
+            dotfilesBackupBorder "${colorGreen}"
+            printf '${colorGreen}successfully pushed %s to %s (took %ss)${colorReset}\n' "$dotfilesBackupTag" "${remoteUrl}" "$dotfilesBackupElapsed"
+            if [ "$dotfilesBackupHostKeyRefreshed" = "1" ]; then
+              printf '${colorYellow}note: github.com'"'"'s host key had changed -- refreshed known_hosts automatically.${colorReset}\n'
+            fi
+            if [ -n "''${dotfilesBackupSecretPaths:-}" ]; then
+              printf '${colorYellow}note: a secret was found and stripped from history in: %s${colorReset}\n' "$dotfilesBackupSecretPaths"
+            fi
+            dotfilesBackupBorder "${colorGreen}"
+          ''}
         else
           dotfilesBackupBorder "${colorRed}" >&2
           printf '${colorRed}error: failed to push %s to %s (took %ss).${colorReset}\n' "${branch}" "${remoteUrl}" "$dotfilesBackupElapsed" >&2
-          ${lib.optionalString logPushErrors ''
+          ${lib.optionalString (logLevel == "normal") ''
             printf '${colorRed}git said:${colorReset}\n' >&2
             printf '${colorRed}%s${colorReset}\n' "$dotfilesBackupPushOutput" >&2
           ''}
@@ -290,6 +302,7 @@ lib.mkIf enable {
         fi
       fi
     fi
+  } ${lib.optionalString (logLevel == "silent") "> /dev/null 2>&1"}
   '';
 
 }
