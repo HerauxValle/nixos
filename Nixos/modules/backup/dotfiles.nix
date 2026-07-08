@@ -246,7 +246,11 @@ lib.mkIf enable {
         # and the retry fails again with the same clear error -- no silent
         # success, no repeated full rebuilds.
         if [ $pushRc -ne 0 ] && printf '%s' "$pushOutput" | grep -q "${githubSecretScanErrorCode}"; then
-          ${pkgs.git-filter-repo}/bin/git-filter-repo --repo "${repoCache}" --force ${lib.concatMapStringsSep " " (f: ''--path "${f}"'') excludeFiles} --invert-paths >/dev/null 2>&1 || true
+          # --repo doesn't behave like cd + running it from inside the
+          # directory (confirmed: --repo alone fails with "not a git
+          # repository" even though the path is a perfectly valid repo) --
+          # so cd in first instead of relying on that flag.
+          ( cd "${repoCache}" && ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${lib.concatMapStringsSep " " (f: ''--path "${f}"'') excludeFiles} --invert-paths ) || true
           ${cacheSyncAndCommit}
           pushOutput="$(${pkgs.git}/bin/git -C "${repoCache}" -c safe.directory="${repoCache}" -c core.sshCommand="${gitSshCommand}" push -q -f "${remoteUrl}" "${branch}" 2>&1 1>/dev/null)"
           pushRc=$?
