@@ -9,6 +9,15 @@ let
 in
 
 {
+  # Dolphin's "Open With" dialog resolves its application list through the
+  # XDG app menu named by $XDG_MENU_PREFIX (set to "hyprland-" by the
+  # Hyprland/UWSM session), i.e. /etc/xdg/menus/hyprland-applications.menu.
+  # Nothing ships that file outside a full Plasma session, so the lookup
+  # fails silently and the dialog renders empty for every file. Reuse
+  # Plasma's own menu definition under the prefix Hyprland actually uses.
+  environment.etc."xdg/menus/hyprland-applications.menu".source =
+    "${pkgs.kdePackages.plasma-workspace}/etc/xdg/menus/plasma-applications.menu";
+
   services.udisks2.enable = false;
   security.polkit.enable = false;
   services.gvfs.enable = false;
