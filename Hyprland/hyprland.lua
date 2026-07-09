@@ -48,6 +48,7 @@ require("Config.Plugins.borders-plus-plus")   -- 7.3  Enhanced borders
 require("Config.Plugins.hyprwinwrap")         -- 7.4  Video wallpapers
 require("Config.Plugins.dynamic-cursors")     -- 7.5  Cursor animations
 require("Config.Plugins.hyprscroll")          -- 7.6  Hyprscroll config (built-in layout)
+require("Config.Plugins.scrolloverview")      -- 7.7  Scroll overview (niri-style workspace overview)
 
 -- 8.    Reactive
 require("Config.Reactive.windowMode")         -- 8.1  Window mode manipulation

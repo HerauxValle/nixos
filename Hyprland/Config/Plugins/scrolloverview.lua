@@ -1,0 +1,1 @@
+-- plugin config applied after hyprpm loads plugins

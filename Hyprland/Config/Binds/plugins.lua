@@ -3,6 +3,9 @@ hl.bind("CTRL + SPACE", hl.dsp.exec_cmd("hyprctl dispatch easymotion action:hypr
 -- Trigger overview
 hl.bind(mainMod .. " + TAB", hl.dsp.exec_cmd("hyprctl dispatch hyprexpo:expo toggle"))
 
+-- Scroll overview (niri-style workspace overview)
+hl.bind("ALT + TAB", hl.dsp.exec_cmd("hyprctl dispatch scrolloverview:overview toggle"))
+
 -- --- Pyprland Keybindings ---
 
 -- Scratchpad terminal (dropdown from top)

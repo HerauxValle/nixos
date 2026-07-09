@@ -11,6 +11,11 @@ hl.on("hyprland.start", function()
     hl.exec_cmd(SCRIPTS_DIR .. "/defaultWS.sh")
     hl.exec_cmd(SCRIPTS_DIR .. "/defaultApps.sh")
 
+    -- Nix-built plugin (Nixos/home/hyprland-plugins.nix), loaded the same
+    -- way home-manager's own wayland.windowManager.hyprland.plugins does it
+    -- under the hood (hyprctl plugin load) -- no hyprpm state store involved.
+    hl.exec_cmd("hyprctl plugin load " .. os.getenv("HOME") .. "/.local/share/hypr-plugins/scrolloverview.so")
+
     -- Quickshell / MyBar. Via the XDG config path (home-manager symlinks
     -- Dotfiles/Quickshell -> ~/.config/quickshell), not the Dotfiles repo
     -- path, so this keeps working no matter where the repo itself lives.

@@ -7,6 +7,7 @@
 
   imports = [
     ./home/apps.nix
+    ./home/hyprland-plugins.nix
     ./home/shells.nix
     ./home/theming.nix
   ];
