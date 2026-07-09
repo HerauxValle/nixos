@@ -29,6 +29,8 @@ in
     curl                        # Curl
     kittyWrapped                # Terminal (wrapped: see kittyWrapped above for why)
     claudeCode                  # Claude
+    mpv                          # Video player (was installed on Arch, missing here)
+    oculante                     # Image viewer (was installed on Arch, missing here)
 
     # Languages
     python3                     # Python
