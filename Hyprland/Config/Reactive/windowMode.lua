@@ -21,7 +21,8 @@ hl.bind(mainMod .. " + SHIFT + W", hl.dsp.window.move({ workspace = "special:mag
 hl.bind(mainMod .. " + ALT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 hl.bind(mainMod .. " + F",       hl.dsp.window.fullscreen({ mode = "maximized" }))
 
-hl.bind("ALT + Tab",         hl.dsp.window.cycle_next())
+-- ALT + Tab is the scrolloverview trigger (Config/Binds/plugins.lua); kept
+-- here only as reverse-cycle since it doesn't collide with that.
 hl.bind("ALT + SHIFT + Tab", hl.dsp.window.cycle_next({ prev = true }))
 
 hl.bind(mainMod .. " + D",        hl.dsp.window.float({ action = "toggle" }))
