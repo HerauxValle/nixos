@@ -66,8 +66,6 @@ in
     kservice                    # kbuildsycoca6 -- was only ever reachable via its nix store path,
                                  # not on PATH, so KIO's own automatic cache-refresh calls silently failed
     gwenview                    # Image viewer
-    konsole                     # Terminal (kitty stays default; needed for Dolphin's embedded Terminal panel, which hardcodes org.kde.konsolepart)
-    kate                        # Text editor
 
     # Theming
     breeze                      # Looks
