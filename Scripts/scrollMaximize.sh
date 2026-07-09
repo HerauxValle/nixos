@@ -10,16 +10,15 @@
 # under dwindle/master, so this only takes over when scrolling is the
 # active layout, and defers to the native toggle otherwise.
 #
-# This is a pure width resize on the still-tiled window -- no floating at
-# all, so it stays a completely normal column: movable, swappable, every
-# other bind keeps working. Confirmed live: resizing a tiled window's
-# width (without floating it first) is respected and not fought by the
-# layout engine, and the scrolling layout automatically reflows every
-# sibling column's position to make room, pushing whichever ones were
-# already left/right further off that same side -- no manual sibling
-# handling needed. Height is left untouched since a horizontal-only
-# scrolling layout already keeps every column's Y/height reserved-area-
-# aware (clears the bar, etc.) regardless of width.
+# Floating approach (matches Floating/modules/move.sh's own pattern: float,
+# remember the exact pre-toggle geometry, resize/move, restore + unfloat on
+# toggle back). Floats the window first so the scrolling layout's own
+# column recalculation can't fight the manual resize/move, expands it to
+# the monitor's live width minus the live general:gaps_out on each side,
+# and keeps Y/height exactly as they were -- a horizontal-only scrolling
+# layout already keeps every column's Y/height reserved-area-aware (clears
+# the bar, etc.) regardless of width, so there's no need to duplicate that
+# math by hand.
 #
 # Runs as a plain exec_cmd-bound script rather than an inline Lua function
 # bind: hl.bind(keys, function() ... end) was confirmed dead on a real
@@ -31,7 +30,7 @@
 
 set -euo pipefail
 
-STATE_FILE="/tmp/hypr_scroll_maximize_widths"
+STATE_FILE="/tmp/hypr_scroll_maximize_geometry"
 
 # This Hyprland build parses `hyprctl dispatch <arg>` as a Lua expression
 # unconditionally (auto-wrapped in hl.dispatch(...)) -- confirmed live, the
@@ -47,12 +46,14 @@ fi
 
 win_json=$(hyprctl activewindow -j)
 addr=$(echo "$win_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['address'])")
-height=$(echo "$win_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['size'][1])")
 
-saved_width=$(grep "^${addr}:" "$STATE_FILE" 2>/dev/null | cut -d: -f2 || true)
+saved=$(grep "^${addr}:" "$STATE_FILE" 2>/dev/null | cut -d: -f2- || true)
 
-if [ -n "$saved_width" ]; then
-    hyprctl dispatch "hl.dsp.window.resize({ x = ${saved_width}, y = ${height}, relative = false, window = 'address:${addr}' })"
+if [ -n "$saved" ]; then
+    IFS=',' read -r sx sy sw sh <<< "$saved"
+    hyprctl dispatch "hl.dsp.window.resize({ x = ${sw}, y = ${sh}, relative = false, window = 'address:${addr}' })"
+    hyprctl dispatch "hl.dsp.window.move({ x = ${sx}, y = ${sy}, relative = false, window = 'address:${addr}' })"
+    hyprctl dispatch "hl.dsp.window.float({ action = 'unset', window = 'address:${addr}' })"
     if [ -f "$STATE_FILE" ]; then
         grep -v "^${addr}:" "$STATE_FILE" > "${STATE_FILE}.tmp" || true
         mv "${STATE_FILE}.tmp" "$STATE_FILE"
@@ -60,13 +61,21 @@ if [ -n "$saved_width" ]; then
     exit 0
 fi
 
-width=$(echo "$win_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['size'][0])")
+x=$(echo "$win_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['at'][0])")
+y=$(echo "$win_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['at'][1])")
+w=$(echo "$win_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['size'][0])")
+h=$(echo "$win_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['size'][1])")
 mon_id=$(echo "$win_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['monitor'])")
+
 mon_width=$(hyprctl monitors -j | python3 -c "import json,sys; d=json.load(sys.stdin); print(next(m['width'] for m in d if m['id'] == $mon_id))")
+mon_x=$(hyprctl monitors -j | python3 -c "import json,sys; d=json.load(sys.stdin); print(next(m['x'] for m in d if m['id'] == $mon_id))")
 
 # general:gaps_out's "css" field is "<top> <right> <bottom> <left>" --
 # standard CSS box-model shorthand order.
 read -r _ gap_right _ gap_left < <(hyprctl getoption general:gaps_out -j | python3 -c "import json,sys; print(json.load(sys.stdin)['css'])")
 
-echo "${addr}:${width}" >> "$STATE_FILE"
-hyprctl dispatch "hl.dsp.window.resize({ x = $((mon_width - gap_left - gap_right)), y = ${height}, relative = false, window = 'address:${addr}' })"
+echo "${addr}:${x},${y},${w},${h}" >> "$STATE_FILE"
+
+hyprctl dispatch "hl.dsp.window.float({ action = 'set', window = 'address:${addr}' })"
+hyprctl dispatch "hl.dsp.window.resize({ x = $((mon_width - gap_left - gap_right)), y = ${h}, relative = false, window = 'address:${addr}' })"
+hyprctl dispatch "hl.dsp.window.move({ x = $((mon_x + gap_left)), y = ${y}, relative = false, window = 'address:${addr}' })"
