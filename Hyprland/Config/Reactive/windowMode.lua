@@ -19,18 +19,16 @@ hl.bind(mainMod .. " + ALT + W",   hl.dsp.workspace.toggle_special())
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.window.move({ workspace = "special:magic" }))
 
 hl.bind(mainMod .. " + ALT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
--- built-in action = "toggle" doesn't reliably unset "maximized" mode again
--- (confirmed live: both action="toggle" and even a bare action="unset" call
--- silently no-op on an already-maximized window) -- so this checks the real
--- state via the Window object (fullscreen: 0 = none, 1 = maximized,
--- 2 = fullscreen, per Hyprland's eFullscreenMode enum) and picks set/unset
--- explicitly instead of trusting the dispatcher's own toggle detection.
-hl.bind(mainMod .. " + F", function()
-    local win = hl.get_active_window()
-    if not win then return end
-    local action = (win.fullscreen == 1) and "unset" or "set"
-    hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = action, window = "address:" .. win.address }))
-end)
+-- old (state-check workaround, no longer needed now that the
+-- suppress-maximize-events rule in Config/Rules/layout.lua -- which was
+-- the actual root cause -- is removed):
+-- hl.bind(mainMod .. " + F", function()
+--     local win = hl.get_active_window()
+--     if not win then return end
+--     local action = (win.fullscreen == 1) and "unset" or "set"
+--     hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = action, window = "address:" .. win.address }))
+-- end)
+hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
 
 -- ALT + Tab is the scrolloverview trigger (Config/Binds/plugins.lua); kept
 -- here only as reverse-cycle since it doesn't collide with that.
