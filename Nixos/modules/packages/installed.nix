@@ -61,6 +61,8 @@ in
     
     dolphin                     # Explorer
     kio-extras                  # Addons
+    kservice                    # kbuildsycoca6 -- was only ever reachable via its nix store path,
+                                 # not on PATH, so KIO's own automatic cache-refresh calls silently failed
 
     # Theming
     breeze                      # Looks
