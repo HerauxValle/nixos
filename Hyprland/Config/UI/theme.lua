@@ -51,34 +51,68 @@ hl.config({
     },
 })
 
--- Default curves, see https://wiki.hypr.land/Configuring/Animations/#curves
-hl.curve("easeOutQuint",   { type = "bezier", points = { {0.23, 1},    {0.32, 1}    } })
-hl.curve("easeInOutCubic", { type = "bezier", points = { {0.65, 0.05}, {0.36, 1}    } })
-hl.curve("linear",         { type = "bezier", points = { {0, 0},       {1, 1}       } })
-hl.curve("almostLinear",   { type = "bezier", points = { {0.5, 0.5},   {0.75, 1}    } })
-hl.curve("quick",          { type = "bezier", points = { {0.15, 0},    {0.1, 1}     } })
--- hl.curve("easeOut",     { type = "bezier", points = { {0.16, 1},    {0.6, 1}     } }) -- Faster finish
-hl.curve("easeOut",        { type = "bezier", points = { {0.16, 1},    {0.9, 1}     } })
+-- old: hl.curve("easeOutQuint",   { type = "bezier", points = { {0.23, 1},    {0.32, 1}    } })
+-- old: hl.curve("easeInOutCubic", { type = "bezier", points = { {0.65, 0.05}, {0.36, 1}    } })
+-- old: hl.curve("linear",         { type = "bezier", points = { {0, 0},       {1, 1}       } })
+-- old: hl.curve("almostLinear",   { type = "bezier", points = { {0.5, 0.5},   {0.75, 1}    } })
+-- old: hl.curve("quick",          { type = "bezier", points = { {0.15, 0},    {0.1, 1}     } })
+-- old: hl.curve("easeOut",        { type = "bezier", points = { {0.16, 1},    {0.9, 1}     } })
 
--- Default animations, see https://wiki.hypr.land/Configuring/Animations/
-hl.animation({ leaf = "global",        enabled = true, speed = 10,   bezier = "default" })
-hl.animation({ leaf = "border",        enabled = true, speed = 5.39, bezier = "easeOutQuint" })
-hl.animation({ leaf = "windows",       enabled = true, speed = 7,    bezier = "easeOutQuint" })
-hl.animation({ leaf = "windowsIn",     enabled = true, speed = 4.1,  bezier = "easeOutQuint", style = "popin 87%" })
-hl.animation({ leaf = "windowsOut",    enabled = true, speed = 1.49, bezier = "linear",       style = "popin 87%" })
-hl.animation({ leaf = "fadeIn",        enabled = true, speed = 1.73, bezier = "almostLinear" })
-hl.animation({ leaf = "fadeOut",       enabled = true, speed = 1.46, bezier = "almostLinear" })
-hl.animation({ leaf = "fade",          enabled = true, speed = 3.03, bezier = "quick" })
-hl.animation({ leaf = "layers",        enabled = true, speed = 3.81, bezier = "easeOutQuint" })
-hl.animation({ leaf = "layersIn",      enabled = true, speed = 4,    bezier = "easeOutQuint", style = "fade" })
-hl.animation({ leaf = "layersOut",     enabled = true, speed = 1.5,  bezier = "linear",       style = "fade" })
-hl.animation({ leaf = "fadeLayersIn",  enabled = true, speed = 1.79, bezier = "almostLinear" })
-hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 1.39, bezier = "almostLinear" })
--- hl.animation({ leaf = "workspaces",    enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" })
--- hl.animation({ leaf = "workspacesIn",  enabled = true, speed = 1.21, bezier = "almostLinear", style = "fade" })
--- hl.animation({ leaf = "workspacesOut", enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" })
+-- Material Design 3 motion curves -- these are the published, user-tested
+-- tokens from Google's motion system (m3.material.io/styles/motion), not
+-- hand-picked control points. "standard" is for symmetric/utility motion,
+-- the decelerate/accelerate pairs are for elements entering/exiting (an
+-- entering element should decelerate into place, an exiting one should
+-- accelerate away -- mirrors real-world inertia, which is why it reads as
+-- natural rather than mechanical).
+hl.curve("standard",              { type = "bezier", points = { {0.2, 0},    {0, 1}    } })
+hl.curve("standardDecelerate",    { type = "bezier", points = { {0, 0},      {0, 1}    } })
+hl.curve("standardAccelerate",    { type = "bezier", points = { {0.3, 0},    {1, 1}    } })
+hl.curve("emphasizedDecelerate",  { type = "bezier", points = { {0.05, 0.7}, {0.1, 1}  } })
+hl.curve("emphasizedAccelerate",  { type = "bezier", points = { {0.3, 0},    {0.8, 0.15} } })
+
+-- old: hl.animation({ leaf = "global",        enabled = true, speed = 10,   bezier = "default" })
+-- old: hl.animation({ leaf = "border",        enabled = true, speed = 5.39, bezier = "easeOutQuint" })
+-- old: hl.animation({ leaf = "windows",       enabled = true, speed = 7,    bezier = "easeOutQuint" })
+-- old: hl.animation({ leaf = "windowsIn",     enabled = true, speed = 4.1,  bezier = "easeOutQuint", style = "popin 87%" })
+-- old: hl.animation({ leaf = "windowsOut",    enabled = true, speed = 1.49, bezier = "linear",       style = "popin 87%" })
+-- old: hl.animation({ leaf = "fadeIn",        enabled = true, speed = 1.73, bezier = "almostLinear" })
+-- old: hl.animation({ leaf = "fadeOut",       enabled = true, speed = 1.46, bezier = "almostLinear" })
+-- old: hl.animation({ leaf = "fade",          enabled = true, speed = 3.03, bezier = "quick" })
+-- old: hl.animation({ leaf = "layers",        enabled = true, speed = 3.81, bezier = "easeOutQuint" })
+-- old: hl.animation({ leaf = "layersIn",      enabled = true, speed = 4,    bezier = "easeOutQuint", style = "fade" })
+-- old: hl.animation({ leaf = "layersOut",     enabled = true, speed = 1.5,  bezier = "linear",       style = "fade" })
+-- old: hl.animation({ leaf = "fadeLayersIn",  enabled = true, speed = 1.79, bezier = "almostLinear" })
+-- old: hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 1.39, bezier = "almostLinear" })
+-- old: hl.animation({ leaf = "zoomFactor", enabled = true, speed = 7, bezier = "quick" })
+-- old (still relocated below): hl.animation({ leaf = "workspaces",    enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" })
+-- old (still relocated below): hl.animation({ leaf = "workspacesIn",  enabled = true, speed = 1.21, bezier = "almostLinear", style = "fade" })
+-- old (still relocated below): hl.animation({ leaf = "workspacesOut", enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" })
 -- Relocated to reactive/windowMode.lua: hl.animation({ leaf = "workspaces", enabled = true, speed = 13, bezier = "easeOut", style = "slide" })
-hl.animation({ leaf = "zoomFactor", enabled = true, speed = 7, bezier = "quick" })
+
+-- Durations follow Material Design 3's duration tokens (in deciseconds --
+-- Hyprland's speed unit is 1ds = 100ms, per wiki.hypr.land/.../Animations).
+-- "Short" (100-200ms) is for small/utility motion (borders, fades) that
+-- fires often and must never feel laggy. "Medium" (250-400ms) is for
+-- larger spatial motion (a window actually moving/resizing) -- long enough
+-- to read clearly as motion, short of Nielsen's ~1s threshold where users
+-- start perceiving lag. Exits consistently get a shorter duration than
+-- their matching entrance (M3's own guidance: get out of the way faster
+-- than you arrived).
+hl.animation({ leaf = "global",        enabled = true, speed = 3,   bezier = "standard" })
+hl.animation({ leaf = "border",        enabled = true, speed = 1.5, bezier = "standard" })
+hl.animation({ leaf = "windows",       enabled = true, speed = 3,   bezier = "standard" })
+hl.animation({ leaf = "windowsIn",     enabled = true, speed = 2.5, bezier = "emphasizedDecelerate", style = "popin 87%" })
+hl.animation({ leaf = "windowsOut",    enabled = true, speed = 2,   bezier = "emphasizedAccelerate",  style = "popin 87%" })
+hl.animation({ leaf = "fadeIn",        enabled = true, speed = 1.5, bezier = "standardDecelerate" })
+hl.animation({ leaf = "fadeOut",       enabled = true, speed = 1,   bezier = "standardAccelerate" })
+hl.animation({ leaf = "fade",          enabled = true, speed = 2,   bezier = "standard" })
+hl.animation({ leaf = "layers",        enabled = true, speed = 2,   bezier = "standard" })
+hl.animation({ leaf = "layersIn",      enabled = true, speed = 1.5, bezier = "standardDecelerate", style = "fade" })
+hl.animation({ leaf = "layersOut",     enabled = true, speed = 1,   bezier = "standardAccelerate",  style = "fade" })
+hl.animation({ leaf = "fadeLayersIn",  enabled = true, speed = 1.5, bezier = "standardDecelerate" })
+hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 1,   bezier = "standardAccelerate" })
+hl.animation({ leaf = "zoomFactor",    enabled = true, speed = 3.5, bezier = "standard" })
 
 -- Ref https://wiki.hypr.land/Configuring/Workspace-Rules/
 -- "Smart gaps" / "No gaps when only"

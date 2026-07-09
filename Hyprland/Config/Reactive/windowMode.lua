@@ -66,7 +66,12 @@ hl.bind(mainMod .. " + SHIFT + down",       hl.dsp.focus({ workspace = "e+1" }))
 hl.bind(mainMod .. " + SHIFT + ALT + up",   hl.dsp.window.move({ workspace = "e-1" }))
 hl.bind(mainMod .. " + SHIFT + ALT + down", hl.dsp.window.move({ workspace = "e+1" }))
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
-hl.animation({ leaf = "workspaces", enabled = true, speed = 13, bezier = "easeOut", style = "slidevert" })
+-- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 13, bezier = "easeOut", style = "slidevert" })
+-- 3.5ds = 350ms -- upper end of Material's "medium" band (250-400ms), since
+-- a full workspace swap covers more screen area than a single window move
+-- and needs a touch longer to read clearly; "standard" curve from theme.lua
+-- since it's a symmetric back-and-forth motion, not a one-way enter/exit.
+hl.animation({ leaf = "workspaces", enabled = true, speed = 3.5, bezier = "standard", style = "slidevert" })
 -- << END
 
 hl.config({
