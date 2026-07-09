@@ -9,14 +9,11 @@ let
 in
 
 {
-  # Dolphin's "Open With" dialog resolves its application list through the
-  # XDG app menu named by $XDG_MENU_PREFIX (set to "hyprland-" by the
-  # Hyprland/UWSM session), i.e. /etc/xdg/menus/hyprland-applications.menu.
-  # Nothing ships that file outside a full Plasma session, so the lookup
-  # fails silently and the dialog renders empty for every file. Reuse
-  # Plasma's own menu definition under the prefix Hyprland actually uses.
-  environment.etc."xdg/menus/hyprland-applications.menu".source =
-    "${pkgs.kdePackages.plasma-workspace}/etc/xdg/menus/plasma-applications.menu";
+  # Dolphin's "Open With" dialog calls the org.freedesktop.impl.portal.desktop.kde
+  # D-Bus service to render its application picker (KDE bug 466148). Only the
+  # gtk and hyprland portal backends are installed here, so that call fails
+  # silently and the dialog is blank for every file. Add the kde backend.
+  xdg.portal.extraPortals = [ pkgs.kdePackages.xdg-desktop-portal-kde ];
 
   services.udisks2.enable = false;
   security.polkit.enable = false;
