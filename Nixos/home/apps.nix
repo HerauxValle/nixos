@@ -17,20 +17,27 @@
     # whatever's there at rebuild time, same as any other dotfile.
     "fastfetch".source = ../../Fastfetch;
 
-    # Gwenview's "Auto" background mode literally means "Follow color scheme"
-    # (see lib/documentview/documentviewcontroller.cpp) -- the same active
-    # KDE color scheme Dolphin already uses, including whatever gives it its
-    # translucent/blurred panel. Explicitly setting Dark (previous attempt)
-    # hardcodes a fixed opaque paint instead, bypassing that scheme entirely.
+    # Gwenview's canvas fill (app/gvcore.cpp) builds its palette from
+    # KColorSchemeManager, reading the active .colors file directly -- not
+    # qt6ct's palette at all. Stock BreezeDark has zero alpha anywhere in it,
+    # so no color-scheme setting alone makes that fill translucent. This is
+    # BreezeDark with alpha added to just [Colors:View] BackgroundNormal
+    # (traced: with a dark scheme + Dark mode, gvcore.cpp uses that color
+    # directly, no swap), used only by Gwenview via its own ColorScheme key.
     "gwenviewrc" = {
       force = true; # gwenview had already written its own copy imperatively;
                     # home-manager refuses to clobber existing files otherwise.
       text = ''
         [General]
         BackgroundColorMode=DocumentView::Dark
+
+        [UiSettings]
+        ColorScheme=BreezeDarkTransparent
       '';
     };
   };
+
+  xdg.dataFile."color-schemes/BreezeDarkTransparent.colors".source = ../../Themes/Gwenview/BreezeDarkTransparent.colors;
 
   # Declarative Proton GE: symlinks nixpkgs' proton-ge-bin into Steam's compat
   # tools dir. Version is whatever nixpkgs pins; bumps on flake update + rebuild,
