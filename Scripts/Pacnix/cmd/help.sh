@@ -46,6 +46,16 @@ usage: pacnix <command> [args]
       anywhere in /nix/store (may differ -- not garbage collected yet,
       etc.). e.g. pacnix store firefox
 
+  info [-o FIELD1,FIELD2,...] [-n] [-p]
+      Detailed system report: package counts, store/closure sizes,
+      generation count, disk usage, and more. Machine-parsable by
+      design:
+        -o LIST   select/order fields (like lsblk -o), `-o list` to
+                  see all available fields with descriptions
+        -n        values only, no labels, one per line
+        -p        KEY="value" pairs (like lsblk -P), eval-able
+      e.g. pacnix info -o STORE_SIZE,PACKAGES -p
+
   help
       Show this message.
 EOF
