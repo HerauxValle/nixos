@@ -31,6 +31,7 @@ in
     claudeCode                  # Claude
     mpv                          # Video player (was installed on Arch, missing here)
     oculante                     # Image viewer (was installed on Arch, missing here)
+    imv                          # Lightweight keyboard-driven image viewer (was installed on Arch, missing here)
 
     # Languages
     python3                     # Python
@@ -65,6 +66,7 @@ in
     kio-extras                  # Addons
     kservice                    # kbuildsycoca6 -- was only ever reachable via its nix store path,
                                  # not on PATH, so KIO's own automatic cache-refresh calls silently failed
+    gwenview                    # Image viewer
 
     # Theming
     breeze                      # Looks
