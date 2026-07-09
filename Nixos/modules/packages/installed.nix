@@ -49,6 +49,7 @@ in
     mtools                      # mcopy -- no-mount FAT/FAT32 keyfile read, modules/security/sudo-keyfile.nix
     ntfs3g                      # ntfscat -- no-mount NTFS keyfile read, modules/security/sudo-keyfile.nix
     btrfs-progs                 # btrfs restore -- no-mount btrfs keyfile read, modules/security/sudo-keyfile.nix
+    tpm2-tools                  # TPM tooling
 
     # Shells
     fish                        # Main
