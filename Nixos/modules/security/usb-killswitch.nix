@@ -19,7 +19,7 @@ let
   #               as any real unclean power loss -- no worse than that).
   # "disabled" -- the udev rule is not installed at all. Pulling the drive
   #               does nothing.
-  killMode = "soft";
+  killMode = "hard";
 
   # Identifies the physical USB stick whose removal triggers this --
   # currently VirtualKeys (the same drive used by boot/luks2.nix and

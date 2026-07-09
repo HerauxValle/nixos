@@ -84,7 +84,7 @@ in
 
         ${if hidden then "set timeout_style=hidden" else ""}
         ${if graphical then "terminal_output gfxterm" else "terminal_output console"}
-      
+
       '';
     };
   };
