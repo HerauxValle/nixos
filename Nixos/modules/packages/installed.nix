@@ -31,7 +31,6 @@ in
     claudeCode                  # Claude
     mpv                          # Video player (was installed on Arch, missing here)
     oculante                     # Image viewer (was installed on Arch, missing here)
-    imv                          # Lightweight keyboard-driven image viewer (was installed on Arch, missing here)
 
     # Languages
     python3                     # Python

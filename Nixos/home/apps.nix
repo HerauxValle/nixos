@@ -16,6 +16,15 @@
     # colors.env straight into Dotfiles/Fastfetch/; this just picks up
     # whatever's there at rebuild time, same as any other dotfile.
     "fastfetch".source = ../../Fastfetch;
+
+    # Gwenview's viewer background defaults to "Auto" (lib/gwenviewconfig.kcfg),
+    # which resolves to a plain white/light background outside a real Plasma
+    # session (no color-scheme daemon to detect a dark palette from). Forcing
+    # it dark to match Dolphin instead of guessing at a "transparent" option.
+    "gwenviewrc".text = ''
+      [General]
+      BackgroundColorMode=DocumentView::Dark
+    '';
   };
 
   # Declarative Proton GE: symlinks nixpkgs' proton-ge-bin into Steam's compat
