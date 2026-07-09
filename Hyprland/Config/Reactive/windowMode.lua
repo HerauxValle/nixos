@@ -19,16 +19,60 @@ hl.bind(mainMod .. " + ALT + W",   hl.dsp.workspace.toggle_special())
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.window.move({ workspace = "special:magic" }))
 
 hl.bind(mainMod .. " + ALT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
--- old (state-check workaround, no longer needed now that the
--- suppress-maximize-events rule in Config/Rules/layout.lua -- which was
--- the actual root cause -- is removed):
+
+-- old (both variants confirmed broken specifically under scrolling layout --
+-- native maximize resizes the window on the first press but the
+-- compositor's internal fullscreen state never registers it, so neither a
+-- second native toggle nor a manual state re-check can tell it needs to
+-- unset anything. The exact same dispatcher toggles correctly under
+-- dwindle/master, which is why the replacement below only kicks in when
+-- scrolling is the active layout and defers to the native one otherwise):
 -- hl.bind(mainMod .. " + F", function()
 --     local win = hl.get_active_window()
 --     if not win then return end
 --     local action = (win.fullscreen == 1) and "unset" or "set"
 --     hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = action, window = "address:" .. win.address }))
 -- end)
-hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
+-- hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
+
+-- Hand-rolled maximize toggle, used only under scrolling layout. Floats the
+-- window (so the scrolling layout's own column recalculation can't fight
+-- a manual resize), remembers its exact pre-toggle geometry, and expands
+-- it to the monitor's live width minus the live general.gaps_out on each
+-- side. Y and height are left exactly as the scrolling layout already set
+-- them -- every column in that layout is already reserved-area-aware
+-- (clears the bar, etc.) on its own, so there's no need to duplicate that
+-- math by hand; only the width needs to change to read as "maximized".
+local maximizedWindows = {}
+
+hl.bind(mainMod .. " + F", function()
+    if hl.get_config("general.layout") ~= "scrolling" then
+        hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
+        return
+    end
+
+    local win = hl.get_active_window()
+    if not win then return end
+    local target = "address:" .. win.address
+
+    local saved = maximizedWindows[win.address]
+    if saved then
+        hl.dispatch(hl.dsp.window.resize({ x = saved.w, y = saved.h, relative = false, window = target }))
+        hl.dispatch(hl.dsp.window.move({ x = saved.x, y = saved.y, relative = false, window = target }))
+        hl.dispatch(hl.dsp.window.float({ action = "unset", window = target }))
+        maximizedWindows[win.address] = nil
+        return
+    end
+
+    maximizedWindows[win.address] = { x = win.at[1], y = win.at[2], w = win.size[1], h = win.size[2] }
+
+    local gapsOut = hl.get_config("general.gaps_out") or 0
+    local mon = win.monitor
+
+    hl.dispatch(hl.dsp.window.float({ action = "set", window = target }))
+    hl.dispatch(hl.dsp.window.resize({ x = mon.width - gapsOut * 2, y = win.size[2], relative = false, window = target }))
+    hl.dispatch(hl.dsp.window.move({ x = mon.x + gapsOut, y = win.at[2], relative = false, window = target }))
+end)
 
 -- ALT + Tab is the scrolloverview trigger (Config/Binds/plugins.lua); kept
 -- here only as reverse-cycle since it doesn't collide with that.
