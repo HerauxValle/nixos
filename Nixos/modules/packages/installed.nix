@@ -52,6 +52,7 @@ in
     ntfs3g                      # ntfscat -- no-mount NTFS keyfile read, modules/security/sudo-keyfile.nix
     btrfs-progs                 # btrfs restore -- no-mount btrfs keyfile read, modules/security/sudo-keyfile.nix
     tpm2-tools                  # TPM tooling
+    ripgrep                     # For "todo tree" vscode extension
 
     # Shells
     fish                        # Main
