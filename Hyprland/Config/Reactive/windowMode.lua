@@ -66,12 +66,18 @@ hl.bind(mainMod .. " + F", function()
 
     maximizedWindows[win.address] = { x = win.at[1], y = win.at[2], w = win.size[1], h = win.size[2] }
 
+    -- general.gaps_out normalizes to a per-side table ({left,right,top,
+    -- bottom}), not the plain number theme.lua assigns it as -- confirmed
+    -- live via hl.get_config, so this reads left/right independently
+    -- rather than assuming a single scalar.
     local gapsOut = hl.get_config("general.gaps_out") or 0
+    local gapLeft  = type(gapsOut) == "table" and (gapsOut.left  or 0) or gapsOut
+    local gapRight = type(gapsOut) == "table" and (gapsOut.right or 0) or gapsOut
     local mon = win.monitor
 
     hl.dispatch(hl.dsp.window.float({ action = "set", window = target }))
-    hl.dispatch(hl.dsp.window.resize({ x = mon.width - gapsOut * 2, y = win.size[2], relative = false, window = target }))
-    hl.dispatch(hl.dsp.window.move({ x = mon.x + gapsOut, y = win.at[2], relative = false, window = target }))
+    hl.dispatch(hl.dsp.window.resize({ x = mon.width - gapLeft - gapRight, y = win.size[2], relative = false, window = target }))
+    hl.dispatch(hl.dsp.window.move({ x = mon.x + gapLeft, y = win.at[2], relative = false, window = target }))
 end)
 
 -- ALT + Tab is the scrolloverview trigger (Config/Binds/plugins.lua); kept
