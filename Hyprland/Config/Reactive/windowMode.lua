@@ -35,49 +35,38 @@ hl.bind(mainMod .. " + ALT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" 
 -- end)
 -- hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
 
--- Hand-rolled maximize toggle, used only under scrolling layout. Pure
--- width resize on the still-tiled window -- no floating at all, so it
--- stays a completely normal column: movable, swappable, every other bind
--- keeps working. Confirmed live: resizing a tiled window's width (not
--- floating it first) is respected and *not* fought by the layout engine
--- the way a move/reposition would be, and the scrolling layout
--- automatically reflows every sibling column's position to make room --
--- pushing whichever ones were already left/right further off that same
--- side -- entirely on its own, no manual sibling handling needed. Height
--- is left untouched since a horizontal-only scrolling layout already
--- keeps every column's Y/height reserved-area-aware (clears the bar,
--- etc.) regardless of width.
-local maximizedWidths = {}
+-- old (hl.bind(keys, function() ... end) confirmed dead on a real keypress
+-- -- registered with no errors, but zero effect, while the exact same
+-- logic worked every time invoked manually via hyprctl eval. Moved to
+-- Scripts/scrollMaximize.sh, bound via exec_cmd below, since
+-- dispatcher-style binds are proven to fire and that's the same pattern
+-- FWM.sh/cycleMode.sh/hyprfloat already use elsewhere in this repo for
+-- stateful toggles):
+-- local maximizedWidths = {}
+-- hl.bind(mainMod .. " + F", function()
+--     if hl.get_config("general.layout") ~= "scrolling" then
+--         hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
+--         return
+--     end
+--     local win = hl.get_active_window()
+--     if not win then return end
+--     local target = "address:" .. win.address
+--     local savedWidth = maximizedWidths[win.address]
+--     if savedWidth then
+--         hl.dispatch(hl.dsp.window.resize({ x = savedWidth, y = win.size.y, relative = false, window = target }))
+--         maximizedWidths[win.address] = nil
+--         return
+--     end
+--     maximizedWidths[win.address] = win.size.x
+--     local gapsOut = hl.get_config("general.gaps_out") or 0
+--     local gapLeft  = type(gapsOut) == "table" and (gapsOut.left  or 0) or gapsOut
+--     local gapRight = type(gapsOut) == "table" and (gapsOut.right or 0) or gapsOut
+--     hl.dispatch(hl.dsp.window.resize({ x = win.monitor.width - gapLeft - gapRight, y = win.size.y, relative = false, window = target }))
+-- end)
 
-hl.bind(mainMod .. " + F", function()
-    if hl.get_config("general.layout") ~= "scrolling" then
-        hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
-        return
-    end
-
-    local win = hl.get_active_window()
-    if not win then return end
-    local target = "address:" .. win.address
-
-    local savedWidth = maximizedWidths[win.address]
-    if savedWidth then
-        hl.dispatch(hl.dsp.window.resize({ x = savedWidth, y = win.size.y, relative = false, window = target }))
-        maximizedWidths[win.address] = nil
-        return
-    end
-
-    maximizedWidths[win.address] = win.size.x
-
-    -- general.gaps_out normalizes to a per-side table ({left,right,top,
-    -- bottom}), not the plain number theme.lua assigns it as -- confirmed
-    -- live via hl.get_config, so this reads left/right independently
-    -- rather than assuming a single scalar.
-    local gapsOut = hl.get_config("general.gaps_out") or 0
-    local gapLeft  = type(gapsOut) == "table" and (gapsOut.left  or 0) or gapsOut
-    local gapRight = type(gapsOut) == "table" and (gapsOut.right or 0) or gapsOut
-
-    hl.dispatch(hl.dsp.window.resize({ x = win.monitor.width - gapLeft - gapRight, y = win.size.y, relative = false, window = target }))
-end)
+-- See Scripts/scrollMaximize.sh for the maximize-toggle logic and why it
+-- lives in a script instead of inline Lua.
+hl.bind(mainMod .. " + F", hl.dsp.exec_cmd(SCRIPTS_DIR .. "/scrollMaximize.sh"))
 
 -- ALT + Tab is the scrolloverview trigger (Config/Binds/plugins.lua); kept
 -- here only as reverse-cycle since it doesn't collide with that.
