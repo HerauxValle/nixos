@@ -17,16 +17,17 @@
     # whatever's there at rebuild time, same as any other dotfile.
     "fastfetch".source = ../../Fastfetch;
 
-    # Gwenview's viewer background defaults to "Auto" (lib/gwenviewconfig.kcfg),
-    # which resolves to a plain white/light background outside a real Plasma
-    # session (no color-scheme daemon to detect a dark palette from). Forcing
-    # it dark to match Dolphin instead of guessing at a "transparent" option.
+    # Gwenview's "Auto" background mode literally means "Follow color scheme"
+    # (see lib/documentview/documentviewcontroller.cpp) -- the same active
+    # KDE color scheme Dolphin already uses, including whatever gives it its
+    # translucent/blurred panel. Explicitly setting Dark (previous attempt)
+    # hardcodes a fixed opaque paint instead, bypassing that scheme entirely.
     "gwenviewrc" = {
       force = true; # gwenview had already written its own copy imperatively;
                     # home-manager refuses to clobber existing files otherwise.
       text = ''
         [General]
-        BackgroundColorMode=DocumentView::Dark
+        BackgroundColorMode=DocumentView::Auto
       '';
     };
   };
