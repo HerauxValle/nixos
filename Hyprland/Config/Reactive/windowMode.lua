@@ -19,7 +19,9 @@ hl.bind(mainMod .. " + ALT + W",   hl.dsp.workspace.toggle_special())
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.window.move({ workspace = "special:magic" }))
 
 hl.bind(mainMod .. " + ALT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
-hl.bind(mainMod .. " + F",       hl.dsp.window.fullscreen({ mode = "maximized" }))
+-- action = "toggle" is required -- without it hl.window.fullscreen defaults
+-- to always setting fullscreen on, never unsetting it back.
+hl.bind(mainMod .. " + F",       hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
 
 -- ALT + Tab is the scrolloverview trigger (Config/Binds/plugins.lua); kept
 -- here only as reverse-cycle since it doesn't collide with that.

@@ -17,7 +17,7 @@ nixos-rebuild switch --flake /etc/nixos#herauxvalle
 | `Scripts/` | `pacnix` (rebuild wrapper), `Sudo` (broker), `Secrets`, `Backup`, `Wallpaper`, ... |
 | `Kitty/`, `Fastfetch/`, `Themes/`, `Shells/` | The usual dotfiles suspects |
 | `Backup/` | Snapshots of live, non-Nix-manageable app state (see `Scripts/Backup/backup.sh`) |
-| `Documentation/` | Bugfix writeups worth keeping around |
+| `Documentation/` | `Bugfixes/` and `Features/` writeups worth keeping around |
 
 ## A few things worth knowing
 
