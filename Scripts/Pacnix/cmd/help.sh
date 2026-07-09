@@ -47,16 +47,23 @@ usage: pacnix <command> [args]
       etc.). e.g. pacnix store firefox
 
   info [-o FIELD1,FIELD2,...] [-n] [-p]
-      Deep, machine-parsable system report, grouped into Packages,
-      Store, Generations, Flake, System, Disk -- ~30 fields covering
-      package provenance (system vs home-manager vs imperative vs full
-      closure), store internals (derivations vs built outputs, how many
-      packages have duplicate versions sitting around), exact flake
-      pins, config size, systemd/boot health, and more.
+      Exhaustive, machine-parsable system report -- 124 fields across
+      15 categories: Packages, Store, Generations, Flake, System, Disk,
+      Btrfs, NixConfig, GC, Hardware, Boot, Network, Security, Health,
+      Session. Package provenance (system vs home-manager vs imperative
+      vs full closure), store internals (derivations vs built outputs,
+      fixed-output/network-fetched derivation count, top 5 largest
+      packages, top 5 most-duplicated), exact flake pins, nix.conf and
+      GC settings, btrfs allocation (not just df), systemd/journal
+      health, network/firewall state, and more -- most of it well
+      beyond what any single stock command gives you.
         -o LIST   select/order fields (like lsblk -o), `-o list` to
                   see all available fields, grouped, with descriptions
         -n        values only, no labels, one per line
         -p        KEY="value" pairs (like lsblk -P), eval-able
+      A full run takes several seconds (multiple nix eval calls, a full
+      closure walk, store-wide scans) -- `-o` a handful of cheap fields
+      if you just need something fast.
       e.g. pacnix info -o STORE_SIZE,PKGS_SYSTEM -p
 
   help
