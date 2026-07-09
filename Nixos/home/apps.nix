@@ -21,10 +21,14 @@
     # which resolves to a plain white/light background outside a real Plasma
     # session (no color-scheme daemon to detect a dark palette from). Forcing
     # it dark to match Dolphin instead of guessing at a "transparent" option.
-    "gwenviewrc".text = ''
-      [General]
-      BackgroundColorMode=DocumentView::Dark
-    '';
+    "gwenviewrc" = {
+      force = true; # gwenview had already written its own copy imperatively;
+                    # home-manager refuses to clobber existing files otherwise.
+      text = ''
+        [General]
+        BackgroundColorMode=DocumentView::Dark
+      '';
+    };
   };
 
   # Declarative Proton GE: symlinks nixpkgs' proton-ge-bin into Steam's compat
