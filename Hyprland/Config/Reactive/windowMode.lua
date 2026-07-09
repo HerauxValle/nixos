@@ -35,15 +35,19 @@ hl.bind(mainMod .. " + ALT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" 
 -- end)
 -- hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
 
--- Hand-rolled maximize toggle, used only under scrolling layout. Floats the
--- window (so the scrolling layout's own column recalculation can't fight
--- a manual resize), remembers its exact pre-toggle geometry, and expands
--- it to the monitor's live width minus the live general.gaps_out on each
--- side. Y and height are left exactly as the scrolling layout already set
--- them -- every column in that layout is already reserved-area-aware
--- (clears the bar, etc.) on its own, so there's no need to duplicate that
--- math by hand; only the width needs to change to read as "maximized".
-local maximizedWindows = {}
+-- Hand-rolled maximize toggle, used only under scrolling layout. Pure
+-- width resize on the still-tiled window -- no floating at all, so it
+-- stays a completely normal column: movable, swappable, every other bind
+-- keeps working. Confirmed live: resizing a tiled window's width (not
+-- floating it first) is respected and *not* fought by the layout engine
+-- the way a move/reposition would be, and the scrolling layout
+-- automatically reflows every sibling column's position to make room --
+-- pushing whichever ones were already left/right further off that same
+-- side -- entirely on its own, no manual sibling handling needed. Height
+-- is left untouched since a horizontal-only scrolling layout already
+-- keeps every column's Y/height reserved-area-aware (clears the bar,
+-- etc.) regardless of width.
+local maximizedWidths = {}
 
 hl.bind(mainMod .. " + F", function()
     if hl.get_config("general.layout") ~= "scrolling" then
@@ -55,22 +59,14 @@ hl.bind(mainMod .. " + F", function()
     if not win then return end
     local target = "address:" .. win.address
 
-    local saved = maximizedWindows[win.address]
-    if saved then
-        hl.dispatch(hl.dsp.window.resize({ x = saved.w, y = saved.h, relative = false, window = target }))
-        hl.dispatch(hl.dsp.window.move({ x = saved.x, y = saved.y, relative = false, window = target }))
-        hl.dispatch(hl.dsp.window.float({ action = "unset", window = target }))
-        maximizedWindows[win.address] = nil
+    local savedWidth = maximizedWidths[win.address]
+    if savedWidth then
+        hl.dispatch(hl.dsp.window.resize({ x = savedWidth, y = win.size.y, relative = false, window = target }))
+        maximizedWidths[win.address] = nil
         return
     end
 
-    -- win's fields are live, not a snapshot -- confirmed live: reading
-    -- win.size.y/win.at.y *after* the float dispatch below returns
-    -- Hyprland's default float geometry, not the pre-float values. So
-    -- everything needed from win/its monitor has to be captured into
-    -- plain locals before that dispatch, not read from win afterwards.
-    local orig = { x = win.at.x, y = win.at.y, w = win.size.x, h = win.size.y }
-    maximizedWindows[win.address] = orig
+    maximizedWidths[win.address] = win.size.x
 
     -- general.gaps_out normalizes to a per-side table ({left,right,top,
     -- bottom}), not the plain number theme.lua assigns it as -- confirmed
@@ -79,11 +75,8 @@ hl.bind(mainMod .. " + F", function()
     local gapsOut = hl.get_config("general.gaps_out") or 0
     local gapLeft  = type(gapsOut) == "table" and (gapsOut.left  or 0) or gapsOut
     local gapRight = type(gapsOut) == "table" and (gapsOut.right or 0) or gapsOut
-    local monWidth, monX = win.monitor.width, win.monitor.x
 
-    hl.dispatch(hl.dsp.window.float({ action = "set", window = target }))
-    hl.dispatch(hl.dsp.window.resize({ x = monWidth - gapLeft - gapRight, y = orig.h, relative = false, window = target }))
-    hl.dispatch(hl.dsp.window.move({ x = monX + gapLeft, y = orig.y, relative = false, window = target }))
+    hl.dispatch(hl.dsp.window.resize({ x = win.monitor.width - gapLeft - gapRight, y = win.size.y, relative = false, window = target }))
 end)
 
 -- ALT + Tab is the scrolloverview trigger (Config/Binds/plugins.lua); kept
