@@ -113,7 +113,9 @@ ForegroundVisited=155,89,182
 
 [Colors:View]
 BackgroundAlternate=29,31,34
-BackgroundNormal=20,22,24,0
+# 4th value is alpha (0-255) -- this is the canvas transparency to tune,
+# see Nixos/home/apps.nix for how this scheme gets wired to Gwenview.
+BackgroundNormal=20,22,24,15
 DecorationFocus=61,174,233
 DecorationHover=61,174,233
 ForegroundActive=61,174,233
