@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
 import "../../config"
@@ -198,10 +199,11 @@ Rectangle {
         anchors { fill: parent; leftMargin: 14; rightMargin: 14 }
 
         // ── Left ─────────────────────────────────────────────────────────
-        Row {
+        RowLayout {
             id: leftSection
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
             spacing: 6
 
             // Drawer toggle icon
@@ -232,9 +234,10 @@ Rectangle {
             implicitWidth: centerRow.implicitWidth
             height: parent.height
 
-            Row {
+            RowLayout {
                 id: centerRow
                 anchors.centerIn: parent
+                height: parent.height
                 spacing: 12
 
                 Repeater {
@@ -249,10 +252,11 @@ Rectangle {
         }
 
         // ── Right ────────────────────────────────────────────────────────
-        Row {
+        RowLayout {
             id: rightSection
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
             spacing: 8
 
             Repeater {
