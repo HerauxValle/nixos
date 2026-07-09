@@ -9,15 +9,6 @@ let
 in
 
 {
-  # Dolphin's "Open With" dialog builds its application list from the XDG
-  # application menu tree. Confirmed via the actual running process's log
-  # (journalctl --user -t dolphin): `"applications.menu" not found in
-  # QList("/etc/xdg/menus", ...)` -- nothing ships that file outside a full
-  # Plasma session, so the list renders empty for every file. Reuse Plasma's
-  # own menu definition, which nixpkgs already ships in plasma-workspace.
-  environment.etc."xdg/menus/applications.menu".source =
-    "${pkgs.kdePackages.plasma-workspace}/etc/xdg/menus/plasma-applications.menu";
-
   services.udisks2.enable = false;
   security.polkit.enable = false;
   services.gvfs.enable = false;
