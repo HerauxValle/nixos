@@ -46,10 +46,22 @@ let
       # D-Bus call to PID1, not something that should wait on the worker.
       "${pkgs.systemd}/bin/systemctl --no-block poweroff"
     else if killMode == "hard" then
-      # No --no-block here: -ff doesn't go through PID1/D-Bus at all --
-      # systemctl calls sync() and reboot(2) directly in this process, so
-      # it's already synchronous and near-instant, nothing to detach from.
-      "${pkgs.systemd}/bin/systemctl poweroff --force --force"
+      # Can't just run `systemctl poweroff --force --force` here -- confirmed
+      # live: it silently no-ops when launched this way. -ff calls reboot(2)
+      # directly in whatever process invokes it, skipping PID1 entirely --
+      # but RUN+= commands are forked straight from systemd-udevd itself, so
+      # they inherit its own hardened seccomp filter (`systemctl show
+      # systemd-udevd -p SystemCallFilter`), which allows sync/syncfs but
+      # does NOT include reboot. The child gets killed by seccomp the instant
+      # it calls reboot(2); udev doesn't surface that failure at normal log
+      # levels, so it fails completely silently.
+      #
+      # Fix: systemd-run only needs a D-Bus call (allowed by the filter) to
+      # ask PID1 -- unsandboxed -- to spawn a fresh transient unit. reboot(2)
+      # then happens inside THAT unit, outside udevd's seccomp filter, so it
+      # actually goes through. --no-block: don't wait on it from the udev
+      # worker, same reasoning as the soft path above.
+      "${pkgs.systemd}/bin/systemd-run --no-block --collect --unit=usb-killswitch-hard -- ${pkgs.systemd}/bin/systemctl poweroff --force --force"
     else if killMode == "disabled" then
       null
     else
