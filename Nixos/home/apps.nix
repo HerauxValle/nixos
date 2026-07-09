@@ -27,7 +27,7 @@
                     # home-manager refuses to clobber existing files otherwise.
       text = ''
         [General]
-        BackgroundColorMode=DocumentView::Auto
+        BackgroundColorMode=DocumentView::Dark
       '';
     };
   };
