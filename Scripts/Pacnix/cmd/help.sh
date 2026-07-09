@@ -47,14 +47,17 @@ usage: pacnix <command> [args]
       etc.). e.g. pacnix store firefox
 
   info [-o FIELD1,FIELD2,...] [-n] [-p]
-      Detailed system report: package counts, store/closure sizes,
-      generation count, disk usage, and more. Machine-parsable by
-      design:
+      Deep, machine-parsable system report, grouped into Packages,
+      Store, Generations, Flake, System, Disk -- ~30 fields covering
+      package provenance (system vs home-manager vs imperative vs full
+      closure), store internals (derivations vs built outputs, how many
+      packages have duplicate versions sitting around), exact flake
+      pins, config size, systemd/boot health, and more.
         -o LIST   select/order fields (like lsblk -o), `-o list` to
-                  see all available fields with descriptions
+                  see all available fields, grouped, with descriptions
         -n        values only, no labels, one per line
         -p        KEY="value" pairs (like lsblk -P), eval-able
-      e.g. pacnix info -o STORE_SIZE,PACKAGES -p
+      e.g. pacnix info -o STORE_SIZE,PKGS_SYSTEM -p
 
   help
       Show this message.
