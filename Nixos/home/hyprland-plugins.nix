@@ -38,18 +38,22 @@ let
     , hash
     , version ? "0-unstable-${builtins.substring 0 8 rev}"
     , libFile ? "lib${name}.so"
+    # Most plugins are CMake + pkg-config, hence the default -- but it's a
+    # full override, not an addition: a meson-based plugin should set this
+    # to [ pkgs.meson pkgs.ninja pkgs.pkg-config ] outright rather than
+    # piling meson/ninja on top of cmake, which would leave two build
+    # systems' setup hooks fighting over which configurePhase runs.
+    , nativeBuildInputs ? [ pkgs.cmake pkgs.pkg-config ]
     , extraBuildInputs ? [ ]
-    , extraNativeBuildInputs ? [ ]
     }:
     {
       inherit name libFile;
       drv = pkgs.hyprland.stdenv.mkDerivation {
         pname = "hyprland-${name}";
-        inherit version;
+        inherit version nativeBuildInputs;
 
         src = pkgs.fetchgit { inherit url rev hash; };
 
-        nativeBuildInputs = [ pkgs.cmake pkgs.pkg-config ] ++ extraNativeBuildInputs;
         buildInputs = [ pkgs.hyprland ] ++ pkgs.hyprland.buildInputs ++ extraBuildInputs;
 
         dontStrip = true;
