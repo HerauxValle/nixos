@@ -50,24 +50,61 @@ usage: pacnix <command> [args]
       Opens modules/packages/installed.nix in $EDITOR (falls back to
       nano if unset).
 
-  modules [-q <term>] [-s] [-c]
-      Lists home-manager's available `programs.*` modules (fetched live
-      from nix-community/home-manager's modules/programs on GitHub),
-      alphabetically. No flags: just names, one per line.
+  modules [-q <term>] [-s] [-c] [-h] [-n] [-i] [-r]
+      Lists available `programs.*` modules, alphabetically. Queries both
+      home-manager and NixOS system modules by default -- -h or -n
+      narrows to just one. No flags: just names, one per line (a name
+      present in both sources is listed twice, once per source -- use
+      -i to tell them apart).
+
+      Backed by a local cache (~/.cache/pacnix/modules/) instead of
+      hitting GitHub on every call -- the module list barely changes
+      day to day, so there's no reason to spend one of GitHub's 60
+      unauthenticated requests/hour on it every time. First run ever
+      (no cache yet) errors and tells you to add -r; after that, plain
+      calls are free and only -r talks to GitHub again.
+        -r          refetch from GitHub and overwrite the cache for
+                    whichever source(s) are active, instead of reading
+                    the cached copy. 1 request per active source (so 2
+                    for the default combined mode, 1 for -hr or -nr
+                    alone). Nothing else in this command ever refetches
+                    on its own.
         -q <term>   fuzzy-search for a module (case-insensitive, not a
                     literal match -- exact, then substring, then a
                     Levenshtein/character-overlap score, same family of
                     passes as `run`'s own matcher) and report whether
                     something close is available, plus a few
-                    alternates. e.g. pacnix modules -q steam
+                    alternates. Runs once per active source, so plain
+                    `pacnix modules -q steam` checks both and reports
+                    each separately. e.g. pacnix modules -q steam
         -s          show each module's GitHub link (source) instead of
                     just its name -- combine with -q to show the link
                     for just the match (-qs/-sq, either order).
         -c          curl the module's actual .nix source into the
                     terminal. With -q, fetches just that one match's
-                    file. Without -q (bare -c, or -sc with no query),
-                    it means every module -- prompts for confirmation
-                    first since that's 400+ requests.
+                    file (per active source). Without -q (bare -c, or
+                    -sc with no query), it means every module in every
+                    active source -- prompts for confirmation first
+                    since that's 400+ requests.
+        -h          home-manager only (nix-community/home-manager's
+                    modules/programs) -- user-level `programs.*`
+                    options (programs.fresh-editor, programs.fish, ...).
+        -n          NixOS *system*-level `programs.*` options only
+                    (nixpkgs' nixos/modules/programs), e.g.
+                    programs.steam (see modules/packages/programs.nix).
+                    Not exhaustive: some system `programs.*` options
+                    live elsewhere in nixpkgs, or come from a separate
+                    flake entirely (programs.hyprland,
+                    programs.silentSDDM) -- "not available" under -n
+                    only means "not in nixpkgs' own programs/ dir".
+        -i          prefix each result with its source, "[h]" or "[n]",
+                    and append its last commit: "[h] - fish (a3f9c1d)
+                    [last update in 14:32:07 | 03.07.2026]". One extra
+                    GitHub API call per file shown -- fine for -q, but
+                    on a full listing (hundreds of files) it will
+                    almost certainly hit GitHub's 60-requests/hour
+                    unauthenticated limit partway through and start
+                    printing "?"s; prompts for confirmation first.
 
   info [-o FIELD1,FIELD2,...] [-n] [-p]
       Exhaustive, machine-parsable system report -- 124 fields across

@@ -1,33 +1,71 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_URL="https://api.github.com/repos/nix-community/home-manager/contents/modules/programs"
-RAW_BASE="https://raw.githubusercontent.com/nix-community/home-manager/master/modules/programs"
+# Two source sets, selected by -h / -n. Neither given = query both.
+#   -h (home-manager)  nix-community/home-manager's modules/programs --
+#                       user-level `programs.*` home-manager options
+#                       (programs.fresh-editor, programs.fish, ...)
+#   -n (nixos)          nixpkgs' nixos/modules/programs -- NixOS
+#                       system-level `programs.*` options (programs.steam,
+#                       programs.direnv, ...)
+#
+# Neither set is exhaustive for system options: plenty of real
+# `programs.*` NixOS options live outside nixpkgs' own
+# nixos/modules/programs/ dir -- either elsewhere in nixpkgs (security/,
+# virtualisation/, ...) or shipped entirely by a separate flake
+# (programs.hyprland from the hyprland flake, programs.silentSDDM from
+# silent-sddm -- see flake.nix). A "not available" result under -n only
+# means "not in nixpkgs' own programs/ dir", not "doesn't exist anywhere".
+
+HM_REPO="nix-community/home-manager"
+HM_DIR="modules/programs"
+HM_RAW_BASE="https://raw.githubusercontent.com/$HM_REPO/master"
+NIXOS_REPO="NixOS/nixpkgs"
+NIXOS_DIR="nixos/modules/programs"
+NIXOS_RAW_BASE="https://raw.githubusercontent.com/$NIXOS_REPO/master"
+
+# Local cache of the two directory listings -- this is the whole reason
+# a routine `-q` call used to burn 2 GitHub API requests (one per source)
+# every single invocation: nothing was ever kept between runs. That list
+# barely changes day to day, so by default this now reads whatever was
+# cached last and only ever hits GitHub again when told to with -r.
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/pacnix/modules"
+HM_CACHE="$CACHE_DIR/home-manager.tsv"
+NIXOS_CACHE="$CACHE_DIR/nixos.tsv"
 
 # --- flag parsing ---
 #
-# -q, -s, -c can combine in any order in one token (-qs, -sq, -qsc, ...) --
-# each letter just flips a boolean. -q additionally needs a search term,
-# which is always its own separate argument (never glued into the flag
-# token itself) so "-qs steam" and "-sq steam" both work the same.
+# -q, -s, -c, -h, -n, -i, -r can combine in any order in one token (-qs,
+# -sq, -qsc, -nq, -hi, -qr, ...) -- each letter just flips a boolean. -q
+# additionally needs a search term, which is always its own separate
+# argument (never glued into the flag token itself) so "-qs steam" and
+# "-sq steam" both work the same.
 
 show_source=0
 do_curl=0
 have_query=0
+use_hm=0
+use_nixos=0
+show_info=0
+refetch=0
 query=""
 
 for a in "$@"; do
     case "$a" in
         -*)
             flags="${a#-}"
-            if [[ ! "$flags" =~ ^[qsc]+$ ]]; then
+            if [[ ! "$flags" =~ ^[qschnir]+$ ]]; then
                 echo "unknown flag: $a" >&2
-                echo "usage: pacnix modules [-q <term>] [-s] [-c]" >&2
+                echo "usage: pacnix modules [-q <term>] [-s] [-c] [-h] [-n] [-i] [-r]" >&2
                 exit 1
             fi
             [[ "$flags" == *q* ]] && have_query=1
             [[ "$flags" == *s* ]] && show_source=1
             [[ "$flags" == *c* ]] && do_curl=1
+            [[ "$flags" == *h* ]] && use_hm=1
+            [[ "$flags" == *n* ]] && use_nixos=1
+            [[ "$flags" == *i* ]] && show_info=1
+            [[ "$flags" == *r* ]] && refetch=1
             ;;
         *)
             if [ -n "$query" ]; then
@@ -39,6 +77,12 @@ for a in "$@"; do
     esac
 done
 
+# neither -h nor -n given -> query both
+if [ "$use_hm" -eq 0 ] && [ "$use_nixos" -eq 0 ]; then
+    use_hm=1
+    use_nixos=1
+fi
+
 if [ "$have_query" -eq 1 ] && [ -z "$query" ]; then
     echo "error: -q needs a search term, e.g. pacnix modules -q steam" >&2
     exit 1
@@ -48,143 +92,245 @@ if [ "$have_query" -eq 0 ] && [ -n "$query" ]; then
     exit 1
 fi
 
-# --- fetch the module list: name<TAB>type<TAB>html_url, one per line,
+# --- fetch a module list: name<TAB>type<TAB>html_url<TAB>path<TAB>tag,
 # sorted alphabetically (case-insensitive). type is "file" (a plain
-# <name>.nix module) or "dir" (a module split across multiple files under
-# modules/programs/<name>/). Parsed with python3 rather than jq -- jq isn't
-# installed anywhere in this config, python3 already is (installed.nix).
+# <name>.nix module) or "dir" (a module split across multiple files).
+# Parsed with python3 rather than jq -- jq isn't installed anywhere in
+# this config, python3 already is (installed.nix). tag is "h" or "n",
+# fixed per call, so it survives concatenation into one combined table.
 
-modules="$(curl -sf "$API_URL" | python3 -c '
+fetch_source() {
+    local repo="$1" dir="$2" tag="$3"
+    curl -sf "https://api.github.com/repos/$repo/contents/$dir" | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
 rows = []
 for item in data:
-    name = item["name"]
-    if item["type"] == "file" and name.endswith(".nix"):
+    name = item['name']
+    if item['type'] == 'file' and name.endswith('.nix'):
         name = name[:-4]
-    rows.append((name, item["type"], item["html_url"]))
+    rows.append((name, item['type'], item['html_url'], item['path']))
 rows.sort(key=lambda r: r[0].lower())
-for name, typ, url in rows:
-    print(f"{name}\t{typ}\t{url}")
-')" || { echo "error: couldn't reach GitHub's API ($API_URL)" >&2; exit 1; }
+for name, typ, url, path in rows:
+    print(f'{name}\t{typ}\t{url}\t{path}\t$tag')
+"
+}
 
-[ -z "$modules" ] && { echo "error: got an empty module list from GitHub" >&2; exit 1; }
+# Loads one source's rows from cache, refetching (and rewriting the cache)
+# only when -r was given or the cache doesn't exist yet. A missing cache
+# without -r is a hard error rather than a silent auto-fetch -- so a
+# routine `pacnix modules -q x` never hits GitHub on its own; you opt in
+# once with -r and every plain call after that is free.
+load_source() {
+    local repo="$1" dir="$2" tag="$3" cache="$4" label="$5"
+    if [ "$refetch" -eq 1 ] || [ ! -s "$cache" ]; then
+        if [ "$refetch" -eq 0 ]; then
+            echo "no local cache for $label yet -- rerun with -r to fetch it (e.g. pacnix modules -r)" >&2
+            exit 1
+        fi
+        local rows
+        rows="$(fetch_source "$repo" "$dir" "$tag")" || { echo "error: couldn't reach GitHub's API for $label" >&2; exit 1; }
+        mkdir -p "$CACHE_DIR"
+        printf '%s\n' "$rows" > "$cache"
+    fi
+    cat "$cache"
+}
 
-names=()
-while IFS=$'\t' read -r name _ _; do
-    names+=("$name")
-done <<< "$modules"
+modules=""
+if [ "$use_hm" -eq 1 ]; then
+    rows="$(load_source "$HM_REPO" "$HM_DIR" "h" "$HM_CACHE" "home-manager")"
+    modules="$rows"
+fi
+if [ "$use_nixos" -eq 1 ]; then
+    rows="$(load_source "$NIXOS_REPO" "$NIXOS_DIR" "n" "$NIXOS_CACHE" "NixOS system")"
+    modules="${modules:+$modules$'\n'}$rows"
+fi
+modules="$(printf '%s\n' "$modules" | sort -t $'\t' -k1,1f)"
 
-url_for() { printf '%s\n' "$modules" | awk -F'\t' -v n="$1" '$1==n{print $3; exit}'; }
-type_for() { printf '%s\n' "$modules" | awk -F'\t' -v n="$1" '$1==n{print $2; exit}'; }
+[ -z "$modules" ] && { echo "error: got an empty module list" >&2; exit 1; }
 
-# --- fuzzy match -- same family of passes as Scripts/Run/run.sh's _search
-# (exact -> substring -> Levenshtein + character overlap), minus run.sh's
-# frequency/recency weighting (no usage history for a static upstream
-# module list) and minus its middle "fuzzy subsequence" pass: that pass has
-# no distance/length gate at all, and against ~400 real module names it
-# confidently matched nonsense (query "steam" -> "streamlink", purely
-# because s-t-e-a-m appears in order somewhere inside it) -- worse than
-# just falling through to the scored, thresholded Levenshtein pass below.
-# Prints ranked candidates, best first; caller takes the first as the
-# match and the rest as "did you mean" suggestions.
+# Backed by a real file rather than piped through awk live: an awk pattern
+# that `exit`s on its first match (used below to fetch just one row) closes
+# its stdin early, and once the combined home-manager+nixos list got big
+# enough to exceed the ~64KB pipe buffer, that early close SIGPIPEd the
+# still-writing `printf` on the other end of the pipe -- pipefail turned
+# that into a silent, unexplained exit. A real file has no such writer to
+# kill; awk just stops reading it.
+modules_file="$(mktemp)"
+trap 'rm -f "$modules_file"' EXIT
+printf '%s\n' "$modules" > "$modules_file"
+
+names_for_tag() { awk -F'\t' -v t="$1" '$5==t{print $1}' "$modules_file"; }
+row_for() { awk -F'\t' -v n="$1" -v t="$2" '$1==n && $5==t{print; exit}' "$modules_file"; }
+label_for_tag() { [ "$1" = "h" ] && echo "home-manager" || echo "NixOS system"; }
+raw_base_for_tag() { [ "$1" = "h" ] && echo "$HM_RAW_BASE" || echo "$NIXOS_RAW_BASE"; }
+repo_for_tag() { [ "$1" = "h" ] && echo "$HM_REPO" || echo "$NIXOS_REPO"; }
+
+# --- fuzzy match, within one source's namespace -- same family of passes
+# as Scripts/Run/run.sh's _search (exact -> substring -> Levenshtein +
+# character overlap), minus run.sh's frequency/recency weighting (no usage
+# history for a static upstream module list) and minus its middle "fuzzy
+# subsequence" pass: that pass has no distance/length gate at all, and
+# against real module names it confidently matched nonsense (query "steam"
+# -> "streamlink", purely because s-t-e-a-m appears in order somewhere
+# inside it) -- worse than just falling through to the scored, thresholded
+# Levenshtein pass below. Prints ranked candidates, best first. Reads
+# modules_file directly (see the SIGPIPE note above) instead of piping a
+# captured $names string through awk.
 
 fuzzy_match() {
-    local q="$1" ql
+    local tag="$1" q="$2" ql
     ql="$(echo "$q" | tr '[:upper:]' '[:lower:]')"
 
     local exact
-    exact="$(printf '%s\n' "${names[@]}" | awk -v ql="$ql" 'tolower($0)==ql{print; exit}')"
+    exact="$(awk -F'\t' -v t="$tag" -v ql="$ql" '$5==t && tolower($1)==ql{print $1; exit}' "$modules_file")"
     if [ -n "$exact" ]; then printf '%s\n' "$exact"; return; fi
 
     local sub
-    sub="$(printf '%s\n' "${names[@]}" | awk -v ql="$ql" 'tolower($0) ~ ql {print length($0)"|"$0}' | sort -n | cut -d'|' -f2-)"
+    sub="$(awk -F'\t' -v t="$tag" -v ql="$ql" '$5==t && tolower($1) ~ ql {print length($1)"|"$1}' "$modules_file" | sort -n | cut -d'|' -f2-)"
     if [ -n "$sub" ]; then printf '%s\n' "$sub"; return; fi
 
-    printf '%s\n' "${names[@]}" | awk -v ql="$ql" '
+    awk -F'\t' -v t="$tag" -v ql="$ql" '
         function lower(s){return tolower(s)}
         function levenshtein(s,t,   sl,tl,i,j,prev,curr,tmp){sl=length(s);tl=length(t);if(!sl)return tl;if(!tl)return sl;for(j=0;j<=tl;j++)prev[j]=j;for(i=1;i<=sl;i++){curr[0]=i;for(j=1;j<=tl;j++){if(substr(s,i,1)==substr(t,j,1))curr[j]=prev[j-1];else{tmp=prev[j-1];if(prev[j]<tmp)tmp=prev[j];if(curr[j-1]<tmp)tmp=curr[j-1];curr[j]=tmp+1}};for(j=0;j<=tl;j++)prev[j]=curr[j]};return prev[tl]}
         function charoverlap(a,b,   i,mtch,ch){delete ca;delete cb;for(i=1;i<=length(a);i++)ca[substr(a,i,1)]++;for(i=1;i<=length(b);i++)cb[substr(b,i,1)]++;mtch=0;for(ch in ca)if(ch in cb)mtch+=(ca[ch]<cb[ch]?ca[ch]:cb[ch]);return mtch}
-        {
-            tok=lower($0)
+        $5==t {
+            tok=lower($1)
             dist=levenshtein(ql,tok)
             maxl=(length(ql)>length(tok)?length(ql):length(tok))
             if (!maxl) next
             sim=1-dist/maxl
             overlap=charoverlap(ql,tok)/length(ql)
             score=sim*0.6+overlap*0.4
-            if (score>=0.45) printf "%06.4f|%s\n", score, $0
+            if (score>=0.45) printf "%06.4f|%s\n", score, $1
         }
-    ' | sort -t'|' -k1,1rn | cut -d'|' -f2-
+    ' "$modules_file" | sort -t'|' -k1,1rn | cut -d'|' -f2-
+}
+
+# --- last-commit metadata for -i (git short SHA + date of that exact
+# file). One GitHub API call per file -- fine for a handful of -q results,
+# not for a full listing (unauthenticated GitHub caps at 60 requests/hour,
+# see the bulk-mode confirmation below). Fails soft: a rate limit or
+# network error prints "?"s instead of aborting the whole run.
+
+commit_info_for() {
+    local tag="$1" path="$2" repo
+    repo="$(repo_for_tag "$tag")"
+    python3 -c '
+import json, sys, datetime, urllib.request, urllib.parse
+repo, path = sys.argv[1], sys.argv[2]
+url = f"https://api.github.com/repos/{repo}/commits?path={urllib.parse.quote(path)}&sha=master&per_page=1"
+try:
+    req = urllib.request.Request(url, headers={"User-Agent": "pacnix-modules"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        data = json.load(r)
+    c = data[0]
+    sha = c["sha"][:7]
+    dt = datetime.datetime.strptime(c["commit"]["committer"]["date"], "%Y-%m-%dT%H:%M:%SZ")
+    print(f"{sha}\t{dt.strftime(\"%H:%M:%S\")} | {dt.strftime(\"%d.%m.%Y\")}")
+except Exception:
+    print("???????\t??:??:?? | ??.??.????")
+' "$repo" "$path"
 }
 
 curl_module() {
-    local name="$1" type
-    type="$(type_for "$name")"
+    local tag="$1" type="$2" path="$3" url="$4" raw
+    raw="$(raw_base_for_tag "$tag")"
     if [ "$type" = "dir" ]; then
-        curl -sf "$RAW_BASE/$name/default.nix" || {
-            echo "# (directory module, couldn't guess the file -- see $(url_for "$name"))"
-            return 1
-        }
+        curl -sf "$raw/$path/default.nix" || echo "# (directory module, couldn't guess the file -- see $url)"
     else
-        curl -sf "$RAW_BASE/$name.nix" || echo "# (failed to fetch)"
+        curl -sf "$raw/$path" || echo "# (failed to fetch)"
     fi
 }
 
-# --- -q: single-module query ---
+# format one row for display: plain "name", "name - url" (-s), or with -i
+# "[tag] - name (sha) [last update in HH:MM:SS | DD.MM.YYYY]" (+ " - url"
+# if -s is also set). Takes fields as separate args (not a joined row
+# string) so callers that already have them split -- both call sites do --
+# don't need to re-join and re-split them.
+format_line() {
+    local name="$1" type="$2" url="$3" path="$4" tag="$5"
+    local line
+    if [ "$show_info" -eq 1 ]; then
+        local info sha when
+        info="$(commit_info_for "$tag" "$path")"
+        sha="${info%%$'\t'*}"
+        when="${info#*$'\t'}"
+        line="[$tag] - $name ($sha) [last update in $when]"
+    else
+        line="$name"
+    fi
+    [ "$show_source" -eq 1 ] && line="$line - $url"
+    printf '%s\n' "$line"
+}
+
+# --- -q: single-module query, once per active source ---
 
 if [ "$have_query" -eq 1 ]; then
-    candidates="$(fuzzy_match "$query")"
-    if [ -z "$candidates" ]; then
-        echo "not available: $query"
-        exit 0
-    fi
+    for tag in h n; do
+        { [ "$tag" = "h" ] && [ "$use_hm" -eq 0 ]; } && continue
+        { [ "$tag" = "n" ] && [ "$use_nixos" -eq 0 ]; } && continue
+        label="$(label_for_tag "$tag")"
 
-    match="$(printf '%s\n' "$candidates" | head -1)"
-    ql="$(echo "$query" | tr '[:upper:]' '[:lower:]')"
-    matchl="$(echo "$match" | tr '[:upper:]' '[:lower:]')"
+        candidates="$(fuzzy_match "$tag" "$query")"
+        if [ -z "$candidates" ]; then
+            echo "not available in $label: $query"
+            [ "$tag" = "n" ] && echo "(nixos/modules/programs/ only -- could still exist elsewhere in nixpkgs, or come from a separate flake)" >&2
+            continue
+        fi
 
-    line="available: $match"
-    [ "$matchl" != "$ql" ] && line="$line (closest match for '$query')"
-    if [ "$show_source" -eq 1 ]; then
-        line="$line - $(url_for "$match")"
-    fi
-    echo "$line"
+        match="$(printf '%s\n' "$candidates" | head -1)"
+        ql="$(echo "$query" | tr '[:upper:]' '[:lower:]')"
+        matchl="$(echo "$match" | tr '[:upper:]' '[:lower:]')"
+        row="$(row_for "$match" "$tag")"
+        IFS=$'\t' read -r rname rtype rurl rpath rtag <<< "$row"
 
-    alts="$(printf '%s\n' "$candidates" | tail -n +2 | head -3)"
-    [ -n "$alts" ] && echo "also close: $(printf '%s, ' $alts | sed 's/, $//')"
+        if [ "$show_info" -eq 1 ]; then
+            prefix=""
+        else
+            prefix="available in $label: "
+        fi
+        line="$prefix$(format_line "$rname" "$rtype" "$rurl" "$rpath" "$rtag")"
+        [ "$matchl" != "$ql" ] && line="$line (closest match for '$query')"
+        echo "$line"
 
-    if [ "$do_curl" -eq 1 ]; then
-        curl_module "$match"
-    fi
+        alts="$(printf '%s\n' "$candidates" | tail -n +2 | head -3)"
+        [ -n "$alts" ] && echo "also close ($label): $(printf '%s, ' $alts | sed 's/, $//')"
+
+        if [ "$do_curl" -eq 1 ]; then
+            curl_module "$rtag" "$rtype" "$rpath" "$rurl"
+        fi
+    done
     exit 0
 fi
 
 # --- no -q: listing / bulk mode ---
 
-if [ "$do_curl" -eq 1 ]; then
-    echo "about to fetch and print the raw source of all ${#names[@]} modules -- that's ${#names[@]} requests and a lot of terminal output." >&2
+total=$(printf '%s\n' "$modules" | wc -l)
+
+if [ "$do_curl" -eq 1 ] || [ "$show_info" -eq 1 ]; then
+    if [ "$do_curl" -eq 1 ] && [ "$show_info" -eq 1 ]; then
+        note="that's $total file-content requests plus $total commit-lookup requests (~$((total * 2)) total)."
+    elif [ "$do_curl" -eq 1 ]; then
+        note="that's $total requests."
+    else
+        note="that's $total commit-lookup requests."
+    fi
+    echo "about to fetch extra data for all $total modules -- $note" >&2
+    if [ "$show_info" -eq 1 ]; then
+        echo "GitHub allows 60 unauthenticated API requests/hour -- -i on a full listing will almost certainly hit that limit partway through and start printing '?'s." >&2
+    fi
     read -r -p "continue? [y/N] " reply
     case "$reply" in
         y | Y | yes | YES) ;;
         *) echo "aborted." >&2; exit 1 ;;
     esac
-    while IFS=$'\t' read -r name _ url; do
-        if [ "$show_source" -eq 1 ]; then
-            echo "# --- $name - $url ---"
-        else
-            echo "# --- $name ---"
-        fi
-        curl_module "$name"
-        echo
-    done <<< "$modules"
-    exit 0
 fi
 
-if [ "$show_source" -eq 1 ]; then
-    while IFS=$'\t' read -r name _ url; do
-        echo "$name - $url"
-    done <<< "$modules"
-else
-    printf '%s\n' "${names[@]}"
-fi
+while IFS=$'\t' read -r name type url path tag; do
+    format_line "$name" "$type" "$url" "$path" "$tag"
+    if [ "$do_curl" -eq 1 ]; then
+        curl_module "$tag" "$type" "$path" "$url"
+        echo
+    fi
+done <<< "$modules"
