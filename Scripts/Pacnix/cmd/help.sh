@@ -112,6 +112,17 @@ usage: pacnix <command> [args]
                     would mean 600+ requests just to show it on a full
                     listing.)
 
+  plugins <git-url> [rev]
+      Generates a ready-to-paste mkPlugin { ... } block for
+      Nixos/home/hyprland-plugins.nix from just a git URL. Prefetches
+      rev/hash/commit-date (nix-prefetch-git) and actually builds the
+      plugin against this system's pinned pkgs.hyprland to read back the
+      real .so filename instead of guessing it -- that build is cached,
+      not wasted, once you paste the block in. If it needs deps beyond
+      cmake/pkg-config/hyprland's own, the build fails with the missing
+      package named; add it to the pasted block's extraBuildInputs and
+      rebuild. e.g. pacnix plugins https://github.com/user/some-plugin.git
+
   info [-o FIELD1,FIELD2,...] [-n] [-p]
       Exhaustive, machine-parsable system report -- 124 fields across
       15 categories: Packages, Store, Generations, Flake, System, Disk,

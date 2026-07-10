@@ -11,10 +11,14 @@ hl.on("hyprland.start", function()
     hl.exec_cmd(SCRIPTS_DIR .. "/defaultWS.sh")
     hl.exec_cmd(SCRIPTS_DIR .. "/defaultApps.sh")
 
-    -- Nix-built plugin (Nixos/home/hyprland-plugins.nix), loaded the same
+    -- Nix-built plugins (Nixos/home/hyprland-plugins.nix), loaded the same
     -- way home-manager's own wayland.windowManager.hyprland.plugins does it
     -- under the hood (hyprctl plugin load) -- no hyprpm state store involved.
-    hl.exec_cmd("hyprctl plugin load " .. os.getenv("HOME") .. "/.local/share/hypr-plugins/scrolloverview.so")
+    -- Loads every .so nix put there, so adding a plugin to that file is the
+    -- only change needed -- nothing to update here. exec_cmd spawns directly
+    -- (no shell), so the loop needs an explicit bash -c like the other
+    -- compound commands below.
+    hl.exec_cmd("bash -c 'for f in " .. os.getenv("HOME") .. "/.local/share/hypr-plugins/*.so; do hyprctl plugin load \"$f\"; done'")
 
     -- Quickshell / MyBar. Via the XDG config path (home-manager symlinks
     -- Dotfiles/Quickshell -> ~/.config/quickshell), not the Dotfiles repo

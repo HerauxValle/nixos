@@ -225,7 +225,15 @@ fuzzy_match() {
             maxl=(length(ql)>length(tok)?length(ql):length(tok))
             if (!maxl) next
             sim=1-dist/maxl
-            overlap=charoverlap(ql,tok)/length(ql)
+            ov=charoverlap(ql,tok)
+            # Jaccard over the union, not just length(ql) -- dividing by
+            # the query alone let any candidate that happens to contain
+            # every one of the querys distinct letters score a maxed-out
+            # 1.0 overlap regardless of how much unrelated length it drags
+            # along (query "steam" against "streamlink": all 5 letters
+            # present, overlap=1.0, despite 5 of streamlinks 10 characters
+            # being unrelated noise). Union normalization charges for that.
+            overlap=ov/(length(ql)+length(tok)-ov)
             score=sim*0.6+overlap*0.4
             if (score>=0.45) printf "%06.4f|%s\n", score, $1
         }
