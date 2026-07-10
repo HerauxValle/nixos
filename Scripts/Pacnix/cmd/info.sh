@@ -461,6 +461,50 @@ print(datetime.datetime.fromtimestamp(d['lastModified'], datetime.timezone.utc).
 selected=("${field_names[@]}")
 mode="labels"   # labels | noheadings | pairs
 
+# Unique category names, in first-seen (display) order.
+categories=()
+for entry in "${field_order[@]}"; do
+    cat="${entry##*:}"
+    already=0
+    for c in "${categories[@]}"; do [ "$c" = "$cat" ] && already=1 && break; done
+    [ "$already" -eq 0 ] && categories+=("$cat")
+done
+
+# A few categories' natural uppercased name doesn't match the field-name
+# prefix people actually type (PKGS_* fields, but category is "Packages") --
+# these are the only aliases needed to make -o take either. Every other
+# category (STORE, GENERATIONS, FLAKE, SYSTEM, DISK, BTRFS, GC, HARDWARE,
+# BOOT, SESSION, HEALTH) already equals its own uppercased name.
+declare -A category_aliases=(
+    [PKGS]=Packages
+    [NIXCONFIG]=NixConfig
+    [NET]=Network
+    [SEC]=Security
+    [HW]=Hardware
+)
+
+# A single -o token: an exact field name, a category name/alias (expands to
+# every field in that category, in field_order's order), or unresolved.
+resolve_token() {
+    local tok="${1^^}" c wanted_cat="" f found=0
+    for f in "${field_names[@]}"; do
+        if [ "$f" = "$tok" ]; then echo "$f"; return 0; fi
+    done
+    for c in "${categories[@]}"; do
+        [ "${c^^}" = "$tok" ] && wanted_cat="$c" && break
+    done
+    [ -z "$wanted_cat" ] && wanted_cat="${category_aliases[$tok]:-}"
+    if [ -n "$wanted_cat" ]; then
+        for entry in "${field_order[@]}"; do
+            if [ "${entry##*:}" = "$wanted_cat" ]; then
+                echo "${entry%%:*}"
+                found=1
+            fi
+        done
+    fi
+    [ "$found" -eq 1 ]
+}
+
 while [ $# -gt 0 ]; do
     case "$1" in
         -o|--output)
@@ -474,7 +518,21 @@ while [ $# -gt 0 ]; do
                 done
                 exit 0
             fi
-            IFS=',' read -r -a selected <<< "${arg^^}"
+            IFS=',' read -r -a raw_tokens <<< "$arg"
+            selected=()
+            for tok in "${raw_tokens[@]}"; do
+                resolved=()
+                while IFS= read -r r; do resolved+=("$r"); done < <(resolve_token "$tok" || true)
+                if [ "${#resolved[@]}" -eq 0 ]; then
+                    echo "unknown field or category: $tok (try 'pacnix info -o list')" >&2
+                    exit 1
+                fi
+                for r in "${resolved[@]}"; do
+                    already=0
+                    for s in "${selected[@]}"; do [ "$s" = "$r" ] && already=1 && break; done
+                    [ "$already" -eq 0 ] && selected+=("$r")
+                done
+            done
             shift 2
             ;;
         -n|--noheadings) mode="noheadings"; shift ;;
