@@ -61,6 +61,8 @@ let
     };
 
   plugins = [
+    # ---- pacnix plugins <git-url> output goes here, one block per plugin ----
+
     (mkPlugin {
       name = "scrolloverview";
       url = "https://github.com/yayuuu/hyprland-scroll-overview.git";
@@ -69,6 +71,8 @@ let
       version = "0-unstable-2026-07-07";
       extraBuildInputs = [ pkgs.lua5_4 pkgs.systemd ];
     })
+
+    # ---- add more mkPlugin { ... } blocks above this line ----
   ];
 in
 {
