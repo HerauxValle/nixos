@@ -63,6 +63,10 @@ usage: pacnix <command> [args]
       unauthenticated requests/hour on it every time. First run ever
       (no cache yet) errors and tells you to add -r; after that, plain
       calls are free and only -r talks to GitHub again.
+
+      Output is colored regardless of flags (cyan [h] / magenta [n],
+      green available / red not available, dim sha/urls) when stdout
+      is a terminal; auto-off when piped/redirected, or set $NO_COLOR.
         -r          refetch from GitHub and overwrite the cache for
                     whichever source(s) are active, instead of reading
                     the cached copy. 1 request per active source (so 2

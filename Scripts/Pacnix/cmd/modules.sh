@@ -33,6 +33,27 @@ CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/pacnix/modules"
 HM_CACHE="$CACHE_DIR/home-manager.tsv"
 NIXOS_CACHE="$CACHE_DIR/nixos.tsv"
 
+# --- color ---
+#
+# Same 0;31/0;33/0;32/0m red/yellow/green/reset codes as
+# Nixos/modules/backup/dotfiles.nix uses, plus cyan/magenta for the [h]/[n]
+# source tags and a dim tone for secondary info (sha, urls). Off entirely
+# when stdout isn't a terminal (piped/redirected) or $NO_COLOR is set, so
+# `pacnix modules -q x | grep y` never has to deal with escape codes.
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+    C_H=$'\033[0;36m'      # home-manager tag
+    C_N=$'\033[0;35m'      # NixOS system tag
+    C_GREEN=$'\033[0;32m'  # available
+    C_RED=$'\033[0;31m'    # not available / errors
+    C_YELLOW=$'\033[0;33m' # closest-match hints / warnings
+    C_DIM=$'\033[0;90m'    # sha, urls
+    C_BOLD=$'\033[1m'      # module names
+    C_RESET=$'\033[0m'
+else
+    C_H=""; C_N=""; C_GREEN=""; C_RED=""; C_YELLOW=""; C_DIM=""; C_BOLD=""; C_RESET=""
+fi
+color_for_tag() { [ "$1" = "h" ] && echo "$C_H" || echo "$C_N"; }
+
 # --- flag parsing ---
 #
 # -q, -s, -c, -h, -n, -i, -r can combine in any order in one token (-qs,
@@ -55,7 +76,7 @@ for a in "$@"; do
         -*)
             flags="${a#-}"
             if [[ ! "$flags" =~ ^[qschnir]+$ ]]; then
-                echo "unknown flag: $a" >&2
+                echo "${C_RED}unknown flag: $a${C_RESET}" >&2
                 echo "usage: pacnix modules [-q <term>] [-s] [-c] [-h] [-n] [-i] [-r]" >&2
                 exit 1
             fi
@@ -69,7 +90,7 @@ for a in "$@"; do
             ;;
         *)
             if [ -n "$query" ]; then
-                echo "error: unexpected extra argument: $a" >&2
+                echo "${C_RED}error: unexpected extra argument: $a${C_RESET}" >&2
                 exit 1
             fi
             query="$a"
@@ -84,11 +105,11 @@ if [ "$use_hm" -eq 0 ] && [ "$use_nixos" -eq 0 ]; then
 fi
 
 if [ "$have_query" -eq 1 ] && [ -z "$query" ]; then
-    echo "error: -q needs a search term, e.g. pacnix modules -q steam" >&2
+    echo "${C_RED}error: -q needs a search term, e.g. pacnix modules -q steam${C_RESET}" >&2
     exit 1
 fi
 if [ "$have_query" -eq 0 ] && [ -n "$query" ]; then
-    echo "error: '$query' needs -q to search for it, e.g. pacnix modules -q $query" >&2
+    echo "${C_RED}error: '$query' needs -q to search for it, e.g. pacnix modules -q $query${C_RESET}" >&2
     exit 1
 fi
 
@@ -130,11 +151,11 @@ load_source() {
     local repo="$1" dir="$2" tag="$3" cache="$4" label="$5"
     if [ "$refetch" -eq 1 ] || [ ! -s "$cache" ]; then
         if [ "$refetch" -eq 0 ]; then
-            echo "no local cache for $label yet -- rerun with -r to fetch it (e.g. pacnix modules -r)" >&2
+            echo "${C_YELLOW}no local cache for $label yet -- rerun with -r to fetch it (e.g. pacnix modules -r)${C_RESET}" >&2
             exit 1
         fi
         local rows
-        rows="$(fetch_source "$repo" "$dir" "$tag")" || { echo "error: couldn't reach GitHub's API for $label" >&2; exit 1; }
+        rows="$(fetch_source "$repo" "$dir" "$tag")" || { echo "${C_RED}error: couldn't reach GitHub's API for $label${C_RESET}" >&2; exit 1; }
         mkdir -p "$CACHE_DIR"
         printf '%s\n' "$rows" > "$cache"
     fi
@@ -152,7 +173,7 @@ if [ "$use_nixos" -eq 1 ]; then
 fi
 modules="$(printf '%s\n' "$modules" | sort -t $'\t' -k1,1f)"
 
-[ -z "$modules" ] && { echo "error: got an empty module list" >&2; exit 1; }
+[ -z "$modules" ] && { echo "${C_RED}error: got an empty module list${C_RESET}" >&2; exit 1; }
 
 # Backed by a real file rather than piped through awk live: an awk pattern
 # that `exit`s on its first match (used below to fetch just one row) closes
@@ -215,9 +236,9 @@ curl_module() {
     local tag="$1" type="$2" path="$3" url="$4" raw
     raw="$(raw_base_for_tag "$tag")"
     if [ "$type" = "dir" ]; then
-        curl -sf "$raw/$path/default.nix" || echo "# (directory module, couldn't guess the file -- see $url)"
+        curl -sf "$raw/$path/default.nix" || echo "${C_YELLOW}# (directory module, couldn't guess the file -- see $url)${C_RESET}"
     else
-        curl -sf "$raw/$path" || echo "# (failed to fetch)"
+        curl -sf "$raw/$path" || echo "${C_RED}# (failed to fetch)${C_RESET}"
     fi
 }
 
@@ -228,14 +249,15 @@ curl_module() {
 # that already have them split -- both call sites do -- don't need to
 # re-join and re-split them.
 format_line() {
-    local name="$1" type="$2" url="$3" path="$4" tag="$5" sha="$6"
+    local name="$1" type="$2" url="$3" path="$4" tag="$5" sha="$6" tagcolor
     local line
     if [ "$show_info" -eq 1 ]; then
-        line="[$tag] - $name ($sha)"
+        tagcolor="$(color_for_tag "$tag")"
+        line="${tagcolor}[$tag]${C_RESET} - ${C_BOLD}${name}${C_RESET} ${C_DIM}($sha)${C_RESET}"
     else
-        line="$name"
+        line="${C_BOLD}${name}${C_RESET}"
     fi
-    [ "$show_source" -eq 1 ] && line="$line - $url"
+    [ "$show_source" -eq 1 ] && line="$line ${C_DIM}- $url${C_RESET}"
     printf '%s\n' "$line"
 }
 
@@ -249,8 +271,8 @@ if [ "$have_query" -eq 1 ]; then
 
         candidates="$(fuzzy_match "$tag" "$query")"
         if [ -z "$candidates" ]; then
-            echo "not available in $label: $query"
-            [ "$tag" = "n" ] && echo "(nixos/modules/programs/ only -- could still exist elsewhere in nixpkgs, or come from a separate flake)" >&2
+            echo "${C_RED}not available${C_RESET} in $label: $query"
+            [ "$tag" = "n" ] && echo "${C_YELLOW}(nixos/modules/programs/ only -- could still exist elsewhere in nixpkgs, or come from a separate flake)${C_RESET}" >&2
             continue
         fi
 
@@ -263,14 +285,14 @@ if [ "$have_query" -eq 1 ]; then
         if [ "$show_info" -eq 1 ]; then
             prefix=""
         else
-            prefix="available in $label: "
+            prefix="${C_GREEN}available${C_RESET} in $label: "
         fi
         line="$prefix$(format_line "$rname" "$rtype" "$rurl" "$rpath" "$rtag" "$rsha")"
-        [ "$matchl" != "$ql" ] && line="$line (closest match for '$query')"
+        [ "$matchl" != "$ql" ] && line="$line ${C_YELLOW}(closest match for '$query')${C_RESET}"
         echo "$line"
 
         alts="$(printf '%s\n' "$candidates" | tail -n +2 | head -3)"
-        [ -n "$alts" ] && echo "also close ($label): $(printf '%s, ' $alts | sed 's/, $//')"
+        [ -n "$alts" ] && echo "${C_YELLOW}also close${C_RESET} ($label): $(printf '%s, ' $alts | sed 's/, $//')"
 
         if [ "$do_curl" -eq 1 ]; then
             curl_module "$rtag" "$rtype" "$rpath" "$rurl"
@@ -286,11 +308,11 @@ total=$(printf '%s\n' "$modules" | wc -l)
 # -i costs nothing extra (sha is already in $modules), so only -c's actual
 # file-content fetches warrant a heads-up here.
 if [ "$do_curl" -eq 1 ]; then
-    echo "about to fetch and print the raw source of all $total modules -- that's $total requests and a lot of terminal output." >&2
+    echo "${C_YELLOW}about to fetch and print the raw source of all $total modules -- that's $total requests and a lot of terminal output.${C_RESET}" >&2
     read -r -p "continue? [y/N] " reply
     case "$reply" in
         y | Y | yes | YES) ;;
-        *) echo "aborted." >&2; exit 1 ;;
+        *) echo "${C_RED}aborted.${C_RESET}" >&2; exit 1 ;;
     esac
 fi
 
