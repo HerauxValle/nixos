@@ -46,6 +46,29 @@ usage: pacnix <command> [args]
       anywhere in /nix/store (may differ -- not garbage collected yet,
       etc.). e.g. pacnix store firefox
 
+  packages
+      Opens modules/packages/installed.nix in $EDITOR (falls back to
+      nano if unset).
+
+  modules [-q <term>] [-s] [-c]
+      Lists home-manager's available `programs.*` modules (fetched live
+      from nix-community/home-manager's modules/programs on GitHub),
+      alphabetically. No flags: just names, one per line.
+        -q <term>   fuzzy-search for a module (case-insensitive, not a
+                    literal match -- exact, then substring, then a
+                    Levenshtein/character-overlap score, same family of
+                    passes as `run`'s own matcher) and report whether
+                    something close is available, plus a few
+                    alternates. e.g. pacnix modules -q steam
+        -s          show each module's GitHub link (source) instead of
+                    just its name -- combine with -q to show the link
+                    for just the match (-qs/-sq, either order).
+        -c          curl the module's actual .nix source into the
+                    terminal. With -q, fetches just that one match's
+                    file. Without -q (bare -c, or -sc with no query),
+                    it means every module -- prompts for confirmation
+                    first since that's 400+ requests.
+
   info [-o FIELD1,FIELD2,...] [-n] [-p]
       Exhaustive, machine-parsable system report -- 124 fields across
       15 categories: Packages, Store, Generations, Flake, System, Disk,

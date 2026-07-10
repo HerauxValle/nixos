@@ -2,6 +2,7 @@
 
 let
 
+  # TODO replace user with variable | DO NOT HARDCODE!
   homeDir = "/home/herauxvalle";
 
   # Each entry: a path, the packages that should be on $PATH while inside
@@ -39,6 +40,10 @@ let
   # terminal (keyed by tty) so two terminals in different shells don't
   # cross-talk.
 
+  # ---------------------------
+  # DEFINE SHELLS BELOW
+  # ---------------------------
+
   shells = [
 
     {
@@ -48,6 +53,10 @@ let
     }
 
   ];
+
+  # ---------------------------
+  # DO NOT MODIFY
+  # ---------------------------
 
   mkEntry = index: { path, packages, recursive ? true }:
     let
@@ -162,12 +171,7 @@ let
 
 in
 {
-  programs.direnv.enable = false;
-  # Suppresses the "direnv: loading/using/export" status lines. This is
-  # read by the direnv binary itself from /etc/direnv/direnv.toml, not
-  # injected into any shell's rc -- applies the same in fish/bash/nu/pwsh
-  # without touching any of them.
-  programs.direnv.silent = true;
+  # programs.direnv.* now lives in modules/packages/programs.nix.
 
   home-manager.users.herauxvalle = {
     home.file = ownEnvrcFiles // blockingEnvrcFiles // anchorEnvrcFile // {
