@@ -210,6 +210,12 @@ native_list=""
 for a in "${native_attrs[@]}"; do native_list+="pkgs.$a "; done
 note "build system: ${native_attrs[*]}"
 
+# Plain fact, not a diagnosis -- whatever the build does or doesn't do
+# below, this is the Hyprland version it did it against.
+hypr_version="$(nix eval --extra-experimental-features "nix-command flakes" \
+    "$flake_real#nixosConfigurations.$HOST.pkgs.hyprland.version" --raw 2>/dev/null || true)"
+[ -n "$hypr_version" ] && note "hyprland version: $hypr_version"
+
 is_default_native=0
 if [ "${#native_attrs[@]}" -eq 2 ] && [ "${native_attrs[0]}" = "cmake" ] && [ "${native_attrs[1]}" = "pkg-config" ]; then
     is_default_native=1
@@ -341,7 +347,13 @@ else
         echo "below yourself, then rebuild." >&2
     else
         echo "build failed for a reason other than a missing pkg-config module:" >&2
-        tail -20 "$build_err" >&2
+        # The raw log is compiler output -- drop the actual g++/gcc/clang
+        # invocation lines (never useful, often 2000+ chars of -I flags) and
+        # truncate anything else that's still absurdly long, so the fatal
+        # error itself isn't buried under noise.
+        grep -avP '^\s*(>\s*)?(g\+\+|gcc|cc|clang(\+\+)?)\s' "$build_err" \
+            | awk '{ if (length($0) > 300) print substr($0, 1, 200) " [...]"; else print }' \
+            | tail -20 >&2
     fi
     print_block
     exit 1
