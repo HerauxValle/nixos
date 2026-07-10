@@ -92,9 +92,14 @@ if [ "$have_query" -eq 0 ] && [ -n "$query" ]; then
     exit 1
 fi
 
-# --- fetch a module list: name<TAB>type<TAB>html_url<TAB>path<TAB>tag,
+# --- fetch a module list: name<TAB>type<TAB>html_url<TAB>path<TAB>tag<TAB>sha,
 # sorted alphabetically (case-insensitive). type is "file" (a plain
-# <name>.nix module) or "dir" (a module split across multiple files).
+# <name>.nix module) or "dir" (a module split across multiple files). sha
+# is the git blob sha GitHub's directory-listing response already includes
+# for free -- used as -i's "(version)" stand-in with no separate request.
+# (A "last updated" timestamp would need a separate commits-API call per
+# file with no bulk equivalent on unauthenticated REST -- 600+ requests
+# just to list them all, so that idea got dropped rather than built.)
 # Parsed with python3 rather than jq -- jq isn't installed anywhere in
 # this config, python3 already is (installed.nix). tag is "h" or "n",
 # fixed per call, so it survives concatenation into one combined table.
@@ -109,10 +114,10 @@ for item in data:
     name = item['name']
     if item['type'] == 'file' and name.endswith('.nix'):
         name = name[:-4]
-    rows.append((name, item['type'], item['html_url'], item['path']))
+    rows.append((name, item['type'], item['html_url'], item['path'], item['sha'][:7]))
 rows.sort(key=lambda r: r[0].lower())
-for name, typ, url, path in rows:
-    print(f'{name}\t{typ}\t{url}\t{path}\t$tag')
+for name, typ, url, path, sha in rows:
+    print(f'{name}\t{typ}\t{url}\t{path}\t$tag\t{sha}')
 "
 }
 
@@ -164,7 +169,6 @@ names_for_tag() { awk -F'\t' -v t="$1" '$5==t{print $1}' "$modules_file"; }
 row_for() { awk -F'\t' -v n="$1" -v t="$2" '$1==n && $5==t{print; exit}' "$modules_file"; }
 label_for_tag() { [ "$1" = "h" ] && echo "home-manager" || echo "NixOS system"; }
 raw_base_for_tag() { [ "$1" = "h" ] && echo "$HM_RAW_BASE" || echo "$NIXOS_RAW_BASE"; }
-repo_for_tag() { [ "$1" = "h" ] && echo "$HM_REPO" || echo "$NIXOS_REPO"; }
 
 # --- fuzzy match, within one source's namespace -- same family of passes
 # as Scripts/Run/run.sh's _search (exact -> substring -> Levenshtein +
@@ -207,32 +211,6 @@ fuzzy_match() {
     ' "$modules_file" | sort -t'|' -k1,1rn | cut -d'|' -f2-
 }
 
-# --- last-commit metadata for -i (git short SHA + date of that exact
-# file). One GitHub API call per file -- fine for a handful of -q results,
-# not for a full listing (unauthenticated GitHub caps at 60 requests/hour,
-# see the bulk-mode confirmation below). Fails soft: a rate limit or
-# network error prints "?"s instead of aborting the whole run.
-
-commit_info_for() {
-    local tag="$1" path="$2" repo
-    repo="$(repo_for_tag "$tag")"
-    python3 -c '
-import json, sys, datetime, urllib.request, urllib.parse
-repo, path = sys.argv[1], sys.argv[2]
-url = f"https://api.github.com/repos/{repo}/commits?path={urllib.parse.quote(path)}&sha=master&per_page=1"
-try:
-    req = urllib.request.Request(url, headers={"User-Agent": "pacnix-modules"})
-    with urllib.request.urlopen(req, timeout=10) as r:
-        data = json.load(r)
-    c = data[0]
-    sha = c["sha"][:7]
-    dt = datetime.datetime.strptime(c["commit"]["committer"]["date"], "%Y-%m-%dT%H:%M:%SZ")
-    print(f"{sha}\t{dt.strftime(\"%H:%M:%S\")} | {dt.strftime(\"%d.%m.%Y\")}")
-except Exception:
-    print("???????\t??:??:?? | ??.??.????")
-' "$repo" "$path"
-}
-
 curl_module() {
     local tag="$1" type="$2" path="$3" url="$4" raw
     raw="$(raw_base_for_tag "$tag")"
@@ -244,19 +222,16 @@ curl_module() {
 }
 
 # format one row for display: plain "name", "name - url" (-s), or with -i
-# "[tag] - name (sha) [last update in HH:MM:SS | DD.MM.YYYY]" (+ " - url"
-# if -s is also set). Takes fields as separate args (not a joined row
-# string) so callers that already have them split -- both call sites do --
-# don't need to re-join and re-split them.
+# "[tag] - name (sha)" -- sha is the blob sha already sitting in the row
+# (see fetch_source), not a separate request. (+ " - url" if -s is also
+# set). Takes fields as separate args (not a joined row string) so callers
+# that already have them split -- both call sites do -- don't need to
+# re-join and re-split them.
 format_line() {
-    local name="$1" type="$2" url="$3" path="$4" tag="$5"
+    local name="$1" type="$2" url="$3" path="$4" tag="$5" sha="$6"
     local line
     if [ "$show_info" -eq 1 ]; then
-        local info sha when
-        info="$(commit_info_for "$tag" "$path")"
-        sha="${info%%$'\t'*}"
-        when="${info#*$'\t'}"
-        line="[$tag] - $name ($sha) [last update in $when]"
+        line="[$tag] - $name ($sha)"
     else
         line="$name"
     fi
@@ -283,14 +258,14 @@ if [ "$have_query" -eq 1 ]; then
         ql="$(echo "$query" | tr '[:upper:]' '[:lower:]')"
         matchl="$(echo "$match" | tr '[:upper:]' '[:lower:]')"
         row="$(row_for "$match" "$tag")"
-        IFS=$'\t' read -r rname rtype rurl rpath rtag <<< "$row"
+        IFS=$'\t' read -r rname rtype rurl rpath rtag rsha <<< "$row"
 
         if [ "$show_info" -eq 1 ]; then
             prefix=""
         else
             prefix="available in $label: "
         fi
-        line="$prefix$(format_line "$rname" "$rtype" "$rurl" "$rpath" "$rtag")"
+        line="$prefix$(format_line "$rname" "$rtype" "$rurl" "$rpath" "$rtag" "$rsha")"
         [ "$matchl" != "$ql" ] && line="$line (closest match for '$query')"
         echo "$line"
 
@@ -308,18 +283,10 @@ fi
 
 total=$(printf '%s\n' "$modules" | wc -l)
 
-if [ "$do_curl" -eq 1 ] || [ "$show_info" -eq 1 ]; then
-    if [ "$do_curl" -eq 1 ] && [ "$show_info" -eq 1 ]; then
-        note="that's $total file-content requests plus $total commit-lookup requests (~$((total * 2)) total)."
-    elif [ "$do_curl" -eq 1 ]; then
-        note="that's $total requests."
-    else
-        note="that's $total commit-lookup requests."
-    fi
-    echo "about to fetch extra data for all $total modules -- $note" >&2
-    if [ "$show_info" -eq 1 ]; then
-        echo "GitHub allows 60 unauthenticated API requests/hour -- -i on a full listing will almost certainly hit that limit partway through and start printing '?'s." >&2
-    fi
+# -i costs nothing extra (sha is already in $modules), so only -c's actual
+# file-content fetches warrant a heads-up here.
+if [ "$do_curl" -eq 1 ]; then
+    echo "about to fetch and print the raw source of all $total modules -- that's $total requests and a lot of terminal output." >&2
     read -r -p "continue? [y/N] " reply
     case "$reply" in
         y | Y | yes | YES) ;;
@@ -327,8 +294,8 @@ if [ "$do_curl" -eq 1 ] || [ "$show_info" -eq 1 ]; then
     esac
 fi
 
-while IFS=$'\t' read -r name type url path tag; do
-    format_line "$name" "$type" "$url" "$path" "$tag"
+while IFS=$'\t' read -r name type url path tag sha; do
+    format_line "$name" "$type" "$url" "$path" "$tag" "$sha"
     if [ "$do_curl" -eq 1 ]; then
         curl_module "$tag" "$type" "$path" "$url"
         echo

@@ -97,14 +97,16 @@ usage: pacnix <command> [args]
                     flake entirely (programs.hyprland,
                     programs.silentSDDM) -- "not available" under -n
                     only means "not in nixpkgs' own programs/ dir".
-        -i          prefix each result with its source, "[h]" or "[n]",
-                    and append its last commit: "[h] - fish (a3f9c1d)
-                    [last update in 14:32:07 | 03.07.2026]". One extra
-                    GitHub API call per file shown -- fine for -q, but
-                    on a full listing (hundreds of files) it will
-                    almost certainly hit GitHub's 60-requests/hour
-                    unauthenticated limit partway through and start
-                    printing "?"s; prompts for confirmation first.
+        -i          prefix each result with its source and blob sha,
+                    "[h] - fish (2646268)". Free even on a full listing
+                    of every module -- the sha is already part of the
+                    directory listing fetched for the module list
+                    itself, not a separate request. (A "last updated"
+                    date was considered too -- dropped: GitHub's
+                    unauthenticated REST API has no bulk endpoint for
+                    that, only one commits-API call per file, which
+                    would mean 600+ requests just to show it on a full
+                    listing.)
 
   info [-o FIELD1,FIELD2,...] [-n] [-p]
       Exhaustive, machine-parsable system report -- 124 fields across
