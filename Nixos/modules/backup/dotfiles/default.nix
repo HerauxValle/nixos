@@ -304,17 +304,31 @@
     # value that isn't sensitive so much as personal (a real username, a
     # real hostname) that you want to appear as a plausible placeholder in
     # the published copy instead of either the real value or asterisks.
-    # Unlike redactValues: `find`/`replaceWith` are plain literals you type
-    # here directly, not a config key resolved at eval time, and the line
-    # is never commented out -- the replacement drops straight in, so the
-    # published file has to already be valid with `replaceWith` substituted
-    # in place of `find`, same shape and all. `find` should be the whole
-    # construct you mean to touch (e.g. the entire `username = "...";`
-    # line), not just the bare value -- this is a plain literal substring
-    # match with no key/line scoping, so a bare value like a username would
-    # also match any other unrelated occurrence of that same string
-    # elsewhere in the file (or, during the history scrub, anywhere else in
-    # the repo -- see replaceApplyScript/filterRepoCmd in ./dotfiles.nix).
+    # The replacement drops straight in and the line is never commented
+    # out, unlike redactValues -- so the published file has to already be
+    # valid with `replaceWith` substituted in place of whatever `find`/`key`
+    # resolves to, same shape and all. This is also the reason redactValues
+    # is the wrong tool for anything that's a *required* option (no
+    # default): commenting the line out there leaves the option undefined,
+    # which is a hard eval error for anyone actually building the published
+    # copy -- confirmed live against modules/backup/dotfiles/dotfiles.nix's
+    # own redactValues entries before gitCommitEmail/usbSerialShort moved
+    # here. `replaceWith` always keeps the option defined.
+    #
+    # Give exactly one of `find` (a literal you type out by hand -- the
+    # whole construct you mean to touch, e.g. the entire `username = "...";`
+    # line, not just the bare value: a bare value has no line/key scoping,
+    # so it'd also match any unrelated occurrence of that same string
+    # elsewhere in the file, or anywhere else in the repo during the
+    # history scrub) or `key` (a dotted path into config, e.g.
+    # "vars.gitCommitEmail" -- resolved to its CURRENT value at eval time
+    # instead of typed out by hand, so it can't drift out of sync with the
+    # real value the way a hand-copied `find` could). Unlike redactValues'
+    # same-shaped `key` lookup, a `key` here that fails to resolve is NOT a
+    # hard eval error -- see resolveReplaceEntry in ./dotfiles.nix -- it's
+    # reported as a runtime warning and that one entry is just skipped,
+    # since a stale/renamed key is a much likelier and much less
+    # catastrophic failure mode for a "replace" than for a "redact".
     replaceValues = lib.mkOption {
       type = lib.types.listOf (lib.types.submodule {
         options = {
@@ -323,12 +337,18 @@
             description = "Path, relative to dotfilesPath, containing the text to replace.";
           };
           find = lib.mkOption {
-            type = lib.types.str;
-            description = "Exact literal text to find in `file`.";
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Exact literal text to find in `file`. Give exactly one of `find`/`key`.";
+          };
+          key = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Dotted path into config, resolved to its current value and used as the text to find. Give exactly one of `find`/`key`.";
           };
           replaceWith = lib.mkOption {
             type = lib.types.str;
-            description = "Literal text substituted in place of `find`.";
+            description = "Literal text substituted in place of whatever `find`/`key` resolves to.";
           };
         };
       });
@@ -336,4 +356,11 @@
       description = "Files kept in the backup with one exact literal string swapped for another literal string of your choosing.";
     };
   };
+
+  config.assertions = [
+    {
+      assertion = builtins.all (r: (r.find == null) != (r.key == null)) config.vars.dotfilesBackup.replaceValues;
+      message = "modules/backup/dotfiles: every replaceValues entry needs exactly one of `find`/`key`, not both and not neither.";
+    }
+  ];
 }

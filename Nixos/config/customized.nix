@@ -12,11 +12,11 @@
     hostName = "nixos";
     timeZone = "Europe/Berlin";
     stateVersion = "26.05";
-    # gitCommitEmail = "**********************************************";
+    gitCommitEmail = "maxmustermann@example.com";
 
     luks2.usbKeyLabel = "VirtualKeys";
     usbRequired.usbKeyLabel = "VirtualKeys";
-    # usbKillswitch.usbSerialShort = "*******************";
+    usbKillswitch.usbSerialShort = "0000000000000000000";
     dotfilesBackup.remoteUrl = "git@github.com:HerauxValle/nixos.git";
   };
 }

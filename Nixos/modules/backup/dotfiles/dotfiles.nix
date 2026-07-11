@@ -5,13 +5,45 @@ let
 
   # redactValues' `key` resolved to an actual value once, here -- every
   # call site below (per-activation redaction, history scrub, GH013
-  # recovery) reuses this instead of re-resolving.
-  resolvedRedactValues = map
+  # recovery) reuses this instead of re-resolving. Tolerant (tryEval), not
+  # a hard throw: a redacted value's own key can become unresolvable in
+  # exactly the situation this module creates -- the published copy still
+  # ships this same resolution logic, and if the ONLY definition of that
+  # key was the very line a PREVIOUS redaction pass commented out, whoever
+  # evaluates the published copy hits an immediate crash trying to
+  # re-resolve it. Confirmed live: this is exactly what broke
+  # networking.interfaces.enp3s0.macAddress here before this became
+  # tolerant. A failed resolution now just drops that one entry (reported
+  # in the runtime warning block below) instead of taking the whole build
+  # down with it.
+  redactValueResolutions = map
     (r: {
-      inherit (r) file;
-      value = toString (lib.attrByPath (lib.splitString "." r.key) (throw "modules/backup/dotfiles: redactValues key '${r.key}' does not resolve against config") config);
+      inherit (r) file key;
+      result = builtins.tryEval (toString (lib.attrByPath (lib.splitString "." r.key) (throw "unresolved") config));
     })
     cfg.redactValues;
+  resolvedRedactValues = map (r: { inherit (r) file; value = r.result.value; })
+    (builtins.filter (r: r.result.success) redactValueResolutions);
+
+  # Same idea for replaceValues' `key` variant -- `find` is either typed
+  # out literally, or resolved from `key` the same tolerant way as above.
+  # An entry that fails to resolve is dropped from every list below (never
+  # applied, never hashed, never fed to git-filter-repo) instead of
+  # crashing eval -- see default.nix's replaceValues description for why a
+  # stale/renamed key has to be tolerated here.
+  replaceValueResolutions = map
+    (r:
+      if r.key != null then
+        {
+          inherit (r) file replaceWith key;
+          result = builtins.tryEval (toString (lib.attrByPath (lib.splitString "." r.key) (throw "unresolved") config));
+        }
+      else
+        { inherit (r) file replaceWith; key = null; result = { success = true; value = r.find; }; }
+    )
+    cfg.replaceValues;
+  resolvedReplaceValues = map (r: { inherit (r) file replaceWith; find = r.result.value; })
+    (builtins.filter (r: r.result.success) replaceValueResolutions);
 
   # Pure function of excludeFiles + redactValues + replaceValues' own
   # content (values included, not just which keys/pairs are listed --
@@ -21,7 +53,7 @@ let
   excludeHash = builtins.hashString "sha256" (lib.concatStringsSep "\n" (
     (lib.sort (a: b: a < b) cfg.excludeFiles)
     ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.value}") resolvedRedactValues))
-    ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.find}\t${r.replaceWith}") cfg.replaceValues))
+    ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.find}\t${r.replaceWith}") resolvedReplaceValues))
   ));
 
   # Replaces one exact literal value with same-length asterisks AND
@@ -77,7 +109,7 @@ with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
     fh.write(content.replace(find, replaceWith))
 ' "${dir}/${r.file}" ${lib.escapeShellArg r.find} ${lib.escapeShellArg r.replaceWith}
     fi
-  '') cfg.replaceValues;
+  '') resolvedReplaceValues;
 
   # git-filter-repo's own replacements-file format: one "old==>new" per
   # line, literal by default (no regex escaping needed). Feeds the history
@@ -95,7 +127,7 @@ with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
   # redactValues' bare value).
   replaceTextFileContent = lib.concatStringsSep "\n" (
     (map (r: "${r.value}==>${lib.concatStrings (lib.replicate (builtins.stringLength r.value) "*")}") resolvedRedactValues)
-    ++ (map (r: "${r.find}==>${r.replaceWith}") cfg.replaceValues)
+    ++ (map (r: "${r.find}==>${r.replaceWith}") resolvedReplaceValues)
   );
 
   # --path/--invert-paths args for excludeFiles, shared by both
@@ -137,7 +169,7 @@ with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
   # that can never come. Deleting the marker first makes every run look
   # fresh, so the prompt never fires -- we don't want continuation semantics
   # here anyway, just a deterministic re-filter with the current args each time.
-  filterRepoCmd = dir: ''( cd "${dir}" && rm -f .git/filter-repo/already_ran && PATH="${pkgs.git}/bin:$PATH" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="${dir}" ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ] || cfg.replaceValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
+  filterRepoCmd = dir: ''( cd "${dir}" && rm -f .git/filter-repo/already_ran && PATH="${pkgs.git}/bin:$PATH" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="${dir}" ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ] || resolvedReplaceValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
 
   # -----------------------------------------------------------------
   # Real logic -- constructs commands / runs scripts, not just plain
@@ -219,20 +251,26 @@ in
         printf '${cfg.colorYellow}warning: modules/backup/dotfiles: excludeFiles entry '"'"'${f}'"'"' does not exist -- renamed, typo'"'"'d, or never created? It is not excluding anything right now.${cfg.colorReset}\n' >&2
       fi
     '') cfg.excludeFiles}
-    ${lib.concatMapStringsSep "\n    " (r: ''
-      if [ ! -f "${cfg.dotfilesPath}/${r.file}" ]; then
-        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues entry '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being redacted there right now.${cfg.colorReset}\n' >&2
-      elif ! ${pkgs.gnugrep}/bin/grep -qF -- ${lib.escapeShellArg r.value} "${cfg.dotfilesPath}/${r.file}"; then
-        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues key '"'"'${r.key}'"'"' does not currently appear in ${r.file} -- stale entry? It is not redacting anything there right now.${cfg.colorReset}\n' >&2
-      fi
-    '') (lib.zipListsWith (r: rv: { inherit (r) file key; inherit (rv) value; }) cfg.redactValues resolvedRedactValues)}
-    ${lib.concatMapStringsSep "\n    " (r: ''
-      if [ ! -f "${cfg.dotfilesPath}/${r.file}" ]; then
-        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues entry '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being replaced there right now.${cfg.colorReset}\n' >&2
-      elif ! ${pkgs.gnugrep}/bin/grep -qF -- ${lib.escapeShellArg r.find} "${cfg.dotfilesPath}/${r.file}"; then
-        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues '"'"'find'"'"' text does not currently appear in ${r.file} -- stale entry? It is not replacing anything there right now.${cfg.colorReset}\n' >&2
-      fi
-    '') cfg.replaceValues}
+    ${lib.concatMapStringsSep "\n    " (r:
+      if !r.result.success then ''
+        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues key '"'"'${r.key}'"'"' does not resolve against config -- stale/renamed option? Skipping, nothing is being redacted there right now.${cfg.colorReset}\n' >&2
+      '' else ''
+        if [ ! -f "${cfg.dotfilesPath}/${r.file}" ]; then
+          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues entry '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being redacted there right now.${cfg.colorReset}\n' >&2
+        elif ! ${pkgs.gnugrep}/bin/grep -qF -- ${lib.escapeShellArg r.result.value} "${cfg.dotfilesPath}/${r.file}"; then
+          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues key '"'"'${r.key}'"'"' does not currently appear in ${r.file} -- stale entry? It is not redacting anything there right now.${cfg.colorReset}\n' >&2
+        fi
+      '') redactValueResolutions}
+    ${lib.concatMapStringsSep "\n    " (r:
+      if !r.result.success then ''
+        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues key '"'"'${r.key}'"'"' does not resolve against config -- stale/renamed option? Skipping, nothing is being replaced there right now.${cfg.colorReset}\n' >&2
+      '' else ''
+        if [ ! -f "${cfg.dotfilesPath}/${r.file}" ]; then
+          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues entry '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being replaced there right now.${cfg.colorReset}\n' >&2
+        elif ! ${pkgs.gnugrep}/bin/grep -qF -- ${lib.escapeShellArg r.result.value} "${cfg.dotfilesPath}/${r.file}"; then
+          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues '"'"'find/key'"'"' text does not currently appear in ${r.file} -- stale entry? It is not replacing anything there right now.${cfg.colorReset}\n' >&2
+        fi
+      '') replaceValueResolutions}
 
     dotfilesBackupStart="$(date +%s.%N)"
     mkdir -p "${cfg.secretsDir}"
@@ -264,7 +302,7 @@ in
       dotfilesBackupTag="$(date "${cfg.tagDateFormat}")"
       dotfilesBackupChanged=1
 
-      ${lib.optionalString (resolvedRedactValues != [ ] || cfg.replaceValues != [ ]) ''
+      ${lib.optionalString (resolvedRedactValues != [ ] || resolvedReplaceValues != [ ]) ''
         dotfilesBackupReplaceTextFile="$(mktemp)"
         cat > "$dotfilesBackupReplaceTextFile" <<'REPLACEEOF'
 ${replaceTextFileContent}
