@@ -1,6 +1,5 @@
 # TODO
 
-1. Link mpv player dotfiles from backup
-2. Make vscode immutable and integrate into dotfiles
-3. Add 'replace with' to exclude
-4. ...
+1. Make vscode immutable and integrate into dotfiles
+2. Add 'replace with' to exclude
+3. ...

@@ -4,6 +4,7 @@
   xdg.configFile = {
     "hypr".source = ../../Hyprland;
     "kitty".source = ../../Kitty;
+    "mpv".source = ../../Mpv;
     "quickshell".source = ../../Quickshell;
     "uwsm/env-hyprland".source = ../../Hyprland/Uwsm/env-hyprland;
 
