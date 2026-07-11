@@ -13,14 +13,15 @@ let
     })
     cfg.redactValues;
 
-  # Pure function of excludeFiles + redactValues' own content (values
-  # included, not just which keys are listed -- rotating a redacted value,
-  # e.g. changing the email itself, must also trigger a rescrub even
-  # though the key/file pair didn't change). Sorted first so reordering
-  # either list alone doesn't trigger a scrub for nothing.
+  # Pure function of excludeFiles + redactValues + replaceValues' own
+  # content (values included, not just which keys/pairs are listed --
+  # rotating a redacted value or editing a replaceValues entry must also
+  # trigger a rescrub even though the file didn't change). Sorted first so
+  # reordering any list alone doesn't trigger a scrub for nothing.
   excludeHash = builtins.hashString "sha256" (lib.concatStringsSep "\n" (
     (lib.sort (a: b: a < b) cfg.excludeFiles)
     ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.value}") resolvedRedactValues))
+    ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.find}\t${r.replaceWith}") cfg.replaceValues))
   ));
 
   # Replaces one exact literal value with same-length asterisks AND
@@ -56,13 +57,46 @@ with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
     fi
   '') resolvedRedactValues;
 
+  # Swaps one exact literal string for another exact literal string, in a
+  # file already synced into the snapshot -- runs on every activation, on
+  # the CURRENT copy, same as redactApplyScript above but without the
+  # masking/comment-out behavior: the replacement drops straight in and the
+  # line stays live, since (unlike a redacted value) the published result
+  # is meant to be a complete, valid stand-in, not a stripped one. Whole
+  # file content, not line-by-line -- there's no indentation to preserve
+  # here since nothing gets commented out. Python for exact literal
+  # substitution, not sed -- same reasoning as redactApplyScript.
+  replaceApplyScript = dir: lib.concatMapStringsSep "\n" (r: ''
+    if [ -f "${dir}/${r.file}" ]; then
+      ${pkgs.python3}/bin/python3 -c '
+import sys
+path, find, replaceWith = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path, "r", encoding="utf-8", errors="surrogateescape") as fh:
+    content = fh.read()
+with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
+    fh.write(content.replace(find, replaceWith))
+' "${dir}/${r.file}" ${lib.escapeShellArg r.find} ${lib.escapeShellArg r.replaceWith}
+    fi
+  '') cfg.replaceValues;
+
   # git-filter-repo's own replacements-file format: one "old==>new" per
   # line, literal by default (no regex escaping needed). Feeds the history
-  # scrub below so OLD commits get the same redaction as the current
-  # snapshot, not just going forward.
-  replaceTextFileContent = lib.concatMapStringsSep "\n"
-    (r: "${r.value}==>${lib.concatStrings (lib.replicate (builtins.stringLength r.value) "*")}")
-    resolvedRedactValues;
+  # scrub below so OLD commits get the same redaction/replacement as the
+  # current snapshot, not just going forward. Combines redactValues and
+  # replaceValues into one file since git-filter-repo only takes one
+  # --replace-text argument -- both are just "old==>new" literal pairs to
+  # it, it doesn't distinguish why a pair exists. Note this pass, unlike
+  # redactApplyScript/replaceApplyScript above, isn't scoped to each
+  # entry's `file` -- git-filter-repo's --replace-text matches per blob
+  # content across the WHOLE repo's history, not one path. Already true of
+  # redactValues before replaceValues existed; accepted here for the same
+  # reason (an exact match of a specific line elsewhere is unlikely, and
+  # for replaceValues `find` is typically even more specific than
+  # redactValues' bare value).
+  replaceTextFileContent = lib.concatStringsSep "\n" (
+    (map (r: "${r.value}==>${lib.concatStrings (lib.replicate (builtins.stringLength r.value) "*")}") resolvedRedactValues)
+    ++ (map (r: "${r.find}==>${r.replaceWith}") cfg.replaceValues)
+  );
 
   # --path/--invert-paths args for excludeFiles, shared by both
   # git-filter-repo call sites below. Guarded on non-empty: --invert-paths
@@ -103,7 +137,7 @@ with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
   # that can never come. Deleting the marker first makes every run look
   # fresh, so the prompt never fires -- we don't want continuation semantics
   # here anyway, just a deterministic re-filter with the current args each time.
-  filterRepoCmd = dir: ''( cd "${dir}" && rm -f .git/filter-repo/already_ran && PATH="${pkgs.git}/bin:$PATH" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="${dir}" ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
+  filterRepoCmd = dir: ''( cd "${dir}" && rm -f .git/filter-repo/already_ran && PATH="${pkgs.git}/bin:$PATH" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="${dir}" ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ] || cfg.replaceValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
 
   # -----------------------------------------------------------------
   # Real logic -- constructs commands / runs scripts, not just plain
@@ -192,6 +226,13 @@ in
         printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues key '"'"'${r.key}'"'"' does not currently appear in ${r.file} -- stale entry? It is not redacting anything there right now.${cfg.colorReset}\n' >&2
       fi
     '') (lib.zipListsWith (r: rv: { inherit (r) file key; inherit (rv) value; }) cfg.redactValues resolvedRedactValues)}
+    ${lib.concatMapStringsSep "\n    " (r: ''
+      if [ ! -f "${cfg.dotfilesPath}/${r.file}" ]; then
+        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues entry '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being replaced there right now.${cfg.colorReset}\n' >&2
+      elif ! ${pkgs.gnugrep}/bin/grep -qF -- ${lib.escapeShellArg r.find} "${cfg.dotfilesPath}/${r.file}"; then
+        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues '"'"'find'"'"' text does not currently appear in ${r.file} -- stale entry? It is not replacing anything there right now.${cfg.colorReset}\n' >&2
+      fi
+    '') cfg.replaceValues}
 
     dotfilesBackupStart="$(date +%s.%N)"
     mkdir -p "${cfg.secretsDir}"
@@ -223,7 +264,7 @@ in
       dotfilesBackupTag="$(date "${cfg.tagDateFormat}")"
       dotfilesBackupChanged=1
 
-      ${lib.optionalString (resolvedRedactValues != [ ]) ''
+      ${lib.optionalString (resolvedRedactValues != [ ] || cfg.replaceValues != [ ]) ''
         dotfilesBackupReplaceTextFile="$(mktemp)"
         cat > "$dotfilesBackupReplaceTextFile" <<'REPLACEEOF'
 ${replaceTextFileContent}
@@ -285,6 +326,7 @@ REPLACEEOF
         ${pkgs.rsync}/bin/rsync -a --no-owner --no-group --delete --exclude=.git "${cfg.dotfilesPath}/" "${cfg.repoCache}/"
         ${lib.concatMapStringsSep "\n        " (f: ''rm -rf "${cfg.repoCache}/${f}"'') cfg.excludeFiles}
         ${redactApplyScript cfg.repoCache}
+        ${replaceApplyScript cfg.repoCache}
         ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" add -A
         if ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" diff --cached --quiet; then
           dotfilesBackupChanged=0
@@ -303,6 +345,7 @@ REPLACEEOF
         rm -rf "$dotfilesBackupTmp/.git"
         ${lib.concatMapStringsSep "\n        " (f: ''rm -rf "$dotfilesBackupTmp/${f}"'') cfg.excludeFiles}
         ${redactApplyScript "$dotfilesBackupTmp"}
+        ${replaceApplyScript "$dotfilesBackupTmp"}
         ${pkgs.git}/bin/git -c safe.directory="$dotfilesBackupTmp" init -q -b "${cfg.branch}" "$dotfilesBackupTmp"
         ${pkgs.git}/bin/git -C "$dotfilesBackupTmp" -c safe.directory="$dotfilesBackupTmp" add -A
         ${pkgs.git}/bin/git -C "$dotfilesBackupTmp" -c safe.directory="$dotfilesBackupTmp" -c user.name="${cfg.commitUserName}" -c user.email="${cfg.commitUserEmail}" commit -q -m "$dotfilesBackupTag" || true
@@ -352,6 +395,7 @@ REPLACEEOF
             ${pkgs.rsync}/bin/rsync -a --no-owner --no-group --delete --exclude=.git "${cfg.dotfilesPath}/" "${cfg.repoCache}/"
             ${lib.concatMapStringsSep "\n            " (f: ''rm -rf "${cfg.repoCache}/${f}"'') cfg.excludeFiles}
             ${redactApplyScript cfg.repoCache}
+            ${replaceApplyScript cfg.repoCache}
             ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" add -A
             ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" -c user.name="${cfg.commitUserName}" -c user.email="${cfg.commitUserEmail}" commit -q --allow-empty -m "$dotfilesBackupTag"
             dotfilesBackupPushOutput="$(${gitPush "-f"})"

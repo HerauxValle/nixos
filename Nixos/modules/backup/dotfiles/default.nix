@@ -298,5 +298,42 @@
       });
       description = "Files kept in the backup, with one config-derived value inside them replaced by asterisks.";
     };
+
+    # Files kept in the backup in full, but with one exact literal string
+    # inside them swapped for another literal string you choose -- for a
+    # value that isn't sensitive so much as personal (a real username, a
+    # real hostname) that you want to appear as a plausible placeholder in
+    # the published copy instead of either the real value or asterisks.
+    # Unlike redactValues: `find`/`replaceWith` are plain literals you type
+    # here directly, not a config key resolved at eval time, and the line
+    # is never commented out -- the replacement drops straight in, so the
+    # published file has to already be valid with `replaceWith` substituted
+    # in place of `find`, same shape and all. `find` should be the whole
+    # construct you mean to touch (e.g. the entire `username = "...";`
+    # line), not just the bare value -- this is a plain literal substring
+    # match with no key/line scoping, so a bare value like a username would
+    # also match any other unrelated occurrence of that same string
+    # elsewhere in the file (or, during the history scrub, anywhere else in
+    # the repo -- see replaceApplyScript/filterRepoCmd in ./dotfiles.nix).
+    replaceValues = lib.mkOption {
+      type = lib.types.listOf (lib.types.submodule {
+        options = {
+          file = lib.mkOption {
+            type = lib.types.str;
+            description = "Path, relative to dotfilesPath, containing the text to replace.";
+          };
+          find = lib.mkOption {
+            type = lib.types.str;
+            description = "Exact literal text to find in `file`.";
+          };
+          replaceWith = lib.mkOption {
+            type = lib.types.str;
+            description = "Literal text substituted in place of `find`.";
+          };
+        };
+      });
+      default = [ ];
+      description = "Files kept in the backup with one exact literal string swapped for another literal string of your choosing.";
+    };
   };
 }

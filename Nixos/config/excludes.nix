@@ -19,5 +19,13 @@
       { file = "Nixos/modules/system/networking.nix"; key = "networking.interfaces.enp3s0.macAddress"; }
       { file = "Nixos/config/customized.nix"; key = "vars.gitCommitEmail"; }
     ];
+
+    # Real value stays in effect locally -- only the published copy has it
+    # swapped for a placeholder. `find` is the whole line, not just
+    # "herauxvalle", since hostName below is the same literal value -- a
+    # bare-value match would clobber that line too.
+    replaceValues = [
+      { file = "Nixos/config/customized.nix"; find = ''username = "maxmustermann";''; replaceWith = ''username = "maxmustermann";''; }
+    ];
   };
 }
