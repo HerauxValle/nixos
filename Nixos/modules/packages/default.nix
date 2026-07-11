@@ -4,7 +4,7 @@
 # purely personal, lives in Nixos/config/packages.nix instead.
 {
   imports = [
-    ./programs.nix
+    ./programs
     ./scripts
     ./shells
   ];
