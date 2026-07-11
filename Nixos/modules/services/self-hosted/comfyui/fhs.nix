@@ -1,5 +1,10 @@
-{ pkgs }:
+{ pkgs, extraBwrapArgs ? [ ] }:
 
+# extraBwrapArgs -- computed in ./comfyui.nix from the currently
+# installed nodes, bind-mounts each one's real Nix store source at its
+# custom_nodes/<repo> path instead of symlinking it there. See
+# ../self-hosted.nix's mkFHSVenv comment for why.
+#
 # The FHS sandbox ComfyUI's venv gets created and installed inside --
 # same reasoning as openwebui/fhs.nix, just a much heavier targetPkgs
 # list: torch+CUDA, plus native-extension-heavy custom nodes that
@@ -52,4 +57,5 @@ selfHosted.mkFHSVenv {
     dejavu_fonts
     noto-fonts
   ];
+  inherit extraBwrapArgs;
 }

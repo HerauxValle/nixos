@@ -158,8 +158,25 @@ rec {
   # real FHS layout (compiled Python wheels expecting /lib, /usr/lib --
   # nothing about this derivation itself is impure, it's a symlink+
   # bind-mount merge of targetPkgs, same as pkgs.symlinkJoin, not copies).
-  mkFHSVenv = { name, targetPkgs }:
-    pkgs.buildFHSEnv { name = "self-hosted-${name}-fhs"; inherit targetPkgs; };
+  #
+  # extraBwrapArgs -- a real, existing buildFHSEnv option (confirmed via
+  # its own __functionArgs, not assumed) -- passes extra raw bwrap flags
+  # through. Exists here, generically, for any FHS-based service that
+  # needs to bind-mount something at a specific in-sandbox path rather
+  # than symlink it on the real filesystem. First real use:
+  # ComfyUI's custom_nodes/ (see comfyui/comfyui.nix) -- a plain
+  # filesystem symlink there meant `Path(__file__).resolve()` (a common
+  # pattern in node code trying to locate the ComfyUI root) followed the
+  # symlink through to the flat, unrelated Nix store path instead of the
+  # meaningful dataDir-relative one, breaking any node written assuming
+  # a normal git-clone-into-custom_nodes/ layout -- confirmed via two
+  # real crashes, not hypothetical. A bind mount isn't a symlink to the
+  # OS, so `.resolve()` has nothing to follow through -- fixes the whole
+  # class of bug generically, not per-node. Any future service hitting
+  # the same kind of "this needs to look like it's really at path X, not
+  # just symlinked to X" problem can reuse this the same way.
+  mkFHSVenv = { name, targetPkgs, extraBwrapArgs ? [ ] }:
+    pkgs.buildFHSEnv { name = "self-hosted-${name}-fhs"; inherit targetPkgs extraBwrapArgs; };
 
   # The one deliberately-impure step in the whole system, confined to
   # exactly this: create a venv, install from a hash-locked requirements
@@ -243,6 +260,16 @@ rec {
   mkDepsUpdateScript = { serviceName, requirementsIn, requirementsLock, requirementsLockPath, apply ? false }: ''
     set -euo pipefail
     new_lock="${requirementsLockPath}.new"
+    # Seeding $new_lock with the current real lock before running
+    # pip-compile matters: pip-compile only does its normal incremental
+    # thing (keep whatever's already pinned unless the new input actually
+    # forces a change) when the target output file already exists with
+    # prior pins to prefer. Without this, every run re-resolves the whole
+    # dependency graph from scratch (confirmed: ~280 packages took
+    # 20-40+ minutes for a one-line pin change). Still safe -- this is
+    # still a separate file, still never touches the real lock until
+    # :apply.
+    cp "${requirementsLock}" "$new_lock"
     pip-compile --generate-hashes --allow-unsafe --resolver=backtracking \
       --output-file="$new_lock" "${requirementsIn}" >/dev/null
 

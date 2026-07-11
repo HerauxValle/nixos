@@ -8,7 +8,7 @@ The most involved service in this tree: a pinned core, a catalog of 69
 custom nodes and ~87 models (only a subset of which is actually
 "installed" at any time -- see "Store vs. installed" below), a
 CUDA-enabled FHS sandbox, and by far the largest action set of any
-service here -- `install`, `sync`, `sync:nodes`, `sync:models`,
+service here -- `install`, `sync`, `sync:models`,
 `uninstall`, `uninstall:data`, plus every `update*` action doubled into a
 print variant and a `:apply` variant that writes the change directly
 (`update`, `update:apply`, `update:core`, `update:core:apply`,
@@ -50,19 +50,18 @@ practice all of them tend to be installed together.
 
 ## systemd units
 
-- `self-hosted-comfyui.service` -- the live process. `preStart` re-syncs
-  `custom_nodes/` on **every** start (cheap, no network -- see below).
+- `self-hosted-comfyui.service` -- the live process. `preStart` prepares
+  `custom_nodes/<repo>` mount-point directories for every node in
+  `installed.nodes` on **every** start (cheap, no network -- see
+  "Node mounting" below); the actual node content is bind-mounted in by
+  the sandbox itself when it launches.
 - `self-hosted-comfyui@install` -- wipe+recreate `venvDir`,
   `pip install --require-hashes` the lockfile, then a separate
   `--no-deps` install of 4 packages that can't be hash-checked (see
   "Packages that can't be hashed" below).
-- `self-hosted-comfyui@sync` -- both of the below, nodes first (cheap,
-  no network) then models.
-- `self-hosted-comfyui@sync:nodes` -- exactly what `preStart` already
-  does on every service start (symlink `installed.nodes` into
-  `custom_nodes/`, remove stale ones), exposed here so it's callable
-  without a full restart.
-- `self-hosted-comfyui@sync:models` -- fetch every `installed.models`
+- `self-hosted-comfyui@sync` / `@sync:models` -- identical, `:models` is
+  an alias for consistency with the other services' `sync:<target>`
+  form, same reasoning as Ollama's `sync:models`. Fetch every `installed.models`
   entry that's missing (or corrupt/undersized), **then** remove any file
   under `dataDir/models/` that isn't backing a current `installed.models`
   entry. Both directions in one action -- there used to be a separate
@@ -83,7 +82,7 @@ practice all of them tend to be installed together.
 - `self-hosted-comfyui@update:core` -- checks `comfyanonymous/ComfyUI`'s
   default branch for a newer commit than `coreRev`.
 - `self-hosted-comfyui@update:nodes` -- same check, for every node in
-  `installed.nodes` (matches what `@sync:nodes` actually keeps in sync).
+  `installed.nodes`.
 - `self-hosted-comfyui@update:nodes:<repo>` -- same check for one
   specific node, by its `repo` name. Works for *any* `nodeStore` entry,
   installed or not -- checking a catalog entry before activating it is a
@@ -121,24 +120,48 @@ that will fail (EROFS) -- no known case of this yet; if one shows up, it
 needs the same kind of per-node patch as the font fix below, not a
 generic workaround.
 
-## Node symlinking (every start, not just `@sync`)
+## Node mounting: bind mounts, not symlinks
 
-`custom_nodes/<repo>` is a symlink straight to that node's Nix store path
-(patched first if it's the one node that needs it). Rebuilt on every
-`self-hosted-comfyui` start, operating on `installed.nodes`, not the full
-`nodeStore`:
-- Every node in `installed.nodes` gets `ln -sfn` (idempotent, cheap).
-- Any symlink in `custom_nodes/` for a node no longer in `installed.nodes`
-  gets removed -- whether it was dropped from `nodeStore` entirely or
-  just deactivated.
+`custom_nodes/<repo>` is a real **bind mount** (`--ro-bind`, via
+`buildFHSEnv`'s `extraBwrapArgs`) straight to that node's Nix store path,
+set up when the sandbox launches -- not a plain filesystem symlink. This
+was a real bug fix, not a stylistic choice: a symlink there meant any
+node computing its own location via `Path(__file__).resolve()` (a common
+pattern for "find the ComfyUI root," since `.resolve()` follows symlinks)
+saw the flat, unrelated Nix store path instead of the meaningful
+`dataDir/custom_nodes/<repo>` one -- confirmed via two real crashes
+(`ComfyUI-SAM3`, `ComfyUI-SAM3DBody`, both assuming a normal
+git-clone-into-custom_nodes/ layout). A bind mount isn't a symlink to the
+OS, so this fixes the whole class of bug generically, not just those two,
+with no per-node patch needed -- verified directly (both nodes' own
+`COMFYUI_DIR` computation resolves correctly now, tested by actually
+running Python inside the sandbox against the mounted path).
 
-This is safe to do unconditionally because it's pure symlinking against
-already-fetched store paths -- no network, no risk of losing data (unlike
-the models half of `@sync`, which does real network I/O and can be slow
--- that's why `@sync:nodes` exists separately, to reconcile nodes without
-waiting on models). One consequence: **adding or removing a node takes
-effect on the next service restart (or `@sync`/`@sync:nodes`), not on
-rebuild alone.**
+The general mechanism (`extraBwrapArgs` on `mkFHSVenv`) lives in
+`../self-hosted.nix`, not here -- any other FHS-based service (currently
+just OpenWebUI) can reuse it the same way if it ever needs to make
+something look like it's really at a given path rather than merely
+symlinked to it.
+
+**preStart still does real work**: bwrap binds *through* the real
+`/home`, so every node's mount-point directory has to already exist as a
+plain directory on the real host filesystem before the sandbox launches,
+or the bind fails outright (confirmed: "No such file or directory").
+`prepareNodeMountsScript` in `comfyui.nix` `mkdir -p`s one per
+`installed.nodes` entry and removes any directory for a node no longer
+declared, on every start. These host-side directories are always empty
+placeholders -- the actual node source only ever appears inside the
+sandbox's own mount namespace, nothing is ever written to the host disk
+for this.
+
+**Consequence**: node bind mounts are baked into the FHS sandbox
+derivation at **rebuild time** (`nodeBindArgs` is computed from
+`installed.nodes` when Nix evaluates), not adjustable by any running
+action. There is no `@sync:nodes` -- activating or deactivating a node is
+always rebuild + restart, no separate step in between. In practice this
+changes nothing you'd actually do differently: ComfyUI itself only scans
+`custom_nodes/` once at its own startup, so a node change always needed
+a restart anyway.
 
 ## The one patched node
 
@@ -146,10 +169,20 @@ rebuild alone.**
 The old bash relied on an Arch-specific hook symlinking system fonts into
 `/usr/share/fonts/truetype`; here, `mkNodeSrc` in `comfyui.nix` instead
 `sed`-patches that one line to a real `dejavu_fonts` store path at build
-time. No generic per-node patch mechanism exists -- this is a plain
-`if node.repo == "..." then ... else ...` lookup. If a second node needs a
-similar patch, extend that same `mkNodeSrc`, don't build a framework for
-one more case.
+time. This is a genuine bug in the node's own source (a bad hardcoded
+font lookup), not a path-resolution artifact of how nodes are mounted --
+unlike the `COMFYUI_DIR` problem above, patching the source is the only
+real fix, and only this one node needs it.
+
+**Known remaining limitation**: `ComfyUI-SAM3DBody` also tries to copy an
+FBX viewer asset into its own source directory (`SCRIPT_DIR / "web"`).
+That's a genuine write, not a path-resolution issue, so the bind-mount
+fix above doesn't touch it -- the source stays read-only on purpose
+(reproducibility), confirmed the write still fails (EROFS) exactly as
+before. Non-fatal (ComfyUI keeps running, only that node's FBX viewer
+feature is affected) and not patched -- no verified-correct writable
+location for that asset is known, and this project prefers leaving a
+narrow, non-fatal limitation documented over guessing at a fix.
 
 ## Packages that can't be hashed
 
@@ -228,11 +261,11 @@ run instead of one at a time.
 
 **Activate/deactivate a pinned node**: add/remove its `repo` in
 `installed.nodes` (`config/self-hosted/comfyui/comfyui.nix`), rebuild,
-then either restart the service or `systemctl start
-self-hosted-comfyui@sync:nodes` -- `custom_nodes/` symlinks reconcile
-either way. Activating a node with its own `requirements.txt` also needs
-a `requirements.lock` regeneration (above) + `@install`, or it'll be
-symlinked but fail to import at runtime.
+restart the service -- node mounts are baked into the sandbox at rebuild
+time, so both steps are required, there's no standalone sync anymore
+(see "Node mounting" above). Activating a node with its own
+`requirements.txt` also needs a `requirements.lock` regeneration (above)
++ `@install`, or it'll be mounted but fail to import at runtime.
 
 **Drop a node from the catalog entirely**: remove it from both
 `installed.nodes` and `nodeStore`. If it's only removed from
@@ -244,10 +277,10 @@ symlinked but fail to import at runtime.
 
 **Install/remove a pinned model from disk**: add/remove its `name` in
 `installed.models` (`comfyui.nix`), rebuild, then `systemctl start
-self-hosted-comfyui@sync:models` (or bare `@sync`, which also does
-nodes). One action handles both directions: newly-added names get
-fetched, newly-removed names get their file deleted in the same run.
-Shrinking `installed.models` and re-running `@sync:models` is fully
+self-hosted-comfyui@sync` (or `@sync:models`, identical). One action
+handles both directions: newly-added names get fetched, newly-removed
+names get their file deleted in the same run. Shrinking `installed.models`
+and re-running `@sync` is fully
 reversible either way -- the pin stays in `modelStore` regardless, only
 the file on disk comes and goes.
 

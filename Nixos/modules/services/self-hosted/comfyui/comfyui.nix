@@ -22,8 +22,6 @@ let
   activeNodes = builtins.filter (n: builtins.elem n.repo cfg.installed.nodes) cfg.nodeStore;
   activeModels = builtins.filter (m: builtins.elem m.name cfg.installed.models) cfg.modelStore;
 
-  fhsEnv = import ./fhs.nix { inherit pkgs; };
-
   comfyCore = pkgs.fetchFromGitHub {
     owner = "comfyanonymous";
     repo = "ComfyUI";
@@ -36,9 +34,11 @@ let
   # with an Arch-specific hook that symlinked system fonts into
   # /usr/share/fonts/truetype; there's no such dance here -- the FHS
   # sandbox already carries dejavu_fonts, this just points the one
-  # hardcoded call at a real path in it. No generic per-node patch
-  # mechanism -- only this one node needs it, a plain lookup is enough;
-  # revisit if a second case shows up.
+  # hardcoded call at a real path in it. This is a genuine node source
+  # bug (a bad hardcoded lookup), not a path-resolution artifact of how
+  # nodes get mounted -- unlike the COMFYUI_DIR problem below, patching
+  # this at the source is the only real fix, and only this one node
+  # needs it.
   mkNodeSrc = node:
     let
       base = pkgs.fetchFromGitHub { inherit (node) owner repo rev hash; };
@@ -53,12 +53,59 @@ let
     else
       base;
 
+  # Bind-mounted, not symlinked -- see ../self-hosted.nix's mkFHSVenv
+  # comment for the full reasoning. In short: a plain `ln -sfn` here
+  # meant any node computing its own location via
+  # `Path(__file__).resolve()` (a common pattern for "find the ComfyUI
+  # root") saw the real, flat Nix store path instead of the meaningful
+  # dataDir/custom_nodes/<repo> one, breaking on two real nodes
+  # (ComfyUI-SAM3, ComfyUI-SAM3DBody) confirmed via actual crashes. A
+  # bind mount isn't a symlink to the OS -- .resolve() has nothing to
+  # follow through, so this fixes the whole class of bug, not just
+  # those two, with no per-node patch needed.
+  nodeBindArgs = lib.concatMap
+    (node: [ "--ro-bind" "${mkNodeSrc node}" "${cfg.dataDir}/custom_nodes/${node.repo}" ])
+    activeNodes;
+
+  fhsEnv = import ./fhs.nix { inherit pkgs; extraBwrapArgs = nodeBindArgs; };
+
+  # bwrap binds *through* the real /home (not a synthetic root section),
+  # so every mount point in nodeBindArgs has to already exist as a real
+  # directory on the actual host filesystem before the sandbox launches
+  # -- confirmed directly (bwrap fails with "No such file or directory"
+  # otherwise, and separately, mkdir -p is a no-op over a leftover
+  # symlink from the old design, it doesn't replace it -- both caught by
+  # actually running this, not assumed). Also removes any leftover
+  # directory for a node no longer in installed.nodes, generic
+  # reconciliation against real (always-empty-on-the-host) placeholder
+  # dirs, not against node content -- the actual source only ever
+  # appears inside the sandbox's own mount namespace, never written to
+  # the host.
+  prepareNodeMountsScript = ''
+    set -euo pipefail
+    mkdir -p "${cfg.dataDir}/custom_nodes"
+    declared_nodes="${lib.concatStringsSep " " (map (n: n.repo) activeNodes)}"
+    for node in $declared_nodes; do
+      [ -L "${cfg.dataDir}/custom_nodes/$node" ] && rm -f "${cfg.dataDir}/custom_nodes/$node"
+      mkdir -p "${cfg.dataDir}/custom_nodes/$node"
+    done
+    for entry in "${cfg.dataDir}"/custom_nodes/*; do
+      [ -e "$entry" ] || continue
+      name="$(basename "$entry")"
+      keep=0
+      for d in $declared_nodes; do
+        [ "$d" = "$name" ] && { keep=1; break; }
+      done
+      [ "$keep" = 1 ] || rm -rf "$entry"
+    done
+  '';
+
   # Regenerable requirements.in for the hash-locked venv -- built from
   # activeNodes' own (already-pinned) requirements.txt files plus
   # comfyCore's, so nodes.nix stays the single source of truth instead of
   # a second hand-maintained copy that can silently drift from it. Only
   # currently-installed nodes are included -- no point resolving/locking
-  # packages for a node that isn't even symlinked in. Static
+  # packages for a node that isn't even installed/mounted. Static
   # header below mirrors the old deps.sh's PYTHON_REQUIREMENTS (pinned
   # via the CUDA index) and PROTECTED_LIBS (hard minimum versions a node
   # must not be allowed to downgrade).
@@ -72,9 +119,20 @@ let
   comfyRequirementsInHeader = pkgs.writeText "comfyui-requirements-in-header" ''
     --extra-index-url https://download.pytorch.org/whl/cu128
 
-    torch
-    torchvision
-    torchaudio
+    # Pinned to an exact matched triple, not left unpinned -- leaving
+    # them unpinned let pip-compile resolve each independently and pick
+    # a real, live mismatch (torch==2.13.0 with no CUDA tag, i.e. a
+    # stock CUDA-13.0 build from plain PyPI, alongside
+    # torchaudio==2.11.0+cu128 from this index -- ComfyUI's own
+    # startup check refuses to run with mismatched CUDA ABIs, confirmed
+    # via a real crash loop). torch 2.11.x / torchvision 0.26.x /
+    # torchaudio 2.11.x is PyTorch's own release pairing for this line,
+    # confirmed by checking https://download.pytorch.org/whl/cu128/ --
+    # all three are the latest available there with a cp312 build, all
+    # sharing +cu128.
+    torch==2.11.0+cu128
+    torchvision==0.26.0+cu128
+    torchaudio==2.11.0+cu128
     sqlalchemy>=2.0.49
     pandas
     basicsr
@@ -124,32 +182,6 @@ let
     sed -i '/^git+https:\/\/github\.com\/ltdrdata\/img2texture\.git$/d' $out
     sed -i '/^git+https:\/\/github\.com\/ltdrdata\/cstr$/d' $out
     sed -i '/^git+https:\/\/github\.com\/ltdrdata\/ffmpy\.git$/d' $out
-  '';
-
-  # custom_nodes/ is reconciled on every start, not just @sync -- it's
-  # pure symlinking against already-fetched Nix store paths, no network
-  # involved, so there's no reason to make it a manual step. Also removes
-  # any symlink for a node that's no longer in installed.nodes (whether
-  # it was dropped from nodeStore entirely or just deactivated) -- safe to
-  # do unconditionally, unlike model cleanup, since this only ever touches
-  # symlinks this service itself creates, never real data.
-  declaredNodeNames = lib.concatStringsSep " " (map (n: n.repo) activeNodes);
-  linkNodesScript = ''
-    set -euo pipefail
-    mkdir -p "${cfg.dataDir}/custom_nodes"
-    ${lib.concatMapStringsSep "\n"
-      (node: ''ln -sfn ${mkNodeSrc node} "${cfg.dataDir}/custom_nodes/${node.repo}"'')
-      activeNodes}
-    declared_nodes="${declaredNodeNames}"
-    for entry in "${cfg.dataDir}"/custom_nodes/*; do
-      [ -L "$entry" ] || continue
-      name="$(basename "$entry")"
-      keep=0
-      for d in $declared_nodes; do
-        [ "$d" = "$name" ] && { keep=1; break; }
-      done
-      [ "$keep" = 1 ] || rm -f "$entry"
-    done
   '';
 
   installScript = selfHosted.mkVenvInstallScript {
@@ -357,7 +389,7 @@ in
             --preview-method auto --use-pytorch-cross-attention --lowvram --cuda-device 0
         ''}
       ''}";
-      preStart = [ linkNodesScript ];
+      preStart = [ prepareNodeMountsScript ];
       ensureDataDir = true;
       inherit (cfg) dataDir storage autoStart requireMounts;
       environmentFile = "/etc/nixos-secrets/self-hosted/comfyui/tokens.env";
@@ -383,13 +415,15 @@ in
       environmentFile = "/etc/nixos-secrets/self-hosted/comfyui/tokens.env";
       actions = {
         install = installScript;
-        # Nodes first (pure symlinking, no network, effectively free),
-        # then models. sync:nodes/sync:models address just one half --
-        # nodes' is the exact same reconciliation preStart already runs
-        # on every service start, exposed here too so it's callable
-        # without a full restart.
-        sync = linkNodesScript + "\n" + syncModelsScript;
-        "sync:nodes" = linkNodesScript;
+        # Nodes are no longer sync-able as a standalone action -- they're
+        # bind-mounted into the sandbox at build time (nodeBindArgs
+        # above), fixed by whatever installed.nodes was at the last
+        # rebuild. Activating/deactivating a node is always rebuild +
+        # restart now, no separate step in between. models remain the
+        # only thing @sync actually reconciles -- sync:models is an
+        # alias for consistency with every other service's
+        # sync:<target> form, same reasoning as Ollama's sync:models.
+        sync = syncModelsScript;
         "sync:models" = syncModelsScript;
         uninstall = selfHosted.mkUninstallScript { inherit (cfg) dataDir storage; venvDir = cfg.venvDir; };
         "uninstall:data" = selfHosted.mkUninstallScript { inherit (cfg) dataDir storage; venvDir = cfg.venvDir; includeData = true; };

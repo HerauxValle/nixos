@@ -97,6 +97,21 @@ rest of the system.
 `venvDir` lives under `~/.impure/python-venvs/self-hosted/<name>/`, not
 under `dataDir` -- see "`~/.impure/`" below.
 
+`mkFHSVenv` also takes `extraBwrapArgs ? [ ]`, forwarded straight to
+`buildFHSEnv` (a real, existing option there, confirmed via its own
+`__functionArgs`, not assumed). Use this when something needs to be
+bind-mounted at a specific in-sandbox path rather than symlinked on the
+real filesystem -- a plain symlink is transparent to most things, but
+not to code that calls `Path(...).resolve()` and expects the result to
+look like a normal, real install layout (`.resolve()` follows the
+symlink through to wherever it actually points, which for anything
+fetched via Nix is the store, not the meaningful path). ComfyUI's
+`custom_nodes/` is the first real use of this -- see its own `info.md`'s
+"Node mounting" section for the full story, including a real bug two
+nodes hit from exactly this. The mechanism itself is generic and lives
+here precisely so any other FHS-based service hitting the same problem
+doesn't need its own bespoke fix.
+
 ### `mkUninstallScript` -- two-tier teardown, every service gets it
 
 ```nix
@@ -186,7 +201,7 @@ ComfyUI's nodes and models are each split into a **catalog**
 (`nodeStore`/`modelStore` in `config/self-hosted/comfyui/{nodes,models}.nix`
 -- every pin ever made, whether or not currently wanted) and an
 **installed subset** (`installed.nodes`/`installed.models` in
-`comfyui.nix` -- what's actually symlinked/fetched right now). This
+`comfyui.nix` -- what's actually mounted/fetched right now). This
 exists specifically because ComfyUI's model catalog is ~700GB and
 there's no realistic scenario where all of it is wanted on disk
 simultaneously -- disabling a model is a one-line removal from
