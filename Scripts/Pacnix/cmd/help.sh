@@ -21,6 +21,19 @@ usage: pacnix <command> [args]
       catches real build failures without touching your running
       system.
 
+  published
+      test-build, but against the actual pushed dotfiles-backup repo, not
+      your local flake. Clones it fresh over anonymous HTTPS (not your
+      root-owned SSH deploy key -- proves a stranger without it can pull
+      and build this too), reads back the real nixosConfigurations
+      attribute name (replaceValues may have renamed it, see
+      Nixos/config/excludes.nix), and dry-run builds it. Catches what
+      test-build structurally can't: a redactValues/replaceValues entry
+      that leaves the PUBLISHED copy broken (a required option commented
+      out, a key that no longer resolves once redacted, ...) -- your local
+      flake still has every real value in it, so it can never fail that
+      way itself.
+
   optimise
       Hardlinks duplicate files across the store to save space
       (nix-store --optimise). Pure dedup, deletes nothing. Prints
