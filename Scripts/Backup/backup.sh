@@ -36,11 +36,6 @@ declare -A BACKUPS=(
     ["lookup-db"]="${XDG_DATA_HOME:-$HOME/.local/share}/lookup/db"
     ["lookup-aliases"]="${XDG_DATA_HOME:-$HOME/.local/share}/lookup/aliases"
 
-    # sudo broker's live blacklist -- seeded once from Scripts/Sudo's
-    # Dotfiles copy, then user-editable from there on (see
-    # Scripts/Sudo/lib/blacklist.sh).
-    ["sudo-blacklist.conf"]="${XDG_DATA_HOME:-$HOME/.local/share}/sudo-broker/blacklist.conf"
-
     # MyBar's config: theme.env is saved UI state (auto-written by
     # BarConfig._schedSave()), custom/ is the user's own override files --
     # both described in Quickshell/MyBar/README.md. state/pkgs.json is

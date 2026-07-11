@@ -6,7 +6,6 @@ in
 
 # Unlock
 {
-
   # usb_storage/uas: get the VirtualKeys USB drive recognized this early
   # in initrd. ext4: filesystem it's formatted with, needed to mount it.
   boot.initrd.kernelModules = [ "usb_storage" "uas" "ext4" ];
@@ -77,7 +76,5 @@ in
     # Must match root.key's actual byte size -- systemd-cryptsetup reads
     # exactly this many bytes from the file as the key.
     keyFileSize = 4096;
-
   };
-
 }

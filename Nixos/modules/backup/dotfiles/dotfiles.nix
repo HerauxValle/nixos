@@ -82,7 +82,15 @@ with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
   # site appends " || true" right after it on the same script line, which
   # a trailing newline here would break onto its own line (a bash syntax
   # error: a line starting with "||" has nothing to its left).
-  filterRepoCmd = dir: ''( cd "${dir}" && PATH="${pkgs.git}/bin:$PATH" ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
+  # GIT_CONFIG_COUNT/KEY_0/VALUE_0, not a `-c` flag: git-filter-repo shells
+  # out to its own `git` subprocesses internally (e.g. `git show-ref`), which
+  # never see a `-c` passed to the outer git-filter-repo invocation itself.
+  # An env-var config override is inherited by every nested process, so it
+  # reaches those internal calls too -- without it, repoCache's directory
+  # ownership (see the rsync --no-owner --no-group comment below for why
+  # that isn't root) trips git's dubious-ownership check there and this
+  # fails on every activation that reaches it.
+  filterRepoCmd = dir: ''( cd "${dir}" && PATH="${pkgs.git}/bin:$PATH" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="${dir}" ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
 
   # -----------------------------------------------------------------
   # Real logic -- constructs commands / runs scripts, not just plain
@@ -137,7 +145,6 @@ in
 # scope, not per-module isolation -- an unprefixed name here can collide
 # with some other module's activation script.
 {
-
   # Stale excludeFiles/redactValues entries are now checked at activation
   # runtime instead (top of the script below), not here -- see the comment
   # there for why. That means these checks only run when enable = true,
@@ -215,6 +222,7 @@ REPLACEEOF
           ${pkgs.git}/bin/git -c safe.directory="${cfg.repoCache}" init -q -b "${cfg.branch}" "${cfg.repoCache}"
         fi
         chmod 700 "${cfg.repoCache}"
+        chown root:root "${cfg.repoCache}"
 
         # excludeFiles/redactValues only protect commits made AFTER an
         # entry is added or a redacted value changes -- anything already
@@ -251,7 +259,17 @@ REPLACEEOF
           fi
         ''}
 
-        ${pkgs.rsync}/bin/rsync -a --delete --exclude=.git "${cfg.dotfilesPath}/" "${cfg.repoCache}/"
+        # --no-owner --no-group: plain `-a` preserves ownership on the
+        # DESTINATION'S OWN top-level directory too, not just the files
+        # under it -- since dotfilesPath is owned by the regular user, that
+        # silently reassigns repoCache itself away from root (set by `git
+        # init` above) on every activation, undermining the root-owned
+        # invariant the rest of secretsDir relies on. Confirmed live: this
+        # is what made git-filter-repo's internal git calls (filterRepoCmd
+        # above) fail with "dubious ownership" on every run once the scrub
+        # path was ever exercised. Git doesn't track uid/gid in commits
+        # anyway, so nothing here needs -o/-g preserved.
+        ${pkgs.rsync}/bin/rsync -a --no-owner --no-group --delete --exclude=.git "${cfg.dotfilesPath}/" "${cfg.repoCache}/"
         ${lib.concatMapStringsSep "\n        " (f: ''rm -rf "${cfg.repoCache}/${f}"'') cfg.excludeFiles}
         ${redactApplyScript cfg.repoCache}
         ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" add -A
@@ -318,7 +336,7 @@ REPLACEEOF
             dotfilesBackupSecretPaths="$(printf '%s' "$dotfilesBackupPushOutput" | grep -oE 'path: [^[:space:]]+' | sed 's/^path: //' | sort -u | tr '\n' ' ')"
             printf '${cfg.colorYellow}note: GitHub secret scan triggered -- rewriting local backup history to strip: %s${cfg.colorReset}\n' "$dotfilesBackupSecretPaths" >&2
             ${filterRepoCmd cfg.repoCache} || true
-            ${pkgs.rsync}/bin/rsync -a --delete --exclude=.git "${cfg.dotfilesPath}/" "${cfg.repoCache}/"
+            ${pkgs.rsync}/bin/rsync -a --no-owner --no-group --delete --exclude=.git "${cfg.dotfilesPath}/" "${cfg.repoCache}/"
             ${lib.concatMapStringsSep "\n            " (f: ''rm -rf "${cfg.repoCache}/${f}"'') cfg.excludeFiles}
             ${redactApplyScript cfg.repoCache}
             ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" add -A
@@ -370,6 +388,5 @@ REPLACEEOF
     fi
   } ${lib.optionalString (cfg.logLevel == "silent") "> /dev/null 2>&1"}
   '';
-
 }
 

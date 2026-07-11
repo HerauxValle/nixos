@@ -63,5 +63,4 @@ lib.mkIf cfg.enable {
     wants = [ "require-usb-key.service" ];
     overrideStrategy = "asDropin";
   };
-
 }

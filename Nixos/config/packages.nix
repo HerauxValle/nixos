@@ -1,4 +1,4 @@
-{ config, pkgs, inputs, ... }:  
+{ config, pkgs, inputs, ... }:
 
 # Variables
 let
@@ -21,7 +21,7 @@ in
 # Packages
 {
   environment.systemPackages = with pkgs; [
-  
+
     # General
     vivaldi                     # Browser
     vscode                      # IDE
@@ -61,7 +61,7 @@ in
     quickshell                  # Aesthetic
 
   ] ++ (with pkgs.kdePackages; [
-    
+
     dolphin                     # Explorer
     kio-extras                  # Addons
     kservice                    # kbuildsycoca6 -- was only ever reachable via its nix store path,
@@ -72,7 +72,7 @@ in
     breeze                      # Looks
     breeze-icons                # Icons
     qtstyleplugin-kvantum       # Kvantum
-  
+
   ]) ++ (with pkgs.libsForQt5; [
 
     # Theming

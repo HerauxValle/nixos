@@ -48,19 +48,13 @@
     {
       # Dispatcher for /etc/nixos-secrets/ management (password hash,
       # dotfiles-backup deploy key) -- writes to /etc/nixos-secrets/, not the
-      # Nix store, so no $0-relative path concerns like sudo's below; fine
-      # to expose here. Multi-file project: secrets.sh sources ./cmd/*.sh
-      # relative to itself.
+      # Nix store, so no $0-relative path concerns; fine to expose here.
+      # Multi-file project: secrets.sh sources ./cmd/*.sh relative to itself.
       dir = ../../Scripts/Secrets;
       include = {
         "secrets.sh" = "secrets";
       };
     }
-
-    # sudo isn't listed here: it needs to land at ~/.local/bin (earlier in
-    # $PATH than real sudo, at /run/wrappers/bin) to actually intercept
-    # "sudo" -- this file's own systemPackages placement never would. See
-    # home/apps.nix's "home.file.\".local/bin/sudo\"" instead.
 
     # {
     #   dir = ../../../Projects/Path;

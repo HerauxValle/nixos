@@ -25,7 +25,6 @@ let
 
     echo "=== after: $((after_kb / 1024 / 1024))G, $after_paths top-level paths ==="
     echo "=== saved: $((saved_kb / 1024 / 1024))G ($pct%) in $((end - start))s ==="
-  
   '';
 in
 
@@ -34,15 +33,11 @@ in
   # -- pure dedup, deletes nothing. "daily" + the default
   # randomizedDelaySec/persistent means roughly once a day, not a fixed
   # clock time, with catch-up at next boot if the machine was off.
-
   nix.optimise = {
-
     automatic = true;
     dates = "daily";
-
   };
 
   systemd.services.nix-optimise.serviceConfig.ExecStart =
     lib.mkForce "${optimiseReport}";
-
 }

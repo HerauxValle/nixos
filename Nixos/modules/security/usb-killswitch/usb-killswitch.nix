@@ -49,5 +49,4 @@ lib.mkIf (cfg.killMode != "disabled") {
   services.udev.extraRules = ''
     ACTION=="remove", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", ENV{ID_SERIAL_SHORT}=="${cfg.usbSerialShort}", RUN+="${poweroffCmd}"
   '';
-
 }
