@@ -109,7 +109,13 @@ rec {
         # hand (`systemctl start self-hosted-<name>`), it just isn't
         # pulled in on boot/rebuild.
         wantedBy = lib.optionals autoStart [ "multi-user.target" ];
-        path = packages;
+        # util-linux (mountpoint) only when requireMounts actually needs
+        # it -- found via a real failure: "mountpoint: command not
+        # found" on ComfyUI's live-service mount check. Not on a bare
+        # systemd service's PATH by default, unlike an interactive
+        # shell where it's already there. Callers never have to
+        # remember this themselves.
+        path = packages ++ lib.optionals (requireMounts != [ ]) [ pkgs.util-linux ];
         inherit environment;
         serviceConfig = {
           User = user;
