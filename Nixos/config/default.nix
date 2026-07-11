@@ -7,6 +7,7 @@
     ./packages.nix
     ./programs.nix
     ./scripts.nix
+    ./self-hosted
     ./shells.nix
   ];
 }

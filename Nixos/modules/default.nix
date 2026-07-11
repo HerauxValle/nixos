@@ -9,6 +9,7 @@
     ./nix
     ./packages
     ./security
+    ./services
     ./system
   ];
 }
