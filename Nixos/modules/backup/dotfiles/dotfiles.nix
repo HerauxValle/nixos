@@ -59,11 +59,17 @@ with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
 
   # Full filter-repo invocation, combining the excludeFiles path filter and
   # the redactValues text replacement in one history-rewriting pass.
+  # git-filter-repo shells out to bare `git` internally (e.g. `git
+  # fast-export`) instead of a full derivation path -- unlike every other
+  # git call in this file, which uses ${pkgs.git}/bin/git directly and so
+  # doesn't care what's on PATH. Activation scripts don't have git on PATH
+  # by default, so this needs it prepended explicitly or git-filter-repo
+  # fails immediately with FileNotFoundError before touching anything.
   # Single-line on purpose (no embedded newline) -- the GH013 recovery call
   # site appends " || true" right after it on the same script line, which
   # a trailing newline here would break onto its own line (a bash syntax
   # error: a line starting with "||" has nothing to its left).
-  filterRepoCmd = dir: ''( cd "${dir}" && ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
+  filterRepoCmd = dir: ''( cd "${dir}" && PATH="${pkgs.git}/bin:$PATH" ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
 
   # -----------------------------------------------------------------
   # Real logic -- constructs commands / runs scripts, not just plain
@@ -101,29 +107,6 @@ with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
     ${pkgs.git}/bin/git -C "$dotfilesBackupRepoPath" -c safe.directory="$dotfilesBackupRepoPath" -c core.sshCommand="${gitSshCommand}" push -q ${force} "${cfg.remoteUrl}" "${cfg.branch}" 2>&1 1>/dev/null
   '';
 
-  # config.warnings, not assertions -- NixOS's own non-fatal counterpart to
-  # assertions (printed on every build/switch, never blocks one). A stale
-  # excludeFiles/redactValues entry means something is silently NOT being
-  # protected, which is worth surfacing loudly, but not worth bricking an
-  # unrelated rebuild over -- the file may just not exist yet on this
-  # machine rather than being a typo.
-  staleExcludeWarnings = map
-    (f: "modules/backup/dotfiles: excludeFiles entry '${f}' does not exist under ${cfg.dotfilesPath} -- renamed, typo'd, or never created? It is not excluding anything right now.")
-    (builtins.filter (f: !(builtins.pathExists (cfg.dotfilesPath + "/" + f))) cfg.excludeFiles);
-
-  staleRedactWarnings = lib.concatMap
-    (r:
-      let
-        filePath = cfg.dotfilesPath + "/" + r.file;
-      in
-      if !(builtins.pathExists filePath) then
-        [ "modules/backup/dotfiles: redactValues entry '${r.file}' does not exist under ${cfg.dotfilesPath} -- renamed, typo'd, or never created? Nothing is being redacted there right now." ]
-      else if !(lib.hasInfix (toString (lib.attrByPath (lib.splitString "." r.key) (throw "modules/backup/dotfiles: redactValues key '${r.key}' does not resolve against config") config)) (builtins.readFile filePath)) then
-        [ "modules/backup/dotfiles: redactValues key '${r.key}' does not currently appear in ${r.file} -- stale entry? It is not redacting anything there right now." ]
-      else
-        [ ])
-    cfg.redactValues;
-
 in
 
 # Dotfiles GitHub backup
@@ -142,10 +125,11 @@ in
 # with some other module's activation script.
 {
 
-  # Unconditional -- surfaced even if enable = false, so switching it back
-  # on later doesn't hide a stale entry that was already there.
-  warnings = staleExcludeWarnings ++ staleRedactWarnings;
-
+  # Stale excludeFiles/redactValues entries are now checked at activation
+  # runtime instead (top of the script below), not here -- see the comment
+  # there for why. That means these checks only run when enable = true,
+  # unlike the eval-time version this replaced; an acceptable tradeoff
+  # since a disabled backup has nothing to protect in the meantime anyway.
   system.activationScripts.dotfilesBackup.text = lib.mkIf cfg.enable ''
     ${lib.optionalString cfg.skipOnTest ''
       if [ "''${NIXOS_ACTION:-}" = "test" ]; then
@@ -156,6 +140,25 @@ in
     dotfilesBackupBorder() {
       printf '%b${cfg.border}${cfg.colorReset}\n' "$1"
     }
+
+    # Runtime checks, not config.warnings/eval-time builtins.pathExists --
+    # `nixos-rebuild switch` (as pacnix calls it) runs WITHOUT --impure, so
+    # builtins.pathExists/readFile on a plain string path outside the flake
+    # cannot reliably see the real filesystem at eval time and reports
+    # false negatives for files that genuinely exist. A real bash test at
+    # activation time always has real filesystem access, no such trap.
+    ${lib.concatMapStringsSep "\n    " (f: ''
+      if [ ! -e "${cfg.dotfilesPath}/${f}" ]; then
+        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: excludeFiles entry '"'"'${f}'"'"' does not exist -- renamed, typo'"'"'d, or never created? It is not excluding anything right now.${cfg.colorReset}\n' >&2
+      fi
+    '') cfg.excludeFiles}
+    ${lib.concatMapStringsSep "\n    " (r: ''
+      if [ ! -f "${cfg.dotfilesPath}/${r.file}" ]; then
+        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues entry '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being redacted there right now.${cfg.colorReset}\n' >&2
+      elif ! ${pkgs.gnugrep}/bin/grep -qF -- ${lib.escapeShellArg r.value} "${cfg.dotfilesPath}/${r.file}"; then
+        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues key '"'"'${r.key}'"'"' does not currently appear in ${r.file} -- stale entry? It is not redacting anything there right now.${cfg.colorReset}\n' >&2
+      fi
+    '') (lib.zipListsWith (r: rv: { inherit (r) file key; inherit (rv) value; }) cfg.redactValues resolvedRedactValues)}
 
     dotfilesBackupStart="$(date +%s.%N)"
     mkdir -p "${cfg.secretsDir}"
@@ -210,8 +213,15 @@ REPLACEEOF
           if [ -d "${cfg.repoCache}/.git" ] \
              && ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" rev-parse HEAD >/dev/null 2>&1 \
              && [ "$(cat "${cfg.excludeHashFile}" 2>/dev/null)" != "${excludeHash}" ]; then
-            ${filterRepoCmd cfg.repoCache}
-            if ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" -c core.sshCommand="${gitSshCommand}" push -q -f "${cfg.remoteUrl}" --all \
+            # filterRepoCmd is chained into the SAME condition as the
+            # pushes below (not run unconditionally beforehand) -- if it
+            # fails, the hash file must not be written and this must not
+            # be reported as success. Previously this crashed silently
+            # (git-filter-repo failing) while the script still printed
+            # "successfully...rewrote history" and marked the hash done,
+            # permanently hiding that nothing was actually scrubbed.
+            if ${filterRepoCmd cfg.repoCache} \
+               && ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" -c core.sshCommand="${gitSshCommand}" push -q -f "${cfg.remoteUrl}" --all \
                && ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" -c core.sshCommand="${gitSshCommand}" push -q -f "${cfg.remoteUrl}" --tags; then
               printf '%s' "${excludeHash}" > "${cfg.excludeHashFile}"
               dotfilesBackupBorder "${cfg.colorYellow}" >&2
@@ -220,9 +230,9 @@ REPLACEEOF
               dotfilesBackupBorder "${cfg.colorYellow}" >&2
             else
               dotfilesBackupBorder "${cfg.colorRed}" >&2
-              printf '${cfg.colorRed}warning: excludeFiles/redactValues changed, but force-pushing the${cfg.colorReset}\n' >&2
-              printf '${cfg.colorRed}rewritten history failed -- will retry next activation. Old commits on${cfg.colorReset}\n' >&2
-              printf '${cfg.colorRed}the remote may still expose the changed value(s) until this succeeds.${cfg.colorReset}\n' >&2
+              printf '${cfg.colorRed}warning: excludeFiles/redactValues changed, but rewriting/force-pushing${cfg.colorReset}\n' >&2
+              printf '${cfg.colorRed}history failed -- will retry next activation. Old commits on the remote${cfg.colorReset}\n' >&2
+              printf '${cfg.colorRed}may still expose the changed value(s) until this succeeds.${cfg.colorReset}\n' >&2
               dotfilesBackupBorder "${cfg.colorRed}" >&2
             fi
           fi
