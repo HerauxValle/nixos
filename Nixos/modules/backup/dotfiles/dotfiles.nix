@@ -90,7 +90,20 @@ with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
   # ownership (see the rsync --no-owner --no-group comment below for why
   # that isn't root) trips git's dubious-ownership check there and this
   # fails on every activation that reaches it.
-  filterRepoCmd = dir: ''( cd "${dir}" && PATH="${pkgs.git}/bin:$PATH" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="${dir}" ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
+  #
+  # `rm -f .git/filter-repo/already_ran` first: repoCache is a PERSISTENT
+  # clone re-filtered every time excludeFiles/redactValues actually changes,
+  # not a one-shot fresh clone -- but git-filter-repo leaves that marker
+  # after every run and, if it's more than a day old on the next run,
+  # interactively prompts "Treat this run as a continuation... (Y/N)?" on
+  # stdin. `--force` does not cover this specific check (it's a separate,
+  # age-gated prompt from the "not a fresh clone" one --force suppresses).
+  # Confirmed live: with no TTY reachable from inside an activation script,
+  # that prompt just hangs `nixos-rebuild switch` forever waiting for input
+  # that can never come. Deleting the marker first makes every run look
+  # fresh, so the prompt never fires -- we don't want continuation semantics
+  # here anyway, just a deterministic re-filter with the current args each time.
+  filterRepoCmd = dir: ''( cd "${dir}" && rm -f .git/filter-repo/already_ran && PATH="${pkgs.git}/bin:$PATH" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="${dir}" ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
 
   # -----------------------------------------------------------------
   # Real logic -- constructs commands / runs scripts, not just plain
