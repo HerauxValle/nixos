@@ -95,7 +95,20 @@ rec {
 
       systemd.tmpfiles.rules =
         lib.optionals (dataDir != null && ensureDataDir)
-          [ "d ${dataDir} 0755 ${user} - -" ]
+          [
+            "d ${dataDir} 0755 ${user} - -"
+            # `d` only sets ownership at creation time -- if dataDir
+            # already exists (root:root, e.g. from some earlier
+            # accidental root-owned creation), `d` alone silently leaves
+            # it that way, and the service user then can't write inside
+            # it (found this the hard way: ComfyUI's custom_nodes mkdir
+            # failing with Permission denied, dataDir already existing
+            # as root:root). `z` (non-recursive -- only this path
+            # itself, not its contents) re-asserts ownership on every
+            # activation regardless of whether `d` just created it or
+            # it already existed.
+            "z ${dataDir} 0755 ${user} - -"
+          ]
         ++ lib.optionals (storage != [ ])
           (map (s: "L+ ${dataDir}/${s.src} - - - - ${s.dest}") storage);
     };
