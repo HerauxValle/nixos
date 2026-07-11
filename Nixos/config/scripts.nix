@@ -1,10 +1,10 @@
 { ... }:
 
 # Personal picks -- which of YOUR scripts get exposed as PATH commands.
-# Concatenated with defaults/packages/scripts.nix's own entry (pacnix,
-# the one generic default) via Nix's normal listOf-option merge behavior,
-# not a custom mechanism. No options.vars declaration needed here, same
-# as config/customized.nix -- that lives in defaults/ instead.
+# Concatenated with modules/packages/scripts/default.nix's own entry
+# (pacnix, the one generic default) via Nix's normal listOf-option merge
+# behavior, not a custom mechanism. No options.vars declaration needed
+# here, same as config/customized.nix -- that lives in modules/ instead.
 {
   config.vars.scripts = [
 

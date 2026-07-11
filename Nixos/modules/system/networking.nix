@@ -3,8 +3,7 @@
 {
   networking.hostName = config.vars.hostName;
   networking.networkmanager.enable = false;
-  # Spoof to the "Alexa" MAC recorded in Backups/Drive/Internet.txt -- the ISP
-  # prioritizes this MAC for bandwidth/QoS regardless of the old device rules.
+  # Pinned deliberately, not the hardware default -- see local notes for why.
   networking.interfaces.enp3s0.macAddress = "*****************";
   time.timeZone = config.vars.timeZone;
   i18n.defaultLocale = "en_US.UTF-8";

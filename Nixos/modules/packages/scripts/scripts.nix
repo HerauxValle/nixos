@@ -21,7 +21,7 @@ let
 
       ''
     else
-      null;
+      lib.warn "modules/packages/scripts: '${name}' skipped -- ${toString path} does not exist (typo in dir/include?)" null;
 
   wrapEntry = { dir, include }:
     lib.mapAttrsToList (fname: cmdName: wrapScript cmdName (dir + "/${fname}")) include;

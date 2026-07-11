@@ -3,6 +3,68 @@
 let
   cfg = config.vars.dotfilesBackup;
 
+  # redactValues' `key` resolved to an actual value once, here -- every
+  # call site below (per-activation redaction, history scrub, GH013
+  # recovery) reuses this instead of re-resolving.
+  resolvedRedactValues = map
+    (r: {
+      inherit (r) file;
+      value = toString (lib.attrByPath (lib.splitString "." r.key) (throw "modules/backup/dotfiles: redactValues key '${r.key}' does not resolve against config") config);
+    })
+    cfg.redactValues;
+
+  # Pure function of excludeFiles + redactValues' own content (values
+  # included, not just which keys are listed -- rotating a redacted value,
+  # e.g. changing the email itself, must also trigger a rescrub even
+  # though the key/file pair didn't change). Sorted first so reordering
+  # either list alone doesn't trigger a scrub for nothing.
+  excludeHash = builtins.hashString "sha256" (lib.concatStringsSep "\n" (
+    (lib.sort (a: b: a < b) cfg.excludeFiles)
+    ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.value}") resolvedRedactValues))
+  ));
+
+  # Replaces one exact literal value with same-length asterisks in a file
+  # already synced into the snapshot -- runs on every activation, on the
+  # CURRENT copy (separate from the one-time history scrub below, which
+  # only handles OLD commits). Python for exact literal substitution, not
+  # sed -- avoids regex-escaping a MAC/email that may contain characters
+  # sed's search side treats specially.
+  redactApplyScript = dir: lib.concatMapStringsSep "\n" (r: ''
+    if [ -f "${dir}/${r.file}" ]; then
+      ${pkgs.python3}/bin/python3 -c '
+import sys
+path, value = sys.argv[1], sys.argv[2]
+with open(path, "r", encoding="utf-8", errors="surrogateescape") as fh:
+    content = fh.read()
+content = content.replace(value, "*" * len(value))
+with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
+    fh.write(content)
+' "${dir}/${r.file}" ${lib.escapeShellArg r.value}
+    fi
+  '') resolvedRedactValues;
+
+  # git-filter-repo's own replacements-file format: one "old==>new" per
+  # line, literal by default (no regex escaping needed). Feeds the history
+  # scrub below so OLD commits get the same redaction as the current
+  # snapshot, not just going forward.
+  replaceTextFileContent = lib.concatMapStringsSep "\n"
+    (r: "${r.value}==>${lib.concatStrings (lib.replicate (builtins.stringLength r.value) "*")}")
+    resolvedRedactValues;
+
+  # --path/--invert-paths args for excludeFiles, shared by both
+  # git-filter-repo call sites below. Guarded on non-empty: --invert-paths
+  # with zero --path args would keep nothing at all, not everything.
+  excludePathFilterArgs = lib.optionalString (cfg.excludeFiles != [ ])
+    (lib.concatMapStringsSep " " (f: ''--path "${f}"'') cfg.excludeFiles + " --invert-paths");
+
+  # Full filter-repo invocation, combining the excludeFiles path filter and
+  # the redactValues text replacement in one history-rewriting pass.
+  # Single-line on purpose (no embedded newline) -- the GH013 recovery call
+  # site appends " || true" right after it on the same script line, which
+  # a trailing newline here would break onto its own line (a bash syntax
+  # error: a line starting with "||" has nothing to its left).
+  filterRepoCmd = dir: ''( cd "${dir}" && ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${excludePathFilterArgs} ${lib.optionalString (resolvedRedactValues != [ ]) ''--replace-text "$dotfilesBackupReplaceTextFile"''} )'';
+
   # -----------------------------------------------------------------
   # Real logic -- constructs commands / runs scripts, not just plain
   # facts. Everything that's just a value (including the derived paths
@@ -39,6 +101,29 @@ let
     ${pkgs.git}/bin/git -C "$dotfilesBackupRepoPath" -c safe.directory="$dotfilesBackupRepoPath" -c core.sshCommand="${gitSshCommand}" push -q ${force} "${cfg.remoteUrl}" "${cfg.branch}" 2>&1 1>/dev/null
   '';
 
+  # config.warnings, not assertions -- NixOS's own non-fatal counterpart to
+  # assertions (printed on every build/switch, never blocks one). A stale
+  # excludeFiles/redactValues entry means something is silently NOT being
+  # protected, which is worth surfacing loudly, but not worth bricking an
+  # unrelated rebuild over -- the file may just not exist yet on this
+  # machine rather than being a typo.
+  staleExcludeWarnings = map
+    (f: "modules/backup/dotfiles: excludeFiles entry '${f}' does not exist under ${cfg.dotfilesPath} -- renamed, typo'd, or never created? It is not excluding anything right now.")
+    (builtins.filter (f: !(builtins.pathExists (cfg.dotfilesPath + "/" + f))) cfg.excludeFiles);
+
+  staleRedactWarnings = lib.concatMap
+    (r:
+      let
+        filePath = cfg.dotfilesPath + "/" + r.file;
+      in
+      if !(builtins.pathExists filePath) then
+        [ "modules/backup/dotfiles: redactValues entry '${r.file}' does not exist under ${cfg.dotfilesPath} -- renamed, typo'd, or never created? Nothing is being redacted there right now." ]
+      else if !(lib.hasInfix (toString (lib.attrByPath (lib.splitString "." r.key) (throw "modules/backup/dotfiles: redactValues key '${r.key}' does not resolve against config") config)) (builtins.readFile filePath)) then
+        [ "modules/backup/dotfiles: redactValues key '${r.key}' does not currently appear in ${r.file} -- stale entry? It is not redacting anything there right now." ]
+      else
+        [ ])
+    cfg.redactValues;
+
 in
 
 # Dotfiles GitHub backup
@@ -55,9 +140,13 @@ in
 # module into one single shell script sharing one global variable/function
 # scope, not per-module isolation -- an unprefixed name here can collide
 # with some other module's activation script.
-lib.mkIf cfg.enable {
+{
 
-  system.activationScripts.dotfilesBackup.text = ''
+  # Unconditional -- surfaced even if enable = false, so switching it back
+  # on later doesn't hide a stale entry that was already there.
+  warnings = staleExcludeWarnings ++ staleRedactWarnings;
+
+  system.activationScripts.dotfilesBackup.text = lib.mkIf cfg.enable ''
     ${lib.optionalString cfg.skipOnTest ''
       if [ "''${NIXOS_ACTION:-}" = "test" ]; then
         exit 0
@@ -98,13 +187,50 @@ lib.mkIf cfg.enable {
       dotfilesBackupTag="$(date "${cfg.tagDateFormat}")"
       dotfilesBackupChanged=1
 
+      ${lib.optionalString (resolvedRedactValues != [ ]) ''
+        dotfilesBackupReplaceTextFile="$(mktemp)"
+        cat > "$dotfilesBackupReplaceTextFile" <<'REPLACEEOF'
+${replaceTextFileContent}
+REPLACEEOF
+      ''}
+
       ${if cfg.useRepoCache then ''
         if [ ! -d "${cfg.repoCache}/.git" ]; then
           ${pkgs.git}/bin/git -c safe.directory="${cfg.repoCache}" init -q -b "${cfg.branch}" "${cfg.repoCache}"
         fi
         chmod 700 "${cfg.repoCache}"
+
+        # excludeFiles/redactValues only protect commits made AFTER an
+        # entry is added or a redacted value changes -- anything already
+        # committed under the old state stays exposed in every earlier
+        # commit, both here and on the already-pushed remote, until
+        # explicitly rewritten. Runs once per actual change (hash
+        # comparison below), not on every activation.
+        ${lib.optionalString cfg.scrubHistoryOnExcludeChange ''
+          if [ -d "${cfg.repoCache}/.git" ] \
+             && ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" rev-parse HEAD >/dev/null 2>&1 \
+             && [ "$(cat "${cfg.excludeHashFile}" 2>/dev/null)" != "${excludeHash}" ]; then
+            ${filterRepoCmd cfg.repoCache}
+            if ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" -c core.sshCommand="${gitSshCommand}" push -q -f "${cfg.remoteUrl}" --all \
+               && ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" -c core.sshCommand="${gitSshCommand}" push -q -f "${cfg.remoteUrl}" --tags; then
+              printf '%s' "${excludeHash}" > "${cfg.excludeHashFile}"
+              dotfilesBackupBorder "${cfg.colorYellow}" >&2
+              printf '${cfg.colorYellow}note: excludeFiles/redactValues changed -- rewrote and force-pushed full${cfg.colorReset}\n' >&2
+              printf '${cfg.colorYellow}history to apply it retroactively, not just for future commits.${cfg.colorReset}\n' >&2
+              dotfilesBackupBorder "${cfg.colorYellow}" >&2
+            else
+              dotfilesBackupBorder "${cfg.colorRed}" >&2
+              printf '${cfg.colorRed}warning: excludeFiles/redactValues changed, but force-pushing the${cfg.colorReset}\n' >&2
+              printf '${cfg.colorRed}rewritten history failed -- will retry next activation. Old commits on${cfg.colorReset}\n' >&2
+              printf '${cfg.colorRed}the remote may still expose the changed value(s) until this succeeds.${cfg.colorReset}\n' >&2
+              dotfilesBackupBorder "${cfg.colorRed}" >&2
+            fi
+          fi
+        ''}
+
         ${pkgs.rsync}/bin/rsync -a --delete --exclude=.git "${cfg.dotfilesPath}/" "${cfg.repoCache}/"
         ${lib.concatMapStringsSep "\n        " (f: ''rm -rf "${cfg.repoCache}/${f}"'') cfg.excludeFiles}
+        ${redactApplyScript cfg.repoCache}
         ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" add -A
         if ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" diff --cached --quiet; then
           dotfilesBackupChanged=0
@@ -122,6 +248,7 @@ lib.mkIf cfg.enable {
         cp -a "${cfg.dotfilesPath}/." "$dotfilesBackupTmp/" 2>/dev/null || true
         rm -rf "$dotfilesBackupTmp/.git"
         ${lib.concatMapStringsSep "\n        " (f: ''rm -rf "$dotfilesBackupTmp/${f}"'') cfg.excludeFiles}
+        ${redactApplyScript "$dotfilesBackupTmp"}
         ${pkgs.git}/bin/git -c safe.directory="$dotfilesBackupTmp" init -q -b "${cfg.branch}" "$dotfilesBackupTmp"
         ${pkgs.git}/bin/git -C "$dotfilesBackupTmp" -c safe.directory="$dotfilesBackupTmp" add -A
         ${pkgs.git}/bin/git -C "$dotfilesBackupTmp" -c safe.directory="$dotfilesBackupTmp" -c user.name="${cfg.commitUserName}" -c user.email="${cfg.commitUserEmail}" commit -q -m "$dotfilesBackupTag" || true
@@ -167,9 +294,10 @@ lib.mkIf cfg.enable {
           if [ "$dotfilesBackupNetworkFailure" != "1" ] && [ $dotfilesBackupPushRc -ne 0 ] && printf '%s' "$dotfilesBackupPushOutput" | grep -q "${cfg.githubSecretScanErrorCode}"; then
             dotfilesBackupSecretPaths="$(printf '%s' "$dotfilesBackupPushOutput" | grep -oE 'path: [^[:space:]]+' | sed 's/^path: //' | sort -u | tr '\n' ' ')"
             printf '${cfg.colorYellow}note: GitHub secret scan triggered -- rewriting local backup history to strip: %s${cfg.colorReset}\n' "$dotfilesBackupSecretPaths" >&2
-            ( cd "${cfg.repoCache}" && ${pkgs.git-filter-repo}/bin/git-filter-repo --force ${lib.concatMapStringsSep " " (f: ''--path "${f}"'') cfg.excludeFiles} --invert-paths ) || true
+            ${filterRepoCmd cfg.repoCache} || true
             ${pkgs.rsync}/bin/rsync -a --delete --exclude=.git "${cfg.dotfilesPath}/" "${cfg.repoCache}/"
             ${lib.concatMapStringsSep "\n            " (f: ''rm -rf "${cfg.repoCache}/${f}"'') cfg.excludeFiles}
+            ${redactApplyScript cfg.repoCache}
             ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" add -A
             ${pkgs.git}/bin/git -C "${cfg.repoCache}" -c safe.directory="${cfg.repoCache}" -c user.name="${cfg.commitUserName}" -c user.email="${cfg.commitUserEmail}" commit -q --allow-empty -m "$dotfilesBackupTag"
             dotfilesBackupPushOutput="$(${gitPush "-f"})"
@@ -221,3 +349,4 @@ lib.mkIf cfg.enable {
   '';
 
 }
+

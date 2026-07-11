@@ -53,10 +53,11 @@
     };
 
     # Paths, relative to dotfilesPath, stripped from the snapshot before
-    # committing -- never pushed anywhere.
+    # committing -- never pushed anywhere. No sensible generic default
+    # (this machine's specific sensitive paths) -- its one real definition
+    # lives in Nixos/config/excludes.nix.
     excludeFiles = lib.mkOption {
       type = lib.types.listOf lib.types.str;
-      default = [ "Claude/Global/config.json" "Shells/Fish/secrets.fish" ".envrc" ];
       description = "Paths (relative to dotfilesPath) stripped from the snapshot before committing.";
     };
 
@@ -239,6 +240,63 @@
       type = lib.types.str;
       default = "${config.vars.dotfilesBackup.secretsDir}/repo-cache";
       description = "Persistent local clone path, used when useRepoCache is true.";
+    };
+
+    # true = whenever excludeFiles OR redactValues changes (an entry added,
+    # removed, or edited), rewrite the ENTIRE local history to strip/redact
+    # every listed path from every past commit too, then force-push that
+    # rewritten history -- not just apply the new lists going forward.
+    # Without this, changing either list only protects future commits;
+    # anything already committed under the old lists stays exposed in every
+    # earlier commit, both in repoCache and on the already-pushed remote,
+    # forever. Only meaningful when useRepoCache is true -- the non-cache
+    # mode never keeps history across activations, so there's nothing to
+    # retroactively scrub.
+    scrubHistoryOnExcludeChange = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Rewrite and force-push the full local history (not just future commits) whenever excludeFiles or redactValues changes.";
+    };
+
+    # Records a hash of excludeFiles+redactValues after the last scrub, so
+    # a scrub only runs when either list actually changed -- not on every
+    # activation regardless.
+    excludeHashFile = lib.mkOption {
+      type = lib.types.str;
+      default = "${config.vars.dotfilesBackup.secretsDir}/exclude-hash";
+      description = "Stores a hash of excludeFiles+redactValues from the last scrub, to detect when either changes.";
+    };
+
+    # Files that stay backed up in full, but with one specific value inside
+    # them replaced by asterisks (same length) instead of the whole file
+    # being dropped -- for a file you need synced (real, necessary config)
+    # that also happens to contain one sensitive literal (a MAC address, an
+    # email) mixed in with everything else. No sensible generic default
+    # (this machine's specific sensitive values) -- its one real definition
+    # lives in Nixos/config/excludes.nix.
+    #
+    # `key` is a dotted path resolved against the top-level `config` (not
+    # `config.vars` specifically) -- e.g. "networking.interfaces.enp3s0.macAddress"
+    # or "vars.gitCommitEmail". Deliberately a plain string, not a literal
+    # Nix expression reaching into another module -- this module never
+    # needs to know networking.nix's structure at eval time, and nothing
+    # sensitive needs its own dedicated options.vars.* entry just to
+    # qualify for redaction; anything already exposed as a real option
+    # (built-in or custom) works as-is.
+    redactValues = lib.mkOption {
+      type = lib.types.listOf (lib.types.submodule {
+        options = {
+          file = lib.mkOption {
+            type = lib.types.str;
+            description = "Path, relative to dotfilesPath, containing the value to redact.";
+          };
+          key = lib.mkOption {
+            type = lib.types.str;
+            description = "Dotted path into config (e.g. \"vars.gitCommitEmail\") whose value gets redacted in `file`.";
+          };
+        };
+      });
+      description = "Files kept in the backup, with one config-derived value inside them replaced by asterisks.";
     };
   };
 }
