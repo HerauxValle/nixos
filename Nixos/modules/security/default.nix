@@ -2,7 +2,7 @@
 
 {
   imports = [
-    ./sudo-keyfile.nix
-    ./usb-killswitch.nix
+    ./sudo-keyfile
+    ./usb-killswitch
   ];
 }

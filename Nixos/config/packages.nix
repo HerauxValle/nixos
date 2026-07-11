@@ -3,7 +3,7 @@
 # Variables
 let
   claudeCode = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
-  mybarBackend = pkgs.callPackage ../../../Quickshell/MyBar/backend.nix { };
+  mybarBackend = pkgs.callPackage ../../Quickshell/MyBar/backend.nix { };
 
   # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups (shifted
   # symbol keybinds like ctrl+dollar/asterisk/exclam) -- that's not a normal

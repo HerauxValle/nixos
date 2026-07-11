@@ -82,8 +82,8 @@ in
   # level would just be an unknown option and fail to evaluate. Grouped
   # here as one attrset so any future home-manager-only `programs.*` entry
   # has an obvious place to go instead of sprouting its own
-  # home-manager.users.herauxvalle.programs.<x> line.
-  home-manager.users.herauxvalle.programs = {
+  # home-manager.users.${config.vars.username}.programs.<x> line.
+  home-manager.users.${config.vars.username}.programs = {
 
     # fresh (terminal editor). Package comes straight from nixpkgs
     # (pkgs.fresh-editor, pname "fresh", built from github:sinelaw/fresh) --

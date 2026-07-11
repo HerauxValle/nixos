@@ -1,28 +1,7 @@
 { config, pkgs, ... }:
 
-# Variables
 let
-
-  # GRUB theme directory, containing background, selection graphics,
-  # terminal box borders, custom fonts, and theme.txt.
-  # Points into Dotfiles/Themes/GRUB/BSOL, two levels up from this file's
-  # location (Nixos/modules/boot/grub.nix).
-  # Genuine reproducible reference, not a hardcoded literal -- the entire
-  # theme folder lives in the repo, resolves correctly on any fresh clone.
-  grubThemePath = ../../../Themes/GRUB/BSOL;
-
-  # Screen resolution GRUB renders the graphical theme at.
-  # Matches the monitor's native resolution for correct scaling.
-  gfxResolution = "auto";
-
-  # true  = menu hidden by default, reveal with ESC during boot
-  # false = menu always shown, normal countdown timeout
-  hidden = true;
-
-  # true  = graphical mode (gfxterm), theme/background/fonts render
-  # false = plain text console mode, no theme, more portable across hardware
-  graphical = true;
-
+  cfg = config.vars.grub;
 in
 
 # General
@@ -57,7 +36,7 @@ in
 
   boot.loader = {
 
-    timeout = if hidden then 0 else 5;
+    timeout = if cfg.hidden then 0 else 5;
     efi.canTouchEfiVariables = true;
 
     grub = {
@@ -68,8 +47,8 @@ in
       device = "nodev";
       efiSupport = true;
       gfxpayloadEfi = "keep";
-      gfxmodeEfi = gfxResolution;
-      theme = if graphical then grubThemePath else null;
+      gfxmodeEfi = cfg.gfxResolution;
+      theme = if cfg.graphical then cfg.grubThemePath else null;
 
       # nixpkgs defaults this to its own dark-gray/NixOS-logo wallpaper
       # (nix-wallpaper-simple-dark-gray_bootloader.png) and installs it as
@@ -82,8 +61,8 @@ in
 
       extraConfig = ''
 
-        ${if hidden then "set timeout_style=hidden" else ""}
-        ${if graphical then "terminal_output gfxterm" else "terminal_output console"}
+        ${if cfg.hidden then "set timeout_style=hidden" else ""}
+        ${if cfg.graphical then "terminal_output gfxterm" else "terminal_output console"}
 
       '';
     };

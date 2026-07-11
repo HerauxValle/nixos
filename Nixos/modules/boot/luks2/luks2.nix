@@ -1,28 +1,7 @@
 { config, pkgs, ... }:
 
-# Variables
 let
-  # 1. LUKS device name -- must match hardware-configuration.nix's definition.
-  #    Used both as the attribute key below and inside the systemd unit name,
-  #    since systemd-cryptsetup@<name>.service is generated from it.
-  #    Current value: root
-  luksDeviceName = "root";
-
-  # 2. Same "root" name as above, referenced via ${luksDeviceName} in the
-  #    systemd unit name (systemd-cryptsetup@root.service). Not a separate
-  #    literal anymore -- kept in sync automatically since it's interpolated.
-
-  # 3. External USB partition's filesystem label holding the keyfile.
-  #    Stable external fact -- only change if the USB partition is
-  #    reformatted or relabeled.
-  #    Current value: VirtualKeys
-  usbKeyLabel = "VirtualKeys";
-
-  # 4. Filename of the actual keyfile on that USB partition, as mounted at /key.
-  #    Stable external fact -- only change if the keyfile is renamed
-  #    or regenerated under a different filename.
-  #    Current value: root.key
-  keyFileName = "root.key";
+  cfg = config.vars.luks2;
 in
 
 # Unlock
@@ -62,12 +41,12 @@ in
 
         mkdir -m 0755 -p /key
         for i in $(seq 1 30); do
-          if [ -e "/dev/disk/by-label/${usbKeyLabel}" ]; then
+          if [ -e "/dev/disk/by-label/${cfg.usbKeyLabel}" ]; then
             break
           fi
           sleep 0.5
         done
-        mount -n -t ext4 -o ro /dev/disk/by-label/${usbKeyLabel} /key
+        mount -n -t ext4 -o ro /dev/disk/by-label/${cfg.usbKeyLabel} /key
 
       '';
 
@@ -84,7 +63,7 @@ in
     # (missing ExecStart etc, normally supplied by the generator). Forcing
     # asDropin makes this a drop-in that only adds the ordering, instead
     # of replacing the generated unit.
-    services."systemd-cryptsetup@${luksDeviceName}" = {
+    services."systemd-cryptsetup@${cfg.luksDeviceName}" = {
       after = [ "mount-usb-key.service" ];
       wants = [ "mount-usb-key.service" ];
       overrideStrategy = "asDropin";
@@ -92,9 +71,9 @@ in
 
   };
 
-  boot.initrd.luks.devices.${luksDeviceName} = {
+  boot.initrd.luks.devices.${cfg.luksDeviceName} = {
 
-    keyFile = "/key/${keyFileName}";
+    keyFile = "/key/${cfg.keyFileName}";
     # Must match root.key's actual byte size -- systemd-cryptsetup reads
     # exactly this many bytes from the file as the key.
     keyFileSize = 4096;

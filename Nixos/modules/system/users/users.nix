@@ -26,16 +26,16 @@
   # defines (system.activationScripts.users), not a separate script -- so
   # ordering relative to it is guaranteed, not left to chance.
   system.activationScripts.users.text = lib.mkBefore ''
-    HASH_FILE="/etc/nixos-secrets/herauxvalle-password.hash"
+    HASH_FILE="${config.vars.users.hashFile}"
     if [ ! -f "$HASH_FILE" ]; then
       mkdir -p "$(dirname "$HASH_FILE")"
       chmod 700 "$(dirname "$HASH_FILE")"
-      # Precomputed `mkpasswd -m sha-512 "changeme"` -- a static string, not
-      # computed here, so this has no runtime dependency on mkpasswd
-      # existing at activation time. Quoted heredoc (not `echo '...'`) so
-      # nothing here needs shell-escaping regardless of the hash's content.
+      # Static string, not computed here, so this has no runtime dependency
+      # on mkpasswd existing at activation time. Quoted heredoc (not
+      # `echo '...'`) so nothing here needs shell-escaping regardless of
+      # the hash's content. Value itself lives in config.vars.users.fallbackHash.
       cat > "$HASH_FILE" <<'HASHEOF'
-$6$RtR/fJhkE927CBnr$ODSLT/jQg4QLmLMljhT8snD9DGKoD1X8jPMXYPE4w.n0rWYoA.vCOZZhIvBnVDq2J25VotSzoF7PGW/KhT/.W0
+${config.vars.users.fallbackHash}
 HASHEOF
       chmod 600 "$HASH_FILE"
       chown root:root "$HASH_FILE"
@@ -43,7 +43,7 @@ HASHEOF
     fi
   '';
 
-  users.users.herauxvalle = {
+  users.users.${config.vars.username} = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" ];
 
@@ -65,7 +65,7 @@ HASHEOF
     # there's no separate one. Written by ./install.sh (prompts for a
     # password, hashes it, writes it here as root:root, 600) -- run that
     # first, this path won't exist otherwise.
-    hashedPasswordFile = "/etc/nixos-secrets/herauxvalle-password.hash";
+    hashedPasswordFile = config.vars.users.hashFile;
 
     # password = "plaintext";  # Also exists, but stores the literal password
     #                          # readably in the Nix store -- no real reason

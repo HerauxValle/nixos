@@ -1,0 +1,45 @@
+{ config, lib, ... }:
+
+# Plain facts, same convention as boot/luks2's usbKeyLabel/keyFileName --
+# not a generic reusable option, just this machine's actual settings. Logic
+# that reads these lives in ./sudo-keyfile.nix, imported below.
+{
+  imports = [ ./sudo-keyfile.nix ];
+
+  options.vars.sudoKeyfile = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Master switch for keyfile-based passwordless sudo.";
+    };
+
+    keyfilePath = lib.mkOption {
+      type = lib.types.str;
+      default = "/run/media/${config.vars.username}/VirtualKeys/auth.key";
+      description = "Location of the sudo auth keyfile on the mounted USB stick.";
+    };
+
+    # Below: derived facts, not procedural logic -- the real logic
+    # (wrapperPath's wrapper-dir reference, checker/checkerStub
+    # derivations, the activation script, PAM rule) stays in
+    # modules/security/sudo-keyfile.nix.
+
+    secretsDir = lib.mkOption {
+      type = lib.types.str;
+      default = config.vars.secretsBaseDir;
+      description = "Root-owned directory holding this module's hash/conf files.";
+    };
+
+    hashFile = lib.mkOption {
+      type = lib.types.str;
+      default = "${config.vars.sudoKeyfile.secretsDir}/${config.vars.username}-sudo-keyfile.hash";
+      description = "Stored SHA-256 of the keyfile's content, checked on every sudo call.";
+    };
+
+    confFile = lib.mkOption {
+      type = lib.types.str;
+      default = "${config.vars.sudoKeyfile.secretsDir}/${config.vars.username}-sudo-keyfile.conf";
+      description = "Stored device identity (label/UUID + relative path) for no-mount reads.";
+    };
+  };
+}

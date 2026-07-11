@@ -3,15 +3,10 @@
 {
   imports = [
     ./hardware-configuration.nix
-
-    ./modules/backup
-    ./modules/boot
-    ./modules/desktop
-    ./modules/nix
-    ./modules/packages
-    ./modules/security
-    ./modules/system
+    ./variables.nix
+    ./modules
+    ./config
   ];
 
-  system.stateVersion = "26.05";
+  system.stateVersion = config.vars.stateVersion;
 }

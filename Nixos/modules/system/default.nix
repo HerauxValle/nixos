@@ -3,6 +3,6 @@
 {
   imports = [
     ./networking.nix
-    ./users.nix
+    ./users
   ];
 }

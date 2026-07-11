@@ -1,13 +1,12 @@
-{ config, pkgs, ... }:
+{ config, pkgs, osConfig, ... }:
 
 {
-  home.stateVersion = "26.05";
-  home.username = "maxmustermann";
-  home.homeDirectory = "/home/herauxvalle";
+  home.stateVersion = osConfig.vars.stateVersion;
+  home.username = osConfig.vars.username;
+  home.homeDirectory = osConfig.vars.homeDirectory;
 
   imports = [
     ./home/apps.nix
-    ./home/hyprland-plugins.nix
     ./home/shells.nix
     ./home/theming.nix
   ];

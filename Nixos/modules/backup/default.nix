@@ -2,6 +2,6 @@
 
 {
   imports = [
-    ./dotfiles.nix
+    ./dotfiles
   ];
 }

@@ -1,0 +1,53 @@
+{ config, lib, ... }:
+
+{
+  # =========================================================================
+  # CENTRAL VARIABLES -- schema only.
+  #
+  # Options with a `default =` below are genuinely generic: a value that
+  # would make sense to anyone reusing this repo, without knowing anything
+  # about you specifically. Options WITHOUT a default are required -- pure
+  # personal facts (username, hostname, ...) with no sensible generic
+  # value to fake. Their one real definition lives in
+  # Nixos/config/customized.nix.
+  # =========================================================================
+
+  options.vars = {
+    username = lib.mkOption {
+      type = lib.types.str;
+      description = "Primary (and only) user account on this machine.";
+    };
+
+    homeDirectory = lib.mkOption {
+      type = lib.types.str;
+      default = "/home/${config.vars.username}";
+      description = "Home directory of vars.username -- derived; change username, not this.";
+    };
+
+    hostName = lib.mkOption {
+      type = lib.types.str;
+      description = "networking.hostName. Same literal as username here, but a conceptually distinct fact.";
+    };
+
+    timeZone = lib.mkOption {
+      type = lib.types.str;
+      description = "time.timeZone.";
+    };
+
+    stateVersion = lib.mkOption {
+      type = lib.types.str;
+      description = "Shared system.stateVersion / home.stateVersion.";
+    };
+
+    secretsBaseDir = lib.mkOption {
+      type = lib.types.str;
+      default = "/etc/nixos-secrets";
+      description = "Root-owned directory holding all generated secrets.";
+    };
+
+    gitCommitEmail = lib.mkOption {
+      type = lib.types.str;
+      description = "Git identity email stamped on the dotfiles-backup snapshot commit.";
+    };
+  };
+}

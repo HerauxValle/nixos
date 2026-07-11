@@ -1,24 +1,7 @@
 { config, pkgs, lib, ... }:
 
-# Variables
 let
-  # Master switch and location of the sudo auth keyfile. Plain facts, same
-  # convention as boot/luks2.nix's usbKeyLabel/keyFileName -- not a
-  # generic reusable option, just this machine's actual settings.
-
-  # -----------------------------------------------------------------
-  # CONFIGURATION
-  enable = false;
-  keyfilePath = "/run/media/herauxvalle/VirtualKeys/auth.key";
-  # -----------------------------------------------------------------
-
-  # -----------------------------------------------------------------
-  # DO NOT TOUCH
-  # -----------------------------------------------------------------
-  
-  secretsDir = "/etc/nixos-secrets";
-  hashFile   = "${secretsDir}/herauxvalle-sudo-keyfile.hash";
-  confFile   = "${secretsDir}/herauxvalle-sudo-keyfile.conf";
+  cfg = config.vars.sudoKeyfile;
 
   # The setuid-root wrapper's installed path -- this, not the raw
   # ${checker}/bin path, is what PAM and the self-test must actually
@@ -57,11 +40,11 @@ let
     text = ''
       set -euo pipefail
 
-      [ -f "${confFile}" ] || exit 1
-      [ -f "${hashFile}" ] || exit 1
+      [ -f "${cfg.confFile}" ] || exit 1
+      [ -f "${cfg.hashFile}" ] || exit 1
 
       # shellcheck source=/dev/null
-      source "${confFile}"
+      source "${cfg.confFile}"
       : "''${IDENT_TYPE:?}" "''${IDENT_VALUE:?}" "''${REL_PATH:?}"
 
       dev="/dev/disk/by-''${IDENT_TYPE}/''${IDENT_VALUE}"
@@ -108,7 +91,7 @@ let
       [ -n "$content" ] || exit 1
 
       actual_hash="$(printf '%s' "$content" | sha256sum | cut -d' ' -f1)"
-      stored_hash="$(cat "${hashFile}")"
+      stored_hash="$(cat "${cfg.hashFile}")"
       [ "$actual_hash" = "$stored_hash" ] || exit 1
       exit 0
     '';
@@ -147,35 +130,35 @@ let
 in
 
 # Sudo keyfile auth
-lib.mkIf enable {
+lib.mkIf cfg.enable {
 
   # Idempotent, mirrors users.nix's own hashedPasswordFile bootstrap
   # pattern: only ever generates the secret if it isn't already there,
   # never regenerates/clobbers an existing one. To rotate, delete
-  # ${hashFile} and ${confFile} (and the keyfile itself) and rebuild.
+  # ${cfg.hashFile} and ${cfg.confFile} (and the keyfile itself) and rebuild.
   system.activationScripts.sudoKeyfile.text = ''
-    mkdir -p "${secretsDir}"
-    chmod 700 "${secretsDir}"
+    mkdir -p "${cfg.secretsDir}"
+    chmod 700 "${cfg.secretsDir}"
 
-    if [ -f "${hashFile}" ] && [ -f "${confFile}" ]; then
+    if [ -f "${cfg.hashFile}" ] && [ -f "${cfg.confFile}" ]; then
       : # already generated -- leave it alone
     else
-      PARENT="$(dirname "${keyfilePath}")"
+      PARENT="$(dirname "${cfg.keyfilePath}")"
       if [ ! -d "$PARENT" ]; then
         echo "warning: sudo keyfile path's parent dir ($PARENT) doesn't exist -- is the device mounted? Skipping keyfile generation this activation; will retry next rebuild." >&2
       else
-        if [ -f "${keyfilePath}" ]; then
+        if [ -f "${cfg.keyfilePath}" ]; then
           # Adopt whatever's already there instead of clobbering it --
           # matters if this is a pre-existing keyfile (previous install,
           # placed there by hand, shared with something else) rather
           # than a fresh device.
-          SECRET="$(cat "${keyfilePath}")"
-          echo "Existing keyfile found at ${keyfilePath} -- registering it as-is (not overwriting)."
+          SECRET="$(cat "${cfg.keyfilePath}")"
+          echo "Existing keyfile found at ${cfg.keyfilePath} -- registering it as-is (not overwriting)."
         else
           SECRET="$(head -c32 /dev/urandom | base64)"
-          printf '%s' "$SECRET" > "${keyfilePath}"
-          chmod 600 "${keyfilePath}"
-          echo "No keyfile found at ${keyfilePath} -- generated a new one."
+          printf '%s' "$SECRET" > "${cfg.keyfilePath}"
+          chmod 600 "${cfg.keyfilePath}"
+          echo "No keyfile found at ${cfg.keyfilePath} -- generated a new one."
         fi
 
         # The keyfile write above went through the normal mounted
@@ -186,9 +169,9 @@ lib.mkIf enable {
         sync
 
         HASH="$(printf '%s' "$SECRET" | sha256sum | cut -d' ' -f1)"
-        printf '%s\n' "$HASH" > "${hashFile}"
-        chmod 600 "${hashFile}"
-        chown root:root "${hashFile}"
+        printf '%s\n' "$HASH" > "${cfg.hashFile}"
+        chmod 600 "${cfg.hashFile}"
+        chown root:root "${cfg.hashFile}"
         unset SECRET HASH
 
         DEV="$(${pkgs.util-linux}/bin/findmnt -n -o SOURCE --target "$PARENT")"
@@ -201,16 +184,16 @@ lib.mkIf enable {
           IDENT_VALUE="$(${pkgs.util-linux}/bin/blkid -o value -s UUID "$DEV" 2>/dev/null || true)"
         fi
         MOUNTPOINT="$(${pkgs.util-linux}/bin/findmnt -n -o TARGET --target "$PARENT")"
-        REL_PATH="${keyfilePath}"
+        REL_PATH="${cfg.keyfilePath}"
         REL_PATH="''${REL_PATH#"$MOUNTPOINT"}"
 
-        cat > "${confFile}" <<EOF
+        cat > "${cfg.confFile}" <<EOF
 IDENT_TYPE=$IDENT_TYPE
 IDENT_VALUE=$IDENT_VALUE
 REL_PATH=$REL_PATH
 EOF
-        chmod 600 "${confFile}"
-        chown root:root "${confFile}"
+        chmod 600 "${cfg.confFile}"
+        chown root:root "${cfg.confFile}"
 
         # Prove the whole pipeline actually works right now -- device
         # lookup, fs-type detection, no-mount extraction, hash compare --
@@ -223,9 +206,9 @@ EOF
         # service that (re)starts AFTER activation scripts run, not
         # something activation-script ordering can depend on).
         if "${checker}/bin/sudo-keyfile-check"; then
-          echo "Sudo keyfile registered and verified usable at ${keyfilePath}."
+          echo "Sudo keyfile registered and verified usable at ${cfg.keyfilePath}."
         else
-          echo "WARNING: sudo keyfile registered at ${keyfilePath}, but the verification read-back FAILED -- keyfile-based sudo auth will NOT work (always falls through to password) until this is fixed. Check that the detected filesystem type is supported (ext2/3/4, FAT, NTFS, btrfs -- others rely on a mount fallback) and that the device is reachable at this path." >&2
+          echo "WARNING: sudo keyfile registered at ${cfg.keyfilePath}, but the verification read-back FAILED -- keyfile-based sudo auth will NOT work (always falls through to password) until this is fixed. Check that the detected filesystem type is supported (ext2/3/4, FAT, NTFS, btrfs -- others rely on a mount fallback) and that the device is reachable at this path." >&2
         fi
       fi
     fi

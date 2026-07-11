@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# plugins.sh -- generate a ready-to-paste mkPlugin { ... } block for
-# Nixos/home/hyprland-plugins.nix from just a git URL.
+# plugins.sh -- generate a ready-to-paste plugin record ({ name = ...; url =
+# ...; }) for Nixos/modules/hyprland/plugins/default.nix's
+# config.vars.hyprlandPlugins list, from just a git URL. No mkPlugin
+# wrapper needed per entry -- that function (in ./plugins.nix) is mapped
+# over the whole list once.
 #
 # Prints a colored, spinner-driven progress trail on stderr while it works,
 # and exactly one thing on stdout: the finished block, plain, no color --
@@ -135,7 +138,7 @@ step_end "✓" "$c_green" "prefetched @ ${got_rev:0:8}"
 
 version="0-unstable-${commit_date:-unknown}"
 flake_real="$(readlink -f "$FLAKE")"
-plugins_file="$flake_real/Nixos/home/hyprland-plugins.nix"
+plugins_file="$flake_real/Nixos/modules/hyprland/plugins/default.nix"
 
 # Real library name, straight from the build files -- not a guess. Every
 # grep here is allowed to legitimately find nothing (that's how the
@@ -171,10 +174,13 @@ step_start "checking existing config for this url"
 existing_attrs=()
 existing_native=()
 if [ -f "$plugins_file" ]; then
+    # Records are plain { ... } attrsets in the list (no mkPlugin wrapper),
+    # each with its own bare { / } alone on a line -- matches the same
+    # convention config/scripts.nix's records use.
     block="$(awk -v u="$url" '
-        /\(mkPlugin[[:space:]]*\{/ { block = ""; capturing = 1 }
+        /^\s*\{\s*$/ { block = ""; capturing = 1 }
         capturing { block = block $0 "\n" }
-        /\}\)/ {
+        /^\s*\}\s*$/ {
             if (capturing && index(block, "url = \"" u "\"") > 0) { print block }
             capturing = 0
         }
@@ -272,7 +278,7 @@ pkgs.hyprland.stdenv.mkDerivation {
 }
 
 print_block() {
-    printf '\n    (mkPlugin {\n      name = "%s";\n      url = "%s";\n      rev = "%s";\n      hash = "%s";\n      version = "%s";\n' \
+    printf '\n    {\n      name = "%s";\n      url = "%s";\n      rev = "%s";\n      hash = "%s";\n      version = "%s";\n' \
         "$name" "$url" "$got_rev" "$hash" "$version"
     if [ "$is_default_native" -eq 0 ]; then
         line="      nativeBuildInputs = ["
@@ -286,7 +292,7 @@ print_block() {
         line+=" ];"
         echo "$line"
     fi
-    echo "    })"
+    echo "    }"
 }
 
 extra_attrs=("${existing_attrs[@]}")

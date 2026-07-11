@@ -1,0 +1,34 @@
+{ config, pkgs, lib, ... }:
+
+let
+
+  scripts = config.vars.scripts;
+
+  # Copies the script's whole containing folder into the store (so any
+  # sibling files it sources relative to itself keep resolving) and
+  # symlinks just that one file onto PATH as `name`.
+
+  wrapScript = name: path:
+
+    if builtins.pathExists path then
+
+      pkgs.runCommand name { } ''
+
+        mkdir -p $out/opt $out/bin
+        cp -r ${dirOf path} $out/opt/src
+        chmod +x "$out/opt/src/${baseNameOf path}"
+        ln -s "$out/opt/src/${baseNameOf path}" "$out/bin/${name}"
+
+      ''
+    else
+      null;
+
+  wrapEntry = { dir, include }:
+    lib.mapAttrsToList (fname: cmdName: wrapScript cmdName (dir + "/${fname}")) include;
+
+in
+
+{
+  environment.systemPackages =
+    lib.filter (p: p != null) (lib.concatMap wrapEntry scripts);
+}

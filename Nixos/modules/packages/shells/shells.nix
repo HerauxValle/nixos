@@ -2,57 +2,8 @@
 
 let
 
-  # TODO replace user with variable | DO NOT HARDCODE!
-  homeDir = "/home/herauxvalle";
-
-  # Each entry: a path, the packages that should be on $PATH while inside
-  # it, and whether that also applies to subdirectories (default true --
-  # e.g. Dotfiles/Hyprland inherits Dotfiles' shell unless recursive is
-  # set false here). Nothing is installed system-wide; packages only
-  # exist on $PATH while cwd matches.
-  #
-  # Implementation note: an earlier version tried to cover every declared
-  # path from one shared .envrc anchored at $HOME, matched against $PWD/
-  # $OLDPWD from inside the script. That's provably unreliable: direnv
-  # only sets an accurate $OLDPWD when it actually has to chdir from the
-  # real cwd to the .envrc's directory -- and when the real cwd already
-  # *is* $HOME (i.e. exactly the "leave the shell" case), no chdir
-  # happens, so $OLDPWD goes stale and PATH never reverts. Verified by
-  # hand: cd'ing Dotfiles -> Hyprland -> $HOME left tmux on PATH forever.
-  #
-  # Fix: give each declared path its own real, Nix-generated .envrc file
-  # living right there. direnv's own ancestor-directory search (its
-  # actual, battle-tested mechanism) then does all the load/unload work --
-  # $PWD inside a loaded .envrc is guaranteed to equal that file's own
-  # directory, so no path-matching games are needed for the recursive
-  # case at all. Trade-off: a real .envrc is now visible inside the
-  # declared directory (e.g. ~/Dotfiles/.envrc) instead of nothing.
-  #
-  # A $HOME-anchored .envrc also exists purely to print "Unloading" when
-  # you leave a shell for somewhere with no shell of its own -- direnv
-  # only ever runs script code when it finds an .envrc for the *current*
-  # directory, so there's no hook that fires on leaving a directory that
-  # has nothing. $HOME is an ancestor of everything under it, so it
-  # becomes the nearest .envrc exactly when no shell applies. What shell
-  # was previously active can't be read back from an exported env var --
-  # verified by hand that direnv reverts those before the next .envrc
-  # runs -- so it's tracked in a small state file instead, one per
-  # terminal (keyed by tty) so two terminals in different shells don't
-  # cross-talk.
-
-  # ---------------------------
-  # DEFINE SHELLS BELOW
-  # ---------------------------
-
-  shells = [
-
-    {
-      path = "${homeDir}/Dotfiles";
-      packages = with pkgs; [ tmux ];
-      # recursive = true; # default
-    }
-
-  ];
+  homeDir = config.vars.homeDirectory;
+  shells = config.vars.shells;
 
   # ---------------------------
   # DO NOT MODIFY
@@ -171,9 +122,9 @@ let
 
 in
 {
-  # programs.direnv.* now lives in modules/packages/programs.nix.
+  # programs.direnv.* now lives in config/packages/programs.nix.
 
-  home-manager.users.herauxvalle = {
+  home-manager.users.${config.vars.username} = {
     home.file = ownEnvrcFiles // blockingEnvrcFiles // anchorEnvrcFile // {
       ".config/direnv/direnvrc".text = direnvrc;
     };
