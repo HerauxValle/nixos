@@ -344,6 +344,7 @@ in
     (selfHosted.mkSelfHostedService {
       name = "comfyui";
       user = config.vars.username;
+      homeDirectory = config.vars.homeDirectory;
       # --base-directory redirects ComfyUI's models/custom_nodes/input/
       # output/temp/user lookups at the writable dataDir, keeping
       # comfyCore itself (main.py and friends) a plain read-only Nix

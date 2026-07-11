@@ -70,6 +70,7 @@ in
     (selfHosted.mkSelfHostedService {
       name = "openwebui";
       user = config.vars.username;
+      homeDirectory = config.vars.homeDirectory;
       # Runs inside the FHS sandbox too, not just the install action --
       # the compiled wheels pip installs (pillow, lxml) need real
       # /lib,/usr/lib every time Python imports them, not just once at

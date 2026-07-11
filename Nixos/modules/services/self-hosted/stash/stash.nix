@@ -39,6 +39,7 @@ in
     (selfHosted.mkSelfHostedService {
       name = "stash";
       user = config.vars.username;
+      homeDirectory = config.vars.homeDirectory;
       execStart = "${pkgs.writeShellScript "self-hosted-stash-start" ''
         cd "${liveDataDir}"
         exec ${package}/bin/stash --host ${cfg.host} --port ${toString cfg.port}

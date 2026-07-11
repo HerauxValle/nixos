@@ -59,6 +59,10 @@ rec {
       # file, no error. Written by `secrets self-hosted <name>`, not by
       # Nix -- same hashedPasswordFile-style split as the login password.
     , environmentFile ? null
+      # Needed only to compute ancestor-directory ownership fixes below
+      # -- see the tmpfiles.rules comment. Skipped (no ancestor fixes)
+      # if not given, matching this parameter's previous absence.
+    , homeDirectory ? null
     }:
     let
       mountChecks = map
@@ -69,6 +73,34 @@ rec {
           }
         '')
         requireMounts;
+
+      # dataDir's own `d`/`z` pair only fixes dataDir itself -- if any
+      # directory *between* homeDirectory and dataDir already exists
+      # root-owned (e.g. ~/Applications, an auto-created, unmanaged
+      # parent from some earlier root-run activation), systemd-tmpfiles
+      # refuses to even walk through it to reach dataDir: "Detected
+      # unsafe path transition ... during canonicalization" -- a real
+      # safety check, not a bug, but it means dataDir's own ownership
+      # fix silently no-ops if any ancestor is wrong. Found this the
+      # hard way (ComfyUI's custom_nodes mkdir kept failing with
+      # Permission denied even after adding dataDir's own `z` rule --
+      # ~/Applications itself, one level up, was the actual culprit).
+      # Fix: emit the same d+z pair for every ancestor directory between
+      # homeDirectory (always safe -- it's the user's own home) and
+      # dataDir, so the whole chain is guaranteed walkable.
+      ancestorDirs =
+        if dataDir == null || homeDirectory == null then [ ] else
+        let
+          baseParts = lib.splitString "/" homeDirectory;
+          fullParts = lib.splitString "/" dataDir;
+          relParts = lib.sublist
+            (builtins.length baseParts)
+            (builtins.length fullParts - builtins.length baseParts - 1)
+            fullParts;
+        in
+        lib.genList
+          (i: homeDirectory + "/" + lib.concatStringsSep "/" (lib.sublist 0 (i + 1) relParts))
+          (builtins.length relParts);
     in
     {
       systemd.services."self-hosted-${name}" = {
@@ -109,6 +141,9 @@ rec {
             # it already existed.
             "z ${dataDir} 0755 ${user} - -"
           ]
+        ++ (lib.concatMap
+          (dir: [ "d ${dir} 0755 ${user} - -" "z ${dir} 0755 ${user} - -" ])
+          ancestorDirs)
         ++ lib.optionals (storage != [ ])
           (map (s: "L+ ${dataDir}/${s.src} - - - - ${s.dest}") storage);
     };

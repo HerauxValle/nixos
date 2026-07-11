@@ -38,6 +38,7 @@ in
     (selfHosted.mkSelfHostedService {
       name = "ollama";
       user = config.vars.username;
+      homeDirectory = config.vars.homeDirectory;
       execStart = "${package}/bin/ollama serve";
       inherit (cfg) dataDir storage autoStart;
       ensureDataDir = true; # not gated by any external mount -- safe to auto-create
