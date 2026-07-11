@@ -6,6 +6,10 @@
   options.vars.users = {
     fallbackHash = lib.mkOption {
       type = lib.types.str;
+      # Default passwd will never be called or added. This is purely for someone
+      # that skips install.sh -- so install.sh is not forced on someone.
+      # Since this password on the general use is never set this is not a security
+      # risk worth removing.
       default = "$6$RtR/fJhkE927CBnr$ODSLT/jQg4QLmLMljhT8snD9DGKoD1X8jPMXYPE4w.n0rWYoA.vCOZZhIvBnVDq2J25VotSzoF7PGW/KhT/.W0";
       description = ''
         Precomputed `mkpasswd -m sha-512 "changeme"` -- a different person's
