@@ -86,5 +86,17 @@
       default = [ ];
       description = "Storage relocations, applied as systemd.tmpfiles.rules.";
     };
+
+    # Plain data, set directly in config/self-hosted/stash.nix -- not
+    # derived from storage here or anywhere else. They happen to agree
+    # (this vault is also where a storage entry points) because you wrote
+    # them to agree, not because one is computed from the other -- a
+    # future service can need a mount check for a reason that has
+    # nothing to do with its storage list, or need none at all.
+    requireMounts = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = "Paths that must already be mountpoints before this service (or any of its preStart) runs. See modules/services/self-hosted/self-hosted.nix's mkSelfHostedService.";
+    };
   };
 }

@@ -11,8 +11,9 @@
   config.vars.selfHosted.ollama = {
     dataDir = "${config.vars.homeDirectory}/Applications/Networking/Ollama";
 
-    # Starts on boot/rebuild -- not just relying on the module's default.
-    autoStart = true;
+    # Off for now -- still exists, still systemctl start-able by hand,
+    # just not pulled in on boot/rebuild.
+    autoStart = false;
 
     # Relocate a subpath of dataDir elsewhere -- each entry becomes a
     # forced symlink (systemd.tmpfiles.rules' `L+`), applied at every

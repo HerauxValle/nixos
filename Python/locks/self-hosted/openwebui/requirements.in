@@ -1,0 +1,23 @@
+# Source for requirements.lock in this same directory -- ported verbatim
+# from the old ~/Scripts/Self-hosted/OpenWebUI/configuration/variables/deps.sh's
+# PYTHON_REQUIREMENTS. Small and static enough (unlike ComfyUI's, which
+# depends on 69 nodes' own requirements.txt) to just hand-maintain here
+# directly -- no Nix generation needed.
+#
+# To update: edit this file, then from within a shell that has
+# python312Packages.pip-tools:
+#
+#   pip-compile --generate-hashes --allow-unsafe --resolver=backtracking \
+#     --output-file=requirements.lock requirements.in
+#
+# then restart self-hosted-openwebui and run
+# `systemctl start self-hosted-openwebui@install` to rebuild the venv
+# against the new lock. See this repo's
+# Nixos/modules/services/self-hosted/openwebui/info.md.
+
+open-webui
+pillow==12.1.1
+qdrant-client[fastembed]
+lxml
+requests[socks]
+PySocks

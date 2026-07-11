@@ -4,9 +4,13 @@
 # ../../modules/services/self-hosted/stash/. Data only, same as ollama.nix.
 {
   config.vars.selfHosted.stash = {
-    dataDir = "${config.vars.homeDirectory}/Images/SelfHosted/Stash";
+    # Plain, always-available -- holds nothing on its own (the binary is
+    # Nix-built), it's just where the storage symlink below lands.
+    dataDir = "${config.vars.homeDirectory}/Applications/Networking/Stash";
 
-    autoStart = true;
+    # Off for now -- still exists, still systemctl start-able by hand,
+    # just not pulled in on boot/rebuild.
+    autoStart = false;
 
     host = "0.0.0.0";
     port = 9999;
@@ -19,7 +23,16 @@
 
     environment = { };
 
-    # No relocations -- generated/cache/etc stay under dataDir as-is.
-    storage = [ ];
+    # The one real data location -- inside the SelfHosted Casket vault.
+    # dataDir/data -> this, so Stash's actual config/db/media metadata
+    # live vault-protected while dataDir itself stays a plain path.
+    storage = [
+      { src = "data"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Stash"; }
+    ];
+
+    # Independent fact, not derived from storage above -- they happen to
+    # agree because this is the vault storage points into, not because
+    # one is computed from the other.
+    requireMounts = [ "${config.vars.homeDirectory}/Images/SelfHosted" ];
   };
 }
