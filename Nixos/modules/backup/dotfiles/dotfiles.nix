@@ -229,7 +229,19 @@ in
   # there for why. That means these checks only run when enable = true,
   # unlike the eval-time version this replaced; an acceptable tradeoff
   # since a disabled backup has nothing to protect in the meantime anyway.
-  system.activationScripts.dotfilesBackup.text = lib.mkIf cfg.enable ''
+  # lib.optionalString, not lib.mkIf: system.activationScripts.<name>.text is
+  # `types.lines` with NO default (nixpkgs' activation-script.nix), and every
+  # key ever assigned into system.activationScripts gets its .text read
+  # unconditionally by that module's own aggregation logic, regardless of
+  # any mkIf wrapping used here. `mkIf false` contributes no definition at
+  # all, so with nothing else defining this option, that combination made
+  # this whole system fail to evaluate the instant enable = false was ever
+  # actually exercised -- confirmed live, since every user of this module
+  # (this repo's own local config included) always had enable hardcoded
+  # true until dotfilesBackup.enable became a real opt-in toggle.
+  # optionalString always yields a real string (empty when disabled), which
+  # is what a default-less `types.lines` option actually needs.
+  system.activationScripts.dotfilesBackup.text = lib.optionalString cfg.enable ''
     ${lib.optionalString cfg.skipOnTest ''
       if [ "''${NIXOS_ACTION:-}" = "test" ]; then
         exit 0
