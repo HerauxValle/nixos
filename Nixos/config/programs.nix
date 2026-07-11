@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
 # Personal picks that have no sensible generic default -- the gaming stack,
 # silentSDDM's wallpaper, and the editor+LSP list. fish/hyprland/direnv/
@@ -6,6 +6,47 @@
 # since the rest of this repo already assumes them regardless of who's
 # cloning it. See that file for the schema this fills in.
 {
+  # Home-manager-only programs.* (not NixOS system options, so they can't go
+  # through config.vars.programs -> modules/packages/programs/programs.nix
+  # like the rest of this file) -- grouped under one users.${...}.programs
+  # block since vscode won't be the last personal pick to land here.
+  config.home-manager.users.${config.vars.username}.programs = {
+    vscode = {
+      enable = false;
+      mutableExtensionsDir = false; # `code --install-extension` can no
+                                    # longer add anything outside the list
+                                    # below -- add here and rebuild instead.
+      profiles.default = {
+        # Paths, not attrsets -- keeps the files' own comments/section
+        # headers intact instead of flattening them through the JSON
+        # serializer.
+        userSettings = ../../VSCode/settings.json;
+        keybindings = ../../VSCode/keybindings.json;
+        extensions =
+          (with pkgs.vscode-extensions; [
+            bbenoist.nix
+            gruntfuggly.todo-tree
+            ms-python.debugpy
+            ms-python.python
+            ms-python.vscode-pylance
+            ms-python.vscode-python-envs
+            pkief.material-icon-theme
+            rust-lang.rust-analyzer
+          ])
+          ++ [
+            # Only extension whose publisher isn't in nixpkgs' vscode-extensions
+            # set, so pulled straight from the Marketplace instead.
+            (pkgs.vscode-utils.extensionFromVscodeMarketplace {
+              publisher = "dustypomerleau";
+              name = "rust-syntax";
+              version = "0.6.1";
+              sha256 = "0rccp8njr13jzsbr2jl9hqn74w7ji7b2spfd4ml6r2i43hz9gn53";
+            })
+          ];
+      };
+    };
+  };
+
   config.vars.programs = {
     steam = {
       enable = false;

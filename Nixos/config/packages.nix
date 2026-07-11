@@ -24,7 +24,8 @@ in
 
     # General
     vivaldi                     # Browser
-    vscode                      # IDE
+    # vscode -- now declarative, see home-manager.users.<user>.programs.vscode
+    # in Nixos/config/programs.nix (package comes from that module instead)
     git                         # Github
     curl                        # Curl
     kittyWrapped                # Terminal (wrapped: see kittyWrapped above for why)

@@ -1,0 +1,9 @@
+bbenoist.nix@1.0.1
+dustypomerleau.rust-syntax@0.6.1
+gruntfuggly.todo-tree@0.0.226
+ms-python.debugpy@2026.6.0
+ms-python.python@2026.4.0
+ms-python.vscode-pylance@2026.2.1
+ms-python.vscode-python-envs@1.36.0
+pkief.material-icon-theme@5.36.1
+rust-lang.rust-analyzer@0.3.2963
