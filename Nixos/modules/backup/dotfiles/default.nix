@@ -9,8 +9,8 @@
   options.vars.dotfilesBackup = {
     enable = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Master switch for the dotfiles GitHub backup.";
+      default = false;
+      description = "Master switch for the dotfiles GitHub backup. Opt-in: a stranger cloning this repo shouldn't silently start generating a deploy key and pushing commits to whatever remoteUrl they configure -- this machine's own real value lives in Nixos/config/customized.nix.";
     };
 
     # `nixos-rebuild test` runs this exact same activation script for real

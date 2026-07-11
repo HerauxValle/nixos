@@ -9,8 +9,8 @@
   options.vars.sudoKeyfile = {
     enable = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Master switch for keyfile-based passwordless sudo.";
+      default = false;
+      description = "Master switch for keyfile-based passwordless sudo. Opt-in: this machine's own real value lives in Nixos/config/customized.nix.";
     };
 
     keyfilePath = lib.mkOption {

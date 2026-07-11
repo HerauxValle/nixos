@@ -15,8 +15,16 @@
     gitCommitEmail = "maxmustermann@example.com";
 
     luks2.usbKeyLabel = "VirtualKeys";
+
+    usbRequired.enable = false;
     usbRequired.usbKeyLabel = "VirtualKeys";
+
+    sudoKeyfile.enable = false;
+
+    usbKillswitch.killMode = "disabled";
     usbKillswitch.usbSerialShort = "0000000000000000000";
+
+    dotfilesBackup.enable = false;
     dotfilesBackup.remoteUrl = "git@github.com:HerauxValle/nixos.git";
   };
 }

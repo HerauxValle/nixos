@@ -71,6 +71,19 @@
 
       { file = "Nixos/config/customized.nix"; key = "vars.gitCommitEmail"; replaceWith = "maxmustermann@example.com"; }
       { file = "Nixos/config/customized.nix"; key = "vars.usbKillswitch.usbSerialShort"; replaceWith = "0000000000000000000"; }
+
+      # Reset the opt-in toggles back to their own off default in the
+      # published copy -- customized.nix real values shouldn't imply a
+      # stranger cloning this repo also wants your exact security posture
+      # turned on. Whole-line `find`, not `key`: usbRequired.enable,
+      # sudoKeyfile.enable, and dotfilesBackup.enable are all literally
+      # "= true;" in the same file, so a bare-value substitution on "true"
+      # would hit all three (and any other "= true;" line) at once instead
+      # of just the one meant here.
+      { file = "Nixos/config/customized.nix"; find = "usbRequired.enable = false;"; replaceWith = "usbRequired.enable = false;"; }
+      { file = "Nixos/config/customized.nix"; find = "sudoKeyfile.enable = false;"; replaceWith = "sudoKeyfile.enable = false;"; }
+      { file = "Nixos/config/customized.nix"; find = ''usbKillswitch.killMode = "disabled";''; replaceWith = ''usbKillswitch.killMode = "disabled";''; }
+      { file = "Nixos/config/customized.nix"; find = "dotfilesBackup.enable = false;"; replaceWith = "dotfilesBackup.enable = false;"; }
     ];
   };
 }

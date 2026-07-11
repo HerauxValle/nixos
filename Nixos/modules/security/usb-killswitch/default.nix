@@ -12,8 +12,13 @@
   options.vars.usbKillswitch = {
     killMode = lib.mkOption {
       type = lib.types.str;
-      default = "hard";
+      default = "disabled";
       description = ''
+        Opt-in: this machine's own real value ("hard") lives in
+        Nixos/config/customized.nix -- a stranger cloning this repo
+        shouldn't inherit an active udev rule tied to your specific USB
+        stick's serial without realizing it.
+
         "soft"     -- normal `systemctl poweroff`. Goes through the full ordered
                       shutdown: services stopped, filesystems unmounted, LUKS/
                       dm-crypt mappings torn down cleanly as the last step before

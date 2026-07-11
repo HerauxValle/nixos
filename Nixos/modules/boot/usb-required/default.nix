@@ -19,8 +19,8 @@
     #          always).
     enable = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Power off at boot if the USB key isn't detected, instead of falling through to a passphrase prompt.";
+      default = false;
+      description = "Power off at boot if the USB key isn't detected, instead of falling through to a passphrase prompt. Opt-in: a stranger cloning this repo shouldn't inherit a machine that refuses to boot without this exact physical USB stick -- this machine's own real value lives in Nixos/config/customized.nix.";
     };
 
     usbKeyLabel = lib.mkOption {
