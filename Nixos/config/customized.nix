@@ -12,7 +12,7 @@
     hostName = "nixos";
     timeZone = "Europe/Berlin";
     stateVersion = "26.05";
-    gitCommitEmail = "***************************";
+    # gitCommitEmail = "***************************";
 
     luks2.usbKeyLabel = "VirtualKeys";
     usbRequired.usbKeyLabel = "VirtualKeys";

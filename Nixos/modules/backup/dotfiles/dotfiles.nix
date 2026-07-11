@@ -23,22 +23,35 @@ let
     ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.value}") resolvedRedactValues))
   ));
 
-  # Replaces one exact literal value with same-length asterisks in a file
-  # already synced into the snapshot -- runs on every activation, on the
-  # CURRENT copy (separate from the one-time history scrub below, which
-  # only handles OLD commits). Python for exact literal substitution, not
-  # sed -- avoids regex-escaping a MAC/email that may contain characters
-  # sed's search side treats specially.
+  # Replaces one exact literal value with same-length asterisks AND
+  # comments out the whole line it's on, in a file already synced into the
+  # snapshot -- runs on every activation, on the CURRENT copy (separate
+  # from the one-time history scrub below, which only handles OLD
+  # commits). The comment is what makes this safe regardless of what
+  # Nix/type the original line held (a bare number, an enum, whatever) --
+  # asterisks alone only stay valid if the original was already a quoted
+  # string; a commented-out line can never break syntax, full stop. Python
+  # for exact literal substitution, not sed -- avoids regex-escaping a
+  # MAC/email that may contain characters sed's search side treats
+  # specially.
   redactApplyScript = dir: lib.concatMapStringsSep "\n" (r: ''
     if [ -f "${dir}/${r.file}" ]; then
       ${pkgs.python3}/bin/python3 -c '
 import sys
 path, value = sys.argv[1], sys.argv[2]
+masked = "*" * len(value)
 with open(path, "r", encoding="utf-8", errors="surrogateescape") as fh:
-    content = fh.read()
-content = content.replace(value, "*" * len(value))
+    lines = fh.readlines()
+out = []
+for line in lines:
+    if value in line:
+        line = line.replace(value, masked)
+        stripped = line.lstrip()
+        indent = line[:len(line) - len(stripped)]
+        line = indent + "# " + stripped
+    out.append(line)
 with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
-    fh.write(content)
+    fh.writelines(out)
 ' "${dir}/${r.file}" ${lib.escapeShellArg r.value}
     fi
   '') resolvedRedactValues;
