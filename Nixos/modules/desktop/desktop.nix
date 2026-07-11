@@ -20,5 +20,5 @@
   #   gamemoderun gamescope -f -r 144 -- mangohud %command%
 
   # All programs.* declarations (fish, hyprland, steam, gamemode, gamescope,
-  # silentSDDM) now live in modules/packages/programs.nix.
+  # silentSDDM) now live in modules/packages/programs/programs.nix.
 }
