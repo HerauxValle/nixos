@@ -16,7 +16,7 @@
 
     luks2.usbKeyLabel = "VirtualKeys";
     usbRequired.usbKeyLabel = "VirtualKeys";
-    usbKillswitch.usbSerialShort = "*******************";
+    # usbKillswitch.usbSerialShort = "*******************";
     dotfilesBackup.remoteUrl = "git@github.com:HerauxValle/nixos.git";
   };
 }
