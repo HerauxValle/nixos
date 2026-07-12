@@ -118,6 +118,12 @@
       };
     };
 
+    dconf.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "programs.dconf.enable -- globally enables the dconf configuration system.";
+    };
+
     freshEditor = {
       enable = lib.mkOption {
         type = lib.types.bool;
