@@ -64,16 +64,28 @@ let
 
   # Same mechanism as the old links.sh: every declared theme gets
   # symlinked into the live checkout's searx/templates/<name> and
-  # searx/static/themes/<name>. -sfn (not just -sf) so re-running this
-  # against an already-linked theme replaces the symlink itself rather
-  # than risking "target is a directory" if the destination somehow
-  # isn't a symlink yet.
+  # searx/static/themes/<name>. rm -rf the destination first, every
+  # time, before symlinking -- ln -sfn alone can't force-replace an
+  # existing *real* directory (only an existing symlink), and "simple"
+  # collides with exactly that: SearXNG's own git source already ships a
+  # stock searx/templates/simple/ directory, which a bare `ln -sfn` fails
+  # against silently. Confirmed on a real run: the custom simple theme
+  # (genuinely hand-edited results.html/preferences.html, not just a
+  # duplicate of stock) was silently not taking effect until this rm -rf
+  # was added. Safe to rm -rf unconditionally -- srcDir is a disposable,
+  # regenerable checkout, never real user data.
   themeLinkScript = ''
     mkdir -p "${cfg.srcDir}/searx/templates" "${cfg.srcDir}/searx/static/themes"
   '' + lib.concatMapStringsSep "\n"
     (theme: ''
-      [ -d "${theme.path}/templates" ] && ln -sfn "${theme.path}/templates" "${cfg.srcDir}/searx/templates/${theme.name}"
-      [ -d "${theme.path}/static" ] && ln -sfn "${theme.path}/static" "${cfg.srcDir}/searx/static/themes/${theme.name}"
+      if [ -d "${theme.path}/templates" ]; then
+        rm -rf "${cfg.srcDir}/searx/templates/${theme.name}"
+        ln -sfn "${theme.path}/templates" "${cfg.srcDir}/searx/templates/${theme.name}"
+      fi
+      if [ -d "${theme.path}/static" ]; then
+        rm -rf "${cfg.srcDir}/searx/static/themes/${theme.name}"
+        ln -sfn "${theme.path}/static" "${cfg.srcDir}/searx/static/themes/${theme.name}"
+      fi
     '')
     cfg.themes;
 
