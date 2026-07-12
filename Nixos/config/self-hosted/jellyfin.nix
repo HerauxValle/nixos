@@ -5,10 +5,10 @@
 # ollama.nix/stash.nix.
 {
   config.vars.selfHosted.jellyfin = {
-    # true = installed: systemd units exist (live service + theme server
-    # if themeServer.enable). false = torn down on the next rebuild --
-    # cache/transcode/log removed; config/data/libraries/* (all
-    # storage-backed) are never touched by that teardown.
+    # true = installed: systemd unit exists. false = torn down on the
+    # next rebuild -- cache/transcode/log removed; config/data/
+    # libraries/* (all storage-backed) are never touched by that
+    # teardown.
     enabled = true;
 
     # Plain, always-available -- real writable subdirs Jellyfin itself
@@ -84,15 +84,12 @@
     # ElegantFin/ directly -- keeps it git-tracked/backed-up like every
     # other themed app in this repo. To pick up a newer ElegantFin build,
     # manually re-copy the file and rebuild -- same workflow as SearXNG's
-    # themes.
-    themeServer = {
+    # themes. Embedded directly into Jellyfin's own branding CustomCss
+    # (see lib/theme-sync.nix) -- no separate server, no hostname, works
+    # from any device that can already reach Jellyfin at all.
+    theme = {
       enable = false;
-      themeDir = ../../../Themes/Jellyfin/ElegantFin;
-      port = 6055;
-      # Resolved via this machine's own pmg/mDNS setup, not Nix -- see
-      # default.nix's themeServer.publicHostname doc comment for why this
-      # can't be "localhost".
-      publicHostname = "jellyfin.local";
+      cssPath = ../../../Themes/Jellyfin/ElegantFin/theme.css;
     };
 
     # Empty -- matches the old JELLYFIN_PLUGIN_REPOS/JELLYFIN_PLUGINS

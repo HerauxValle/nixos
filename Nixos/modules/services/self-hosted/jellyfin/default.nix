@@ -155,63 +155,33 @@
       '';
     };
 
-    # Real, hand-crafted-elsewhere theme CSS injected into Jellyfin's own
-    # branding config via its REST API (see ./lib/reconcile.nix) --
-    # SearXNG's native /preferences-based theme switching has no Jellyfin
-    # equivalent, so this whole mechanism (a tiny CORS-enabled static file
-    # server + a live API push) is real, necessary machinery, not
-    # over-engineering. cssPath is deliberately not a listOf like
-    # SearXNG's themes -- Jellyfin's CustomCss is genuinely one URL, not
-    # several simultaneously-available options.
-    themeServer = {
+    # Real, hand-crafted-elsewhere theme CSS injected directly into
+    # Jellyfin's own branding CustomCss field via its REST API (see
+    # ./lib/theme-sync.nix) -- SearXNG's native /preferences-based theme
+    # switching has no Jellyfin equivalent, so pushing this via the API is
+    # real, necessary machinery, not over-engineering.
+    #
+    # Embedded, not served from a separate sidecar unit + @import URL --
+    # that was the first design here, reverted once it turned out to
+    # need a resolvable hostname (jellyfin.local via mDNS) that doesn't
+    # exist yet as real infrastructure on this machine. CustomCss is
+    # served as part of Jellyfin's own response to every client, so
+    # embedding works from any device that can already reach Jellyfin at
+    # all -- LAN, VPN, remote, no DNS/mDNS dependency whatsoever. cssPath
+    # is a plain file path now (not a directory like SearXNG's themes) --
+    # nothing serves it, ./lib/theme-sync.nix just reads its content
+    # directly.
+    theme = {
       enable = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Master switch for the whole theme mechanism (server unit + branding sync). false = skip both entirely, same as the old JELLYFIN_THEME_ENABLED=false.";
+        description = "Master switch for the theme sync. false = skip entirely, same as the old JELLYFIN_THEME_ENABLED=false.";
       };
 
-      themeDir = lib.mkOption {
+      cssPath = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
-        description = ''
-          Nix path to the directory containing the real theme.css to
-          serve (must literally be named theme.css inside this
-          directory). A directory, not a direct path to the .css file
-          itself -- a path type pointing straight at one file gets
-          copied into the store as a standalone file with no meaningful
-          parent to serve; pointing at the containing directory instead
-          copies it as one coherent unit, same convention as SearXNG's
-          per-theme directories. null = themeServer does nothing even if
-          enable = true (nothing to serve).
-        '';
-      };
-
-      bindAddress = lib.mkOption {
-        type = lib.types.str;
-        default = "0.0.0.0";
-        description = "Address the tiny CORS static file server binds to.";
-      };
-
-      port = lib.mkOption {
-        type = lib.types.port;
-        default = 6055;
-        description = "Port the tiny CORS static file server listens on.";
-      };
-
-      publicHostname = lib.mkOption {
-        type = lib.types.str;
-        default = "jellyfin.local";
-        description = ''
-          Hostname embedded in the @import URL written into Jellyfin's
-          branding config -- deliberately not "localhost": this URL is
-          fetched by each CLIENT's own browser (via Jellyfin's web UI),
-          not the server itself. "localhost" only ever resolves on the
-          machine actually running Jellyfin -- every other device on the
-          LAN would resolve it to itself and 404, silently falling back
-          to the default skin. Needs real mDNS/hosts resolution for this
-          hostname to work from other devices (this machine's own pmg
-          setup handles that, out of Nix's scope here).
-        '';
+        description = "Nix path to the real theme.css file. Its content is embedded directly into Jellyfin's branding CustomCss (marker-delimited, so any other manual CSS added via the dashboard survives). null = nothing to sync even if enable = true.";
       };
     };
 

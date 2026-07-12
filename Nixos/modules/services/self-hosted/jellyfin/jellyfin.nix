@@ -1,9 +1,8 @@
 { config, lib, pkgs, ... }:
 
-# Wiring only -- the package build is ./lib/package.nix, the theme server
-# script is ./lib/theme/server.nix, the generic systemd plumbing is
-# ../self-hosted.nix. This file's only job is tying those together with
-# this service's own config values.
+# Wiring only -- the package build is ./lib/package.nix, the generic
+# systemd plumbing is ../self-hosted.nix. This file's only job is tying
+# those together with this service's own config values.
 
 let
 
@@ -40,7 +39,7 @@ let
     + "\n</RepositoryInfos>\n"
   );
 
-  themeSyncScript = import ./lib/theme/sync.nix { inherit cfg waitForApi; jellyfinDataDir = liveDataDir; };
+  themeSyncScript = import ./lib/theme-sync.nix { inherit cfg waitForApi; jellyfinDataDir = liveDataDir; };
   pluginsSyncScript = import ./lib/plugins-sync.nix { inherit lib cfg waitForApi; jellyfinDataDir = liveDataDir; };
   rescanScript = import ./lib/rescan.nix { jellyfinDataDir = liveDataDir; };
 
@@ -85,7 +84,7 @@ in
         ''
       ];
       postStart =
-        lib.optionals (cfg.themeServer.enable && cfg.themeServer.themeDir != null) [ themeSyncScript ]
+        lib.optionals (cfg.theme.enable && cfg.theme.cssPath != null) [ themeSyncScript ]
         ++ lib.optionals (cfg.plugins != [ ]) [ pluginsSyncScript ];
       packages = [ pkgs.sqlite pkgs.curl pkgs.python3 ];
       ensureDataDir = true; # dataDir itself is plain, safe to auto-create
@@ -105,33 +104,6 @@ in
         update = updateScript;
         "update:apply" = updateApplyScript;
         rescan = rescanScript;
-      };
-    })
-    # The theme server -- a separate, minimal systemd unit (not through
-    # mkSelfHostedService, which has none of that machinery's needs: no
-    # dataDir/storage/requireMounts/postStart, just a tiny static file
-    # server). PartOf ties its lifecycle to the main service (stopping
-    # jellyfin stops this too, matching the old run_stop() stopping both
-    # together) -- but PartOf alone only propagates stop/restart, never
-    # start (confirmed on a real run: starting self-hosted-jellyfin left
-    # this unit dead until manually started). The Wants=/After= pair on
-    # the main service below is what makes starting jellyfin also start
-    # this, matching the old run_start()'s "start jellyfin, then start
-    # theme-server" ordering.
-    (lib.mkIf (cfg.enabled && cfg.themeServer.enable && cfg.themeServer.themeDir != null) {
-      systemd.services."self-hosted-jellyfin-theme" = {
-        description = "self-hosted: jellyfin theme server";
-        partOf = [ "self-hosted-jellyfin.service" ];
-        wantedBy = lib.optionals cfg.autoStart [ "multi-user.target" ];
-        serviceConfig = {
-          User = config.vars.username;
-          ExecStart = "${pkgs.python3}/bin/python3 ${import ./lib/theme/server.nix { inherit pkgs; }} ${cfg.themeServer.bindAddress} ${toString cfg.themeServer.port} ${cfg.themeServer.themeDir}";
-          Restart = "on-failure";
-        };
-      };
-      systemd.services."self-hosted-jellyfin" = {
-        wants = [ "self-hosted-jellyfin-theme.service" ];
-        after = [ "self-hosted-jellyfin-theme.service" ];
       };
     })
   ];
