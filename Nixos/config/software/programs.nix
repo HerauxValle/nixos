@@ -1,5 +1,10 @@
 { config, pkgs, ... }:
 
+# -------------------------------------------------------------------------
+# IMPORTANT: Defaults need to be wired into modules/packages/default.nix
+# first to add programs here!
+# -------------------------------------------------------------------------
+
 # Personal picks that have no sensible generic default -- the gaming stack,
 # silentSDDM's wallpaper, and the editor+LSP list. fish/hyprland/direnv/
 # nix-ld stay as real defaults in modules/packages/programs/default.nix
@@ -20,8 +25,8 @@
         # Paths, not attrsets -- keeps the files' own comments/section
         # headers intact instead of flattening them through the JSON
         # serializer.
-        userSettings = ../../VSCode/settings.json;
-        keybindings = ../../VSCode/keybindings.json;
+        userSettings = ../../../VSCode/settings.json;
+        keybindings = ../../../VSCode/keybindings.json;
         extensions =
           (with pkgs.vscode-extensions; [
             bbenoist.nix
@@ -67,7 +72,7 @@
 
     silentSDDM = {
       enable = false;
-      wallpaper = ../../Scripts/Wallpaper/wallpaper.jpg;
+      wallpaper = ../../../Scripts/Wallpaper/wallpaper.jpg;
     };
 
     # fresh (terminal editor). Package comes straight from nixpkgs

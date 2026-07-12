@@ -2,13 +2,9 @@
 
 {
   imports = [
-    ./customized.nix
-    ./excludes.nix
-    ./packages.nix
-    ./programs.nix
-    ./scripts.nix
+    ./config.nix
     ./self-hosted
-    ./shells.nix
-    ./services.nix
+    ./software
+    ./github
   ];
 }

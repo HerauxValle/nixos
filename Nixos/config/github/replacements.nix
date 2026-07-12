@@ -7,31 +7,6 @@
 # modules/backup/dotfiles/default.nix for what each option actually does.
 {
   config.vars.dotfilesBackup = {
-    excludeFiles = [
-      "Shells/Fish/secrets.fish"
-      ".envrc"
-
-      # Local-only variable reference -- reproduces several of the real
-      # values redacted/replaced elsewhere (gitCommitEmail, username,
-      # usbSerialShort) as plain-text documentation, so publishing it would
-      # undo those. Excluding the whole file is simpler and more robust
-      # than mirroring every redactValues/replaceValues entry a second
-      # time just for a doc, and it doesn't need to be public anyway.
-      "Nixos/index.md"
-    ];
-
-    # Empty for now -- redactValues' mask-and-comment-out treatment only
-    # stays safe for values that are genuinely OPTIONAL (a missing/commented
-    # definition just falls back to that option's own default). Every value
-    # that used to live here (the MAC, gitCommitEmail, usbSerialShort) is a
-    # REQUIRED option (no default) or gets re-resolved by this exact module
-    # against a config that no longer defines it -- commenting either out
-    # leaves the published copy unable to even evaluate. Confirmed live: this
-    # is exactly what broke before they moved to replaceValues below. Kept
-    # as a real option (not removed) for any future value that's actually
-    # optional and fine being fully blanked out.
-    redactValues = [ ];
-
     # Real values stay in effect locally -- only the published copy has
     # them swapped for a placeholder, and (unlike redactValues) the option
     # stays defined, so the published copy still evaluates/builds cleanly.
