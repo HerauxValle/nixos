@@ -101,7 +101,23 @@
     # Empty -- matches the old JELLYFIN_PLUGIN_REPOS/JELLYFIN_PLUGINS
     # (both declared, zero plugins ever actually active). The mechanism
     # is real and ready; nothing to reconcile until you actually want one.
-    pluginRepos = [ ];
-    plugins = [ ];
+    pluginRepos = [
+      # Only for THIRD-PARTY repos -- the official one is already built
+      # into the binary, no entry needed for it.
+      # { name = "My Repo"; url = "https://example.com/manifest.json"; }
+    ];
+
+    plugins = [
+      # How to find a guid: curl the manifest JSON for whichever repo
+      # has the plugin (official: https://repo.jellyfin.org/releases/plugin/manifest-stable.json,
+      # or your own pluginRepos URL above), then look up the "guid" field
+      # by name, e.g.:
+      #   curl -sL https://repo.jellyfin.org/releases/plugin/manifest-stable.json \
+      #     | jq -r '.[] | select(.name == "Bookshelf") | .guid'
+      # Two real examples, confirmed by actually running that command
+      # against the official manifest, not guessed:
+      # { guid = "9c4e63f1-031b-4f25-988b-4f7d78a8b53e"; version = "latest"; } # Bookshelf
+      # { guid = "170a157f-ac6c-437a-abdd-ca9c25cebd39"; version = "latest"; } # Fanart
+    ];
   };
 }

@@ -91,9 +91,19 @@ the real file is at `X/data/jellyfin.db` (confirmed both by a real run
 and by the old `rescan.sh`'s own `DB="$JELLYFIN_DATA_DIR/data/jellyfin.db"`).
 Since this module's own `cfg.storage` already has a `data` entry
 (`dataDir/data` -> the vault), the *actual* live database ends up at
-`dataDir/data/data/jellyfin.db` -- two `data` levels, not one. Every
-script here that needs the real db path (`wait-for-api.nix`,
-`rescan.nix`) accounts for this.
+`dataDir/data/data/jellyfin.db` -- two `data` levels, not one.
+
+This was understood correctly from the start (see above) but **not
+actually applied** to `wait-for-api.nix`'s/`rescan.nix`'s real scripts on
+the first pass -- both still had only one `data` level, so `api_key()`
+silently queried a file that didn't exist and always came back empty,
+regardless of whether a real key existed. Went undetected for a while
+because the failure mode (`no admin API key yet`) looks identical to the
+genuinely-expected "no key created yet" case -- only caught after
+creating a real key via the dashboard, confirming it existed directly in
+the db, and watching the sync *still* fail to find it. Fixed in both
+files now, verified against a real run (`branding CustomCss updated`
+actually logged, not just "no error").
 
 ## Nested storage entries needed a real framework fix
 

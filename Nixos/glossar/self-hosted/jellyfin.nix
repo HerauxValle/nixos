@@ -19,9 +19,9 @@
   # config.vars.selfHosted.jellyfin = {
 
   #   # --- master switch --------------------------------------------------
-  #   # true = live service + theme server (if themeServer.enable) + actions
-  #   # exist and run. false = torn down automatically on the next rebuild
-  #   # (see teardownPaths below), not just absent.
+  #   # true = live service + actions exist and run. false = torn down
+  #   # automatically on the next rebuild (see teardownPaths below), not
+  #   # just absent.
   #   enabled = false;
 
   #   # --- plain base dir -- cache/transcode/log live directly here --------
@@ -82,14 +82,18 @@
   #     cssPath = ../../Themes/Jellyfin/ElegantFin/theme.css;
   #   };
 
-  #   # --- written into Jellyfin's own repositories.xml, only if non-empty ---
+  #   # --- third-party repos only -- the official one is already built in ----
+  #   # written into Jellyfin's own repositories.xml, only if non-empty.
   #   pluginRepos = [
-  #     { name = "Jellyfin Stable"; url = "https://repo.jellyfin.org/releases/plugin/manifest-stable.json"; }
+  #     { name = "My Repo"; url = "https://example.com/manifest.json"; }
   #   ];
 
   #   # --- installed via Jellyfin's own REST API in postStart -----------------
+  #   # find a guid: curl -sL <manifest-url> | jq -r '.[] | select(.name == "X") | .guid'
+  #   # real examples, confirmed against the official manifest directly:
   #   plugins = [
-  #     { guid = "your-plugin-guid-from-the-manifest"; version = "latest"; }
+  #     { guid = "9c4e63f1-031b-4f25-988b-4f7d78a8b53e"; version = "latest"; } # Bookshelf
+  #     { guid = "170a157f-ac6c-437a-abdd-ca9c25cebd39"; version = "latest"; } # Fanart
   #   ];
 
   # };

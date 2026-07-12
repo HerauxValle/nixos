@@ -1,7 +1,8 @@
 { jellyfinDataDir }:
 
-# Shared by theme/sync.nix and plugins-sync.nix -- both need the
-# identical "wait for the live API, then get an admin key" preamble.
+# Shared by theme-sync.nix, plugins-sync.nix, and network-sync.nix --
+# all three need the identical "wait for the live API, then get an
+# admin key" preamble.
 # Bounded poll (matches Ollama's sync.nix pattern): ExecStartPost fires
 # right after fork/exec, not once Jellyfin is actually accepting
 # connections.
