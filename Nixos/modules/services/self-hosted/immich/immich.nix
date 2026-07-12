@@ -70,6 +70,44 @@ in
           # service's own autoStart semantics.
           systemd.services.immich-server.wantedBy =
             lib.mkForce (lib.optionals cfg.autoStart [ "multi-user.target" ]);
+
+          # commonServiceConfig (shared by every immich unit) hardcodes
+          # ProtectHome = true -- real, confirmed-by-testing consequence:
+          # a private mount namespace makes ALL of /home (including
+          # mediaLocation, nested under it here) appear completely absent
+          # to immich-server, independent of any file ownership --
+          # requireMounts's own preStart mount check (also sandboxed the
+          # same way, ExecStartPre shares the unit's namespace) failed
+          # exactly this way on a real run ("is not mounted" even though
+          # it genuinely was, confirmed from a plain root shell at the
+          # same moment).
+          #
+          # ProtectHome = "tmpfs" + BindPaths on the exact same paths
+          # requireMounts already checks is the real, tested fix -- not a
+          # guess: confirmed directly (systemd-run throwaway units, this
+          # session) that this combination correctly exposes the real
+          # vault mount for both the mount check AND real read/write
+          # access to mediaLocation's actual nested content, running
+          # under the exact same hardening the real unit uses
+          # (PrivateUsers, NoNewPrivileges, stripped capabilities, the
+          # dedicated immich user). Also confirmed the dedicated immich
+          # system user needs no additional fix beyond this -- a real,
+          # separate ACL-based "grant a dedicated user traversal rights
+          # into a human user's home directory" approach was designed and
+          # its primitives verified this session (see
+          # ../lib/acl-traversal.nix) but turned out unnecessary here:
+          # BindPaths's own intermediate-directory construction happens
+          # inside systemd's synthetic tmpfs, not the real (0700)
+          # ~/herauxvalle, so the traversal problem never actually
+          # applies once this fix is in place.
+          #
+          # Deliberately reuses requireMounts itself as the BindPaths
+          # list rather than a second option -- the two lists mean
+          # exactly the same thing here ("paths that must be visible to
+          # this unit"), keeping them as one option instead of two that
+          # could drift out of sync.
+          systemd.services.immich-server.serviceConfig.ProtectHome = lib.mkForce "tmpfs";
+          systemd.services.immich-server.serviceConfig.BindPaths = cfg.requireMounts;
         }
         (lib.mkIf cfg.enableMachineLearning {
           systemd.services.immich-machine-learning.wantedBy =

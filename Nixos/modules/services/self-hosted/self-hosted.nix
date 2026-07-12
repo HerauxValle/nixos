@@ -30,6 +30,12 @@
 # already-mature nixpkgs/NUR module or package instead of building a
 # service from scratch (Immich's services.immich, the first and only
 # caller so far). See its own README.md for the full category list.
+# ./lib/acl-traversal.nix -- NOT re-exported here, deliberately: written
+# ahead of a confirmed need (see its own top comment for the real
+# problem it solves and what's actually been verified vs not), zero
+# current callers. Wire it into this re-export the same way every other
+# function here was, exactly when a real service first needs it -- don't
+# clutter this shared surface with an unused function until then.
 #
 # No mkUninstallScript / @uninstall action anymore -- deliberately
 # removed, not just narrowed. Everything it used to do is now either
