@@ -48,6 +48,13 @@ in
       preStart = [
         "mkdir -p ${lib.concatMapStringsSep " " (d: "${liveDataDir}/${d}") dataSubdirs}"
       ];
+      # ffmpeg -- confirmed missing on a real run ("Couldn't find FFmpeg"/
+      # "Couldn't find FFProbe"), needed for Stash's own video
+      # transcoding/scene-scanning features. Stash looks it up on PATH at
+      # runtime (no separate --ffmpeg-path pin in config.yml on this
+      # machine), so just needs to be present, not wired any more
+      # specifically than that.
+      packages = [ pkgs.ffmpeg ];
       ensureDataDir = true; # dataDir itself is plain now, safe to auto-create
       inherit (cfg) dataDir storage autoStart environment requireMounts teardownPaths;
     })
