@@ -57,6 +57,41 @@ base64) by `preStart` if it doesn't already exist, then read into the
 environment at every start. Lives with the real data (survives a venv
 reinstall), not in the Nix store.
 
+## Known: `alembic_version` predates this codebase's migration chain
+
+`webui.db` (the real, pre-Nix vault data) has been through multiple
+OpenWebUI schema-storage generations over its lifetime -- a Peewee-era
+`migratehistory` table (pre-Alembic), then an Alembic `alembic_version`
+table stamped `42e2978c7933`, a revision ID that this version's (`0.9.6`)
+own migration chain doesn't recognize at all (squashed/renamed upstream at
+some point between then and now). `run_migrations()` catches this
+(`alembic.util.exc.CommandError: Can't locate revision`) and logs it as an
+error but doesn't crash the app -- confirmed real user data (chats, users,
+config) all read back correctly regardless. The practical effect: any
+*future* Alembic migration this version might need won't apply
+automatically until this is resolved (likely `alembic stamp <head>` once
+the actual schema is verified column-by-column to already match head --
+not done here, deliberately not guessed at blind). If a future `@update`
+starts throwing real (not just this cosmetic) errors, this is the first
+thing to check.
+
+A related, already-fixed instance of the same underlying problem: the
+`config` table itself was still on the *very* old key/value-per-row
+schema (a table that predates Alembic requiring `id`/`data`/`version`) --
+the `ca81bd47c050` migration only creates `config` `if not exists`, so it
+silently no-opped against this database, and the app crashed on startup
+(`OperationalError: no such column: config.id`) the first time this
+version was pointed at the real vault data. Fixed by hand -- converted the
+382 flat key/value rows (the real, last-updated-Jun-29 settings) into the
+nested JSON blob shape `ConfigTable`/`ConfigState` (`internal/config.py`)
+expects, as a new `config` table; both the old flat table and an
+already-stale, abandoned Apr-12 migration attempt (`config_old`, 1 row)
+were renamed aside as `config_legacy_kv_20260629` /
+`config_migrated_20260412_backup` rather than dropped. Confirmed after:
+service `active (running)`, 0 restarts, `/health` OK, `/api/config`
+reflecting the migrated settings, real user/chat counts intact via direct
+DB query.
+
 ## Updating packages
 
 `requirements.in` (`Python/locks/self-hosted/openwebui/requirements.in`) is

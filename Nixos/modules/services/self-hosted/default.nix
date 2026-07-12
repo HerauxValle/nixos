@@ -10,6 +10,7 @@
 {
   imports = [
     ./comfyui
+    ./filebrowser
     ./ollama
     ./openwebui
     ./stash

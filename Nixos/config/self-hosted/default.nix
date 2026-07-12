@@ -6,6 +6,7 @@
 {
   imports = [
     ./comfyui
+    ./filebrowser.nix
     ./ollama.nix
     ./openwebui.nix
     ./stash.nix
