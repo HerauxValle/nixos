@@ -61,6 +61,10 @@ selfHosted.mkFHSVenv {
   #   SONAME mismatch, confirmed by actually building both derivations
   #   and listing their lib/ contents, not assumed. e2fsprogs's `.out`
   #   output is the one that actually has libcom_err.so.2.
+  # - gmp added -- once libcom_err was fixed, pymeshlab loaded far
+  #   enough to reveal a second, previously-hidden missing lib:
+  #   libgmp.so.10 (needed by its CGAL-based mesh-boolean plugins),
+  #   confirmed on the same real run after the libcom_err fix landed.
   targetPkgs = pkgs: with pkgs; [
     python312
     stdenv.cc
@@ -81,6 +85,7 @@ selfHosted.mkFHSVenv {
     libxcb
     libx11
     e2fsprogs
+    gmp
   ];
   inherit extraBwrapArgs;
 }

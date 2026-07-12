@@ -141,12 +141,42 @@
           };
           script = lib.mkOption {
             type = lib.types.str;
-            description = "Shell fragment run against a writable copy of the node's fetched source (cwd unset -- use $out) before it's bind-mounted in.";
+            default = "";
+            description = ''
+              Shell fragment run against a writable copy of the node's
+              fetched source (cwd unset -- use $out) before it's
+              bind-mounted in. Empty (the default) means this entry
+              exists only for its dirs -- a node needing writable
+              directories pre-created but no actual source change
+              doesn't need a no-op script to express that.
+            '';
+          };
+          dirs = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [ ];
+            description = ''
+              Extra paths, relative to this node's own writable
+              dataDir/node_data/<repo> directory, that must exist
+              (possibly empty) before the node's own code runs --
+              generates the matching mkdir -p entries in preStart
+              automatically. Only needed when a node's own os.mkdir/
+              os.listdir call requires an exact nested path to already
+              exist rather than creating it recursively itself. The
+              base node_data/<repo> directory itself is always created
+              regardless of this list, for every entry in nodePatches
+              (whether or not it also has a script).
+            '';
           };
         };
       });
       default = [ ];
-      description = "Per-node source patches, applied by ./lib/node-mounting.nix's mkNodeSrc. A repo with no entry here is used unpatched.";
+      description = ''
+        Per-node fixes -- a source patch (script), pre-created writable
+        directories (dirs), or both. script is applied by
+        ./lib/node-mounting.nix's mkNodeSrc; dirs generates preStart
+        mkdir -p entries, see comfyui.nix. A repo with no entry here is
+        used entirely as fetched, no extra directories created.
+      '';
     };
 
     # The full catalog of every model ever pinned -- ~700GB across all of

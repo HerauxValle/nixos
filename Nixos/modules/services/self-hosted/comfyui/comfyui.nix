@@ -25,6 +25,22 @@ let
   activeNodes = builtins.filter (n: builtins.elem n.repo cfg.installed.nodes) cfg.nodeStore;
   activeModels = builtins.filter (m: builtins.elem m.name cfg.installed.models) cfg.modelStore;
 
+  # Only patches for currently-installed nodes matter -- a patch entry
+  # for a node not in installed.nodes isn't mounted at all, nothing to
+  # pre-create a directory for. Every entry gets its own node_data/<repo>
+  # base dir regardless of whether it declares any extra `dirs`, since
+  # every patched-or-dirs-only entry writes *something* there.
+  activeNodePatches = builtins.filter (p: builtins.elem p.repo cfg.installed.nodes) cfg.nodePatches;
+
+  nodeDataDirs = lib.concatMap
+    (p: [ "${cfg.dataDir}/node_data/${p.repo}" ]
+      ++ map (dir: "${cfg.dataDir}/node_data/${p.repo}/${dir}") p.dirs)
+    activeNodePatches;
+
+  nodeDataMkdirScript =
+    lib.optionalString (nodeDataDirs != [ ])
+      "mkdir -p ${lib.concatStringsSep " " nodeDataDirs}";
+
   comfyCore = pkgs.fetchFromGitHub {
     owner = "comfyanonymous";
     repo = "ComfyUI";
@@ -95,11 +111,25 @@ in
       # output/temp/user lookups at the writable dataDir, keeping
       # comfyCore itself (main.py and friends) a plain read-only Nix
       # store path -- confirmed as a real, current ComfyUI CLI flag
-      # (comfy/cli_args.py), not assumed.
+      # (comfy/cli_args.py), not assumed. --database-url is a separate,
+      # necessary flag on top of that -- confirmed by reading
+      # comfy/cli_args.py directly: the sqlite DB path is computed once,
+      # at argparse time, as a plain os.path.join relative to
+      # cli_args.py's own location (comfyCore, read-only), and
+      # --base-directory never touches it afterward (checked main.py's
+      # apply_custom_paths(), which only redirects models/output/input/
+      # user via folder_paths, nothing database-related) -- a real
+      # ComfyUI core gap, not something --base-directory was ever meant
+      # to cover. "user" is where ComfyUI defaults to putting it anyway
+      # (user/comfyui.db) -- and dataDir/user already exists as a real,
+      # vault-backed storage symlink (see storage below), so the
+      # database naturally lands with the rest of ComfyUI's actual user
+      # data rather than needing its own separate location.
       execStart = "${pkgs.writeShellScript "self-hosted-comfyui-start" ''
         exec ${fhsEnv}/bin/${fhsEnv.name} -c ${lib.escapeShellArg ''
           exec "${cfg.venvDir}/bin/python" ${comfyCore}/main.py \
             --base-directory "${cfg.dataDir}" \
+            --database-url "sqlite:///${cfg.dataDir}/user/comfyui.db" \
             --preview-method auto --use-pytorch-cross-attention --lowvram --cuda-device 0
         ''}
       ''}";
@@ -116,6 +146,14 @@ in
       # ExecStartPre, same as the mount check above).
       preStart = [
         "mkdir -p ${cfg.dataDir}/output ${cfg.dataDir}/temp ${cfg.dataDir}/input"
+      ]
+      # node_data/<repo> (+ any declared extra `dirs`) for every
+      # currently-active nodePatches entry -- generated from
+      # cfg.nodePatches itself (config/self-hosted/comfyui/patches.nix),
+      # not hardcoded per-node here. Only present at all when at least
+      # one patch is active, so nothing runs an empty mkdir.
+      ++ lib.optional (nodeDataMkdirScript != "") nodeDataMkdirScript
+      ++ [
         prepareNodeMountsScript
         venvEnsureScript
         syncModelsScript

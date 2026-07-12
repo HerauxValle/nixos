@@ -11,21 +11,24 @@
 # documents this exact behavior.
 
 let
-  # nodePatches arrives as the raw listOf{repo,script} from cfg -- turn
-  # it into a repo -> script lookup once, here, rather than re-searching
-  # the list for every node in activeNodes.
-  patchesByRepo = lib.listToAttrs
+  # nodePatches arrives as the raw listOf{repo,script,dirs} from cfg --
+  # turn it into a repo -> script lookup once, here, rather than
+  # re-searching the list for every node in activeNodes. dirs isn't
+  # used here at all -- it only affects preStart's mkdir generation
+  # (comfyui.nix), never the source derivation itself.
+  scriptsByRepo = lib.listToAttrs
     (map (p: lib.nameValuePair p.repo p.script) nodePatches);
 
   mkNodeSrc = node:
     let
       base = pkgs.fetchFromGitHub { inherit (node) owner repo rev hash; };
+      script = scriptsByRepo.${node.repo} or "";
     in
-    if patchesByRepo ? ${node.repo} then
+    if script != "" then
       pkgs.runCommand "node-${node.repo}-patched" { } ''
         cp -r ${base} $out
         chmod -R u+w $out
-        ${patchesByRepo.${node.repo}}
+        ${script}
       ''
     else
       base;
