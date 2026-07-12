@@ -44,6 +44,11 @@
   #   # (a real, native override -- searx/settings_defaults.py's SettingsValue)
   #   secret = "314159265314159265";
 
+  #   # --- optional typed overrides, same native SEARXNG_BIND_ADDRESS/SEARXNG_PORT --
+  #   # mechanism as secret above. null (default) = settings.yml's own values apply.
+  #   host = null;
+  #   port = null;
+
   #   # --- passthrough env for the live process -----------------------------
   #   environment = { };
 

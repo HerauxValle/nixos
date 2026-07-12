@@ -34,6 +34,13 @@
     # Docker-only envsubst mechanism the settings.yml comment references.
     secret = "314159265314159265";
 
+    # null = no override -- settings.yml's own server.bind_address
+    # ("0.0.0.0") and server.port (8888) apply exactly as they already
+    # do. Set either to override via SEARXNG_BIND_ADDRESS/SEARXNG_PORT
+    # instead of hand-editing the real vault file.
+    host = null;
+    port = null;
+
     environment = { };
 
     # The one real data location -- a single-file symlink, not a

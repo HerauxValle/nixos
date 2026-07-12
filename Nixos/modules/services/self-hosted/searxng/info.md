@@ -33,6 +33,8 @@ not with a *bare* `ln -sfn`, see "systemd units" below for why.
 | `autoStart` | bool | `true` | Same meaning as every other service here. Currently `false` in this machine's real config. |
 | `coreRev` | str | *required* | `searxng/searxng` git rev to pin. No `coreHash` alongside it -- see this file's top section for why. |
 | `secret` | str | *required* | Exported as `SEARXNG_SECRET` on every start. SearXNG's own `settings_defaults.py` (`SettingsValue(environ_name="SEARXNG_SECRET")`) reads this and unconditionally overrides settings.yml's `server.secret_key` with it -- confirmed by reading that file directly, not assumed from the settings.yml comment (which describes the Docker image's separate `envsubst` mechanism, not something SearXNG's own Python does). |
+| `host` | nullOr str | `null` | Optional, exported as `SEARXNG_BIND_ADDRESS` if set -- a real, native override (same `settings_defaults.py` `SettingsValue` mechanism as `secret`, confirmed by reading that file directly: `SettingsValue(str, '127.0.0.1', 'SEARXNG_BIND_ADDRESS')`). `null` = settings.yml's own `server.bind_address` applies untouched. The cleanest of the three services' host/port mechanisms -- no file patching, no API call, just an env var SearXNG already reads natively. |
+| `port` | nullOr port | `null` | Same mechanism, `SEARXNG_PORT` (`SettingsValue((int, str), 8888, 'SEARXNG_PORT')`). `null` = settings.yml's own `server.port` applies untouched. Independent of `host` -- setting one doesn't require setting the other. |
 | `environment` | attrsOf str | `{ }` | Passthrough env for the live process. |
 | `storage` | listOf `{src,dest}` | `[ ]` | One real entry: `settings.yml` (a **single file**, not a directory -- `L+` tmpfiles symlinks don't care which) -> the real, hand-customized settings.yml in the vault. |
 | `requireMounts` | listOf str | `[ ]` | Paths checked as mountpoints before `preStart` runs -- the Casket vault `storage` points into. |
@@ -41,16 +43,25 @@ not with a *bare* `ln -sfn`, see "systemd units" below for why.
 
 ## `settings.yml` -- deliberately outside Nix's reach (mostly)
 
-Unlike every other option here, there is **no** typed `host`/`port`/
-`theme` option for SearXNG. The real settings.yml (instance name,
-plugins, ~15 individually toggled search engines, `ui.default_theme`,
-`server.bind_address`/`port`) is real, hand-customized data that already
-lives in the vault (`storage`'s one entry) -- Nix's job is making sure
-that symlink exists, nothing more. Changing any of those values means
-editing the real file directly (or, for the theme specifically, see
-below) -- exactly the same relationship Nix has with Stash's `config.yml`.
+There is **no** typed `theme` option for SearXNG, and `host`/`port` are
+optional (not required) overrides -- by default, the real settings.yml
+(instance name, plugins, ~15 individually toggled search engines,
+`ui.default_theme`, `server.bind_address`/`port`) is real, hand-customized
+data that already lives in the vault (`storage`'s one entry) -- Nix's job
+is making sure that symlink exists, nothing more. Changing any of those
+values means editing the real file directly (or, for the theme
+specifically, see below) -- exactly the same relationship Nix has with
+Stash's `config.yml`.
 
-**The one exception is `secret`** (see the options table) -- SearXNG
+**Three exceptions**: `secret`, `host`, `port` (see the options table) --
+all three are real, native `SettingsValue(..., environ_name=...)`
+overrides SearXNG's own `settings_defaults.py` declares, confirmed by
+reading that file directly. `secret` is always required and always set
+(see why below); `host`/`port` are optional and `null` by default (no
+override, settings.yml's own values apply) since -- unlike the secret
+placeholder -- there was no actual bug forcing a value here.
+
+`secret` specifically: SearXNG
 hard-refuses to start with the literal placeholder
 `server.secret_key: "ultrasecretkey"` still in effect
 (`searx/webapp.py`: `if get_setting("server.secret_key") == 'ultrasecretkey':

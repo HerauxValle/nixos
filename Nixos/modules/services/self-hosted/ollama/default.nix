@@ -59,7 +59,32 @@
     environment = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
       default = { };
-      description = "Environment variables for the live ollama process and the sync unit.";
+      description = "Environment variables for the live ollama process and the sync unit. OLLAMA_HOST can be set here directly (the plain passthrough way) -- host/port below are an optional, typed override on top, see their own descriptions.";
+    };
+
+    # Optional, typed override on top of environment.OLLAMA_HOST -- not a
+    # replacement for it. Ollama already reads OLLAMA_HOST as a real env
+    # var (host:port combined in one string), so the plain passthrough
+    # above already works on its own; these two exist only so host/port
+    # can be set as their own typed values (matching Stash/OpenWebUI/
+    # FileBrowser's shape) without hand-assembling the combined string
+    # yourself. null (the default for both) = no override, whatever's in
+    # environment.OLLAMA_HOST (or Ollama's own built-in default) applies
+    # exactly as before -- nothing changes unless you set one of these.
+    # If either is set, ollama.nix constructs a fresh OLLAMA_HOST from
+    # them and it wins over environment.OLLAMA_HOST (last-merged, see
+    # ollama.nix), using "0.0.0.0"/"11434" for whichever half you didn't
+    # also set.
+    host = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "Bind address override -- if set (with or without port), wins over environment.OLLAMA_HOST.";
+    };
+
+    port = lib.mkOption {
+      type = lib.types.nullOr lib.types.port;
+      default = null;
+      description = "Bind port override -- if set (with or without host), wins over environment.OLLAMA_HOST.";
     };
 
     models = lib.mkOption {

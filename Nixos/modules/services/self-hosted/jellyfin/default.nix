@@ -1,20 +1,25 @@
 { lib, config, ... }:
 
 # Schema only -- logic lives in ./jellyfin.nix (wiring) and ./lib/
-# (package.nix, theme-server.nix, reconcile.nix, update.nix). Ported from
+# (package.nix, theme-sync.nix, plugins-sync.nix, network-sync.nix,
+# wait-for-api.nix, rescan.nix, update.nix). Ported from
 # ~/Scripts/Self-hosted/Jellyfin/, read as a behavioral reference only.
 #
-# Two things declared in the old configuration/variables/{hwaccel,network}.sh
-# were confirmed DEAD -- grepped the entire old bash tree, neither ever
-# reached a real CLI flag or API call anywhere: hardware-acceleration
-# variables (JELLYFIN_HW_ACCEL etc -- Jellyfin's real transcode config is
-# self-managed via its own encoding.xml/dashboard, never touched by any
-# script) and JELLYFIN_BIND_ADDRESS/JELLYFIN_HTTP_PORT/JELLYFIN_HTTPS_PORT
-# (the real port/bind address Jellyfin actually used, confirmed from a
-# recovered real network.xml, was its own default 8096 -- the "6050"
-# declared in network.sh was never wired to anything). Neither is ported
-# here as a working option -- doing so would fabricate functionality the
-# original never had. See info.md for the full story.
+# Hardware acceleration (configuration/variables/hwaccel.sh's
+# JELLYFIN_HW_ACCEL etc) was confirmed DEAD -- grepped the entire old
+# bash tree, never reached a real CLI flag or API call anywhere.
+# Jellyfin's real transcode config is self-managed via its own
+# encoding.xml/dashboard, never touched by any script. Not ported here as
+# a working option -- doing so would fabricate functionality the original
+# never had. See info.md for the full story.
+#
+# `port` below IS real and wired (unlike hwaccel) -- but there is
+# deliberately no `host` option for Jellyfin, unlike Ollama/SearXNG.
+# Confirmed by inspection (a real recovered network.xml) and by testing
+# directly (ASPNETCORE_URLS explicitly ignored on a real run, ".NET's own
+# standard override doesn't work here"): Jellyfin's NetworkConfiguration
+# has no bind-address field at all -- Kestrel always listens on 0.0.0.0.
+# A `host` option here would have nothing real to point at.
 {
   imports = [ ./jellyfin.nix ];
 
@@ -23,13 +28,12 @@
       type = lib.types.bool;
       default = false;
       description = ''
-        Master switch. true = the live service, the theme server (if
-        themeServer.enable), and every action run exactly as declared.
-        false = treated as if this service doesn't exist -- no systemd
-        units at all, and if it was previously installed, the next
-        rebuild automatically tears down exactly what teardownPaths
-        declares. See ../docs/architecture.md and self-hosted.nix's
-        mkTeardownActivationScript.
+        Master switch. true = the live service and every action run
+        exactly as declared. false = treated as if this service doesn't
+        exist -- no systemd units at all, and if it was previously
+        installed, the next rebuild automatically tears down exactly
+        what teardownPaths declares. See ../docs/architecture.md and
+        self-hosted.nix's mkTeardownActivationScript.
       '';
     };
 
@@ -79,6 +83,27 @@
         (grepped -- never read by anything), not implied to do anything
         if you set it.
       '';
+    };
+
+    # Optional, typed override -- null (the default) means "don't touch
+    # anything," network.xml's own InternalHttpPort/PublicHttpPort apply
+    # exactly as they already do (real values inside the vault-protected
+    # config -- see storage below). Unlike Ollama/SearXNG, this is
+    # neither an env var nor a CLI flag -- Jellyfin has no such mechanism
+    # for its network config (confirmed: ASPNETCORE_URLS is explicitly
+    # ignored on a real run). The only real way to change it is through
+    # Jellyfin's own REST API (the same one its dashboard's Networking
+    # page uses), which needs the live process up and an admin key --
+    # see ./lib/network-sync.nix. Practical consequence: on a genuinely
+    # fresh install (no admin key exists yet), this can't take effect
+    # until after the setup wizard is completed once -- a real asymmetry
+    # against Ollama/SearXNG, which apply from the very first start.
+    # There is no `host` option here at all -- see this file's own top
+    # comment for why (no such field exists in Jellyfin's network config).
+    port = lib.mkOption {
+      type = lib.types.nullOr lib.types.port;
+      default = null;
+      description = "Pushed to Jellyfin's own network config (InternalHttpPort + PublicHttpPort) via its REST API in postStart, if set. Requires a restart after the push actually takes effect (Kestrel binds at startup, a config change alone doesn't rebind a live listener). null = network.xml's own value applies, untouched.";
     };
 
     storage = lib.mkOption {

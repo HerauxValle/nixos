@@ -32,6 +32,12 @@
       DOTNET_EnableDiagnostics = "0";
     };
 
+    # null = no override -- network.xml's own InternalHttpPort/
+    # PublicHttpPort (8096) apply exactly as they already do. No `host`
+    # option exists for Jellyfin at all -- see default.nix's own comment
+    # for why (no such field exists in its network config).
+    port = null;
+
     # config/data -> the real Jellyfin database (users, watch history,
     # metadata cache) -- vault-backed, recovered from a backup drive
     # snapshot of the old bash framework's config/ (never vault-backed

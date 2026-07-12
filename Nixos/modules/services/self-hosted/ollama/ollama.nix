@@ -21,15 +21,27 @@ let
   updateScript = import ./lib/update.nix { inherit cfg; configFile = ollamaConfigFile; };
   updateApplyScript = import ./lib/update.nix { inherit cfg; configFile = ollamaConfigFile; apply = true; };
 
-  # cfg.environment is plain passthrough (see default.nix) -- the only
-  # thing added here is OLLAMA_MODELS, and only because it has to agree
-  # with dataDir (also used for storage below), not because it needs its
-  # own typed option. `//` means this always wins over anything the same
-  # key in cfg.environment might set, so dataDir stays the one source of
-  # truth for where models live.
+  # cfg.environment is plain passthrough (see default.nix) -- OLLAMA_MODELS
+  # is added here because it has to agree with dataDir (also used for
+  # storage below), not because it needs its own typed option. `//` means
+  # this always wins over anything the same key in cfg.environment might
+  # set, so dataDir stays the one source of truth for where models live.
+  #
+  # OLLAMA_HOST works the same way, but only if cfg.host/cfg.port are
+  # actually set -- host/port are optional typed overrides (default
+  # null), not the primary mechanism (that's still environment.OLLAMA_HOST
+  # directly, same as before this option existed). Whichever half you
+  # didn't set falls back to Ollama's own conventional default
+  # (0.0.0.0/11434), not whatever might already be in
+  # environment.OLLAMA_HOST -- setting either one means you're overriding
+  # the whole value, not patching half of an existing string.
+  hostPortOverride = lib.optionalAttrs (cfg.host != null || cfg.port != null) {
+    OLLAMA_HOST = "${if cfg.host != null then cfg.host else "0.0.0.0"}:${if cfg.port != null then toString cfg.port else "11434"}";
+  };
+
   environment = cfg.environment // {
     OLLAMA_MODELS = "${cfg.dataDir}/models";
-  };
+  } // hostPortOverride;
 
 in
 

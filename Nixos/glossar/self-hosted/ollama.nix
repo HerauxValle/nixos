@@ -35,12 +35,18 @@
   #   hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
   #   # --- plain passthrough to the live process and the sync unit ---------
+  #   # OLLAMA_HOST can be set here directly, or via host/port below.
   #   environment = {
   #     OLLAMA_HOST = "0.0.0.0:11434";
   #     OLLAMA_CONTEXT_LENGTH = "8192";
   #     OLLAMA_KEEP_ALIVE = "5m";
   #     CUDA_VISIBLE_DEVICES = "0";
   #   };
+
+  #   # --- optional typed override, wins over environment.OLLAMA_HOST if set --
+  #   # null (default) = no override, environment.OLLAMA_HOST above applies as-is.
+  #   host = null;
+  #   port = null;
 
   #   # --- declared models -- reconciled automatically every start via postStart --
   #   models = [

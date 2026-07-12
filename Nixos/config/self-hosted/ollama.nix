@@ -55,6 +55,13 @@
       CUDA_VISIBLE_DEVICES = "0";
     };
 
+    # null = no override -- the OLLAMA_HOST line above already sets both
+    # halves directly, same as before these two options existed. Only
+    # set either of these if you want a typed override to win over the
+    # line above instead of hand-editing it.
+    host = null;
+    port = null;
+
     models = [
       # CHAT / GENERAL
       # "gpt-oss:20b"

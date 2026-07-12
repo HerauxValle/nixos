@@ -1,8 +1,7 @@
 # Jellyfin -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./jellyfin.nix`. Implementation detail
-pieces: `./lib/{package,update,rescan,plugins-sync,wait-for-api}.nix`,
-`./lib/theme/{server,sync}.nix`.
+pieces: `./lib/{package,update,rescan,plugins-sync,theme-sync,network-sync,wait-for-api}.nix`.
 Real values: `Nixos/config/self-hosted/jellyfin.nix`.
 Real theme source: `Dotfiles/Themes/Jellyfin/ElegantFin/theme.css` --
 same top-level convention as every other themed app in this repo, not
@@ -12,8 +11,8 @@ Binary comes from a pure Nix fetch (`lib/package.nix`), same shape as
 Ollama/Stash -- no venv, no FHS sandbox. A self-contained .NET publish,
 patched with `autoPatchelfHook` for its native library dependencies (see
 "Two real library bugs" below for the two that weren't caught by that
-alone). Real, working machinery beyond the live service itself: a
-separate theme-server sidecar unit + a live branding-API push, and a
+alone). Real, working machinery beyond the live service itself: theme
+CSS embedded directly into Jellyfin's own branding config, and a
 declarative (currently-empty) plugin-repo/plugin-install mechanism --
 both need Jellyfin's own REST API, so both run in `postStart`, not
 `preStart`.
@@ -22,22 +21,20 @@ both need Jellyfin's own REST API, so both run in `postStart`, not
 
 | Option | Type | Default | Notes |
 |---|---|---|---|
-| `enabled` | bool | `false` | Master switch. `true` = live service, theme server (if `themeServer.enable`), and actions all exist and run. `false` = torn down automatically on the next rebuild (see "Full teardown" below). |
+| `enabled` | bool | `false` | Master switch. `true` = live service and actions all exist and run. `false` = torn down automatically on the next rebuild (see "Full teardown" below). |
 | `dataDir` | str | `~/Applications/Networking/Jellyfin` | Plain base dir -- real writable subdirs `cache`/`transcode`/`log` live directly here; `config`/`data`/`libraries/<name>` are all storage-backed symlinks (see `storage`). |
 | `autoStart` | bool | `true` | Same meaning as every other service here. Currently `false` in this machine's real config. |
 | `version` | str | *required* | Jellyfin release version to pin. |
 | `hash` | str | *required* | SRI sha256 of that version's linux amd64 release tarball. |
 | `environment` | attrsOf str | `{ }` | Passthrough env for the live process -- `DOTNET_GCConserveMemory`/`DOTNET_EnableDiagnostics` are real, confirmed-used (ported from the old `launch.sh`). `JELLYFIN_LOG_LEVEL` was declared there too but confirmed dead. |
+| `port` | nullOr port | `null` | Optional override, pushed to Jellyfin's own network config (`InternalHttpPort`+`PublicHttpPort`) via its REST API in `postStart` (`lib/network-sync.nix`) -- the only real mechanism, confirmed by testing directly: `ASPNETCORE_URLS` is explicitly ignored. `null` = `network.xml`'s own port applies untouched. **No `host` option exists** -- Jellyfin's network config has no bind-address field at all (Kestrel always listens `0.0.0.0`, confirmed from both a real `network.xml` and Jellyfin's own startup log). See "Theme: embedded CustomCss" below's sibling section, "`port`: API push, not env/CLI", for the full mechanism and its one real limitation (can't apply until an admin key exists). |
 | `storage` | listOf `{src,dest}` | `[ ]` | Two different kinds of real data behind the same mechanism -- see "Real, migrated data" below for the full list and why it's shaped this way. |
 | `requireMounts` | listOf str | `[ ]` | Paths checked as mountpoints before `preStart` runs. Real config needs both the Casket vault and the external Storage drive. |
 | `teardownPaths` | listOf str | `[ ]` | Non-empty on purpose (ComfyUI's shape) -- `["cache" "transcode" "log"]`. See default.nix's own comment: nested storage entries (`libraries/<name>`) aren't correctly recognized by the default "everything but storage" rule, which only matches top-level basenames. |
 | `fdLimit` | nullOr int | `65536` | `LimitNOFILE` on the live unit -- real, ported from the old `runtime.sh`'s `ulimit -n`. Required adding a new `limitNoFile` param to `mkSelfHostedService` itself (opt-in, `null` by default, no effect on any other service). |
 | `ffmpeg` | nullOr package | `null` | Package providing `bin/ffmpeg`, passed to Jellyfin's real `--ffmpeg` flag. `null` = `pkgs.jellyfin-ffmpeg` (resolved in `jellyfin.nix`, not here). Deliberately not "system ffmpeg on PATH" (the old `deps.sh`'s approach). |
-| `themeServer.enable` | bool | `true` | Master switch for the whole theme mechanism. |
-| `themeServer.themeDir` | nullOr path | `null` | Directory containing `theme.css` to serve -- a directory, not a direct file path (see the option's own doc comment for why: a `path` pointing straight at one file gets copied into the store standalone, with no meaningful parent to serve). |
-| `themeServer.bindAddress` | str | `"0.0.0.0"` | Address the CORS static file server binds to. |
-| `themeServer.port` | port | `6055` | Port the CORS static file server listens on. |
-| `themeServer.publicHostname` | str | `"jellyfin.local"` | Hostname embedded in the `@import` URL pushed into Jellyfin's branding config -- deliberately not `localhost` (fetched by each client's own browser, not the server). Needs real mDNS/hosts resolution (this machine's own pmg setup), out of Nix's scope. |
+| `theme.enable` | bool | `true` | Master switch for the theme sync. |
+| `theme.cssPath` | nullOr path | `null` | Path to the real `theme.css` file. Its content is embedded directly into Jellyfin's branding `CustomCss` (marker-delimited, so any other manual CSS added via the dashboard survives). |
 | `pluginRepos` | listOf `{name,url}` | `[ ]` | Written into Jellyfin's own `repositories.xml` every start, but only if non-empty -- an unconditional write with an empty list risks overwriting Jellyfin's own built-in default repo with nothing, unconfirmed whether that's actually safe. |
 | `plugins` | listOf `{guid,version}` | `[ ]` | Installed via Jellyfin's own REST API in `postStart`. Nothing removes an undeclared-but-installed plugin automatically (unlike ComfyUI's nodes/models) -- Jellyfin's plugin uninstall isn't a simple file deletion, not safe to automate blind. |
 
@@ -114,15 +111,70 @@ Fixed generically in `mk-self-hosted-service.nix` (a new
 existing `ancestorDirs`) -- this is the first service with a nested
 storage `src`, but the fix applies to any future one too.
 
-## The theme server needs an explicit `Wants=`/`After=`, not just `PartOf=`
+## Theme: embedded CustomCss, not a separate server (revised design)
 
-`PartOf=self-hosted-jellyfin.service` on the theme server unit only
-propagates *stop*/*restart* (confirmed: starting jellyfin left the theme
-server dead until manually started) -- `Wants=`/`After=` on the *main*
-service, pointing at the theme unit, is what's actually needed to make
-starting jellyfin also start it, matching the old `run_start()`'s
-"start jellyfin, then start theme-server" ordering. Both directions are
-wired in `jellyfin.nix`.
+The first version of this used a separate sidecar systemd unit (a tiny
+CORS-enabled static file server, ported near-verbatim from the old
+`theme-server.sh`) serving `theme.css`, with an `@import url(...)` line
+pushed into Jellyfin's branding config pointing at it -- faithful to the
+old bash framework's actual mechanism, and it worked. Reverted once it
+turned out to depend on a hostname (`jellyfin.local`, resolved via mDNS)
+that isn't real infrastructure on this machine yet -- confirmed the
+setup wizard/theme wouldn't reliably resolve from other devices without
+it. (Also hit a real systemd lesson along the way: `PartOf=` on the
+sidecar unit only propagates *stop*/*restart*, not *start* --
+`Wants=`/`After=` on the *main* service, pointing at the sidecar, is
+what's actually needed to make starting jellyfin also start a
+dependent unit. Moot now that the sidecar's gone, but worth remembering
+for any future multi-unit service.)
+
+Current design: `lib/theme-sync.nix` reads `theme.cssPath`'s real content
+directly (no serving, no hostname, no port) and embeds it into
+Jellyfin's branding `CustomCss` field, marker-delimited (`/* BEGIN
+nix-managed theme ... */` / `/* END ... */`) so it only ever replaces its
+own block, never anything added manually via the dashboard outside it.
+Since `CustomCss` is served as part of Jellyfin's own response to every
+client, this works from any device that can already reach Jellyfin at
+all -- LAN, VPN, remote, no DNS/mDNS dependency whatsoever. Trade-off:
+editing `theme.css` needs a re-sync (restart, or a future manual action)
+to take effect, instead of a live `@import` re-fetch -- themes don't
+change often enough for that to matter in practice.
+
+## `port`: API push, not env var or CLI flag
+
+Three services in this repo now have `host`/`port`-style options
+(Ollama, SearXNG, Jellyfin), and all three use a genuinely different
+mechanism, worth being explicit about:
+
+- **Ollama**: `OLLAMA_HOST` is a real env var Ollama reads directly.
+  `host`/`port` here just construct that string and win over
+  `environment.OLLAMA_HOST` if set.
+- **SearXNG**: `SEARXNG_BIND_ADDRESS`/`SEARXNG_PORT` are real, native env
+  var overrides SearXNG's own `settings_defaults.py` declares --
+  cleanest of the three, no file-touching or API call needed at all.
+- **Jellyfin**: neither exists. Confirmed directly (`ASPNETCORE_URLS`
+  explicitly ignored on a real run -- "Overriding address(es) ...
+  Binding to endpoints defined via IConfiguration ... instead") and by
+  inspection (no CLI flag for it either). The *only* real way to change
+  it is Jellyfin's own REST API (`/System/Configuration/network`) -- the
+  same one its dashboard's own Networking page uses under the hood.
+  `lib/network-sync.nix` pushes `cfg.port` there in `postStart`, same
+  wait-for-api + admin-key pattern as the theme sync and plugin install.
+
+**The real asymmetry this creates**: Ollama/SearXNG's overrides apply
+from the very first start, no matter what. Jellyfin's `port` can only
+apply *after* the live API is up **and** an admin key exists -- which,
+on a genuinely fresh install (no setup wizard completed yet), it won't.
+So setting `port` on a brand-new Jellyfin install silently does nothing
+until you've completed the wizard once. Not a bug, just a real
+consequence of Jellyfin not exposing any pre-startup override for this
+the way the other two do.
+
+**Also real**: pushing a new port via the API updates `network.xml`
+(the *stored* config) but does **not** rebind Kestrel's already-listening
+socket -- Jellyfin needs an actual restart after the push for the new
+port to take effect, same as any config change that only applies at
+startup.
 
 ## Two things confirmed dead, not ported as working options
 
@@ -173,15 +225,13 @@ directly). Two real uses:
 - `self-hosted-jellyfin.service` -- the live process. `preStart`: (1)
   `mkdir -p` the plain scratch dirs (`cache`/`transcode`/`log`), (2) write
   `config/repositories.xml` from `cfg.pluginRepos` (only if non-empty).
-  `postStart`: theme branding sync (only if `themeServer.enable` and
-  `themeDir` set), then plugin installs (only if `cfg.plugins != [ ]`) --
-  both bounded-poll-until-ready first (`lib/wait-for-api.nix`), both
+  `postStart`: theme branding sync (only if `theme.enable` and
+  `theme.cssPath` set), then plugin installs (only if `cfg.plugins != [ ]`),
+  then network config push (only if `cfg.port != null`) -- all three
+  bounded-poll-until-ready first (`lib/wait-for-api.nix`), all three
   gracefully skip (exit 0, don't fail the service) if no admin API key
   exists yet. `LimitNOFILE=65536`, `TimeoutStartSec=infinity`, same as
   every service here.
-- `self-hosted-jellyfin-theme.service` -- the theme server sidecar (see
-  above for the `Wants=`/`After=`/`PartOf=` relationship). Only exists at
-  all if `themeServer.enable && themeServer.themeDir != null`.
 - `self-hosted-jellyfin@update` / `@update:apply` -- checks
   `repo.jellyfin.org`'s latest-stable listing against `version`.
   Print-only / writes `version`+`hash` into
@@ -202,7 +252,19 @@ directly). Two real uses:
   and `network.xml` showing the real port was always 8096. One value
   fixed on the way in: `system.xml`'s `IsStartupWizardCompleted` (see
   above).
-- **`data/`** -- starts empty, no real backup of it ever existed.
+- **`data/`** -- starts empty, no real backup of it ever existed. This
+  means the actual Jellyfin database (users, accounts, watch history,
+  library definitions -- everything the setup wizard configures) starts
+  genuinely fresh: the first real start after this port shows Jellyfin's
+  normal "Welcome to Jellyfin!" setup wizard, same as any brand-new
+  install would. Confirmed by exhaustively searching the entire Media
+  backup drive (not just the one path checked initially) for any
+  `jellyfin.db` -- none exists anywhere. Only the peripheral config files
+  above (branding, network, encoding settings, one user's profile
+  picture) were ever backed up; the actual database with real
+  users/libraries/watch-history was not, on this machine, at any
+  location found. Re-running the setup wizard once is unavoidable unless
+  a real `jellyfin.db` backup turns up somewhere else.
 - **Library storage** (`libraries/media-{movies,shows,anime,music,
   audiobooks,books,photos}`) -- fixed from the old, stale `/mnt/Storage`
   (never a real mount point on this machine) to the real mount,
@@ -230,11 +292,10 @@ restart.
 stale ancestor rows, restarts, triggers a scan. Destructive to those
 stale rows specifically (by design), not a routine action.
 
-**Add another theme**: drop a new `theme.css` under
-`Dotfiles/Themes/Jellyfin/<name>/`, point `themeServer.themeDir` at it in
-`config/self-hosted/jellyfin.nix`, rebuild, restart (this restarts both
-the live service and the theme server, since they're `Wants=`/`After=`-
-linked).
+**Switch themes / pick up a new build**: drop a new `theme.css` under
+`Dotfiles/Themes/Jellyfin/<name>/`, point `theme.cssPath` at it in
+`config/self-hosted/jellyfin.nix`, rebuild, restart -- `postStart`'s
+theme sync re-embeds the new content into `CustomCss` on that restart.
 
 **Set up a stable admin API key** (recommended once, not required):
 create one via Dashboard -> API Keys -> +, then

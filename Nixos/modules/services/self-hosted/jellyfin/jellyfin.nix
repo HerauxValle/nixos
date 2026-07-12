@@ -41,6 +41,7 @@ let
 
   themeSyncScript = import ./lib/theme-sync.nix { inherit cfg waitForApi; jellyfinDataDir = liveDataDir; };
   pluginsSyncScript = import ./lib/plugins-sync.nix { inherit lib cfg waitForApi; jellyfinDataDir = liveDataDir; };
+  networkSyncScript = import ./lib/network-sync.nix { inherit cfg waitForApi; jellyfinDataDir = liveDataDir; };
   rescanScript = import ./lib/rescan.nix { jellyfinDataDir = liveDataDir; };
 
   # Plain string, not a Nix path -- see update.nix for why (resolves to a
@@ -85,7 +86,8 @@ in
       ];
       postStart =
         lib.optionals (cfg.theme.enable && cfg.theme.cssPath != null) [ themeSyncScript ]
-        ++ lib.optionals (cfg.plugins != [ ]) [ pluginsSyncScript ];
+        ++ lib.optionals (cfg.plugins != [ ]) [ pluginsSyncScript ]
+        ++ lib.optionals (cfg.port != null) [ networkSyncScript ];
       packages = [ pkgs.sqlite pkgs.curl pkgs.python3 ];
       ensureDataDir = true; # dataDir itself is plain, safe to auto-create
       inherit (cfg) dataDir storage autoStart environment requireMounts teardownPaths;

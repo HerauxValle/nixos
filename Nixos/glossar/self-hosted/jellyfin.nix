@@ -42,6 +42,12 @@
   #     DOTNET_EnableDiagnostics = "0";
   #   };
 
+  #   # --- optional typed override, pushed via Jellyfin's own REST API (postStart) --
+  #   # no env var, no CLI flag exists for this (confirmed: ASPNETCORE_URLS is
+  #   # ignored). No `host` option -- Jellyfin's network config has no bind-
+  #   # address field at all. null (default) = network.xml's own port applies.
+  #   port = null;
+
   #   # --- vault + external-drive real data -- see info.md's "Real, migrated data" --
   #   storage = [
   #     { src = "config"; dest = "${homeDirectory}/Images/SelfHosted/Jellyfin/config"; }

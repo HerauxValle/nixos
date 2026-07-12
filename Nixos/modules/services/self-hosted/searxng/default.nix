@@ -78,6 +78,32 @@
       description = "Whether the live service starts automatically on boot/rebuild (wantedBy multi-user.target).";
     };
 
+    # Optional, typed overrides -- null (the default for both) means
+    # "don't touch anything," settings.yml's own server.bind_address/
+    # server.port apply exactly as they already do (real values inside
+    # the vault-protected file, untouched by this port -- see storage
+    # below). This is the *cleanest* of the three host/port mechanisms in
+    # this repo (Ollama's rebuilds a combined string, Jellyfin's has no
+    # real "host" concept and needs a live API call for port) -- SearXNG
+    # has genuine, native, independent env var overrides for exactly
+    # these two settings (searx/settings_defaults.py:
+    # SettingsValue(..., 'SEARXNG_BIND_ADDRESS') /
+    # SettingsValue(..., 'SEARXNG_PORT'), same mechanism `secret` above
+    # already uses for SEARXNG_SECRET, confirmed by reading that file
+    # directly). Setting either one just adds that env var -- no file
+    # patching, no API call, no parsing an existing combined value.
+    host = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "Exported as SEARXNG_BIND_ADDRESS if set -- overrides settings.yml's server.bind_address. null = settings.yml's own value applies.";
+    };
+
+    port = lib.mkOption {
+      type = lib.types.nullOr lib.types.port;
+      default = null;
+      description = "Exported as SEARXNG_PORT if set -- overrides settings.yml's server.port. null = settings.yml's own value applies.";
+    };
+
     environment = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
       default = { };

@@ -21,9 +21,16 @@ let
   # is added here because it's structurally consumed (SearXNG's own
   # settings_defaults.py reads it as a real override for
   # server.secret_key), not because it needs its own separate mechanism.
+  # host/port work the same way but are optional (null = omit the env var
+  # entirely, settings.yml's own values apply) -- unlike secret, which is
+  # always required and always set.
   environment = cfg.environment // {
     SEARXNG_SECRET = cfg.secret;
     SEARXNG_SETTINGS_PATH = settingsPath;
+  } // lib.optionalAttrs (cfg.host != null) {
+    SEARXNG_BIND_ADDRESS = cfg.host;
+  } // lib.optionalAttrs (cfg.port != null) {
+    SEARXNG_PORT = toString cfg.port;
   };
 
   # searxng has no pip package (confirmed in the ported toolchain.sh's
