@@ -37,7 +37,20 @@
     dataDir = lib.mkOption {
       type = lib.types.str;
       default = "${config.vars.homeDirectory}/Applications/Networking/SearXNG";
-      description = "Plain, always-available path -- holds nothing precious of its own: the generated secret-key file (regenerable, invalidates sessions if lost, nothing more) and the settings.yml symlink (see storage below, the one real data location).";
+      description = "Plain, always-available path -- holds nothing but the settings.yml symlink (see storage below, the one real data location).";
+    };
+
+    # Real, typed option rather than folded into environment -- SearXNG
+    # itself structurally consumes this (searx/settings_defaults.py's
+    # SettingsValue(environ_name="SEARXNG_SECRET"), confirmed by reading
+    # that file directly): if SEARXNG_SECRET is set, it unconditionally
+    # overrides whatever's in settings.yml's server.secret_key, no matter
+    # what that value is. Nix's job is exporting this one env var;
+    # everything else about server config stays inside the real
+    # settings.yml, untouched.
+    secret = lib.mkOption {
+      type = lib.types.str;
+      description = "Session-signing secret, exported as SEARXNG_SECRET on every start -- overrides settings.yml's own server.secret_key.";
     };
 
     # Both live under ~/.impure/, not dataDir -- same reasoning as every
@@ -111,8 +124,7 @@
         (see self-hosted.nix's mkTeardownActivationScript). Empty (the
         default) means "everything directly under dataDir except what a
         storage entry covers" -- safe here since dataDir holds nothing
-        but the generated secret-key file and the settings.yml symlink
-        itself.
+        but the settings.yml symlink itself.
       '';
     };
 
@@ -141,7 +153,7 @@
           };
           path = lib.mkOption {
             type = lib.types.path;
-            description = "Nix path to this theme's source directory (config/self-hosted/searxng/themes/<name>/), containing templates/ and/or static/ subdirs.";
+            description = "Nix path to this theme's source directory (Dotfiles/Themes/Searxng/<name>/, same top-level convention as every other themed app in this repo), containing templates/ and/or static/ subdirs.";
           };
         };
       });

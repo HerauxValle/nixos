@@ -24,13 +24,17 @@
   #   # just absent.
   #   enabled = false;
 
-  #   # --- plain base dir -- holds only the secret-key file + settings.yml symlink --
+  #   # --- plain base dir -- holds only the settings.yml symlink --
   #   dataDir = "${homeDirectory}/Applications/Networking/SearXNG";
 
   #   autoStart = true;  # false = exists, systemctl start-able, but not on boot/rebuild
 
   #   # --- pinned git rev -- no coreHash alongside this, srcDir is a plain writable clone --
   #   coreRev = "c19d86faa393bdd696a5708e3c294f956d750683";
+
+  #   # --- exported as SEARXNG_SECRET -- overrides settings.yml's server.secret_key --
+  #   # (a real, native override -- searx/settings_defaults.py's SettingsValue)
+  #   secret = "314159265314159265";
 
   #   # --- passthrough env for the live process -----------------------------
   #   environment = { };
@@ -46,14 +50,14 @@
 
   #   # --- what enabled=false actually removes -------------------------------
   #   # Empty (the default) means "everything under dataDir except storage"
-  #   # -- safe here since dataDir holds nothing but the secret-key file and
-  #   # the settings.yml symlink itself.
+  #   # -- safe here since dataDir holds nothing but the settings.yml symlink itself.
   #   teardownPaths = [ ];
 
-  #   # --- real theme sources, symlinked into the live checkout every start --
+  #   # --- real theme sources (Dotfiles/Themes/Searxng/, not Nixos/config/) --
+  #   # symlinked into the live checkout every start.
   #   themes = [
-  #     { name = "simple"; path = ./searxng/themes/simple; }
-  #     { name = "adversarial"; path = ./searxng/themes/adversarial; }
+  #     { name = "simple"; path = ../../../Themes/Searxng/simple; }
+  #     { name = "adversarial"; path = ../../../Themes/Searxng/adversarial; }
   #   ];
 
   # };

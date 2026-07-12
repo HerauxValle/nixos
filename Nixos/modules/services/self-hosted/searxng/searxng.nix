@@ -17,7 +17,14 @@ let
   # settings.yml in the vault. Nix never reads or writes its contents.
   settingsPath = "${cfg.dataDir}/${(builtins.head cfg.storage).src}";
 
-  secretKeyFile = "${cfg.dataDir}/.searxng_secret_key";
+  # cfg.environment is plain passthrough (see default.nix) -- SEARXNG_SECRET
+  # is added here because it's structurally consumed (SearXNG's own
+  # settings_defaults.py reads it as a real override for
+  # server.secret_key), not because it needs its own separate mechanism.
+  environment = cfg.environment // {
+    SEARXNG_SECRET = cfg.secret;
+    SEARXNG_SETTINGS_PATH = settingsPath;
+  };
 
   # searxng has no pip package (confirmed in the ported toolchain.sh's
   # own comment) -- this writes a .pth file into the venv's
@@ -95,8 +102,6 @@ in
       # Runs inside the FHS sandbox too, not just preStart -- lxml needs
       # the real /lib,/usr/lib on every import, not just once at install.
       execStart = "${pkgs.writeShellScript "self-hosted-searxng-start" ''
-        export SEARXNG_SECRET_KEY="$(cat "${secretKeyFile}")"
-        export SEARXNG_SETTINGS_PATH="${settingsPath}"
         cd "${cfg.srcDir}"
         exec ${fhsEnv}/bin/${fhsEnv.name} -c ${lib.escapeShellArg ''
           exec "${cfg.venvDir}/bin/python" searx/webapp.py
@@ -107,19 +112,14 @@ in
         srcEnsureScript
         venvEnsureScript
         themeLinkScript
-        ''
-          if [ ! -f "${secretKeyFile}" ]; then
-            head -c 32 /dev/urandom | base64 | tr -d '\n' > "${secretKeyFile}"
-            chmod 600 "${secretKeyFile}"
-          fi
-        ''
       ];
       # git for srcEnsureScript, same reasoning fhs.nix's own git is
       # needed for (that one's inside the sandbox, this one's the plain
       # preStart shell outside it).
       packages = [ pkgs.git ];
       ensureDataDir = true; # dataDir itself is plain, safe to auto-create
-      inherit (cfg) dataDir storage autoStart environment requireMounts teardownPaths;
+      inherit (cfg) dataDir storage autoStart requireMounts teardownPaths;
+      inherit environment;
       venvDir = cfg.venvDir;
     })
     (selfHosted.mkActionService {

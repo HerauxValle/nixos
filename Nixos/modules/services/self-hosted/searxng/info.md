@@ -4,7 +4,9 @@ Schema: `./default.nix`. Wiring: `./searxng.nix`. Implementation detail
 pieces: `./lib/{fhs,update}.nix`.
 Real values: `Nixos/config/self-hosted/searxng.nix`.
 Lockfile + source list: `Python/locks/self-hosted/searxng/{requirements.lock,requirements.in}`.
-Real theme sources: `Nixos/config/self-hosted/searxng/themes/{simple,adversarial}/`.
+Real theme sources: `Dotfiles/Themes/Searxng/{simple,adversarial}/` -- same
+top-level convention as every other themed app in this repo (Kvantum,
+QT, Dolphin, Gwenview, GRUB), not under `Nixos/config/`.
 
 Runs from a git-checked-out source (`srcDir`) plus a pip-installed venv,
 both inside a `buildFHSEnv` sandbox (lxml needs a real `/lib`,`/usr/lib`
@@ -24,18 +26,19 @@ writable clone handles with a bare `ln -sfn`, no sandbox trickery needed.
 | Option | Type | Default | Notes |
 |---|---|---|---|
 | `enabled` | bool | `false` | Master switch. `true` = live service + actions exist and run. `false` = torn down automatically on the next rebuild (see "Full teardown" below), not just absent. |
-| `dataDir` | str | `~/Applications/Networking/SearXNG` | Plain base dir -- holds only the generated secret-key file and the `settings.yml` symlink (see `storage`). |
+| `dataDir` | str | `~/Applications/Networking/SearXNG` | Plain base dir -- holds only the `settings.yml` symlink (see `storage`). |
 | `venvDir` | str | `~/.impure/python-venvs/self-hosted/searxng` | Disposable, regenerated from `requirementsLock` automatically by `preStart`'s `venvEnsureScript` whenever the lock's hash changes. |
 | `srcDir` | str | `~/.impure/python-venvs/self-hosted/searxng-src` | The `searxng/searxng` git checkout, pinned to `coreRev` every start (no-op if already there). A sibling of `venvDir`, not nested inside it -- `venvDir` gets fully wiped on every lock-hash change, which would force a needless re-clone if `srcDir` lived inside it. |
 | `autoStart` | bool | `true` | Same meaning as every other service here. Currently `false` in this machine's real config. |
 | `coreRev` | str | *required* | `searxng/searxng` git rev to pin. No `coreHash` alongside it -- see this file's top section for why. |
+| `secret` | str | *required* | Exported as `SEARXNG_SECRET` on every start. SearXNG's own `settings_defaults.py` (`SettingsValue(environ_name="SEARXNG_SECRET")`) reads this and unconditionally overrides settings.yml's `server.secret_key` with it -- confirmed by reading that file directly, not assumed from the settings.yml comment (which describes the Docker image's separate `envsubst` mechanism, not something SearXNG's own Python does). |
 | `environment` | attrsOf str | `{ }` | Passthrough env for the live process. |
 | `storage` | listOf `{src,dest}` | `[ ]` | One real entry: `settings.yml` (a **single file**, not a directory -- `L+` tmpfiles symlinks don't care which) -> the real, hand-customized settings.yml in the vault. |
 | `requireMounts` | listOf str | `[ ]` | Paths checked as mountpoints before `preStart` runs -- the Casket vault `storage` points into. |
-| `teardownPaths` | listOf str | `[ ]` | Paths, relative to `dataDir`, removed when `enabled = false`. Empty here (the safe default) -- `dataDir` holds nothing but the secret-key file and the `settings.yml` symlink itself. |
+| `teardownPaths` | listOf str | `[ ]` | Paths, relative to `dataDir`, removed when `enabled = false`. Empty here (the safe default) -- `dataDir` holds nothing but the `settings.yml` symlink itself. |
 | `themes` | listOf `{name,path}` | `[ ]` | Real theme sources, symlinked into the live checkout's `searx/templates/<name>` and `searx/static/themes/<name>` by `preStart`, same mechanism as the old `links.sh`. Not a store/installed split like ComfyUI's nodes -- every declared theme always gets linked, there's no "declared but not wanted" catalog problem here. |
 
-## `settings.yml` -- deliberately outside Nix's reach
+## `settings.yml` -- deliberately outside Nix's reach (mostly)
 
 Unlike every other option here, there is **no** typed `host`/`port`/
 `theme` option for SearXNG. The real settings.yml (instance name,
@@ -45,6 +48,17 @@ lives in the vault (`storage`'s one entry) -- Nix's job is making sure
 that symlink exists, nothing more. Changing any of those values means
 editing the real file directly (or, for the theme specifically, see
 below) -- exactly the same relationship Nix has with Stash's `config.yml`.
+
+**The one exception is `secret`** (see the options table) -- SearXNG
+hard-refuses to start with the literal placeholder
+`server.secret_key: "ultrasecretkey"` still in effect
+(`searx/webapp.py`: `if get_setting("server.secret_key") == 'ultrasecretkey':
+logger.error(...)`, confirmed by reading that file directly on a real
+failed start). The real vault settings.yml's `secret_key` value was
+fixed from that placeholder to the same value the old bash framework's
+`launch.sh` hardcoded (`314159265314159265`) -- not a fresh random value
+-- as a fallback only; `SEARXNG_SECRET` (this option) always wins over
+it at runtime regardless, per `settings_defaults.py`'s `SettingsValue`.
 
 **Theme selection**: SearXNG has a **native** per-session theme switcher
 (`/preferences` -> Interface -> Theme, cookie-based, no restart needed)
@@ -69,8 +83,7 @@ feature that already exists.
   `srcDir` (faithful port of the old install.sh's identical trick, since
   there's no real `pip install .` happening -- `import searx` resolves
   via this `.pth` file instead), (4) `themeLinkScript` -- `ln -sfn` every
-  declared theme's `templates`/`static` into the checkout, (5) generate
-  `dataDir/.searxng_secret_key` if missing. `execStart` runs
+  declared theme's `templates`/`static` into the checkout. `execStart` runs
   `searx/webapp.py` directly from `srcDir` (matching the old
   `runtime.sh`, not the `searxng-run` console-script entry point that
   was never actually used), inside the FHS sandbox (lxml needs the real
@@ -95,11 +108,15 @@ Two things existed pre-Nix but were never actually vault-backed:
   `~/Images/SelfHosted/SearXNG/settings.yml` before the first rebuild --
   real instance data now lives vault-protected like every other
   service's precious data, instead of sitting in a script tree with no
-  backup story of its own.
+  backup story of its own. Its `secret_key` value was also fixed from
+  the non-functional placeholder `"ultrasecretkey"` to a real value --
+  see the `settings.yml` section above.
 - **Themes** (`simple`, `adversarial`) -- real, hand-crafted CSS/
   templates, genuinely code-like assets (not per-instance data), so they
-  were copied into `config/self-hosted/searxng/themes/` and are tracked
-  in git like everything else under `config/`, not the vault.
+  live at `Dotfiles/Themes/Searxng/` and are tracked in git there, same
+  convention as every other themed app in this repo -- not under
+  `Nixos/config/` (moved there after an initial pass mistakenly put them
+  in `config/self-hosted/searxng/themes/`, corrected once pointed out).
 
 The `data|.../SelfHosted/SearXNG/data` entry the old `storage.sh`
 declared was **not** ported -- grepped the entire old bash tree and
@@ -119,9 +136,9 @@ restart -- `srcEnsureScript` picks up the new rev automatically.
 **Bump dependencies**: same shape, `@update:deps`/`@update:deps:apply`.
 
 **Add another theme**: drop a new `templates/`+`static/` pair under
-`config/self-hosted/searxng/themes/<name>/`, add
-`{ name = "<name>"; path = ./searxng/themes/<name>; }` to `themes` in
-`config/self-hosted/searxng.nix`, rebuild, restart. Set it as the
+`Dotfiles/Themes/Searxng/<name>/`, add
+`{ name = "<name>"; path = ../../../Themes/Searxng/<name>; }` to `themes`
+in `config/self-hosted/searxng.nix`, rebuild, restart. Set it as the
 server-wide default by editing the real vault `settings.yml`'s
 `ui.default_theme` directly, or just pick it per-session at
 `/preferences`.

@@ -13,7 +13,7 @@
     enabled = true;
 
     # Plain, always-available -- holds nothing on its own but the
-    # generated secret-key file and the settings.yml symlink.
+    # settings.yml symlink.
     dataDir = "${config.vars.homeDirectory}/Applications/Networking/SearXNG";
 
     # Off for now -- still exists, still systemctl start-able by hand,
@@ -25,6 +25,14 @@
     # alongside this (see default.nix's top comment for why: srcDir is a
     # plain writable git clone, not a fetchFromGitHub store path).
     coreRev = "c19d86faa393bdd696a5708e3c294f956d750683";
+
+    # Same value the old bash framework's launch.sh hardcoded
+    # (SEARXNG_SECRET) -- SearXNG's own settings_defaults.py reads this
+    # via a real, native SettingsValue(environ_name="SEARXNG_SECRET")
+    # override (unconditional: if set, always wins over whatever's in
+    # settings.yml), confirmed by reading that file directly, not the
+    # Docker-only envsubst mechanism the settings.yml comment references.
+    secret = "314159265314159265";
 
     environment = { };
 
@@ -43,23 +51,25 @@
       "${config.vars.homeDirectory}/Images/SelfHosted"
     ];
 
-    # Empty -- dataDir holds nothing but the generated secret-key file
-    # and the settings.yml symlink itself, so the default "everything
-    # but storage" teardown (when enabled = false) is safe as-is.
+    # Empty -- dataDir holds nothing but the settings.yml symlink itself,
+    # so the default "everything but storage" teardown (when enabled =
+    # false) is safe as-is.
     teardownPaths = [ ];
 
-    # Both real, hand-crafted theme sources from the old
-    # configuration/themes/ -- "adversarial" is a genuinely custom dark
-    # theme (Playfair Display/JetBrains Mono, red-on-paper palette),
-    # "simple" is the stock-derived default. settings.yml's own
-    # ui.default_theme (inside the vault file above, untouched by this
-    # port) is what actually picks between them -- currently "simple".
-    # SearXNG's own /preferences page already lets any user override
-    # this per-session natively, so there's no separate Nix-level
-    # `theme` option here on purpose.
+    # Both real, hand-crafted theme sources -- lives under Dotfiles/
+    # Themes/Searxng/, same top-level convention as every other themed
+    # app in this repo (Kvantum, QT, Dolphin, Gwenview, GRUB), not under
+    # Nixos/config/. "adversarial" is a genuinely custom dark theme
+    # (Playfair Display/JetBrains Mono, red-on-paper palette), "simple"
+    # is the stock-derived default. settings.yml's own ui.default_theme
+    # (inside the vault file above, untouched by this port) is what
+    # actually picks between them -- currently "simple". SearXNG's own
+    # /preferences page already lets any user override this per-session
+    # natively, so there's no separate Nix-level `theme` option here on
+    # purpose.
     themes = [
-      { name = "simple"; path = ./searxng/themes/simple; }
-      { name = "adversarial"; path = ./searxng/themes/adversarial; }
+      { name = "simple"; path = ../../../Themes/Searxng/simple; }
+      { name = "adversarial"; path = ../../../Themes/Searxng/adversarial; }
     ];
   };
 }
