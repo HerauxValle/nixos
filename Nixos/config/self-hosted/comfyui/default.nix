@@ -8,6 +8,7 @@
   imports = [
     ./nodes.nix
     ./models.nix
+    ./patches.nix
     ./comfyui.nix
   ];
 }

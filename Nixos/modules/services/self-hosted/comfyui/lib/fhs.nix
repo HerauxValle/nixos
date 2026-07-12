@@ -40,6 +40,27 @@ selfHosted.mkFHSVenv {
   #   arial.ttf; the font patch (./node-mounting.nix's mkNodeSrc) makes
   #   that moot by pointing the one hardcoded call straight at
   #   dejavu_fonts.
+  # - libxcb/libx11 added -- confirmed real gap, not guessed: several
+  #   real nodes (was-node-suite-comfyui, ComfyUI-VideoHelperSuite,
+  #   SeargeSDXL, ComfyUI-layerdiffuse, ComfyUI-Image-Filters,
+  #   ComfyUI-HyperLoRA, comfyui_controlnet_aux, ComfyUI-Impact-Pack,
+  #   ComfyUI-Inspire-Pack, facerestore_cf, ComfyUI-SeedVR2_VideoUpscaler,
+  #   comfyui-propost, ComfyUI-post-processing-nodes,
+  #   ComfyUI-HQ-Image-Save, ComfyUI-Easy-Use, plus the built-in
+  #   comfy_extras/nodes_glsl.py) failed to import on a real run with
+  #   `libxcb.so.1`/`libX11.so.6: cannot open shared object file` --
+  #   opencv-python's compiled extension needs the X11 client libs even
+  #   though nothing here has a real display. Old xorg.libxcb/xorg.libX11
+  #   names are deprecated in this nixpkgs -- confirmed the current
+  #   top-level names (libxcb, libx11) via a real `nix eval`, not
+  #   assumed.
+  # - e2fsprogs added -- ComfyUI-Hunyuan3DWrapper's pymeshlab dependency
+  #   failed with `libcom_err.so.2: cannot open shared object file` on
+  #   the same real run. krb5 (the more obvious-looking source of
+  #   libcom_err) only ships libcom_err.so.3 in this nixpkgs -- a real
+  #   SONAME mismatch, confirmed by actually building both derivations
+  #   and listing their lib/ contents, not assumed. e2fsprogs's `.out`
+  #   output is the one that actually has libcom_err.so.2.
   targetPkgs = pkgs: with pkgs; [
     python312
     stdenv.cc
@@ -57,6 +78,9 @@ selfHosted.mkFHSVenv {
     git
     dejavu_fonts
     noto-fonts
+    libxcb
+    libx11
+    e2fsprogs
   ];
   inherit extraBwrapArgs;
 }

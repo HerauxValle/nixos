@@ -122,7 +122,31 @@
         };
       });
       default = [ ];
-      description = "Every node ever pinned via fetchFromGitHub (owner/repo/rev/hash) -- get a new entry's rev+hash with nix-prefetch-git. Only entries listed in installed.nodes actually get symlinked.";
+      description = "Every node ever pinned via fetchFromGitHub (owner/repo/rev/hash) -- get a new entry's rev+hash with nix-prefetch-git. Only entries listed in installed.nodes actually get bind-mounted.";
+    };
+
+    # Real, individual fixes for specific nodes' own source bugs (a bad
+    # hardcoded path, a hardcoded font lookup) -- not a generic
+    # node-configuration mechanism, and deliberately scoped to ComfyUI
+    # only rather than a shared self-hosted.nix concept: no other
+    # service has anything resembling "many pluggable third-party
+    # source components with occasional per-component bugs" to patch.
+    # See config/self-hosted/comfyui/patches.nix.
+    nodePatches = lib.mkOption {
+      type = lib.types.listOf (lib.types.submodule {
+        options = {
+          repo = lib.mkOption {
+            type = lib.types.str;
+            description = "nodeStore repo name this patch applies to.";
+          };
+          script = lib.mkOption {
+            type = lib.types.str;
+            description = "Shell fragment run against a writable copy of the node's fetched source (cwd unset -- use $out) before it's bind-mounted in.";
+          };
+        };
+      });
+      default = [ ];
+      description = "Per-node source patches, applied by ./lib/node-mounting.nix's mkNodeSrc. A repo with no entry here is used unpatched.";
     };
 
     # The full catalog of every model ever pinned -- ~700GB across all of

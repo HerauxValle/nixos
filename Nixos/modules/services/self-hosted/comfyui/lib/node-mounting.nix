@@ -1,34 +1,31 @@
-{ lib, pkgs, dataDir, activeNodes }:
+{ lib, pkgs, dataDir, activeNodes, nodePatches }:
 
-# Node source fetch + the one known per-node patch, plus the bind-mount
-# plumbing that makes custom_nodes/<repo> look like a real, writable-looking
-# location instead of a flat Nix store path. Split out of comfyui.nix once
-# that file grew past ~480 lines -- node mounting is a self-contained
-# concern (nothing outside this file needs mkNodeSrc/nodeBindArgs except
-# requirements.nix, which takes them as explicit inputs) and info.md's
-# "Node mounting" section documents this exact behavior.
+# Node source fetch + per-node patches (see nodePatches -- a real Nix
+# option, config/self-hosted/comfyui/patches.nix's data, not hardcoded
+# here), plus the bind-mount plumbing that makes custom_nodes/<repo>
+# look like a real, writable-looking location instead of a flat Nix
+# store path. Split out of comfyui.nix once that file grew past ~480
+# lines -- node mounting is a self-contained concern (nothing outside
+# this file needs mkNodeSrc/nodeBindArgs except requirements.nix, which
+# takes them as explicit inputs) and info.md's "Node mounting" section
+# documents this exact behavior.
 
 let
-  # ComfyUI-post-processing-nodes hardcodes "arial.ttf" as a bare
-  # filename (post_processing_nodes.py:108). The old bash resolved this
-  # with an Arch-specific hook that symlinked system fonts into
-  # /usr/share/fonts/truetype; there's no such dance here -- the FHS
-  # sandbox already carries dejavu_fonts, this just points the one
-  # hardcoded call at a real path in it. This is a genuine node source
-  # bug (a bad hardcoded lookup), not a path-resolution artifact of how
-  # nodes get mounted -- unlike the COMFYUI_DIR problem below, patching
-  # this at the source is the only real fix, and only this one node
-  # needs it.
+  # nodePatches arrives as the raw listOf{repo,script} from cfg -- turn
+  # it into a repo -> script lookup once, here, rather than re-searching
+  # the list for every node in activeNodes.
+  patchesByRepo = lib.listToAttrs
+    (map (p: lib.nameValuePair p.repo p.script) nodePatches);
+
   mkNodeSrc = node:
     let
       base = pkgs.fetchFromGitHub { inherit (node) owner repo rev hash; };
     in
-    if node.repo == "ComfyUI-post-processing-nodes" then
+    if patchesByRepo ? ${node.repo} then
       pkgs.runCommand "node-${node.repo}-patched" { } ''
         cp -r ${base} $out
         chmod -R u+w $out
-        sed -i 's|ImageFont\.truetype("arial\.ttf", font_size)|ImageFont.truetype("${pkgs.dejavu_fonts}/share/fonts/truetype/DejaVuSansMono.ttf", font_size)|' \
-          "$out/post_processing_nodes.py"
+        ${patchesByRepo.${node.repo}}
       ''
     else
       base;

@@ -35,6 +35,7 @@ let
   inherit (import ./lib/node-mounting.nix {
     inherit lib pkgs activeNodes;
     dataDir = cfg.dataDir;
+    nodePatches = cfg.nodePatches;
   }) mkNodeSrc nodeBindArgs prepareNodeMountsScript;
 
   fhsEnv = import ./lib/fhs.nix { inherit pkgs; extraBwrapArgs = nodeBindArgs; };
@@ -103,13 +104,22 @@ in
         ''}
       ''}";
       # Reconciliation runs here now, every start, not as separate manual
-      # actions: nodes (cheap, no network) -> venv (needed before
-      # execStart's python even runs; mkVenvEnsureScript skips the real
-      # install unless requirementsLock actually changed) -> models
-      # (network, uses the same environmentFile secrets as everything
-      # else on this unit -- EnvironmentFile= applies to every exec step
-      # including ExecStartPre, same as the mount check above).
-      preStart = [ prepareNodeMountsScript venvEnsureScript syncModelsScript ];
+      # actions: output/temp/input (cheap, --base-directory expects them
+      # to exist -- confirmed a real gap: several Comfyroll nodes'
+      # INPUT_TYPES() eagerly os.listdir() output/ before ComfyUI itself
+      # lazily creates it, throwing FileNotFoundError on first run) ->
+      # nodes (cheap, no network) -> venv (needed before execStart's
+      # python even runs; mkVenvEnsureScript skips the real install
+      # unless requirementsLock actually changed) -> models (network,
+      # uses the same environmentFile secrets as everything else on this
+      # unit -- EnvironmentFile= applies to every exec step including
+      # ExecStartPre, same as the mount check above).
+      preStart = [
+        "mkdir -p ${cfg.dataDir}/output ${cfg.dataDir}/temp ${cfg.dataDir}/input"
+        prepareNodeMountsScript
+        venvEnsureScript
+        syncModelsScript
+      ];
       packages = [ pkgs.aria2 pkgs.curl pkgs.git ];
       ensureDataDir = true;
       inherit (cfg) dataDir storage autoStart requireMounts teardownPaths;
