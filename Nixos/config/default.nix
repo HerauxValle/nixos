@@ -9,5 +9,6 @@
     ./scripts.nix
     ./self-hosted
     ./shells.nix
+    ./services.nix
   ];
 }
