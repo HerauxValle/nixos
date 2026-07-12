@@ -112,6 +112,27 @@ let
     lib.genList
       (i: homeDirectory + "/" + lib.concatStringsSep "/" (lib.sublist 0 (i + 1) relParts))
       (builtins.length relParts);
+
+  # Same problem, one level down: a storage entry whose src is nested
+  # (e.g. "libraries/media-movies", not just "config") needs its own
+  # intermediate directory ("dataDir/libraries") to exist and be
+  # user-owned before the L+ line can walk through it -- systemd-tmpfiles
+  # auto-creates that intermediate as root:root as a side effect of the
+  # L+ line itself (there's no separate rule for it otherwise), which
+  # trips the identical "unsafe path transition" safety check as above.
+  # Found this the hard way (Jellyfin's libraries/<name> entries: the
+  # symlinks silently never got created, "libraries" itself sat there
+  # root-owned and empty). Fix: same d+z treatment, for every distinct
+  # intermediate directory any storage src actually needs.
+  storageSrcAncestorDirs =
+    if dataDir == null then [ ] else
+    lib.unique (lib.concatMap
+      (s:
+        let parts = lib.splitString "/" s.src; in
+        lib.genList
+          (i: dataDir + "/" + lib.concatStringsSep "/" (lib.sublist 0 (i + 1) parts))
+          (builtins.length parts - 1))
+      storage);
 in
 lib.mkMerge [
   (lib.mkIf enabled {
@@ -178,7 +199,7 @@ lib.mkMerge [
         ]
       ++ (lib.concatMap
         (dir: [ "d ${dir} 0755 ${user} - -" "z ${dir} 0755 ${user} - -" ])
-        ancestorDirs)
+        (ancestorDirs ++ storageSrcAncestorDirs))
       ++ lib.optionals (storage != [ ])
         (map (s: "L+ ${dataDir}/${s.src} - - - - ${s.dest}") storage);
   })
