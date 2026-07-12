@@ -19,6 +19,7 @@
         Restart = "on-failure";
         RestartSec = 1;
         TimeoutStopSec = 10;
+        Environment = "GTK_THEME=Adwaita:dark GTK_DARK_THEME=1";
       };
 
     };
