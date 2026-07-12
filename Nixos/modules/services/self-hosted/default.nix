@@ -13,6 +13,7 @@
     ./filebrowser
     ./ollama
     ./openwebui
+    ./searxng
     ./stash
   ];
 }

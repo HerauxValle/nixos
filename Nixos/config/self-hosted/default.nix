@@ -9,6 +9,7 @@
     ./filebrowser.nix
     ./ollama.nix
     ./openwebui.nix
+    ./searxng.nix
     ./stash.nix
   ];
 }
