@@ -133,6 +133,18 @@ lib.mkMerge [
           (i: cmd: "${pkgs.writeShellScript "self-hosted-${name}-poststart-${toString i}" cmd}")
           postStart;
         Restart = "on-failure";
+        # systemd's default 90s start timeout applies to ExecStartPre
+        # too -- found the hard way on ComfyUI's first real venv install
+        # (a multi-GB CUDA download): systemd killed it mid-download
+        # ("start-pre operation timed out"), Restart=on-failure retried
+        # the whole service, and it re-entered preStart, hit cache for
+        # whatever had actually finished, and re-downloaded whatever got
+        # killed mid-file -- a loop that never converges if any single
+        # file takes close to 90s. preStart legitimately taking a long
+        # time on a first install (or after a lock change) is expected
+        # for any service with a hash-locked venv, not a hang -- disable
+        # the timeout rather than guess at a large-enough fixed value.
+        TimeoutStartSec = "infinity";
       } // lib.optionalAttrs (dataDir != null && ensureDataDir) {
         WorkingDirectory = dataDir;
       } // lib.optionalAttrs (environmentFile != null) {
