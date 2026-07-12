@@ -112,7 +112,12 @@ in
     # dataDir/storage/requireMounts/postStart, just a tiny static file
     # server). PartOf ties its lifecycle to the main service (stopping
     # jellyfin stops this too, matching the old run_stop() stopping both
-    # together); wantedBy follows jellyfin's own autoStart.
+    # together) -- but PartOf alone only propagates stop/restart, never
+    # start (confirmed on a real run: starting self-hosted-jellyfin left
+    # this unit dead until manually started). The Wants=/After= pair on
+    # the main service below is what makes starting jellyfin also start
+    # this, matching the old run_start()'s "start jellyfin, then start
+    # theme-server" ordering.
     (lib.mkIf (cfg.enabled && cfg.themeServer.enable && cfg.themeServer.themeDir != null) {
       systemd.services."self-hosted-jellyfin-theme" = {
         description = "self-hosted: jellyfin theme server";
@@ -123,6 +128,10 @@ in
           ExecStart = "${pkgs.python3}/bin/python3 ${import ./lib/theme/server.nix { inherit pkgs; }} ${cfg.themeServer.bindAddress} ${toString cfg.themeServer.port} ${cfg.themeServer.themeDir}";
           Restart = "on-failure";
         };
+      };
+      systemd.services."self-hosted-jellyfin" = {
+        wants = [ "self-hosted-jellyfin-theme.service" ];
+        after = [ "self-hosted-jellyfin-theme.service" ];
       };
     })
   ];
