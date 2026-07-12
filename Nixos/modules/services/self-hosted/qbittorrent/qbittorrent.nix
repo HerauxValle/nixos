@@ -64,6 +64,21 @@ in
           lib.mkForce (lib.optionals cfg.autoStart [ "multi-user.target" ]);
         systemd.services.qbittorrent.serviceConfig.ProtectHome = lib.mkForce "tmpfs";
         systemd.services.qbittorrent.serviceConfig.BindPaths = cfg.requireMounts;
+
+        # Real bug, found on a live run: profileDir (and its own
+        # qBittorrent/ subfolder) ended up root:root -- a side effect of
+        # an earlier failed start attempt creating it before this whole
+        # chain of fixes existed. The wrapped module's own tmpfiles
+        # rules (systemd.tmpfiles.settings.qbittorrent, `d` type) only
+        # fix ownership *at creation time* -- they don't correct
+        # already-wrong ownership on an existing path the way `Z` does,
+        # and don't cover profileDir itself at all, only the nested
+        # qBittorrent/ and qBittorrent/config/ paths inside it. Same
+        # fix, same reasoning as Immich's own mediaLocation: a
+        # recursive `Z` rule, every activation, idempotent.
+        systemd.tmpfiles.rules = [
+          "Z ${cfg.profileDir} 0750 ${config.services.qbittorrent.user} ${config.services.qbittorrent.group} - -"
+        ];
       };
     })
     (selfHosted.mkActionService {
