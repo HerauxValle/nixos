@@ -6,5 +6,6 @@
     ./self-hosted
     ./software
     ./github
+    ./system
   ];
 }
