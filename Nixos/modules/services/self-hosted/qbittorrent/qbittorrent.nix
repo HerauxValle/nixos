@@ -68,9 +68,10 @@ in
         # identical way for Immich -- mkForce wins over the unconditioned
         # wantedBy, ProtectHome = "tmpfs" + BindPaths (reusing
         # requireMounts, same as immich.nix) fixes the mount visibility.
-        # savePath/tempPath live on the external Storage drive
-        # (/run/media/..., not under /home at all), so they're
-        # unaffected by ProtectHome either way.
+        # savePath/tempPath live on config.vars.mountpoints.device.storage.path
+        # now too (a /home-rooted mount, moved off the old external
+        # /run/media/<user>/Storage), so the same BindPaths grant covers
+        # them alongside profileDir -- requireMounts already lists both.
         systemd.services.qbittorrent.wantedBy =
           lib.mkForce (lib.optionals cfg.autoStart [ "multi-user.target" ]);
         systemd.services.qbittorrent.serviceConfig.ProtectHome = lib.mkForce "tmpfs";

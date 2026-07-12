@@ -1,10 +1,10 @@
 { lib, mountBin, mountpointBin, mkdir, chown, globalBlocking }:
 
-# One mountpoint entry's activation-time bash. `at == null` means this
-# entry is a pure registry record (see ./device-type.nix) -- nothing to
-# do at activation time, so this returns "" and generates no bash at all.
-# Otherwise: warn if the UUID isn't currently attached, resolve `leaf`
-# (either a literal already known at eval time, or via
+# One mountpoint entry's activation-time bash. `enabled = false` or
+# `at == null` means this entry is inert (see ./device-type.nix) --
+# nothing to do at activation time, so this returns "" and generates no
+# bash at all. Otherwise: warn if the UUID isn't currently attached,
+# resolve `leaf` (either a literal already known at eval time, or via
 # mountpointsResolveLeaf from ./resolve-leaf.nix for the live-LABEL/NAME
 # cases), mkdir the target, mount if not already mounted, then chown if
 # `owner` is set (self-healing every activation, mounted-just-now or
@@ -15,7 +15,7 @@
 
 key: entry:
 
-if entry.at == null then
+if !entry.enabled || entry.at == null then
   ""
 else
 

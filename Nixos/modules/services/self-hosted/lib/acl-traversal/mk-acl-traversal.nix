@@ -1,16 +1,19 @@
 { lib, pkgs }:
 
-# STATUS: real, with a real first caller as of this session --
-# qbittorrent.nix (see there for the full story). Originally written
-# ahead of a confirmed need for Immich, which turned out not to need it
-# after all (ProtectHome="tmpfs"+BindPaths was sufficient on its own,
-# since mediaLocation lives under /home) -- qBittorrent's own
-# paths.save/temp/export/finished live under /run/media/<user>/Storage
-# instead, a completely different mount ProtectHome has no effect on at
-# all, where the dedicated qbittorrent system user genuinely has no
-# traversal permission into /run/media/<user> (0750 root:root, confirmed
-# directly -- systemd-run as the qbittorrent user, mountpoint check
-# failed; as root, same check succeeded).
+# STATUS: dormant, not dead. Originally written ahead of a confirmed
+# need for Immich, which turned out not to need it after all
+# (ProtectHome="tmpfs"+BindPaths was sufficient on its own, since
+# mediaLocation lives under /home). qbittorrent.nix was the one real
+# caller for a while -- back when paths.save/temp/export/finished lived
+# under /run/media/<user>/Storage, a completely different mount
+# ProtectHome has no effect on at all, where the dedicated qbittorrent
+# system user genuinely had no traversal permission into
+# /run/media/<user> (0750 root:root, confirmed directly -- systemd-run
+# as the qbittorrent user, mountpoint check failed; as root, same check
+# succeeded). Those paths have since moved onto config.vars.mountpoints
+# (a /home-rooted mount), so ProtectHome+BindPaths covers qbittorrent
+# too now and this grant is unused again -- kept for the next
+# dedicated-user service that genuinely needs a non-/home path.
 #
 # grant = true: an execute-only ("X" -- POSIX ACL conditional execute:
 # only applies to directories or files already executable for someone,

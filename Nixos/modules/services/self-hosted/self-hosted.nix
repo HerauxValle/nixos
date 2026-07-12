@@ -45,12 +45,15 @@
 # ancestor directory it doesn't own" grants, wired into
 # modules/services/self-hosted/default.nix's own imports (unlike every
 # other lib/ function, which only ever gets consumed by a service's own
-# wiring file, never imported as a module itself). Real caller:
-# config/self-hosted/acl-traversal.nix grants qbittorrent -- the
-# dedicated qbittorrent user can't traverse /run/media/<user> (0750
-# root:root) -- ProtectHome=tmpfs+BindPaths, Immich's own fix for a
-# similar-looking problem, doesn't help here since /run/media isn't
-# /home at all.
+# wiring file, never imported as a module itself). Dormant, not dead:
+# its one real caller (config/self-hosted/acl-traversal.nix, now
+# commented out) granted qbittorrent traversal into /run/media/<user>
+# (0750 root:root) -- ProtectHome=tmpfs+BindPaths, Immich's own fix for
+# a similar-looking problem, didn't help there since /run/media isn't
+# /home at all. No longer needed now that qbittorrent's own paths moved
+# onto config.vars.mountpoints (a /home-rooted mount), where
+# ProtectHome=tmpfs+BindPaths applies directly -- kept here for the next
+# dedicated-user service that genuinely needs a non-/home grant.
 #
 # No mkUninstallScript / @uninstall action anymore -- deliberately
 # removed, not just narrowed. Everything it used to do is now either

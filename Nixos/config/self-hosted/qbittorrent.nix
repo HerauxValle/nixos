@@ -38,17 +38,25 @@
     # The external Storage drive's already-existing, real torrent
     # library (confirmed by inspecting the drive directly, and every
     # one of these four paths matches the recovered conf's own
-    # BitTorrent.Session.* values exactly):
+    # BitTorrent.Session.* values exactly). Mounted via
+    # config.vars.mountpoints (modules/system/mountpoints/) at
+    # /home/${config.vars.username}/Drives/Storage now, not the old
+    # udisks2-managed /run/media/<user>/Storage -- ProtectHome="tmpfs"+
+    # BindPaths below (reusing requireMounts, same proven mechanism as
+    # Immich's own /home-rooted mediaLocation) is what grants the
+    # dedicated qbittorrent system user access to a /home path, no ACL
+    # traversal grant needed (see config/self-hosted/acl-traversal.nix's
+    # now-commented-out entry for the old /run/media story).
     paths = {
-      save = "/run/media/${config.vars.username}/Storage/Torrents/Library";
-      temp = "/run/media/${config.vars.username}/Storage/Torrents/Incomplete";
-      export = "/run/media/${config.vars.username}/Storage/Torrents/Database";
-      finished = "/run/media/${config.vars.username}/Storage/Torrents/Deprecated";
+      save = "${config.vars.mountpoints.device.storage.path}/Torrents/Library";
+      temp = "${config.vars.mountpoints.device.storage.path}/Torrents/Incomplete";
+      export = "${config.vars.mountpoints.device.storage.path}/Torrents/Database";
+      finished = "${config.vars.mountpoints.device.storage.path}/Torrents/Deprecated";
     };
 
     requireMounts = [
       "${config.vars.homeDirectory}/Images/SelfHosted"
-      "/run/media/${config.vars.username}/Storage"
+      config.vars.mountpoints.device.storage.path
     ];
 
     # Real, non-secret preferences ported straight from the recovered

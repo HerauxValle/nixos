@@ -14,6 +14,17 @@ lib.types.submodule ({ config, ... }: {
       description = "Filesystem UUID -- see `lsblk -o NAME,MOUNTPOINTS,UUID,LABEL`.";
     };
 
+    enabled = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        false -- this entry is treated as if it doesn't exist at all
+        (same as `at` being unset, but without having to actually remove
+        `at`/`as`/`owner`/`blocking` to disable it -- flip this back to
+        re-enable with everything else intact).
+      '';
+    };
+
     at = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
@@ -65,15 +76,18 @@ lib.types.submodule ({ config, ... }: {
     path = lib.mkOption {
       type = lib.types.str;
       description = ''
-        Derived final mount path -- only available when `at` is set and
-        `as` is a literal string or "UUID" (LABEL/NAME/omitted need a
-        live disk query, only resolvable at activation time, so no
-        static path exists to hand back here). Accessing this on an
-        entry that doesn't qualify throws, lazily -- only entries
-        actually referenced elsewhere in the repo need to satisfy this.
+        Derived final mount path -- only available when `enabled` is
+        true, `at` is set, and `as` is a literal string or "UUID"
+        (LABEL/NAME/omitted need a live disk query, only resolvable at
+        activation time, so no static path exists to hand back here).
+        Accessing this on an entry that doesn't qualify throws, lazily
+        -- only entries actually referenced elsewhere in the repo need
+        to satisfy this.
       '';
       default =
-        if config.at == null then
+        if !config.enabled then
+          throw "config.vars.mountpoints.device.<key>.path: this entry is disabled (enabled = false) -- nothing is mounted, so there's no path."
+        else if config.at == null then
           throw "config.vars.mountpoints.device.<key>.path: no `at` set on this entry -- nothing is actually mounted, so there's no path."
         else if config.as == null || config.as == "LABEL" || config.as == "NAME" then
           throw "config.vars.mountpoints.device.<key>.path: `as` must be a literal string or \"UUID\" for a static path -- LABEL/NAME/omitted need a live disk query."

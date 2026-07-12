@@ -42,12 +42,13 @@
     # separate drive Stash's own library paths (config.yml's "stash:"
     # section, outside Nix's control) point into -- confirmed missing on
     # a real run: scans silently completed against an empty/nonexistent
-    # path, with no error, just nothing to show for it. udisks2-managed
-    # automount, not a static fstab entry -- confirmed via a real
-    # `mount` + fstab check, not assumed.
+    # path, with no error, just nothing to show for it. Mounted via
+    # config.vars.mountpoints (modules/system/mountpoints/) at
+    # /home/${config.vars.username}/Drives/Storage now, not the old
+    # udisks2-managed /run/media/<user>/Storage.
     requireMounts = [
       "${config.vars.homeDirectory}/Images/SelfHosted"
-      "/run/media/${config.vars.username}/Storage"
+      config.vars.mountpoints.device.storage.path
     ];
 
     # Empty -- dataDir holds nothing but the storage symlink itself, so

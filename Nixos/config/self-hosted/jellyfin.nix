@@ -53,20 +53,23 @@
     storage = [
       { src = "config"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Jellyfin/config"; }
       { src = "data"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Jellyfin/data"; }
-      { src = "libraries/media-movies"; dest = "/run/media/${config.vars.username}/Storage/Movies"; }
-      { src = "libraries/media-shows"; dest = "/run/media/${config.vars.username}/Storage/Shows"; }
-      { src = "libraries/media-anime"; dest = "/run/media/${config.vars.username}/Storage/Anime"; }
-      { src = "libraries/media-music"; dest = "/run/media/${config.vars.username}/Storage/Music"; }
-      { src = "libraries/media-audiobooks"; dest = "/run/media/${config.vars.username}/Storage/Audiobooks"; }
-      { src = "libraries/media-books"; dest = "/run/media/${config.vars.username}/Storage/Books"; }
-      { src = "libraries/media-photos"; dest = "/run/media/${config.vars.username}/Storage/Photos"; }
+      { src = "libraries/media-movies"; dest = "${config.vars.mountpoints.device.storage.path}/Movies"; }
+      { src = "libraries/media-shows"; dest = "${config.vars.mountpoints.device.storage.path}/Shows"; }
+      { src = "libraries/media-anime"; dest = "${config.vars.mountpoints.device.storage.path}/Anime"; }
+      { src = "libraries/media-music"; dest = "${config.vars.mountpoints.device.storage.path}/Music"; }
+      { src = "libraries/media-audiobooks"; dest = "${config.vars.mountpoints.device.storage.path}/Audiobooks"; }
+      { src = "libraries/media-books"; dest = "${config.vars.mountpoints.device.storage.path}/Books"; }
+      { src = "libraries/media-photos"; dest = "${config.vars.mountpoints.device.storage.path}/Photos"; }
       { src = "libraries/media-selfhosted"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Jellyfin/artwork"; }
     ];
 
-    # Both real mounts storage above depends on.
+    # Both real mounts storage above depends on. Storage is
+    # config.vars.mountpoints.device.storage.path now
+    # (/home/${config.vars.username}/Drives/Storage), not the old
+    # udisks2-managed /run/media/<user>/Storage.
     requireMounts = [
       "${config.vars.homeDirectory}/Images/SelfHosted"
-      "/run/media/${config.vars.username}/Storage"
+      config.vars.mountpoints.device.storage.path
     ];
 
     # Non-empty -- see default.nix's own comment for why (nested storage
