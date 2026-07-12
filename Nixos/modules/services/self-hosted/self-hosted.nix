@@ -30,12 +30,22 @@
 # already-mature nixpkgs/NUR module or package instead of building a
 # service from scratch (Immich's services.immich, the first and only
 # caller so far). See its own README.md for the full category list.
-# ./lib/acl-traversal.nix -- NOT re-exported here, deliberately: written
-# ahead of a confirmed need (see its own top comment for the real
-# problem it solves and what's actually been verified vs not), zero
-# current callers. Wire it into this re-export the same way every other
-# function here was, exactly when a real service first needs it -- don't
-# clutter this shared surface with an unused function until then.
+# ./lib/acl-traversal/ -- the one deliberate exception to "plain function
+# library, never a NixOS module" above: mk-acl-traversal.nix is a plain
+# function (re-exported below, same as everything else), but the
+# directory *also* holds a real options/config module (its own
+# default.nix + acl-traversal.nix) declaring
+# vars.selfHosted.aclTraversal -- a flat, machine-level array of "which
+# dedicated system user needs traversal rights into which restrictive
+# ancestor directory it doesn't own" grants, wired into
+# modules/services/self-hosted/default.nix's own imports (unlike every
+# other lib/ function, which only ever gets consumed by a service's own
+# wiring file, never imported as a module itself). Real caller:
+# config/self-hosted/acl-traversal.nix grants qbittorrent -- the
+# dedicated qbittorrent user can't traverse /run/media/<user> (0750
+# root:root) -- ProtectHome=tmpfs+BindPaths, Immich's own fix for a
+# similar-looking problem, doesn't help here since /run/media isn't
+# /home at all.
 #
 # No mkUninstallScript / @uninstall action anymore -- deliberately
 # removed, not just narrowed. Everything it used to do is now either
@@ -57,6 +67,7 @@ let
   mkVenvEnsureScript = import ./lib/venv/mk-venv-ensure-script.nix { inherit lib mkVenvInstallScript; };
   mkDepsUpdateScript = import ./lib/venv/mk-deps-update-script.nix;
   mkFromNativeService = import ./lib/mk-from-native/services.nix { inherit lib pkgs; };
+  mkAclTraversal = import ./lib/acl-traversal/mk-acl-traversal.nix { inherit lib pkgs; };
 in
 {
   inherit
@@ -67,5 +78,6 @@ in
     mkVenvEnsureScript
     mkDepsUpdateScript
     mkActionService
-    mkFromNativeService;
+    mkFromNativeService
+    mkAclTraversal;
 }

@@ -24,4 +24,5 @@
 5. Rename repo to "empyrean-shell"
 6. Verify Comfyui's nodes are independent and installation only happens when in installed
 7. Verify reproducability
-8. ...
+8. Fix only supported # for comments in excludes
+9. ...

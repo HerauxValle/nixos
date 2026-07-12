@@ -7,12 +7,18 @@
 # service or changing shared behavior -- how everything works, how to add
 # a service, and the rules that keep this generalized without
 # over-generalizing.
+#
+# ./lib is here too, one folder down like everything else -- it has its
+# own default.nix that reaches one further folder down into
+# ./lib/acl-traversal (the one lib/ entry with real options of its own).
+# Nothing in this file ever reaches two levels down itself.
 {
   imports = [
     ./comfyui
     ./filebrowser
     ./immich
     ./jellyfin
+    ./lib
     ./odysseus
     ./ollama
     ./openwebui

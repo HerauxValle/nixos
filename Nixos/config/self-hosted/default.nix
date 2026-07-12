@@ -5,6 +5,7 @@
 # modules/services/self-hosted/<name>/ having its own subfolder.
 {
   imports = [
+    ./acl-traversal.nix
     ./comfyui
     ./filebrowser.nix
     ./immich.nix
