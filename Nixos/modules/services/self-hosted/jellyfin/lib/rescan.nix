@@ -11,7 +11,9 @@
 
 ''
   set -euo pipefail
-  DATA_DIR="${jellyfinDataDir}/data"
+  # Two "data" levels, not one -- see wait-for-api.nix's own comment for
+  # the full explanation (same bug, found and fixed there first).
+  DATA_DIR="${jellyfinDataDir}/data/data"
   CONFIG_DIR="${jellyfinDataDir}/config"
   DB="$DATA_DIR/jellyfin.db"
   MBLINK_ROOT="$DATA_DIR/root/default"

@@ -23,7 +23,15 @@
 # theme-sync.sh/rescan.sh's own comments implied either.
 
 ''
-  DB="${jellyfinDataDir}/data/jellyfin.db"
+  # Two "data" levels, not one -- Jellyfin creates its own data/
+  # subdirectory inside whatever --datadir it's given (jellyfinDataDir/data
+  # here), so the real db is at jellyfinDataDir/data/data/jellyfin.db.
+  # Documented in info.md's "The real database path has an extra data/
+  # level" section, but this exact line was the one that had never
+  # actually been fixed to match -- confirmed on a real run: api_key()
+  # silently found nothing even with a real key sitting in the db,
+  # because this path pointed at a file that doesn't exist.
+  DB="${jellyfinDataDir}/data/data/jellyfin.db"
   NET_XML="${jellyfinDataDir}/config/network.xml"
 
   get_port() {
