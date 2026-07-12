@@ -19,7 +19,8 @@ difference: ComfyUI's core needs to be an immutable store path because
 `custom_nodes/` needs a real bind-mount trick to stay writable per node;
 SearXNG has no such requirement -- the only thing that needs to write
 into the checkout is the theme symlinks (see below), which a plain
-writable clone handles with a bare `ln -sfn`, no sandbox trickery needed.
+writable clone handles directly, no sandbox trickery needed -- though
+not with a *bare* `ln -sfn`, see "systemd units" below for why.
 
 ## Options (`vars.selfHosted.searxng`)
 
@@ -82,8 +83,18 @@ feature that already exists.
   a `searxng.pth` file into the venv's site-packages pointing at
   `srcDir` (faithful port of the old install.sh's identical trick, since
   there's no real `pip install .` happening -- `import searx` resolves
-  via this `.pth` file instead), (4) `themeLinkScript` -- `ln -sfn` every
-  declared theme's `templates`/`static` into the checkout. `execStart` runs
+  via this `.pth` file instead), (4) `themeLinkScript` -- `rm -rf` then
+  `ln -sfn` every declared theme's `templates`/`static` into the
+  checkout, every start. The `rm -rf` isn't cosmetic: SearXNG's own git
+  source already ships a real (non-symlink) `searx/templates/simple/`
+  directory, and a bare `ln -sfn` can't force-replace an existing real
+  directory (only an existing symlink) -- confirmed on a real run, where
+  this silently left the stock upstream `simple` theme in effect instead
+  of the genuinely hand-edited one (`results.html`, `preferences.html`,
+  etc. all differ from stock, confirmed by diff) until the `rm -rf` was
+  added. `adversarial` never hit this because no stock theme exists at
+  that path to collide with. Safe to `rm -rf` unconditionally -- `srcDir`
+  is a disposable, regenerable checkout, never real user data. `execStart` runs
   `searx/webapp.py` directly from `srcDir` (matching the old
   `runtime.sh`, not the `searxng-run` console-script entry point that
   was never actually used), inside the FHS sandbox (lxml needs the real

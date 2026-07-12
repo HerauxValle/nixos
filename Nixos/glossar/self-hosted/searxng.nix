@@ -27,6 +27,14 @@
   #   # --- plain base dir -- holds only the settings.yml symlink --
   #   dataDir = "${homeDirectory}/Applications/Networking/SearXNG";
 
+  #   # --- disposable, regenerated automatically whenever requirementsLock's hash changes --
+  #   venvDir = "${homeDirectory}/.impure/python-venvs/self-hosted/searxng";
+
+  #   # --- the searxng/searxng git checkout, pinned to coreRev every start --
+  #   # a sibling of venvDir (not nested inside it), since venvDir gets fully
+  #   # wiped on every lock-hash change.
+  #   srcDir = "${homeDirectory}/.impure/python-venvs/self-hosted/searxng-src";
+
   #   autoStart = true;  # false = exists, systemctl start-able, but not on boot/rebuild
 
   #   # --- pinned git rev -- no coreHash alongside this, srcDir is a plain writable clone --

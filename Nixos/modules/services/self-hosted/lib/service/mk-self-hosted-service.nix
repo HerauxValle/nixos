@@ -68,6 +68,12 @@
   # unless enabled = false.
 , teardownPaths ? [ ]
 , venvDir ? null
+  # Opt-in, null by default (no change for every existing service) --
+  # raises the open-file-descriptor limit for the live process. First
+  # real need: Jellyfin's own launch.sh did `ulimit -n
+  # "$JELLYFIN_FD_LIMIT"` before exec, real behavior for large media
+  # libraries (many files watched/scanned at once), not speculative.
+, limitNoFile ? null
 }:
 let
   mountChecks = map
@@ -149,6 +155,8 @@ lib.mkMerge [
         WorkingDirectory = dataDir;
       } // lib.optionalAttrs (environmentFile != null) {
         EnvironmentFile = "-${environmentFile}";
+      } // lib.optionalAttrs (limitNoFile != null) {
+        LimitNOFILE = limitNoFile;
       };
     };
 

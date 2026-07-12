@@ -2,7 +2,7 @@
 
 1. Migrate services (easiest to hardest, per ~/Scripts/Self-hosted/<Service>/COMMANDS.md)
         - [x]FileBrowser - pinned own release (not nixpkgs, per consistency w/ other services), BoltDB (not sqlite as assumed), recovered real filebrowser.db from Media backup drive's ~/.config/filebrowser and moved it into the SelfHosted vault (was never vault-backed originally), root faithfully kept as full $HOME per old config
-        - [ ]SearXNG - pip venv + FHS sandbox (same shape as OpenWebUI), settings.yml scaffold, hooks, storage symlinks. No external services.
+        - [x]SearXNG - actually a git-clone-pinned source (no pip package upstream) + FHS venv, not OpenWebUI's simpler shape; settings.yml is a single-file storage symlink into the vault (recovered from Scripts/, never vault-backed before); fixed non-functional secret_key placeholder (real SEARXNG_SECRET env var override, native to searxng); themes moved to Dotfiles/Themes/Searxng/ (not Nixos/config/) per correction; fixed ln -sfn silently failing against stock searx/templates/simple/ (real dir, not symlink) so the hand-edited simple theme actually takes effect now
         - [ ]Jellyfin - downloaded release tarball (same shape as Ollama), plus plugins/hwaccel/theme-server/rescan/library-symlink surface.
         - [ ]Immich - compiled server+web build, separate ML sidecar venv, plus external system services (Postgres w/ pgvector, Redis). Hardest, most moving parts.
 2. Test selfhosted services
@@ -11,7 +11,7 @@
         - [x]Stash - hardened, fixed ownership + missing ffmpeg + missing library mount
         - [x]Ollama - fixed missing gawk on postStart's PATH (start-limit-hit), model pull + generate confirmed working
         - [x]FileBrowser - verified: service active, 0 restarts, HTTP 200, /health OK, /api/settings correctly 401s (real recovered auth in effect, not a fresh install)
-        - [ ]SearXNG
+        - [x]SearXNG - verified: service active, 0 restarts, HTTP 200, real search returns results, both themes (simple/adversarial) confirmed correctly symlinked and serving custom content
         - [ ]Jellyfin
         - [ ]Immich
 3. Add more detailed documentation with clear source code references
