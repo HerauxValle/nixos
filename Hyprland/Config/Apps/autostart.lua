@@ -29,8 +29,6 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("pypr")
     hl.exec_cmd("mpd")
 
-    hl.exec_cmd("/run/current-system/sw/libexec/polkit-gnome-authentication-agent-1")
-
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QUICK_CONTROLS_STYLE")
     hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QUICK_CONTROLS_STYLE")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'")
