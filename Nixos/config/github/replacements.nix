@@ -36,16 +36,16 @@
     # instead of hand-copying it means these two can't silently drift out
     # of sync with customized.nix the way a hand-typed `find` could.
     replaceValues = [
-      { file = "Nixos/config/customized.nix"; find = ''username = "maxmustermann";''; replaceWith = ''username = "maxmustermann";''; }
-      { file = "Nixos/config/customized.nix"; find = ''hostName = "nixos";''; replaceWith = ''hostName = "nixos";''; }
+      { file = "Nixos/config/config.nix"; find = ''username = "maxmustermann";''; replaceWith = ''username = "maxmustermann";''; }
+      { file = "Nixos/config/config.nix"; find = ''hostName = "nixos";''; replaceWith = ''hostName = "nixos";''; }
       { file = "flake.nix"; find = ''description = "maxmustermann's NixOS config";''; replaceWith = ''description = "maxmustermann's NixOS config";''; }
       { file = "flake.nix"; find = "nixosConfigurations.maxmustermann = nixpkgs.lib.nixosSystem"; replaceWith = "nixosConfigurations.maxmustermann = nixpkgs.lib.nixosSystem"; }
       { file = "flake.nix"; find = "home-manager.users.maxmustermann = import ./Nixos/home.nix;"; replaceWith = "home-manager.users.maxmustermann = import ./Nixos/home.nix;"; }
 
-      { file = "Nixos/modules/system/networking.nix"; find = ''networking.interfaces.enp3s0.macAddress = null;''; replaceWith = "networking.interfaces.enp3s0.macAddress = null;"; }
+      { file = "Nixos/modules/system/networking.nix"; find = ''networking.interfaces.enp3s0.macAddress = "A8:E6:21:92:2C:E1";''; replaceWith = "networking.interfaces.enp3s0.macAddress = null;"; }
 
-      { file = "Nixos/config/customized.nix"; key = "vars.gitCommitEmail"; replaceWith = "maxmustermann@example.com"; }
-      { file = "Nixos/config/customized.nix"; key = "vars.usbKillswitch.usbSerialShort"; replaceWith = "0000000000000000000"; }
+      { file = "Nixos/config/config.nix"; key = "vars.gitCommitEmail"; replaceWith = "maxmustermann@example.com"; }
+      { file = "Nixos/config/config.nix"; key = "vars.usbKillswitch.usbSerialShort"; replaceWith = "0000000000000000000"; }
 
       # Reset the opt-in toggles back to their own off default in the
       # published copy -- customized.nix real values shouldn't imply a
@@ -55,10 +55,10 @@
       # "= true;" in the same file, so a bare-value substitution on "true"
       # would hit all three (and any other "= true;" line) at once instead
       # of just the one meant here.
-      { file = "Nixos/config/customized.nix"; find = "usbRequired.enable = false;"; replaceWith = "usbRequired.enable = false;"; }
-      { file = "Nixos/config/customized.nix"; find = "sudoKeyfile.enable = false;"; replaceWith = "sudoKeyfile.enable = false;"; }
-      { file = "Nixos/config/customized.nix"; find = ''usbKillswitch.killMode = "disabled";''; replaceWith = ''usbKillswitch.killMode = "disabled";''; }
-      { file = "Nixos/config/customized.nix"; find = "dotfilesBackup.enable = false;"; replaceWith = "dotfilesBackup.enable = false;"; }
+      { file = "Nixos/config/config.nix"; find = "usbRequired.enable = false;"; replaceWith = "usbRequired.enable = false;"; }
+      { file = "Nixos/config/config.nix"; find = "sudoKeyfile.enable = false;"; replaceWith = "sudoKeyfile.enable = false;"; }
+      { file = "Nixos/config/config.nix"; find = ''usbKillswitch.killMode = "disabled";''; replaceWith = ''usbKillswitch.killMode = "disabled";''; }
+      { file = "Nixos/config/config.nix"; find = "dotfilesBackup.enable = false;"; replaceWith = "dotfilesBackup.enable = false;"; }
     ];
   };
 }
