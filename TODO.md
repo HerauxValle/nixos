@@ -1,4 +1,4 @@
 # TODO
 
-1. Add 'replace with' to exclude
+1. Rename repo to "empyrean-shell"
 2. ...

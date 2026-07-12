@@ -175,5 +175,22 @@ in
           "$out/__init__.py"
       '';
     }
+
+    {
+      # inspire/prompt_support.py:35-36 -- pb_yaml_path (write target,
+      # the live preset file) and pb_yaml_path_example (read-only
+      # bundled template) are both built from the same resource_path
+      # base. Same shape as the pysssss.py cases above: only the write
+      # target is redirected, resource_path itself (and therefore
+      # pb_yaml_path_example) stays pointed at the real, read-only
+      # source. Caught internally (a bare except, not a crash) either
+      # way -- this only fixes the resulting "prompt builder preset"
+      # feature staying permanently empty, not a startup failure.
+      repo = "ComfyUI-Inspire-Pack";
+      script = ''
+        sed -i "s|pb_yaml_path = os\\.path\\.join(resource_path, 'prompt-builder\\.yaml')|pb_yaml_path = \"${nodeDataDir "ComfyUI-Inspire-Pack"}/prompt-builder.yaml\"|" \
+          "$out/inspire/prompt_support.py"
+      '';
+    }
   ];
 }
