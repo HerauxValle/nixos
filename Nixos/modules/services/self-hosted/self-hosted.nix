@@ -28,8 +28,13 @@
 # idempotent preStart wrapper, the pip-compile update/diff logic).
 # ./lib/mk-from-native/ -- the opposite of ./lib/service/: wrap a real,
 # already-mature nixpkgs/NUR module or package instead of building a
-# service from scratch (Immich's services.immich, the first and only
-# caller so far). See its own README.md for the full category list.
+# service from scratch (Immich's services.immich, Qbittorrent's
+# services.qbittorrent). See its own README.md for the full category
+# list. update.nix is the print-only @update/@update:apply body every
+# mk-from-native service shares (no local version/hash to sed, the
+# package always tracks nixpkgs' own -- deduplicated once Immich and
+# QBitTorrent's own update.nix turned out byte-for-byte identical
+# except for five real per-service facts).
 # ./lib/acl-traversal/ -- the one deliberate exception to "plain function
 # library, never a NixOS module" above: mk-acl-traversal.nix is a plain
 # function (re-exported below, same as everything else), but the
@@ -67,6 +72,7 @@ let
   mkVenvEnsureScript = import ./lib/venv/mk-venv-ensure-script.nix { inherit lib mkVenvInstallScript; };
   mkDepsUpdateScript = import ./lib/venv/mk-deps-update-script.nix;
   mkFromNativeService = import ./lib/mk-from-native/services.nix { inherit lib pkgs; };
+  mkFromNativeUpdateScript = import ./lib/mk-from-native/update.nix { inherit pkgs; };
   mkAclTraversal = import ./lib/acl-traversal/mk-acl-traversal.nix { inherit lib pkgs; };
 in
 {
@@ -79,5 +85,6 @@ in
     mkDepsUpdateScript
     mkActionService
     mkFromNativeService
+    mkFromNativeUpdateScript
     mkAclTraversal;
 }

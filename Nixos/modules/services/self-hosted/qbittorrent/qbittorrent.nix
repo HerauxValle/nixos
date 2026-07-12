@@ -11,8 +11,19 @@ let
 
   cfg = config.vars.selfHosted.qbittorrent;
 
-  updateScript = import ./lib/update.nix { inherit pkgs; };
-  updateApplyScript = import ./lib/update.nix { inherit pkgs; apply = true; };
+  # Shared with every other mk-from-native service's own update.nix --
+  # see ../lib/mk-from-native/update.nix's own top comment (deduped once
+  # this and Immich's were confirmed byte-for-byte identical except for
+  # these five facts).
+  updateArgs = {
+    name = "qbittorrent";
+    package = pkgs.qbittorrent-nox;
+    githubRepo = "qbittorrent/qBittorrent";
+    tagPrefix = "release-";
+    restartUnits = "qbittorrent";
+  };
+  updateScript = selfHosted.mkFromNativeUpdateScript updateArgs;
+  updateApplyScript = selfHosted.mkFromNativeUpdateScript (updateArgs // { apply = true; });
 
   serverConfig = lib.recursiveUpdate cfg.extraServerConfig (
     {

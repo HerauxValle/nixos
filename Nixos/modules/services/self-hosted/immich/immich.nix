@@ -17,8 +17,19 @@ let
 
   cfg = config.vars.selfHosted.immich;
 
-  updateScript = import ./lib/update.nix { inherit pkgs; };
-  updateApplyScript = import ./lib/update.nix { inherit pkgs; apply = true; };
+  # Shared with every other mk-from-native service's own update.nix --
+  # see ../lib/mk-from-native/update.nix's own top comment (deduped
+  # once this and qbittorrent's were confirmed byte-for-byte identical
+  # except for these five facts).
+  updateArgs = {
+    name = "immich";
+    package = pkgs.immich;
+    githubRepo = "immich-app/immich";
+    tagPrefix = "v";
+    restartUnits = "immich-server immich-machine-learning";
+  };
+  updateScript = selfHosted.mkFromNativeUpdateScript updateArgs;
+  updateApplyScript = selfHosted.mkFromNativeUpdateScript (updateArgs // { apply = true; });
 
 in
 
@@ -95,7 +106,7 @@ in
           # separate ACL-based "grant a dedicated user traversal rights
           # into a human user's home directory" approach was designed and
           # its primitives verified this session (see
-          # ../lib/acl-traversal.nix) but turned out unnecessary here:
+          # ../lib/acl-traversal/) but turned out unnecessary here:
           # BindPaths's own intermediate-directory construction happens
           # inside systemd's synthetic tmpfs, not the real (0700)
           # ~/herauxvalle, so the traversal problem never actually

@@ -114,6 +114,63 @@ Immich's `mediaLocation` hit. Fixed the same confirmed way:
 lives under `/run/media/...`, not `/home` at all, so they're unaffected
 by `ProtectHome` either way -- only `profileDir` needed the fix.
 
+## `/run/media/<user>` traversal -- a genuinely different problem from Immich's, needed a real new mechanism
+
+Fixing `ProtectHome` wasn't enough on its own here, unlike Immich:
+`paths.save`/`temp`/`export`/`finished` all live under
+`/run/media/<user>/Storage`, and that directory itself
+(`/run/media/<user>`, **not** `Storage`) is `0750 root:root` (confirmed
+via `stat`) -- the dedicated `qbittorrent` system user has zero
+traversal rights into it, completely independent of whether the drive
+is mounted or whether `ProtectHome` is fixed (`/run/media` isn't
+`/home` at all, so `ProtectHome`/`BindPaths` never touches it). This is
+the real, first actual caller for `../lib/acl-traversal/` -- see that
+module's own `default.nix` for the general mechanism and exactly when
+to reach for it on a future service.
+
+Two real bugs found getting this working end to end, both from actually
+starting the service and reading the resulting journal, not guessed:
+
+- **First attempt**: appended the ACL grant directly onto
+  `qbittorrent.service`'s own `preStart` (merged via `types.lines`,
+  same mechanism `requireMounts`'s mount check already uses). Two
+  problems: (1) ordering -- `types.lines` doesn't guarantee this
+  module's contribution runs before `mk-from-native/services.nix`'s own
+  mount check, so the mount check ran first and failed (`mountpoint`
+  needs the same traversal rights the grant was about to provide) --
+  fixed with `lib.mkBefore`, but that exposed (2) the real, underlying
+  problem: `qbittorrent.service` itself has `PrivateUsers = true`
+  (part of the wrapped module's own hardening, never touched here) --
+  running `setfacl` *inside* that private user namespace hit a genuine
+  UID-mapping artifact (`user:4294967295:...`, systemd's "unmapped
+  outside UID" sentinel) that collided with the real
+  `u:qbittorrent:...` entry being written, failing outright with
+  "Malformed access ACL ... Duplicate entries".
+- **Real fix**: a fully separate systemd oneshot unit
+  (`acl-traversal-<unit>.service`, `../lib/acl-traversal/acl-traversal.nix`)
+  with `Before=`/`RequiredBy=` on the target unit, running as plain
+  root with none of `qbittorrent.service`'s own hardening -- root
+  doesn't need any ACL grant to traverse anything, sidestepping the
+  `PrivateUsers` problem entirely, and strict unit ordering (rather than
+  `types.lines` priority) makes the sequencing unambiguous. Confirmed
+  working end to end: `acl-traversal-qbittorrent.service` exits
+  `0/SUCCESS`, then `qbittorrent.service`'s own mount check passes,
+  then the live service starts clean.
+
+## `profileDir` ownership -- a leftover from an earlier failed attempt, not the wrapped module's fault
+
+A real, separate bug hit while debugging the above: `profileDir`
+(`~/Images/SelfHosted/QBitTorrent`) and its own `qBittorrent/`
+subdirectory ended up `root:root` on disk -- a side effect of an
+earlier failed start (before the ACL fix existed) creating the path as
+root. The wrapped module's own `systemd.tmpfiles.settings.qbittorrent`
+rules (`d` type, on `profileDir/qBittorrent/` and
+`profileDir/qBittorrent/config/`) only fix ownership *at creation
+time* -- they don't correct already-wrong ownership on an existing
+path, and don't cover `profileDir` itself at all. Fixed the same way as
+Immich's `mediaLocation`: a recursive `Z` tmpfiles rule on `profileDir`,
+every activation, idempotent (`qbittorrent.nix`).
+
 ## Default WebUI credentials -- not baked into Nix, deliberately
 
 The recovered real conf has actual values for `WebUI\Username`
@@ -158,6 +215,12 @@ qbittorrent.nix`'s `extraServerConfig`:
 
 ## systemd units
 
+- `acl-traversal-qbittorrent.service` -- runs first (`Before=`/
+  `RequiredBy=` on `qbittorrent.service`, see `../lib/acl-traversal/`),
+  a plain-root oneshot granting the dedicated `qbittorrent` user
+  traversal into `/run/media/<user>`. Not part of `qbittorrent.service`
+  itself, deliberately -- see this file's own "`/run/media/<user>`
+  traversal" section for why.
 - `qbittorrent.service` -- built entirely by the wrapped
   `services.qbittorrent` module. `preStart` (from the wrapped module
   itself, when `serverConfig != {}`) writes the generated
@@ -165,11 +228,13 @@ qbittorrent.nix`'s `extraServerConfig`:
   `mountCheckUnits` appends the `requireMounts` check onto this same
   unit's `preStart` (NixOS's own `preStart` is a mergeable `types.lines`
   -- concatenates cleanly, doesn't replace the wrapped module's own
-  contribution).
+  contribution) -- only runs once `acl-traversal-qbittorrent.service`
+  has already completed, so the mount check can actually see
+  `/run/media/<user>/Storage`.
 - `self-hosted-qbittorrent@update` / `@update:apply` -- fully
-  independent of the unit above (same `mkActionService` mechanism every
-  service uses). Print-only, always -- no local version/hash to write,
-  the package tracks nixpkgs' own `pkgs.qbittorrent-nox`.
+  independent of the units above (same `mkActionService` mechanism
+  every service uses). Print-only, always -- no local version/hash to
+  write, the package tracks nixpkgs' own `pkgs.qbittorrent-nox`.
 
 ## Workflows
 

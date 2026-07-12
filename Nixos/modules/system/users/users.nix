@@ -45,7 +45,12 @@ HASHEOF
 
   users.users.${config.vars.username} = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" ];
+    extraGroups = [
+      "wheel"
+      "networkmanager"
+      "immich"
+      "qbittorrent"
+    ];
 
     # initialPassword = "changeme";  # one-time bootstrap only, from before
     #                                # mutableUsers = false -- irrelevant now
