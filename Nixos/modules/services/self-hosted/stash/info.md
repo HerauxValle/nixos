@@ -1,10 +1,11 @@
 # Stash -- self-hosted module reference
 
-Schema: `./default.nix`. Wiring: `./stash.nix`. Package fetch: `./package.nix`.
+Schema: `./default.nix`. Wiring: `./stash.nix`. Implementation detail
+pieces: `./lib/{package,update}.nix`.
 Real values: `Nixos/config/self-hosted/stash.nix`.
 
-Binary comes from a pure Nix fetch (`package.nix`), same as Ollama -- no
-venv, no FHS sandbox. Simplest service in the tree: one live unit, no
+Binary comes from a pure Nix fetch (`lib/package.nix`), same as Ollama --
+no venv, no FHS sandbox. Simplest service in the tree: one live unit, no
 reconciliation logic at all (no declarative models/nodes), and the only
 action is `update`/`update:apply` -- see below.
 
@@ -12,9 +13,9 @@ action is `update`/`update:apply` -- see below.
 
 | Option | Type | Default | Notes |
 |---|---|---|---|
-| `enable` | bool | `true` | Master switch. |
+| `enabled` | bool | `false` | Master switch. `true` = live service + actions exist and run. `false` = torn down automatically on the next rebuild (see "Full teardown" below), not just absent. |
 | `dataDir` | str | `~/Images/SelfHosted/Stash` | Base dir; the real data location is `dataDir/<storage[0].src>` (config.yml, database, thumbnails, cache, blobs). |
-| `autoStart` | bool | `true` | Same meaning as every other service here. |
+| `autoStart` | bool | `true` | Same meaning as every other service here. Currently `false` in this machine's real config. |
 | `host` | str | `"0.0.0.0"` | Passed as `--host` -- real typed option (not env passthrough) because `stash.nix` has to build a CLI command, not just export a var. |
 | `port` | port | `9999` | Passed as `--port`. |
 | `version` | str | *required* | Stash release version to pin. |
@@ -22,13 +23,17 @@ action is `update`/`update:apply` -- see below.
 | `environment` | attrsOf str | `{ }` | Passthrough env for the live process. |
 | `storage` | listOf `{src,dest}` | `[ ]` | Stash only ever has one real entry in practice -- `liveDataDir` in `stash.nix` is literally `dataDir/storage[0].src`, so the first entry is load-bearing. |
 | `requireMounts` | listOf str | `[ ]` | Paths checked as mountpoints (`mountpoint -q`) before preStart runs -- e.g. the Casket vault `storage` points into. Plain data, not derived from `storage`. |
+| `teardownPaths` | listOf str | `[ ]` | Paths, relative to `dataDir`, removed when `enabled = false`. Empty here (the safe default) since `dataDir` holds nothing but the `storage` symlink itself -- "everything but storage" is correct as-is. See `../docs/architecture.md`'s `mkTeardownActivationScript` section. |
 
 ## systemd units
 
 - `self-hosted-stash.service` -- the live process. `preStart` just
   `mkdir -p`s Stash's own subdirectories (`plugins`, `scrapers`,
   `metadata`, `cache`, `generated`, `blobs`) under the live data dir --
-  no reconciliation, nothing to install.
+  no reconciliation, nothing to install. `TimeoutStartSec=infinity`, same
+  as every service here -- see ComfyUI's `info.md` for the real incident
+  this was found from (not that Stash itself has a slow install; the fix
+  is generic, applied to all four services regardless).
 - `self-hosted-stash@update` -- checks `stashapp/stash`'s GitHub releases
   for something newer than `version`. **Print-only** -- never edits
   `config/self-hosted/stash.nix` itself. Read the new `version`/`hash`
@@ -56,7 +61,10 @@ Then rebuild, restart `self-hosted-stash.service`.
 **Change bind host/port**: edit `host`/`port` in the same file, rebuild,
 restart.
 
-**Full teardown, including the real data**: no scripted action for this,
-deliberately -- see `../docs/architecture.md`'s "No uninstall action".
-The actual Stash database/metadata/blobs inside the vault are precious;
-only remove them with a deliberate, by-hand `rm -rf`.
+**Full teardown**: set `enabled = false` in `config/self-hosted/stash.nix`,
+rebuild -- `mkTeardownActivationScript` (`../self-hosted.nix`) removes
+everything under `dataDir` not covered by `storage` automatically, as
+part of that same rebuild's activation. The actual Stash
+database/metadata/blobs inside the vault (the `storage` entry) are never
+touched by this -- only a deliberate, by-hand `rm -rf` removes those.
+Flip `enabled` back to `true` and rebuild again to reinstall.

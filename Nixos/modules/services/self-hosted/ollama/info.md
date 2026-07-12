@@ -1,9 +1,10 @@
 # Ollama -- self-hosted module reference
 
-Schema: `./default.nix`. Wiring: `./ollama.nix`. Package fetch: `./package.nix`.
-Sync behavior: `./sync.nix`. Real values: `Nixos/config/self-hosted/ollama.nix`.
+Schema: `./default.nix`. Wiring: `./ollama.nix`. Implementation detail
+pieces: `./lib/{package,sync,update}.nix`. Real values:
+`Nixos/config/self-hosted/ollama.nix`.
 
-Binary comes from a pure `fetchurl`-style Nix derivation (`package.nix`) --
+Binary comes from a pure `fetchurl`-style Nix derivation (`lib/package.nix`) --
 no venv, no FHS sandbox, no manual install step. `nixos-rebuild switch`
 alone is enough to get a working `ollama` binary; nothing needs to be
 manually installed afterward. The only manual action left is
@@ -13,21 +14,25 @@ manually installed afterward. The only manual action left is
 
 | Option | Type | Default | Notes |
 |---|---|---|---|
-| `enable` | bool | `true` | Master switch. |
+| `enabled` | bool | `false` | Master switch. `true` = live service + actions exist and run. `false` = torn down automatically on the next rebuild (see "Full teardown" below), not just absent. |
 | `dataDir` | str | `~/Applications/Networking/Ollama` | Where pulled model blobs live. Drives `OLLAMA_MODELS`. Plain, not vault-backed. |
-| `autoStart` | bool | `true` | `false` = exists, `systemctl start`-able, but not on boot/rebuild. |
+| `autoStart` | bool | `true` | `false` = exists, `systemctl start`-able, but not on boot/rebuild. Currently `false` in this machine's real config. |
 | `version` | str | *required* | Ollama release version to pin, e.g. `"0.31.2"`. |
 | `hash` | str | *required* | SRI sha256 of that version's `ollama-linux-amd64.tar.zst`. Get a new one with `nix-prefetch-url --type sha256 <url>` then `nix hash convert --to sri`. |
 | `environment` | attrsOf str | `{ }` | Plain passthrough to the live process -- `OLLAMA_HOST`, `OLLAMA_CONTEXT_LENGTH`, `OLLAMA_KEEP_ALIVE`, `CUDA_VISIBLE_DEVICES`, etc. |
 | `models` | listOf str | `[ ]` | Declared models, e.g. `"llama3.1:8b"`. Reconciled automatically every service start via `postStart`, once the server is confirmed up -- never during rebuild/activation itself. |
 | `storage` | listOf `{src,dest}` | `[ ]` | `src` relative to `dataDir` -> symlink to absolute `dest`, applied via `systemd.tmpfiles.rules`. |
+| `teardownPaths` | listOf str | `[ ]` | Paths, relative to `dataDir`, removed when `enabled = false`. Empty here (the safe default) since `dataDir` holds nothing but pulled model blobs -- "everything but storage" is correct as-is. See `../docs/architecture.md`'s `mkTeardownActivationScript` section. |
 
 ## systemd units
 
 - `self-hosted-ollama.service` -- the live `ollama serve` process.
-  `Restart=on-failure`. `postStart` runs `sync.nix`'s script right after
-  the process forks -- see "Sync behavior" below for why it's postStart
-  and not preStart.
+  `Restart=on-failure`, `TimeoutStartSec=infinity` (a slow first-run
+  install/download should never be killed by systemd's default 90s start
+  timeout -- see ComfyUI's `info.md` for the real incident this was
+  found from, same fix applies generically to every service). `postStart`
+  runs `lib/sync.nix`'s script right after the process forks -- see "Sync
+  behavior" below for why it's postStart and not preStart.
 - `self-hosted-ollama@update` -- checks `ollama/ollama`'s GitHub releases
   for something newer than `version`. **Print-only** -- never edits
   `config/self-hosted/ollama.nix` itself. Read the new `version`/`hash`
@@ -39,12 +44,11 @@ manually installed afterward. The only manual action left is
   doesn't rebuild or restart anything -- that's still a deliberate,
   separate step.
 
-There is no uninstall action. See `../docs/architecture.md`'s "No
-uninstall action" for why -- short version: model reconciliation is
-already automatic, and the binary is just a Nix store path GC already
-handles.
+There is no separate uninstall action -- see `../docs/architecture.md`'s
+"No uninstall action" for why. Full teardown is driven by `enabled`
+instead, see below.
 
-## Sync behavior (`./sync.nix`)
+## Sync behavior (`./lib/sync.nix`)
 
 Runs as `postStart`, not `preStart`, because it goes through the live
 process's own HTTP API (`ollama list`/`ollama pull`/`ollama rm`), which
@@ -78,5 +82,10 @@ or `@update` first if you want to see the diff before it lands. Then
 rebuild, restart `self-hosted-ollama.service`. No lockfile, no venv -- the
 new binary is just a different Nix store path.
 
-**Full teardown**: no scripted action, deliberately -- `rm -rf dataDir`
-by hand if you actually want to wipe pulled model blobs.
+**Full teardown**: set `enabled = false` in `config/self-hosted/ollama.nix`,
+rebuild -- `mkTeardownActivationScript` (`../self-hosted.nix`) removes
+everything under `dataDir` (all pulled model blobs) automatically as part
+of that same rebuild's activation, no manual action needed. `storage`
+entries (empty by default here) are never touched by this. Flip `enabled`
+back to `true` and rebuild again to reinstall from the same declared
+`models` list.

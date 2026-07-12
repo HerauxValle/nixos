@@ -1,6 +1,7 @@
 # OpenWebUI -- self-hosted module reference
 
-Schema: `./default.nix`. Wiring: `./openwebui.nix`. FHS sandbox: `./fhs.nix`.
+Schema: `./default.nix`. Wiring: `./openwebui.nix`. Implementation detail
+pieces: `./lib/{fhs,update}.nix`.
 Real values: `Nixos/config/self-hosted/openwebui.nix`.
 Lockfile + source list: `Python/locks/self-hosted/openwebui/{requirements.lock,requirements.in}`.
 
@@ -17,22 +18,26 @@ action left is `update`/`update:apply`, see below.
 
 | Option | Type | Default | Notes |
 |---|---|---|---|
-| `enable` | bool | `true` | Master switch. |
+| `enabled` | bool | `false` | Master switch. `true` = live service + actions exist and run. `false` = torn down automatically on the next rebuild (see "Full teardown" below), not just absent. |
 | `dataDir` | str | `~/Applications/Networking/OpenWebUI` | Plain, always-available. Real data is at `dataDir/<storage[0].src>` (`liveDataDir`), which also sets `DATA_DIR` for the process. |
 | `venvDir` | str | `~/.impure/python-venvs/self-hosted/openwebui` | Disposable, fully regenerated from `requirements.lock` automatically by preStart's `venvEnsureScript` whenever the lock's hash changes. Lives under `~/.impure/` deliberately -- see that directory's own reasoning below. |
-| `autoStart` | bool | `true` | |
+| `autoStart` | bool | `true` | Currently `false` in this machine's real config. |
 | `host` | str | `"0.0.0.0"` | Passed as `--host`. |
 | `port` | port | `8080` | Passed as `--port`. |
 | `environment` | attrsOf str | `{ }` | Passthrough env for the live process. |
 | `storage` | listOf `{src,dest}` | `[ ]` | First entry is the real data location, same convention as Stash. |
 | `requireMounts` | listOf str | `[ ]` | Mountpoint checks before preStart, e.g. the vault `storage` points into. |
+| `teardownPaths` | listOf str | `[ ]` | Paths, relative to `dataDir`, removed when `enabled = false`. Empty here (the safe default) since `dataDir` holds nothing but the `storage` symlink itself -- "everything but storage" is correct as-is. See `../docs/architecture.md`'s `mkTeardownActivationScript` section. |
 
 ## systemd units
 
 - `self-hosted-openwebui.service` -- the live process, runs inside the FHS
   sandbox. `preStart` runs `venvEnsureScript` on every start (no-op unless
   `requirements.lock`'s hash changed) before generating the secret key and
-  starting the process.
+  starting the process. `TimeoutStartSec=infinity` -- a first-time (or
+  post-lock-change) venv install can legitimately take much longer than
+  systemd's default 90s start timeout; see ComfyUI's `info.md` for the
+  real incident this was found from.
 - `self-hosted-openwebui@update` -- re-runs pip-compile against
   `requirements.in`, diffs against the checked-in `requirements.lock`.
   **Print/diff-only** -- never overwrites the real lock. If it differs,
@@ -70,12 +75,15 @@ releases without editing anything.
    `venvEnsureScript` picks up the new lock hash and reinstalls
    automatically, no separate step needed.
 
-## Full teardown, including the real data
+## Full teardown
 
-No scripted action for this, deliberately -- see
-`../docs/architecture.md`'s "No uninstall action". The actual chat/user
-data inside the vault is precious; only remove it with a deliberate,
-by-hand `rm -rf`.
+Set `enabled = false` in `config/self-hosted/openwebui.nix`, rebuild --
+`mkTeardownActivationScript` (`../self-hosted.nix`) removes `venvDir` and
+everything under `dataDir` not covered by `storage` automatically, as
+part of that same rebuild's activation. The actual chat/user data inside
+the vault (the `storage` entry) is never touched by this -- only a
+deliberate, by-hand `rm -rf` removes that. Flip `enabled` back to `true`
+and rebuild again to reinstall.
 
 ## `~/.impure/`
 

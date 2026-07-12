@@ -49,25 +49,38 @@ service is the closest template.
 
 ## Files to create
 
+`default.nix`/`<name>.nix`/`info.md` stay at the top level of
+`<name>/`; everything else (`package.nix`, `fhs.nix`, `sync.nix`,
+`update.nix`) goes in `<name>/lib/` from the start -- this repo aims for
+~4-5 files per directory max, and every existing service already needed
+`lib/` once you count `default.nix` + `<name>.nix` + `info.md` + at least
+one implementation file. Don't start flat and migrate later; just start
+in `lib/`.
+
 ```
 Nixos/modules/services/self-hosted/<name>/
-  default.nix   -- schema (options), imports ./<name>.nix
-  <name>.nix    -- wiring: calls mkSelfHostedService + mkActionService
-  package.nix   -- ONLY if it's a pinned binary fetch (plain function,
-                   NOT in default.nix's imports -- see the pitfall below)
-  fhs.nix       -- ONLY if it needs a venv (plain function, same pitfall)
-  sync.nix      -- ONLY if reconciliation logic is nontrivial enough to
-                   split out (Ollama's shape -- optional, can stay
-                   inline in <name>.nix like Stash/OpenWebUI do)
-  update.nix    -- the update check(s), plain function returning a
-                   string or (ComfyUI-style) an attrset of actions
-  info.md       -- dense reference: options table, action list, add/
-                   remove/update workflows. Every existing service has
-                   one -- read a couple before writing yours.
+  default.nix       -- schema (options), imports ./<name>.nix
+  <name>.nix        -- wiring: calls mkSelfHostedService + mkActionService
+  info.md           -- dense reference: options table, action list, add/
+                        remove/update workflows. Every existing service
+                        has one -- read a couple before writing yours.
+  lib/
+    package.nix     -- ONLY if it's a pinned binary fetch (plain
+                        function, NOT in default.nix's imports -- see
+                        the pitfall below)
+    fhs.nix         -- ONLY if it needs a venv (plain function, same
+                        pitfall)
+    sync.nix        -- ONLY if reconciliation logic is nontrivial
+                        enough to split out (Ollama's shape -- optional,
+                        can stay inline in <name>.nix like Stash/
+                        OpenWebUI do)
+    update.nix      -- the update check(s), plain function returning a
+                        string or (ComfyUI-style) an attrset of actions
 
 Nixos/config/self-hosted/
   <name>.nix    -- real values only (or <name>/ if the value count needs
-                   splitting into multiple files, like ComfyUI's)
+                   splitting into multiple files, like ComfyUI's
+                   catalog/ subdirectory)
 ```
 
 Then:
@@ -78,12 +91,12 @@ Then:
 ## The `imports` pitfall
 
 `default.nix` imports `./<name>.nix` (the wiring module) but must
-**never** import `./fhs.nix` or `./package.nix` -- those are plain
-functions (`{ pkgs }: ...` / `{ pkgs }: { version, hash }: ...`), not
-NixOS modules. Importing one as a module fails with something like
+**never** import `./lib/fhs.nix` or `./lib/package.nix` -- those are
+plain functions (`{ pkgs }: ...` / `{ pkgs }: { version, hash }: ...`),
+not NixOS modules. Importing one as a module fails with something like
 "called with unexpected argument 'inputs'". This has bitten this repo
 twice already (OpenWebUI, then almost ComfyUI) -- if you add a new plain
-function file, double check it's referenced via `import ./foo.nix
+function file, double check it's referenced via `import ./lib/foo.nix
 { ... }` from inside `<name>.nix`, never listed in `default.nix`'s
 `imports`.
 
@@ -93,17 +106,24 @@ Stash is the simplest real service in this tree (pure binary fetch, one
 `storage` entry, no reconciliation) -- the best starting template if
 your new service doesn't need a venv or a declarative fetch list.
 
-1. `package.nix`: pin `version`/`hash`, `fetchurl` the release asset,
+1. `lib/package.nix`: pin `version`/`hash`, `fetchurl` the release asset,
    `installPhase` copies it to `$out/bin`.
-2. `default.nix`: `enable`, `dataDir`, `autoStart`, `host`/`port` (if
-   applicable), `version`/`hash`, `environment`, `storage`,
-   `requireMounts`. Copy Stash's option descriptions and adjust.
+2. `default.nix`: `enabled` (default `false`, same as every existing
+   service), `dataDir`, `autoStart`, `host`/`port` (if applicable),
+   `version`/`hash`, `environment`, `storage`, `requireMounts`,
+   `teardownPaths` (default `[ ]` is almost always correct -- only
+   needs a non-empty value if `dataDir` will ever hold something
+   precious that isn't behind a `storage` entry, see ComfyUI's case).
+   Copy Stash's option descriptions and adjust.
 3. `<name>.nix`: `execStart = "${package}/bin/<binary> --host ... --port ..."`,
-   `mkSelfHostedService` with `ensureDataDir = true` if `dataDir` isn't
-   externally gated, `mkActionService` with just `update`/`update:apply`
-   (see "Wiring the generic actions" below -- there's nothing else to
-   wire for a service with no reconciliation logic).
-4. `update.nix`: same shape as `ollama/update.nix`/`stash/update.nix` --
+   `mkSelfHostedService` with `enabled = cfg.enabled;`, `ensureDataDir = true`
+   if `dataDir` isn't externally gated, `mkActionService` with
+   `enabled = cfg.enabled;` and just `update`/`update:apply` (see "Wiring
+   the generic actions" below -- there's nothing else to wire for a
+   service with no reconciliation logic). Both calls need `enabled`
+   explicitly -- it isn't inferred from anywhere, and each function
+   defaults to `false` (inert) if you forget it.
+4. `lib/update.nix`: same shape as `ollama/lib/update.nix`/`stash/lib/update.nix` --
    query the GitHub releases API, `nix-prefetch-url` + `nix hash convert`
    for the hash, print or (`apply = true`) `sed`-write into the real
    `config/self-hosted/<name>.nix` path (**plain string**, not a Nix
@@ -119,7 +139,7 @@ needs to be assembled from dynamically-selected sources (multiple
 plugin/node repos each with their own `requirements.txt`) the way
 ComfyUI's does.
 
-1. `fhs.nix`: `mkFHSVenv { name; targetPkgs = pkgs: with pkgs; [ pythonXXX ... ]; }`.
+1. `lib/fhs.nix`: `mkFHSVenv { name; targetPkgs = pkgs: with pkgs; [ pythonXXX ... ]; }`.
    Only include what compiled wheels actually need (check the upstream
    project's own install docs) -- don't copy ComfyUI's CUDA-heavy list
    wholesale for something that doesn't need a GPU.
@@ -143,7 +163,7 @@ ComfyUI's does.
    `${homeDirectory}/.impure/python-venvs/self-hosted/<name>` (see
    architecture.md's `~/.impure/` section) -- not under `dataDir`.
 4. `update.nix`: thin wrapper around `selfHosted.mkDepsUpdateScript`
-   (see `openwebui/update.nix` -- it's ~10 lines).
+   (see `openwebui/lib/update.nix` -- it's ~10 lines).
 
 ## Wiring the generic actions every service gets
 
@@ -160,17 +180,26 @@ actions = {
 };
 ```
 
+Remember `mkActionService` (like `mkSelfHostedService`) takes `enabled`
+too, and defaults to `false` if you don't pass it -- always
+`enabled = cfg.enabled;` alongside `actions`, or the whole action family
+silently never exists.
+
 Everything that used to be a manual action (install, sync, uninstall) is
-gone as a category, not just narrowed:
+gone as a *manual* category, not just narrowed:
 - **Install/reconcile** -> a `preStart` (or `postStart`, see the decision
   tree above) step on `mkSelfHostedService`, driven automatically by
   declared config on every service start. Nothing to wire into
   `mkActionService` at all.
-- **Uninstall** -> doesn't exist. See architecture.md's "No uninstall
-  action" and conventions.md's "Destructive vs. recoverable" for why --
-  short version: everything it used to do is either already automatic, or
-  was never safe to script once `dataDir` can hold genuinely precious,
-  non-reconcilable content.
+- **Uninstall** -> not a manual action either, but not gone: driven by
+  `enabled` itself. Flipping `enabled` to `false` and rebuilding
+  automatically tears down exactly what `teardownPaths` declares (default
+  `[ ]` = everything under `dataDir` except `storage`), via
+  `mkTeardownActivationScript` -- see architecture.md's "No uninstall
+  action" for the full mechanism and conventions.md's "Destructive vs.
+  recoverable" for why it's scoped this narrowly. `storage`-backed data,
+  and anything else `teardownPaths` deliberately excludes, is never
+  touched by this -- only a deliberate, by-hand `rm -rf` removes that.
 
 If your new service's `update.nix` needs more than one check (a pinned
 binary/source *and* declarative deps, ComfyUI's shape), that's still just
@@ -182,7 +211,7 @@ Every service should get `update`/`update:apply`, even the simplest
 ones -- it's cheap (a GitHub API check + a hash prefetch, or a
 pip-compile diff) and it's the one place "is there something newer"
 lives, instead of you remembering to manually check upstream. See
-`ollama/update.nix` (binary release check) or `openwebui/update.nix`
+`ollama/lib/update.nix` (binary release check) or `openwebui/lib/update.nix`
 (deps check) for the two shapes this takes. If the service has *both* a
 pinned binary/source *and* declarative deps (ComfyUI's shape), look at
 `comfyui/lib/update.nix` for how to compose multiple checks under one

@@ -27,16 +27,18 @@ generic mechanisms (`mkSelfHostedService`, `mkActionService`, `mkFHSVenv`,
 
 | Option | Type | Default | Notes |
 |---|---|---|---|
-| `enable` | bool | `true` | Master switch. |
-| `dataDir` | str | `~/Applications/Networking/ComfyUI` | Writable base. Holds `custom_nodes/` (bind mounts), `models/`, `user/` (via storage), and is passed as ComfyUI's `--base-directory`. |
+| `enabled` | bool | `false` | Master switch. `true` = live service + actions exist and run. `false` = torn down automatically on the next rebuild (see "Full teardown" in "Workflows" below), not just absent. |
+| `dataDir` | str | `~/Applications/Networking/ComfyUI` | Writable base. Holds `custom_nodes/` (bind mounts), `models/`, `user/` (via storage), `node_data/` (per-patched-node writable data, see "Node source patches" below), and is passed as ComfyUI's `--base-directory`. |
 | `venvDir` | str | `~/.impure/python-venvs/self-hosted/comfyui` | Disposable, regenerated automatically by preStart's `venvEnsureScript` whenever `requirementsLock`'s hash changes. See "`~/.impure/`" below. |
-| `autoStart` | bool | `true` | |
-| `environment` | attrsOf str | `{ }` | Passthrough env, merged with the fixed `toolchainEnv` (CC/CXX/CUDA_HOME/TORCH_CUDA_ARCH_LIST/etc, see `comfyui.nix`). |
+| `autoStart` | bool | `true` | Currently `false` in this machine's real config. |
+| `environment` | attrsOf str | `{ }` | Passthrough env, merged with the fixed `toolchainEnv` (CC/CXX/CUDA_HOME/TORCH_CUDA_ARCH_LIST/etc) and `WAS_CONFIG_DIR` (see "Node source patches" below), see `comfyui.nix`. |
 | `storage` | listOf `{src,dest}` | `[ ]` | Currently one entry: `user` -> the SelfHosted vault. |
 | `requireMounts` | listOf str | `[ ]` | Mountpoint check before preStart -- the SelfHosted vault. |
+| `teardownPaths` | listOf str | `[ ]` | Paths, relative to `dataDir`, removed when `enabled = false`. **Non-empty here, deliberately** -- `["custom_nodes" "models"]` -- since `dataDir` also holds `output`/`temp`/`input` (real generated/uploaded content no `storage` entry covers), so the usual empty-default "everything but storage" teardown would destroy it. See `../docs/architecture.md`'s `mkTeardownActivationScript` section. |
 | `coreRev` | str | *required* | Pinned `comfyanonymous/ComfyUI` git rev. |
 | `coreHash` | str | *required* | `fetchFromGitHub` SRI hash for `coreRev`. |
 | `nodeStore` | listOf `{owner,repo,rev,hash}` | `[ ]` | **Catalog** of every node ever pinned, whether or not currently active. `repo` also becomes the `custom_nodes/` directory name and the addressable key for `installed.nodes`. |
+| `nodePatches` | listOf `{repo,script,dirs}` | `[ ]` | Per-node source patches and/or pre-created writable directories, keyed by `repo`. See "Node source patches" below. |
 | `modelStore` | listOf `{name,type,url,target}` | `[ ]` | **Catalog** of every model ever pinned (~700GB across all of them). `type` is `hf`\|`civitai`\|`git`\|`url`. `target` is relative to `dataDir`. `name` is the addressable key for `installed.models` -- not required to be unique, entries sharing a name are one logical model split across files. |
 | `installed.nodes` | listOf str | `[ ]` | `repo` values from `nodeStore` that actually get bind-mounted into `custom_nodes/`. Unknown name = hard eval-time error. |
 | `installed.models` | listOf str | `[ ]` | `name` values from `modelStore` that preStart fetches and keeps on disk, removing anything backing a name no longer listed. Unknown name = hard eval-time error. |
@@ -55,15 +57,23 @@ together.
 
 ## systemd units
 
-- `self-hosted-comfyui.service` -- the live process. `preStart` runs, in
-  order: `prepareNodeMountsScript` (mkdir/rm the `custom_nodes/<repo>`
-  mount-point directories to match `installed.nodes`, cheap, no network --
-  see "Node mounting" below, actual node content is bind-mounted in by the
-  sandbox itself), `venvEnsureScript` (no-op unless `requirementsLock`'s
-  hash changed since the last successful install), `syncModelsScript`
-  (fetch every `installed.models` entry that's missing/corrupt/undersized,
-  then remove any file under `dataDir/models/` not backing a current
-  entry -- both directions, every start).
+- `self-hosted-comfyui.service` -- the live process. `TimeoutStartSec=infinity`
+  -- systemd's default 90s start timeout was killing a legitimately-long
+  first-time venv install mid-download, causing a restart-and-partial-retry
+  loop that never converged; confirmed via a real run, fixed generically for
+  every service in this tree, not just ComfyUI. `preStart` runs, in order:
+  `mkdir -p` for `output`/`temp`/`input` (--base-directory expects them to
+  exist -- some Comfyroll nodes eagerly `os.listdir()` them before ComfyUI
+  itself lazily creates them), the generated `node_data/<repo>` mkdir set
+  for every active `nodePatches` entry (see "Node source patches" below),
+  `prepareNodeMountsScript` (mkdir/rm the `custom_nodes/<repo>` mount-point
+  directories to match `installed.nodes`, cheap, no network -- see "Node
+  mounting" below, actual node content is bind-mounted in by the sandbox
+  itself), `venvEnsureScript` (no-op unless `requirementsLock`'s hash
+  changed since the last successful install), `syncModelsScript` (fetch
+  every `installed.models` entry that's missing/corrupt/undersized, then
+  remove any file under `dataDir/models/` not backing a current entry --
+  both directions, every start).
 - `self-hosted-comfyui@update` -- `update:core`, then `update:nodes`,
   then `update:deps`, in that order.
 - `self-hosted-comfyui@update:core` -- checks `comfyanonymous/ComfyUI`'s
@@ -95,7 +105,7 @@ directly (deps writes `requirements.lock` directly, same as OpenWebUI's
 never needs a follow-up manual install either: the next restart's
 preStart picks up the change automatically.
 
-## `--base-directory`
+## `--base-directory` and `--database-url`
 
 `main.py` runs straight from the read-only Nix store
 (`comfyCore = fetchFromGitHub {...}`). ComfyUI's own `--base-directory`
@@ -104,9 +114,22 @@ flag (confirmed in `comfy/cli_args.py`, not assumed) redirects its
 at `dataDir` instead of wherever `main.py` lives -- this is what lets the
 core source stay a plain immutable store path while still having writable
 data. If a node writes into its *own* source directory (not `dataDir`),
-that will fail (EROFS) -- no known case of this yet; if one shows up, it
-needs the same kind of per-node patch as the font fix below, not a
-generic workaround.
+that will fail (EROFS/read-only) -- see "Node source patches" below for
+the (now nine) real, confirmed cases of this and how each is fixed.
+
+`--database-url` is a second, separate flag needed on top of
+`--base-directory` -- confirmed by reading `comfy/cli_args.py` directly:
+the sqlite DB path (`comfyui.db`) is computed once, at argparse time, as
+a plain `os.path.join` relative to `cli_args.py`'s own location
+(comfyCore, read-only), and `--base-directory` never touches it
+afterward (checked `main.py`'s `apply_custom_paths()`, which only
+redirects models/output/input/user via `folder_paths`, nothing
+database-related) -- a real ComfyUI core gap, not something
+`--base-directory` was ever meant to cover. Pinned to
+`sqlite:///dataDir/user/comfyui.db` -- `user/` is where ComfyUI defaults
+to putting it anyway, and it's already a real, vault-backed `storage`
+symlink, so the database naturally lands with the rest of ComfyUI's
+actual user data.
 
 ## Node mounting: bind mounts, not symlinks
 
@@ -150,26 +173,94 @@ in practice this changes nothing you'd actually do differently: ComfyUI
 itself only scans `custom_nodes/` once at its own startup, so a node
 change always needed a restart anyway.
 
-## The one patched node
+## Node source patches (`nodePatches`, `config/self-hosted/comfyui/catalog/patches.nix`)
 
-`ComfyUI-post-processing-nodes` hardcodes `ImageFont.truetype("arial.ttf", ...)`.
-The old bash relied on an Arch-specific hook symlinking system fonts into
-`/usr/share/fonts/truetype`; here, `mkNodeSrc` in `comfyui.nix` instead
-`sed`-patches that one line to a real `dejavu_fonts` store path at build
-time. This is a genuine bug in the node's own source (a bad hardcoded
-font lookup), not a path-resolution artifact of how nodes are mounted --
-unlike the `COMFYUI_DIR` problem above, patching the source is the only
-real fix, and only this one node needs it.
+A real Nix option (`vars.selfHosted.comfyui.nodePatches`, `listOf
+{repo, script, dirs}`), not hardcoded logic -- deliberately scoped to
+ComfyUI only, not a shared `self-hosted.nix` concept, since no other
+service has anything resembling "many pluggable third-party source
+components with occasional per-component bugs" to patch. Each entry:
 
-**Known remaining limitation**: `ComfyUI-SAM3DBody` also tries to copy an
-FBX viewer asset into its own source directory (`SCRIPT_DIR / "web"`).
-That's a genuine write, not a path-resolution issue, so the bind-mount
-fix above doesn't touch it -- the source stays read-only on purpose
-(reproducibility), confirmed the write still fails (EROFS) exactly as
-before. Non-fatal (ComfyUI keeps running, only that node's FBX viewer
-feature is affected) and not patched -- no verified-correct writable
-location for that asset is known, and this project prefers leaving a
-narrow, non-fatal limitation documented over guessing at a fix.
+- `script` (optional, default `""`) -- a shell fragment run against a
+  writable copy of that node's fetched source (`mkNodeSrc` in
+  `lib/node-mounting.nix`, `cwd` unset, use `$out`) before it's
+  bind-mounted in. Empty means the entry exists only for its `dirs`.
+- `dirs` (optional, default `[ ]`) -- extra paths, relative to that
+  node's own `dataDir/node_data/<repo>` directory, that must exist
+  (possibly empty) before the node's code runs. Generates real
+  `mkdir -p` entries in `preStart` automatically (see "systemd units"
+  above) -- every entry's own `node_data/<repo>` base directory is
+  always created too, regardless of `dirs`. Only patches for
+  currently-*installed* nodes are ever applied or get a directory
+  created (`comfyui.nix`'s `activeNodePatches`, filtered the same way
+  `activeNodes`/`activeModels` are).
+
+Every real fix currently in `patches.nix`, all found by actually running
+the service and reading the real traceback, not guessed at up front --
+each hardcodes a write "next to my own source file" (or, worse, next to
+`__main__.__file__` -- comfyCore's own entry point), and both of those
+are deliberately read-only:
+
+- `ComfyUI-post-processing-nodes` -- hardcodes `ImageFont.truetype("arial.ttf", ...)`.
+  `sed`-patched to a real `dejavu_fonts` store path.
+- `ComfyUI_FizzNodes`, `ComfyUI-Gemini` -- both compute a web-extension
+  install target relative to `__main__.__file__` (comfyCore). Redirected
+  to `node_data/<repo>`; Gemini also needed `os.mkdir` -> `os.makedirs(...,
+  exist_ok=True)` since the redirected target is more deeply nested than
+  its old sibling-of-source location.
+- `ComfyUI-Custom-Scripts`, `ComfyUI-WD14-Tagger` -- both bundle their own
+  copy of a shared `pysssss.py` helper, but **not the same version** --
+  confirmed by actually reading both, not assumed from the shared
+  filename. Custom-Scripts' version writes a live `pysssss.json` copied
+  from a bundled `pysssss.default.json` template -- only the write
+  (`config_path`) is redirected, the template read stays at the real
+  source, since redirecting `get_ext_dir()` itself wholesale (tried
+  first) broke that read entirely. WD14-Tagger's version has no such
+  write at all (`pysssss.json` there is a real bundled resource, not a
+  template) -- its `pysssss.py` needs no patching beyond `get_comfy_dir()`
+  (both nodes' write-only web-extension symlink target); its
+  `wd14tagger.py` has its own separate write
+  (`get_ext_dir("models", mkdir=True)`, for downloaded tagger models),
+  redirected with its own declared `dirs`.
+- `ComfyUI_UltimateSDUpscale` -- self-downloads a third-party dependency
+  into `current_dir/repositories/ultimate_sd_upscale` on first run.
+  `current_dir` redirected to `node_data/<repo>` (with `dirs` declaring
+  the nested path, since `os.listdir()` on a missing dir raises outright).
+  A **second**, initially-missed bug: `repositories/__init__.py` (a real
+  file bundled in the node's own repo, not something the download
+  creates) independently recomputes its own path via `__file__` and
+  always finds the real bind-mounted source -- redirected too, to the
+  same `node_data/<repo>/repositories` the download actually populates.
+- `ComfyUI-Easy-Use` -- three `os.path.dirname(__file__)`-based write
+  targets in `__init__.py` (`wildcards/`, `styles/`, `styles/samples/`),
+  globally redirected since all three are genuine writes. A **second**,
+  initially-missed bug: `py/config.py`'s `FOOOCUS_STYLES_DIR` computes
+  the *same* conceptual "styles" location entirely independently (via
+  `Path(__file__).parent.parent`), still pointing at the real,
+  never-populated source even after the first fix -- redirected to the
+  exact same `node_data/<repo>/styles`.
+- `ComfyUI-Inspire-Pack` -- `resource_path` (read, stays at the real
+  source: it also resolves a bundled `.example` template) vs.
+  `pb_yaml_path` (write, the live preset file -- redirected). Caught
+  internally either way (a bare `except`, not a crash) -- this only
+  fixes the resulting "prompt builder preset" feature staying
+  permanently empty, not a startup failure.
+- `was-node-suite-comfyui` -- no source patch at all. Already supports
+  overriding its config location via a `WAS_CONFIG_DIR` environment
+  variable (its own default is its read-only bind mount) -- set directly
+  in `comfyui.nix`'s `environment` instead. This entry in `patches.nix`
+  exists purely for its `dirs`, to get `node_data/was-node-suite-comfyui`
+  created in `preStart` before the node tries to write into it.
+
+**Known remaining limitation, deliberately not patched**:
+`ComfyUI-SAM3DBody`'s own `prestartup_script.py` tries to copy an FBX
+viewer asset into its own source directory (`SCRIPT_DIR / "web"`) before
+the node even gets to the point `nodePatches` could redirect anything --
+confirmed the write still fails (EROFS) exactly as before. Non-fatal
+(ComfyUI keeps running, only that node's FBX viewer feature is affected)
+and not patched -- no verified-correct writable location for that asset
+is known, and this project prefers leaving a narrow, non-fatal limitation
+documented over guessing at a fix.
 
 ## Packages that can't be hashed
 
@@ -294,11 +385,16 @@ their file deleted, in the same run. Shrinking `installed.models` and
 restarting is fully reversible either way -- the pin stays in
 `modelStore` regardless, only the file on disk comes and goes.
 
-**Full teardown, including the real data**: there is no scripted action
-for this, deliberately -- see `../docs/architecture.md`'s "No uninstall
-action". The real `user/` vault content (workflows, prompts you've
-saved) is precious and only ever removed by a deliberate, by-hand
-`rm -rf`.
+**Full teardown (reconcilable parts only)**: set `enabled = false` in
+`config/self-hosted/comfyui/comfyui.nix`, rebuild -- `mkTeardownActivationScript`
+(`../self-hosted.nix`) removes exactly `custom_nodes/`, `models/`, and
+`venvDir` automatically, as part of that same rebuild's activation
+(`teardownPaths = ["custom_nodes" "models"]`, see the Options table
+above). `output/`, `temp/`, `input/`, `node_data/`, and the real `user/`
+vault content (workflows, prompts you've saved) are **never** touched by
+this -- only a deliberate, by-hand `rm -rf` removes those. Flip `enabled`
+back to `true` and rebuild again to reinstall nodes/models/venv from the
+same declared config.
 
 **Bump the ComfyUI core version**: `systemctl start
 self-hosted-comfyui@update:core:apply` writes the new `coreRev`/`coreHash`

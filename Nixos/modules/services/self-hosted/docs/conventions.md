@@ -44,19 +44,22 @@ Corollary: when asked "should this be generalized," the right question
 isn't "could it be" but "does a second real, current need for this
 already exist." Abstracting from a single example is guessing.
 
-## Every service gets the same action vocabulary anyway
+## Every service gets the same action vocabulary anyway -- now just `update*`
 
-This looks like it contradicts the rule above -- it doesn't. `install`,
-`sync`, `update`, `update:apply`, `uninstall`, `uninstall:data` exist on
-*every* service, even ones with nothing real to do for `install`/`sync`
-(Stash, OpenWebUI's `sync`). This was a deliberate, explicit tradeoff
-made when asked directly ("would it make things more annoying"): a
-literal no-op that just prints a note costs one tiny script and means
+An earlier version of this section described a much larger deliberate
+no-op vocabulary (`install`, `sync`, `uninstall`, `uninstall:data`
+existing on every service even where there was nothing real for them to
+do). That's gone -- not because the "shared vocabulary, even as a no-op"
+idea was wrong, but because `install`/`sync` became fully automatic
+(`preStart`/`postStart`, no manual action needed at all) and `uninstall`
+became `enabled`-driven (see "Destructive vs. recoverable" below)
+instead of a scriptable action, leaving nothing left to standardize as a
+no-op. What survives the same reasoning today: `update`/`update:apply`
+exist on *every* service, including ones with almost nothing to check
+(Stash) -- a deliberate, explicit tradeoff so
 `systemctl start self-hosted-<name>@<action>` never surprises you with
-"unknown action" on any of the four services. The vocabulary is
-generalized (it's cheap and the payoff is real); the *implementation*
-behind each verb is not (it does exactly what that service needs, no
-more).
+"unknown action" for the one action family that does still exist
+everywhere.
 
 ## Never silently write; `:apply` is always separate and explicit
 
@@ -75,28 +78,37 @@ service creates for itself at runtime (a `config/*.nix` file, a
 lockfile, anything checked into the repo), it needs this same split:
 a safe default and an explicitly-named destructive/mutating variant.
 
-## Destructive vs. recoverable -- why there's no uninstall action at all
+## Destructive vs. recoverable -- why uninstall isn't an action anymore
 
 This system used to have a two-tier `mkUninstallScript` (`@uninstall`/
 `@uninstall:data`), split because "delete what this service created" and
 "delete the actual data it was fronting" are fundamentally different in
-consequence. It's gone now, not narrowed -- once nodes/models removal
-became fully automatic (preStart reconciles `installed.*` against disk
-every start, pins stay intact either way) and the venv rebuilds itself on
-lock change, the only thing an "uninstall" action would still have to
-touch is whatever's left in `dataDir` -- and that's exactly the same
-precious, non-reconcilable content `storage` already protects (ComfyUI's
-`output/`, real generated images, not disposable cruft). There is no safe
-way to script "delete the disposable parts" once dataDir can also hold
-the irreplaceable parts. So the entire category was removed rather than
-kept "narrower" -- see architecture.md's "No uninstall action" section.
+consequence. That mechanism is gone for good -- but a real uninstall path
+exists again, deliberately redesigned rather than left missing: flipping
+a service's `enabled` option to `false` and rebuilding now tears down
+everything `teardownPaths` declares (default: everything under `dataDir`
+except `storage`), via `mkTeardownActivationScript`. The two-tier split
+from the old mechanism survives as a *data* boundary instead of two
+separate actions: `teardownPaths` is exactly the "safe, disposable" tier,
+and `storage` (never touched by any teardown, automated or otherwise)
+is exactly the "real, precious" tier that used to need the separate
+`:data` variant to reach at all.
 
-The principle survives even with the mechanism gone: anything that can
-destroy data a user can't get back must never be reachable by an
-automated/scripted path, only a deliberate, by-hand `rm -rf`. If a future
-service ever needs a real destructive action, name it so that's obvious
-from the command alone, and never make it the default behavior of a
-shorter/more-convenient-sounding action.
+The reason this isn't a manual *action* the way `update` is: an action
+you have to remember to run separately from `enabled` would let the two
+drift (a service left running with `enabled = true` but manually
+"uninstalled" underneath it, or vice versa) -- tying teardown directly to
+the same flag that already controls whether the service exists at all
+means there's exactly one source of truth for "is this installed," not
+two that can disagree.
+
+The underlying principle is unchanged from the old mechanism: anything
+that can destroy data a user can't get back must never be reachable by
+an automated/scripted path, only a deliberate, by-hand `rm -rf`. What
+changed is *how* that boundary gets declared -- `teardownPaths` as
+explicit, service-specific data (ComfyUI's is non-empty specifically
+because `dataDir` holds real generated content no `storage` entry
+covers) instead of a single blanket rule assumed to be safe everywhere.
 
 ## Real filesystem paths vs. Nix store paths -- know which you need
 

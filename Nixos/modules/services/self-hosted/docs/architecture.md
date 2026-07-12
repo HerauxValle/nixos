@@ -30,7 +30,10 @@ means adding one line to each.
 ## `self-hosted.nix`: the shared function library
 
 `modules/services/self-hosted/self-hosted.nix` is **not** a NixOS module
--- it has no `options`/`config`, just a `rec { ... }` of plain functions.
+-- it has no `options`/`config`, just a plain re-export of functions
+(originally one big `rec { ... }`, split into `./lib/service/mk-*.nix`
+and `./lib/venv/mk-*.nix` once the file passed ~400 lines -- see its own
+top comment for the split and why each function lives where it does).
 Every service's `<name>.nix` imports it directly
 (`import ../self-hosted.nix { inherit lib pkgs; }`) and calls a handful
 of these to assemble its actual systemd units. This is deliberately the
@@ -40,14 +43,22 @@ reimplement unit-building.
 
 ### `mkSelfHostedService` -- the live process
 
-One systemd service (`self-hosted-<name>.service`), `Restart=on-failure`.
+One systemd service (`self-hosted-<name>.service`), `Restart=on-failure`,
+`TimeoutStartSec=infinity` (systemd's default 90s start timeout was
+killing a legitimately-long first-time venv install mid-download,
+confirmed on a real ComfyUI run -- see its own `info.md` -- preStart
+taking a long time on first install, or after a lock change, is expected
+for any service with a hash-locked venv, not a hang, so the timeout is
+disabled entirely rather than guessing at a large-enough fixed value).
 Takes `execStart`, `user`, and the generic bits every service might need:
 `packages`, `environment`, `preStart` (ordered `ExecStartPre` list),
 `postStart` (ordered `ExecStartPost` list -- see below), `storage`
 (tmpfiles `L+` symlink rules), `requireMounts` (mountpoint checks run
 before anything else, generic -- knows nothing about Casket or vaults
 specifically), `environmentFile` (root-owned secrets, see below),
-`dataDir`/`ensureDataDir`/`autoStart`/`homeDirectory`.
+`dataDir`/`ensureDataDir`/`autoStart`/`homeDirectory`, and
+`enabled`/`teardownPaths`/`venvDir` (the enabled/disabled lifecycle, see
+"No uninstall action" below).
 
 **`preStart` vs `postStart`**: both are just ordered lists of shell
 strings, each wrapped in its own `writeShellScript` -- the only real
@@ -59,7 +70,7 @@ actually ready to serve -- use it only when reconciliation has to go
 through the live process's own interface (Ollama's model sync goes
 through `ollama list`/`ollama pull` over its HTTP API, which isn't up the
 instant the binary forks). Anything using `postStart` for this reason
-needs its own bounded poll-until-ready loop first (see `ollama/sync.nix`)
+needs its own bounded poll-until-ready loop first (see `ollama/lib/sync.nix`)
 -- `ExecStartPost` gives you no such guarantee for free.
 
 **`homeDirectory`**: when set, `mkSelfHostedService` computes every path
@@ -150,29 +161,52 @@ nodes hit from exactly this. The mechanism itself is generic and lives
 here precisely so any other FHS-based service hitting the same problem
 doesn't need its own bespoke fix.
 
-### No uninstall action -- deliberately, not an oversight
+### No *manual* uninstall action -- but `enabled` drives a real one
 
-There used to be a two-tier `mkUninstallScript` (`@uninstall`/
-`@uninstall:data`). It's gone, not narrowed. Reasoning:
+There used to be a two-tier manual `mkUninstallScript` (`@uninstall`/
+`@uninstall:data`). That's gone for good, not narrowed -- but "no
+uninstall at all" (an earlier, stricter version of this section) turned
+out to be wrong too: nodes/models removal-when-undeclared being fully
+automatic via preStart (verified empirically -- created fake undeclared
+node/model fixtures, ran the real generated preStart scripts, confirmed
+both got removed with real command output) and the venv rebuilding
+itself on lock change via `mkVenvEnsureScript` only cover *some* of what
+uninstall used to do. What was still missing -- a real way to tear down
+the rest (the venv itself, mounted nodes, fetched models -- everything
+`preStart` would otherwise just reinstall on the next start) without
+ever risking genuinely precious content (ComfyUI's `output/`, `temp/` --
+actual generated images, ComfyUI's dataDir isn't the only case where
+this matters) -- is `mkTeardownActivationScript`, driven by the
+`enabled` option itself, not a separate action:
 
-- Nodes/models removal-when-undeclared is now fully automatic (preStart
-  reconciles `installed.nodes`/`installed.models` against what's
-  actually on disk every start -- verified empirically, not assumed:
-  created fake undeclared node/model fixtures, ran the real generated
-  preStart scripts, confirmed both got removed with real command output).
-- The venv already rebuilds itself on lock change via
-  `mkVenvEnsureScript` -- no separate action needed to reset it.
-- Whatever's left in `dataDir` beyond the above (ComfyUI's `output/`,
-  `temp/` -- actual generated images, not disposable cruft) is exactly
-  as precious as `storage`-backed data, and deserves the same protection:
-  never removable by anything automated, only a deliberate, by-hand
-  `rm -rf`. There is no way to script "delete the disposable parts of
-  dataDir" safely once dataDir can also hold genuinely irreplaceable
-  output.
+- `enabled = false` + rebuild -> `mkTeardownActivationScript` runs as a
+  `system.activationScripts` entry (the one place that still runs on
+  every `nixos-rebuild switch` regardless of whether this service's own
+  systemd unit exists this generation -- can't live in `preStart`, since
+  when `enabled = false` the whole live-service config block, `preStart`
+  included, doesn't exist at all) and removes `venvDir` (if any) plus
+  whatever `teardownPaths` declares.
+- `teardownPaths` (a real per-service option, `listOf str`, default
+  `[ ]`) controls the blast radius explicitly, as data, not a hardcoded
+  rule: empty means "everything directly under `dataDir` except what a
+  `storage` entry covers" (safe for services whose `dataDir` holds
+  nothing else -- Ollama, OpenWebUI, Stash, confirmed by their own
+  `dataDir` doc comments, not assumed); non-empty scopes it to exactly
+  those paths instead, storage or not (ComfyUI needs this: `dataDir`
+  also holds `output`/`temp`/`input`, real content no `storage` entry
+  covers, that the empty-default rule would otherwise destroy).
+- `enabled = true` + rebuild + restart brings it all back automatically
+  -- the same `preStart` reconciliation that runs on every start doesn't
+  know or care whether this is a first install or a reinstall after a
+  teardown.
 
-If a service ever generates something disposable that preStart can't
-reconcile away on its own, that's a new, narrow, service-specific
-`preStart` step -- not a resurrection of a generic uninstall action.
+The safety principle from the old (stricter) version of this section
+still holds, just enforced through `teardownPaths` as explicit data
+instead of a blanket rule: anything genuinely precious and
+non-reconcilable must never be reachable by this path -- if a service
+generates something like that, it either needs a `storage` entry, or an
+explicit gap in `teardownPaths`, never an assumption that "the rest of
+dataDir is safe to wipe."
 
 ### `mkDepsUpdateScript` -- shared by every pip-based service
 
