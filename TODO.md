@@ -1,9 +1,9 @@
 # TODO
 
 1. Test selfhosted services
-        - [x]ComfyUI - hardened already, next up ollama and openwebui
+        - [x]ComfyUI - hardened already
         - [ ]OpenWebUI
-        - [ ]Stash
+        - [x]Stash - hardened, fixed ownership + missing ffmpeg + missing library mount, next up ollama
         - [ ]Ollama
 2. Add more detailed documentation with clear source code references
 3. Rename repo to "empyrean-shell"

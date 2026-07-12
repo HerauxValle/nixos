@@ -46,6 +46,12 @@ in
       # ollama's own HTTP API, which needs the server actually up first
       # (see sync.nix's wait-until-ready loop).
       postStart = [ syncScript ];
+      # gawk -- sync.nix parses `ollama list` output with awk. Confirmed
+      # missing on a real run ("awk: command not found"), unlike
+      # grep/tail/seq which are already on the base NixOS system PATH.
+      # A failing ExecStartPost fails the whole unit, so this alone was
+      # enough to start-limit-hit the service.
+      packages = [ pkgs.gawk ];
       inherit (cfg) dataDir storage autoStart teardownPaths;
       ensureDataDir = true; # not gated by any external mount -- safe to auto-create
       environment = environment // {
