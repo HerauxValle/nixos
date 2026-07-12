@@ -71,15 +71,19 @@
     # conf, plus a real WebUI login below -- `secrets qbittorrent`
     # prompts for a username/password directly (PBKDF2-HMAC-SHA512,
     # matching qBittorrent's own scheme -- see that script's own
-    # comment) and prints a ready-to-paste WebUI = {...} block, no live
-    # qBittorrent conf ever read. Once pasted it's an ordinary declared
-    # value like everything else here and survives every restart on its
-    # own. Still lands in the Nix store and this repo's git history like
-    # any other extraServerConfig value -- accepted here as a real
-    # tradeoff (this is a hash, not a plaintext password, and this repo
-    # isn't public), not because that concern went away.
+    # comment) and prints a ready-to-paste Preferences.WebUI = {...}
+    # block, no live qBittorrent conf ever read. Once pasted it's an
+    # ordinary declared value like everything else here and survives
+    # every restart on its own. Still lands in the Nix store and this
+    # repo's git history like any other extraServerConfig value --
+    # accepted here as a real tradeoff (this is a hash, not a plaintext
+    # password), not because that concern went away. Preferences.WebUI,
+    # not top-level WebUI -- a top-level WebUI = {...} renders as its
+    # own empty [WebUI] section header instead of the WebUI\* keys
+    # qBittorrent actually reads from inside [Preferences] (confirmed
+    # live: first attempt silently produced an unusable login).
     extraServerConfig = {
-      WebUI = {
+      Preferences.WebUI = {
         Username = "herauxvalle";
         Password_PBKDF2 = "@ByteArray(oaZ004bvc9ejLxAPMx5I8g==:mlc8gh4G/+FYQK6zJDynouPvN3OmOpdusWTwM07Mu/zq/TTSndPLLm/3BT/hJMswV1MALc4njIaT7mGsX2Bg5g==)";
       };

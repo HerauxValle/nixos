@@ -39,8 +39,15 @@ let
   # PBKDF2-HMAC-SHA512/100000-iteration/16-byte-salt scheme, not typed
   # in blind (see `secrets qbittorrent`'s own comment for the algorithm
   # source).
+  # Preferences.WebUI, not top-level WebUI -- confirmed live: a
+  # top-level WebUI = {...} rendered as its own [WebUI] *section*
+  # header with no keys under it (gendeepINI treats top-level attrset
+  # keys as section names), while qBittorrent's real format flattens
+  # these as WebUI\Username= etc *inside* [Preferences] -- matches the
+  # existing Preferences.WebUI.Address = cfg.host; a few lines down,
+  # which I should have mirrored from the start.
   defaultWebui = {
-    WebUI = {
+    Preferences.WebUI = {
       Username = "admin";
       Password_PBKDF2 = "@ByteArray(ZUySNa1CFPOSQBoNAzUbOg==:PST2x7yIvDISX0gOssEUmVmvIt5CAl5egeuCBzkQHSQzr0JNC3V0sah0Evzz6/zl0OXpDq/BDCEs/4XMynRf9w==)";
     };

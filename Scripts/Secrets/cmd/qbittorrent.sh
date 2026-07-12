@@ -71,7 +71,7 @@ unset pass1 pass2
 echo ""
 echo "Paste into config/self-hosted/qbittorrent.nix's extraServerConfig:"
 echo ""
-echo "      WebUI = {"
+echo "      Preferences.WebUI = {"
 echo "        Username = \"${username}\";"
 echo "        Password_PBKDF2 = \"${pbkdf2}\";"
 echo "      };"
