@@ -38,8 +38,17 @@
 
     # Independent fact, not derived from storage above -- they happen to
     # agree because this is the vault storage points into, not because
-    # one is computed from the other.
-    requireMounts = [ "${config.vars.homeDirectory}/Images/SelfHosted" ];
+    # one is computed from the other. The second entry is a real,
+    # separate drive Stash's own library paths (config.yml's "stash:"
+    # section, outside Nix's control) point into -- confirmed missing on
+    # a real run: scans silently completed against an empty/nonexistent
+    # path, with no error, just nothing to show for it. udisks2-managed
+    # automount, not a static fstab entry -- confirmed via a real
+    # `mount` + fstab check, not assumed.
+    requireMounts = [
+      "${config.vars.homeDirectory}/Images/SelfHosted"
+      "/run/media/${config.vars.username}/Storage"
+    ];
 
     # Empty -- dataDir holds nothing but the storage symlink itself, so
     # the default "everything but storage" teardown (when enabled =
