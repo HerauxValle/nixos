@@ -4,7 +4,8 @@
         - [x]FileBrowser - pinned own release (not nixpkgs, per consistency w/ other services), BoltDB (not sqlite as assumed), recovered real filebrowser.db from Media backup drive's ~/.config/filebrowser and moved it into the SelfHosted vault (was never vault-backed originally), root faithfully kept as full $HOME per old config
         - [x]SearXNG - actually a git-clone-pinned source (no pip package upstream) + FHS venv, not OpenWebUI's simpler shape; settings.yml is a single-file storage symlink into the vault (recovered from Scripts/, never vault-backed before); fixed non-functional secret_key placeholder (real SEARXNG_SECRET env var override, native to searxng); themes moved to Dotfiles/Themes/Searxng/ (not Nixos/config/) per correction; fixed ln -sfn silently failing against stock searx/templates/simple/ (real dir, not symlink) so the hand-edited simple theme actually takes effect now
         - [x]Jellyfin - own-pinned .NET release tarball, needed autoPatchelfHook + dontStrip=true (default strip corrupts managed .dll assemblies) + LD_LIBRARY_PATH wrapper for icu+openssl (dlopen'd by SONAME, not caught by autoPatchelf); real theme-server sidecar unit (CORS static server + live branding-API push, ElegantFin theme frozen into Dotfiles/Themes/Jellyfin/); plugins mechanism built (empty by default); confirmed dead: hwaccel vars, host/port vars (jellyfin self-manages via network.xml); real secrets wired via existing Scripts/Secrets/cmd/self-hosted.sh; fixed a real framework bug (nested storage src paths like libraries/media-movies got auto-created root-owned by tmpfiles, now fixed generically in mk-self-hosted-service.nix); fixed recovered system.xml's IsStartupWizardCompleted=true crashing against a fresh db (SQLite __EFMigrationsHistory error)
-        - [ ]Immich - compiled server+web build, separate ML sidecar venv, plus external system services (Postgres w/ pgvector, Redis). Hardest, most moving parts.
+        - [x]Immich - wraps nixpkgs' own mature services.immich instead of building from scratch (new lib/mk-from-native/, mkFromNativeService, first real case of that category); package tracks nixpkgs' pkgs.immich, no pinned version/hash; found real, substantial existing data (43GB) in a previously-unchecked "Media" vault (distinct from SelfHosted), old Postgres DB never survived so it's a fresh catalog over real-but-orphaned files; real bug found+fixed: commonServiceConfig's ProtectHome=true hides mediaLocation from immich-server entirely (mount check false-failed on a live run) -- fixed via ProtectHome="tmpfs"+BindPaths reusing requireMounts; update/update:apply exist but stay print-only (no local version to sed); autoStart added via lib.mkForce overriding the native module's hardcoded wantedBy (no such toggle exists natively)
+        - [ ]Odysseus - real personal AI-workspace app by pewdiepie-archdaemon (github.com/pewdiepie-archdaemon/odysseus), FastAPI+uvicorn+FHS venv (OpenWebUI's shape, not a pinned binary), real already-working install recovered from the vault (~/Images/SelfHosted/Odysseus, 89MB incl. a real admin account, not a fresh setup like Immich was) -- in progress
 2. Test selfhosted services
         - [x]ComfyUI - hardened already
         - [x]OpenWebUI - fixed stale pre-alembic config table (old key/value schema blocked startup), migrated real Jun 29 settings into new schema, old data kept as backup tables. Tool-server connection error in logs is user's own config (unrelated tool server not running), harmless.
@@ -13,9 +14,14 @@
         - [x]FileBrowser - verified: service active, 0 restarts, HTTP 200, /health OK, /api/settings correctly 401s (real recovered auth in effect, not a fresh install)
         - [x]SearXNG - verified: service active, 0 restarts, HTTP 200, real search returns results, both themes (simple/adversarial) confirmed correctly symlinked and serving custom content
         - [x]Jellyfin - verified: both services active, 0 restarts, HTTP 200 on Jellyfin + theme server, real db migrated cleanly, ffmpeg found, theme @import pushed to branding.xml automatically on start
-        - [ ]Immich
-3. Add more detailed documentation with clear source code references
-4. Rename repo to "empyrean-shell"
-5. Verify Comfyui's nodes are independent and installation only happens when in installed
-6. Verify reproducability
-7. ...
+        - [x]Immich - verified: real rebuild + real systemctl start (not just dry-build), both immich-server and immich-machine-learning active with 0 restarts, /api/server/ping returns real "pong", clean journalctl (no errors post-fix), real nested vault content (43GB) confirmed readable/writable by the live dedicated immich user
+        - [ ]Odysseus - real personal AI-workspace app (github.com/pewdiepie-archdaemon/odysseus), FastAPI+uvicorn, vault-backed real existing install (~/Images/SelfHosted/Odysseus, 89MB real data incl. an already-set-up admin account) -- in progress
+3. Not in original migration scope -- 3 extra standalone scripts in ~/Scripts/Self-hosted/, architecturally simpler (plain nohup+PID-file, no configuration/variables framework), keep in mind for later:
+        - QBitTorrent - wraps system qbittorrent-nox package directly, WebUI port 7080. Closest fit: mk-from-native's unimplemented "pkgs" category, if nixpkgs ships a services.qbittorrent-style module (unchecked).
+        - Tor - two unrelated things bundled under one folder: Browser/ (installs/launches the Tor Browser GUI app, not really a server) and MCP/ (a custom "Torch Onion Search" MCP server, reuses OpenWebUI's own venv, 127.0.0.1:8765) -- personal AI-assistant tooling, not a typical self-hosted web service.
+        - General/ - not a service at all, a shared root-elevated installer/helper script other old bash entries call into. Noted for completeness, nothing to migrate on its own.
+4. Add more detailed documentation with clear source code references
+5. Rename repo to "empyrean-shell"
+6. Verify Comfyui's nodes are independent and installation only happens when in installed
+7. Verify reproducability
+8. ...

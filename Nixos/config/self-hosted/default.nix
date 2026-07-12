@@ -9,6 +9,7 @@
     ./filebrowser.nix
     ./immich.nix
     ./jellyfin.nix
+    ./odysseus.nix
     ./ollama.nix
     ./openwebui.nix
     ./searxng.nix

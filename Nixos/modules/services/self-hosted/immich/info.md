@@ -98,6 +98,53 @@ manually such that the immich user is able to read and write to it."
 (`Z ${mediaLocation} 0700 <user> <group> - -`) to actually fix ownership
 on the whole tree, every activation, idempotent.
 
+## `ProtectHome` -- a real conflict between the wrapped module's hardening and a home-rooted mediaLocation
+
+`commonServiceConfig` (shared by every immich unit) hardcodes
+`ProtectHome = true` -- confirmed by direct testing, not assumed: a
+private mount namespace makes **all** of `/home` (including
+`mediaLocation`, nested three levels under it here) appear completely
+absent to `immich-server`, independent of any file ownership.
+`requireMounts`'s own preStart mount check hit this for real on the
+first live run: `mountpoint -q "~/Images/Media"` reported "is not
+mounted" even though a plain root shell, at the exact same moment,
+confirmed it genuinely was.
+
+Real fix, confirmed working end to end (not guessed): override
+`ProtectHome` to `"tmpfs"` and add `BindPaths` on the exact same paths
+`requireMounts` already checks (`immich.nix` reuses `cfg.requireMounts`
+directly as the `BindPaths` list, deliberately -- the two mean the same
+thing here, "paths that must be visible to this unit," so they stay one
+option instead of two that could drift). Verified via `systemd-run`
+throwaway units under the exact same hardening the real unit uses
+(`PrivateUsers`, `NoNewPrivileges`, stripped `CapabilityBoundingSet`,
+running as the dedicated `immich` user) that this combination correctly
+exposes the real vault mount for both the mount check and real
+read/write access to `mediaLocation`'s actual nested content (confirmed
+against the real 43GB dataset, not a synthetic test directory).
+
+**A real, initially-suspected second problem turned out not to apply**:
+`/home/herauxvalle` itself is `0700`, which would normally block the
+dedicated `immich` system user (not in the `herauxvalle`/`users` group)
+from traversing into it at all -- a completely different, DAC-level
+problem from the mount-namespace one above. Confirmed real via a
+directly isolated test (`systemd-run --property=User=immich -- touch
+.../Cloud/.test` -> `Permission denied`, with no `ProtectHome` override
+at all). But once `ProtectHome = "tmpfs"` + `BindPaths` is actually in
+place, this stops mattering: systemd constructs the necessary
+intermediate path structure for `BindPaths` inside its own synthetic,
+root-owned tmpfs, never actually walking the real (and restrictive)
+`/home/herauxvalle` at all -- confirmed directly, the dedicated `immich`
+user reads/writes the real nested vault content fine with zero
+additional permission grant. A generic "grant a dedicated system user
+ACL traversal rights into a human user's home directory" mechanism was
+designed and its two primitives independently verified this session
+(idempotent grant via `systemd-tmpfiles`' `a+` ACL line type, safe
+removal via `setfacl -x`) for the case where this fix genuinely doesn't
+apply -- written to `../lib/acl-traversal.nix`, but **not currently used
+anywhere**, including here: Immich itself never needed it. See that
+file's own top comment before reaching for it on a future service.
+
 ## Install/uninstall of the package itself -- ordinary Nix generations, nothing built
 
 `enabled` still means what it means everywhere else: `true` wires

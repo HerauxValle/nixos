@@ -54,7 +54,15 @@
     # (`secrets self-hosted immich`).
     environmentFile = null;
 
-    enableMachineLearning = true;
+    # Off -- confirmed real, heavy CPU/onnxruntime work (face detection,
+    # smart search embeddings) that ran unattended against the whole
+    # 43GB library the moment external-library scans started, and
+    # coincided with (not confirmed as the sole cause of, but a real
+    # contributing factor) a hard system freeze while a separate heavy
+    # build was also running concurrently. Re-enable once you actually
+    # want face/object search and are not doing anything else
+    # CPU-intensive at the same time.
+    enableMachineLearning = false;
 
     environment = { };
     machineLearningEnvironment = { };

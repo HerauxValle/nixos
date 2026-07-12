@@ -13,6 +13,7 @@
     ./filebrowser
     ./immich
     ./jellyfin
+    ./odysseus
     ./ollama
     ./openwebui
     ./searxng
