@@ -29,6 +29,8 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("pypr")
     hl.exec_cmd("mpd")
 
+    hl.exec_cmd("/run/current-system/sw/libexec/polkit-kde-authentication-agent-1")
+
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QUICK_CONTROLS_STYLE")
     hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QUICK_CONTROLS_STYLE")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'")
@@ -36,7 +38,7 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("xdg-settings set default-web-browser " .. browser .. ".desktop")
     hl.exec_cmd("xdg-mime default " .. editor .. ".desktop text/plain")
     hl.exec_cmd("xdg-mime default " .. fileManager .. ".desktop inode/directory")
-    
+
     -- #TODO: Add hyprlandPlugins into nix!
     -- hl.exec_cmd("hyprpm reload")
 end)

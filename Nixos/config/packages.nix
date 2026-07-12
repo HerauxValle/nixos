@@ -65,8 +65,10 @@ in
 
     dolphin                     # Explorer
     kio-extras                  # Addons
+    kio-admin                   # Elevated permissions
+    polkit-kde-agent-1          # Polkit agent for elevated permissions -- GUI prompt
     kservice                    # kbuildsycoca6 -- was only ever reachable via its nix store path,
-                                 # not on PATH, so KIO's own automatic cache-refresh calls silently failed
+                                # not on PATH, so KIO's own automatic cache-refresh calls silently failed
     gwenview                    # Image viewer
 
     # Theming
