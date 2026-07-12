@@ -30,7 +30,7 @@ in
 
   KEY="$(api_key)"
   if [ -z "$KEY" ]; then
-    echo "self-hosted-jellyfin-plugins-sync: no admin API key available yet (log into the dashboard, or set JELLYFIN_API_KEY via secrets self-hosted jellyfin) -- skipping"
+    echo "self-hosted-jellyfin-plugins-sync: no admin API key yet -- create one via Dashboard -> API Keys -> +, or set JELLYFIN_API_KEY via secrets self-hosted jellyfin (a regular user login does NOT create one) -- skipping"
     exit 0
   fi
 

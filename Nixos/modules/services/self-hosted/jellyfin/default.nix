@@ -212,8 +212,18 @@
 
     # Real, but currently empty -- matches the old JELLYFIN_PLUGIN_REPOS/
     # JELLYFIN_PLUGINS shape (both declared, zero plugins actually
-    # active). Reconciled by ./lib/reconcile.nix, same postStart pass as
-    # the theme sync (both need the live API).
+    # active). Reconciled by ./lib/plugins-sync.nix, same postStart pass
+    # as the theme sync (both need the live API + an admin key -- see
+    # info.md's "port: API push" section, same requirement applies here).
+    #
+    # You almost never need to add anything here at all: the official
+    # Jellyfin plugin repository is already built into the binary itself
+    # (confirmed in the old plugins.sh's own comment: "already built-in
+    # -- listed here for explicitness") -- pluginRepos is only for
+    # THIRD-PARTY repositories beyond that one. Example, to add one:
+    #   pluginRepos = [
+    #     { name = "My Repo"; url = "https://example.com/manifest.json"; }
+    #   ];
     pluginRepos = lib.mkOption {
       type = lib.types.listOf (lib.types.submodule {
         options = {
@@ -222,9 +232,26 @@
         };
       });
       default = [ ];
-      description = "Plugin repositories written into Jellyfin's own repositories.xml every start (preStart, pure filesystem -- no live process needed for this part).";
+      description = "Third-party plugin repositories (beyond the official one, already built in), written into Jellyfin's own repositories.xml every start (preStart, pure filesystem -- no live process needed for this part).";
     };
 
+    # To add a plugin: find its `guid` in whichever repo's manifest JSON
+    # holds it -- the official one is
+    # https://repo.jellyfin.org/releases/plugin/manifest-stable.json,
+    # a JSON array of `{ name, guid, versions: [...], ... }` objects (curl
+    # it and grep/jq for the plugin's name to find its guid; a
+    # third-party repo you added via pluginRepos above works the same
+    # way, just a different URL). Real examples from the official
+    # manifest, confirmed by fetching it directly (not guessed):
+    #   plugins = [
+    #     { guid = "9c4e63f1-031b-4f25-988b-4f7d78a8b53e"; version = "latest"; } # Bookshelf
+    #     { guid = "170a157f-ac6c-437a-abdd-ca9c25cebd39"; version = "latest"; } # Fanart
+    #   ];
+    # `version` defaults to "latest" (no ?version= query param sent at
+    # all in that case, matching the old plugins.sh's own behavior --
+    # Jellyfin installs whatever the manifest offers as current). Set a
+    # specific version string (as it appears in that plugin's manifest
+    # entry's `versions[].version` field) to pin one instead.
     plugins = lib.mkOption {
       type = lib.types.listOf (lib.types.submodule {
         options = {

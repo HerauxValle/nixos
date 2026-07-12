@@ -214,11 +214,19 @@ directly). Two real uses:
   as an env var (unconfirmed which ones do -- see above).
 - `JELLYFIN_API_KEY` -- a manually-created Jellyfin API key (Dashboard ->
   API Keys -> +). `lib/wait-for-api.nix`'s `api_key()` prefers this over
-  the dynamic sqlite lookup (grab the most recently created session
-  token) when set -- stable/explicit once you set it up, but zero-setup
-  by default: the theme sync and plugin install both work out of the box
-  before you ever create one, same as the old `theme-sync.sh`/
-  `rescan.sh` did.
+  the dynamic sqlite lookup (grab the most recently created key from the
+  `ApiKeys` table) when set.
+
+**Neither path is zero-setup** -- a real, earlier assumption here (and in
+the old `theme-sync.sh`/`rescan.sh`) that turned out wrong on a real run:
+a regular admin *login* does **not** populate the `ApiKeys` table at all.
+Confirmed directly: completed the setup wizard, logged in, actively
+browsed the library, and `ApiKeys` stayed genuinely empty -- theme sync
+and plugin install both kept skipping ("no admin API key yet") the whole
+time. A dedicated key via **Dashboard -> API Keys -> +** is always
+required first, whichever of the two paths above you then take -- the
+dynamic lookup only saves the extra `secrets self-hosted jellyfin` step
+once that key exists.
 
 ## systemd units
 
@@ -297,10 +305,13 @@ stale rows specifically (by design), not a routine action.
 `config/self-hosted/jellyfin.nix`, rebuild, restart -- `postStart`'s
 theme sync re-embeds the new content into `CustomCss` on that restart.
 
-**Set up a stable admin API key** (recommended once, not required):
-create one via Dashboard -> API Keys -> +, then
-`secrets self-hosted jellyfin`, enter `JELLYFIN_API_KEY=<the key>`,
-`systemctl restart self-hosted-jellyfin`.
+**Create an admin API key** (required -- theme sync, plugin install, and
+`port` all silently skip without one, a regular login does not create
+one on its own): Dashboard -> API Keys -> +, then either just
+`systemctl restart self-hosted-jellyfin` (the dynamic sqlite lookup
+picks it up automatically), or, for a stable/explicit key that won't
+change if you later create others: `secrets self-hosted jellyfin`, enter
+`JELLYFIN_API_KEY=<the key>`, then restart.
 
 **Full teardown**: set `enabled = false` in
 `config/self-hosted/jellyfin.nix`, rebuild --

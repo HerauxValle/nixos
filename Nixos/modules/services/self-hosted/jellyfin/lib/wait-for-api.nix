@@ -9,10 +9,18 @@
 # api_key() prefers $JELLYFIN_API_KEY (a real, manually-created Jellyfin
 # API key -- Dashboard -> API Keys -> +, then `secrets self-hosted
 # jellyfin` to set JELLYFIN_API_KEY, see jellyfin.nix's environmentFile)
-# over the dynamic sqlite lookup (grab the most recently created session
-# token) -- stable/explicit once set up, but zero-setup-required by
-# default: works out of the box before you ever create a dedicated key,
-# same as the old theme-sync.sh/rescan.sh did.
+# over the dynamic sqlite lookup (grab the most recently created key from
+# the ApiKeys table directly).
+#
+# Neither path is "zero-setup" -- a real, earlier assumption here that
+# turned out wrong on a real run: a regular admin *login* does NOT
+# populate the ApiKeys table at all (confirmed: completed the setup
+# wizard, logged in, actively browsed the library, and ApiKeys stayed
+# genuinely empty). A dedicated key via Dashboard -> API Keys -> + is
+# always required, whichever path you take -- the dynamic lookup only
+# saves the extra `secrets self-hosted jellyfin` step once that key
+# exists, it was never going to work purely from a login the way the old
+# theme-sync.sh/rescan.sh's own comments implied either.
 
 ''
   DB="${jellyfinDataDir}/data/jellyfin.db"
