@@ -16,10 +16,10 @@
     # settings.yml symlink.
     dataDir = "${config.vars.homeDirectory}/Applications/Networking/SearXNG";
 
-    # Off for now -- still exists, still systemctl start-able by hand,
-    # just not pulled in on boot/rebuild. Same as every other service on
-    # this machine right now.
-    autoStart = false;
+    # Toggled on for 24/7 availablility -- normally off and systemctl
+    # start-able by hand, just not pulled in on boot/rebuild.
+    # Same as every other service on this machine right now.
+    autoStart = true;
 
     # searxng/searxng's master HEAD as of this port -- no coreHash
     # alongside this (see default.nix's top comment for why: srcDir is a
