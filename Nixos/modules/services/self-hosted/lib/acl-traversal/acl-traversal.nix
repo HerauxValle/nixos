@@ -44,13 +44,25 @@ in
 {
   config.systemd.services = lib.mapAttrs
     (_unit: grants: {
-      preStart = lib.concatMapStringsSep "\n"
+      # lib.mkBefore, not a plain string -- real, confirmed-necessary
+      # ordering. types.lines merges every module's preStart
+      # contribution by priority, default priority for both this and
+      # mk-from-native/services.nix's own requireMounts check. Without
+      # forcing this one first, the generated script ran the mount
+      # check on /run/media/<user>/Storage *before* this grant, so the
+      # mount check itself failed (not because the drive wasn't really
+      # mounted -- confirmed live, `mountpoint` from a plain root shell
+      # said yes -- but because qbittorrent had no traversal rights into
+      # /run/media/<user> yet, the exact thing this grant exists to
+      # fix). mkBefore makes this always run first regardless of import
+      # order between the two contributing modules.
+      preStart = lib.mkBefore (lib.concatMapStringsSep "\n"
         (grant:
           (selfHosted.mkAclTraversal {
             inherit (grant) user baseDir path;
             grant = true;
           }).preStartScript)
-        grants;
+        grants);
       path = [ pkgs.acl ];
     })
     byUnit;
