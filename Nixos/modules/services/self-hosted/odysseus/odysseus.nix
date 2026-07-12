@@ -62,10 +62,19 @@ let
   # defensively -- setup.py already detects a non-interactive stdin
   # (never a real TTY under systemd) and skips prompting on its own, but
   # being explicit doesn't rely on that detection alone.
-  setupScript = ''
+  #
+  # Runs inside the FHS sandbox -- found the hard way on a real run:
+  # venvDir/bin/python is a symlink chain ending at /usr/bin/python3
+  # (venv's own behavior, records whatever `python3` resolved to at
+  # creation time, which inside the sandbox is a bind-mounted
+  # /usr/bin/python3) -- that target only exists from inside the FHS
+  # sandbox's own rootfs, not from a plain preStart shell. execStart
+  # already runs inside the sandbox for the identical reason; this needs
+  # to as well, not just the venv-install step.
+  setupScript = "${fhsEnv}/bin/${fhsEnv.name} -c ${lib.escapeShellArg ''
     cd "${cfg.srcDir}"
     ODYSSEUS_SKIP_ADMIN_PROMPT=1 "${cfg.venvDir}/bin/python" setup.py
-  '';
+  ''}";
 
   # Plain string, not a Nix path -- see update.nix for why (resolves to a
   # read-only /nix/store copy otherwise, this needs to be the real
