@@ -163,7 +163,13 @@ in
       inherit (cfg) dataDir storage autoStart requireMounts teardownPaths;
       venvDir = cfg.venvDir;
       environmentFile = "/etc/nixos-secrets/self-hosted/comfyui/tokens.env";
-      environment = cfg.environment // toolchainEnv;
+      # WAS_CONFIG_DIR -- was-node-suite-comfyui already supports this
+      # env var natively (its own default is its read-only bind mount,
+      # see catalog/patches.nix's "was-node-suite-comfyui" entry for
+      # why this lives here as an env var instead of a source patch).
+      environment = cfg.environment // toolchainEnv // {
+        WAS_CONFIG_DIR = "${cfg.dataDir}/node_data/was-node-suite-comfyui";
+      };
     })
     (selfHosted.mkActionService {
       name = "comfyui";

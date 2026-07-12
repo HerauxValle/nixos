@@ -218,5 +218,21 @@ in
           "$out/inspire/prompt_support.py"
       '';
     }
+
+    {
+      # No source patch at all -- unlike everything else in this file,
+      # was-node-suite-comfyui already supports overriding its config
+      # location via a WAS_CONFIG_DIR environment variable
+      # (WAS_Node_Suite.py:156: `os.environ.get('WAS_CONFIG_DIR',
+      # WAS_SUITE_ROOT)`, WAS_SUITE_ROOT being its own read-only bind
+      # mount, the default). comfyui.nix sets that env var directly on
+      # the live process instead of touching this node's source at all.
+      # This entry exists purely for its dirs -- to get
+      # node_data/was-node-suite-comfyui created in preStart, since
+      # WAS_CONFIG_DIR points there and the directory has to actually
+      # exist before WAS_Node_Suite.py tries to write its config file
+      # into it.
+      repo = "was-node-suite-comfyui";
+    }
   ];
 }

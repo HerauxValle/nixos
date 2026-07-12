@@ -65,6 +65,11 @@ selfHosted.mkFHSVenv {
   #   enough to reveal a second, previously-hidden missing lib:
   #   libgmp.so.10 (needed by its CGAL-based mesh-boolean plugins),
   #   confirmed on the same real run after the libcom_err fix landed.
+  # - p11-kit added -- same story again, a third pymeshlab plugin
+  #   (libio_e57.so) needing libp11-kit.so.0, only revealed once gmp was
+  #   fixed and it loaded further still. Each of these three was found
+  #   by actually running the real service and reading the real error,
+  #   one at a time -- not guessed at up front.
   targetPkgs = pkgs: with pkgs; [
     python312
     stdenv.cc
@@ -86,6 +91,7 @@ selfHosted.mkFHSVenv {
     libx11
     e2fsprogs
     gmp
+    p11-kit
   ];
   inherit extraBwrapArgs;
 }
