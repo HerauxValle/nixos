@@ -109,14 +109,28 @@ in
       # pysssss.json directly -- and pysssss.json here is a real,
       # bundled, read-only resource file (this node's actual model
       # catalog, confirmed by reading it), not something ever written.
-      # So get_ext_dir() needs no patching at all for this node -- only
       # get_comfy_dir() (comfyCore's path, used solely by install_js()'s
-      # write-only web-extension symlink) does.
+      # write-only web-extension symlink) needs the same redirect as
+      # Custom-Scripts. get_ext_dir() itself still needs no patching --
+      # but wd14tagger.py:38 has its own separate write, found only by
+      # actually running this: when ComfyUI's own "wd14_tagger" model
+      # folder isn't registered (the common case), it falls back to
+      # `get_ext_dir("models", mkdir=True)` -- this node's own read-only
+      # bind mount again, for where downloaded .onnx tagger models
+      # would live. Redirected to nodeDataDir like every other write
+      # target in this file.
       repo = "ComfyUI-WD14-Tagger";
       script = ''
         sed -i 's|dir = os\.path\.dirname(inspect\.getfile(PromptServer))|dir = "${nodeDataDir "ComfyUI-WD14-Tagger"}"|' \
           "$out/pysssss.py"
+        sed -i 's|get_ext_dir("models", mkdir=True)|"${nodeDataDir "ComfyUI-WD14-Tagger"}/models"|' \
+          "$out/wd14tagger.py"
       '';
+      # Replacing get_ext_dir("models", mkdir=True) with a plain string
+      # drops its mkdir=True behavior -- declared here instead so
+      # preStart creates it, same as every other pre-created path in
+      # this file.
+      dirs = [ "models" ];
     }
 
     {
@@ -138,23 +152,35 @@ in
       # second sed patch.
       #
       # A second real bug, only found by actually running this after
-      # the redirect: once downloaded, usdu_patch.py does
-      # `from repositories import ultimate_upscale as usdu` -- a
-      # top-level (not relative) import, resolved via sys.path.
-      # `sys.path.insert(0, repo_dir)` (below current_dir's assignment)
-      # only adds the real, unredirected source dir -- before this
-      # patch, that was fine because current_dir and repo_dir were the
-      # same value, so `repositories/` sat right next to what was
-      # already on sys.path. Redirecting current_dir alone broke that:
-      # repositories/ now lives somewhere sys.path never points at.
-      # Fixed by inserting current_dir onto sys.path too, right after
-      # repo_dir's own insert.
+      # the redirect -- and initially misdiagnosed (see below):
+      # repositories/__init__.py (a REAL file bundled in this node's own
+      # repo, at repositories/__init__.py, not something the download
+      # creates) independently computes its own
+      # `repositories_path = os.path.dirname(os.path.realpath(__file__))`
+      # and looks for repositories_path/ultimate_sd_upscale/scripts/
+      # ultimate-upscale.py there. Since __file__ for that module always
+      # resolves to wherever it was actually imported from (the
+      # bind-mounted, unredirected source -- it's never copied anywhere
+      # else), it keeps looking in the real source even after
+      # current_dir (used only by __init__.py's own download logic) was
+      # redirected -- so the downloaded content and this lookup end up
+      # in two different places. Fixed by redirecting
+      # repositories_path too, to the exact same nodeDataDir/repositories
+      # the download actually writes to.
+      #
+      # (`from repositories import ultimate_upscale as usdu` in
+      # usdu_patch.py resolves fine via the existing, unpatched
+      # `sys.path.insert(0, repo_dir)` -- repositories/__init__.py itself
+      # is real and bind-mounted, nothing extra needed on sys.path for
+      # that part. An earlier version of this patch added a second
+      # sys.path insert for current_dir here, which didn't address the
+      # actual mismatch and has been removed.)
       repo = "ComfyUI_UltimateSDUpscale";
       script = ''
         sed -i 's|^current_dir = os\.path\.dirname(os\.path\.realpath(__file__))|current_dir = "${nodeDataDir "ComfyUI_UltimateSDUpscale"}"|' \
           "$out/__init__.py"
-        sed -i '/^sys\.path\.insert(0, repo_dir)$/a sys.path.insert(0, current_dir)' \
-          "$out/__init__.py"
+        sed -i 's|repositories_path = os\.path\.dirname(os\.path\.realpath(__file__))|repositories_path = "${nodeDataDir "ComfyUI_UltimateSDUpscale"}/repositories"|' \
+          "$out/repositories/__init__.py"
       '';
       dirs = [ "repositories/ultimate_sd_upscale" ];
     }
