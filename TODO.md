@@ -26,4 +26,5 @@
 6. Verify Comfyui's nodes are independent and installation only happens when in installed
 7. Verify reproducability
 8. Fix only supported # for comments in excludes
-9. ...
+9. Fix inconsistency in services.nix in global configuration
+...
