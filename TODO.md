@@ -21,10 +21,11 @@
 3. Not in original migration scope -- 2 extra standalone scripts in ~/Scripts/Self-hosted/, architecturally simpler (plain nohup+PID-file, no configuration/variables framework), keep in mind for later:
         - Tor - two unrelated things bundled under one folder: Browser/ (installs/launches the Tor Browser GUI app, not really a server) and MCP/ (a custom "Torch Onion Search" MCP server, reuses OpenWebUI's own venv, 127.0.0.1:8765) -- personal AI-assistant tooling, not a typical self-hosted web service.
         - General/ - not a service at all, a shared root-elevated installer/helper script other old bash entries call into. Noted for completeness, nothing to migrate on its own.
-4. Add more detailed documentation with clear source code references
-5. Rename repo to "empyrean-shell"
-6. Verify Comfyui's nodes are independent and installation only happens when in installed
-7. Verify reproducability
-8. Fix only supported # for comments in excludes
-9. Fix inconsistency in services.nix in global configuration
+4. Add more detailed documentation with clear source code references.
+5. Rename repo to "empyrean-shell".
+6. Verify Comfyui's nodes are independent and installation only happens when in installed.
+7. Verify reproducability.
+8. Fix only supported # for comments in excludes.
+9. Fix inconsistency in services.nix in global configuration.
+10. Reorganize pacnix cli command tree to be more coherent with the system.
 ...
