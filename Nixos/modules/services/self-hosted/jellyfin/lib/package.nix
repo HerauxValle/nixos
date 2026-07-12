@@ -60,19 +60,26 @@ pkgs.stdenv.mkDerivation {
   # $out/bin/jellyfin is a real wrapper script (makeWrapper), not a thin
   # symlink -- has to be, to set LD_LIBRARY_PATH (see below).
   #
-  # LD_LIBRARY_PATH=icu's lib dir: confirmed by a real run -- .NET's
-  # globalization shim (libSystem.Globalization.Native.so, bundled in the
-  # tarball) dlopen()s libicuuc.so/libicui18n.so by plain SONAME at
-  # runtime rather than declaring them as a static ELF NEEDED entry, so
-  # autoPatchelfHook's RPATH-based fixup (which handles every other
-  # native dep here) never touches this one -- confirmed failing with
-  # "Couldn't find a valid ICU package" without this, and running clean
-  # once icu's lib dir was on LD_LIBRARY_PATH.
+  # LD_LIBRARY_PATH -- confirmed by real runs, not guessed: several of
+  # .NET's native interop shims dlopen() their target library by plain
+  # SONAME at runtime rather than declaring it as a static ELF NEEDED
+  # entry, so autoPatchelfHook's RPATH-based fixup (which handles every
+  # other native dep here) never touches them. Found incrementally, each
+  # confirmed by a real crash and a real clean run after the fix:
+  # libSystem.Globalization.Native.so -> libicuuc.so/libicui18n.so
+  # ("Couldn't find a valid ICU package"), and
+  # libSystem.Security.Cryptography.Native.OpenSsl.so -> libssl.so/
+  # libcrypto.so ("No usable version of libssl was found") -- the second
+  # one only surfaced running under a *minimal* systemd unit environment,
+  # not an interactive shell (which has enough ambient library paths to
+  # accidentally paper over it) -- a real lesson: verify against the
+  # actual systemd-run environment, not just an interactive `bin/jellyfin`
+  # invocation that happens to work.
   installPhase = ''
     mkdir -p "$out/lib/jellyfin" "$out/bin"
     cp -r . "$out/lib/jellyfin"
     makeWrapper "$out/lib/jellyfin/jellyfin" "$out/bin/jellyfin" \
-      --prefix LD_LIBRARY_PATH : "${pkgs.icu}/lib"
+      --prefix LD_LIBRARY_PATH : "${pkgs.icu}/lib:${pkgs.openssl.out}/lib"
   '';
 
   meta.mainProgram = "jellyfin";
