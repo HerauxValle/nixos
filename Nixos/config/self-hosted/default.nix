@@ -12,6 +12,7 @@
     ./odysseus.nix
     ./ollama.nix
     ./openwebui.nix
+    ./qbittorrent.nix
     ./searxng.nix
     ./stash.nix
   ];

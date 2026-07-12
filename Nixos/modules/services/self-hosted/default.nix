@@ -16,6 +16,7 @@
     ./odysseus
     ./ollama
     ./openwebui
+    ./qbittorrent
     ./searxng
     ./stash
   ];
