@@ -131,7 +131,7 @@
     # only rather than a shared self-hosted.nix concept: no other
     # service has anything resembling "many pluggable third-party
     # source components with occasional per-component bugs" to patch.
-    # See config/self-hosted/comfyui/patches.nix.
+    # See config/self-hosted/comfyui/catalog/patches.nix.
     nodePatches = lib.mkOption {
       type = lib.types.listOf (lib.types.submodule {
         options = {

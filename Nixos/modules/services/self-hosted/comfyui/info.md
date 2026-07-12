@@ -2,7 +2,8 @@
 
 Schema: `./default.nix`. Wiring: `./comfyui.nix`. Implementation detail
 pieces: `./lib/{fhs,node-mounting,requirements,models-sync,update}.nix`.
-Real values + node/model catalogs: `Nixos/config/self-hosted/comfyui/{comfyui,nodes,models}.nix`.
+Real values: `Nixos/config/self-hosted/comfyui/comfyui.nix`. Node/model/patch
+catalogs: `Nixos/config/self-hosted/comfyui/catalog/{nodes,models,patches}.nix`.
 Lockfile: `Python/locks/self-hosted/comfyui/requirements.lock`.
 
 The most involved service in this tree: a pinned core, a catalog of 69
@@ -40,7 +41,7 @@ generic mechanisms (`mkSelfHostedService`, `mkActionService`, `mkFHSVenv`,
 | `installed.nodes` | listOf str | `[ ]` | `repo` values from `nodeStore` that actually get bind-mounted into `custom_nodes/`. Unknown name = hard eval-time error. |
 | `installed.models` | listOf str | `[ ]` | `name` values from `modelStore` that preStart fetches and keeps on disk, removing anything backing a name no longer listed. Unknown name = hard eval-time error. |
 
-**Store vs. installed**: `nodeStore`/`modelStore` (`./nodes.nix`, `./models.nix`) are
+**Store vs. installed**: `nodeStore`/`modelStore` (`./catalog/nodes.nix`, `./catalog/models.nix`) are
 a catalog -- every pin you've ever made, kept around whether or not you
 currently want it materialized. `installed.nodes`/`installed.models`
 (`./comfyui.nix`) is the actually-active subset. This split exists
@@ -88,7 +89,7 @@ the change directly instead of just printing it: `update:apply` (core +
 installed nodes + deps, in order), `update:core:apply`,
 `update:nodes:apply` (every installed node), `update:nodes:<repo>:apply`
 (one specific node, any catalog entry), `update:deps:apply`. These
-`sed`-edit `config/self-hosted/comfyui/comfyui.nix` or `nodes.nix`
+`sed`-edit `config/self-hosted/comfyui/comfyui.nix` or `catalog/nodes.nix`
 directly (deps writes `requirements.lock` directly, same as OpenWebUI's
 `@update:apply`) -- still never rebuilds or restarts on their own, and
 never needs a follow-up manual install either: the next restart's
@@ -198,7 +199,7 @@ version than the one actually locked.
 `requirements.in` is **not** a checked-in file for ComfyUI -- unlike
 OpenWebUI's, it depends on the *installed* nodes' own `requirements.txt`
 content, and a hand-maintained second copy of that would just drift from
-`nodes.nix`/`comfyui.nix` (the actual source of truth). It's a Nix
+`catalog/nodes.nix`/`comfyui.nix` (the actual source of truth). It's a Nix
 derivation instead (`comfyRequirementsIn` in `comfyui.nix`), built from
 each `installed.nodes` entry's already-pinned source plus a small static
 header (`comfyRequirementsInHeader`), with a handful of fixups baked in
@@ -256,7 +257,7 @@ next to the ones that already exist in `comfyRequirementsIn`
 **Pin a new node into the catalog (not yet active)**: get `rev`+`hash`
 (`nix-shell -p nix-prefetch-git --run "nix-prefetch-git --url
 https://github.com/<owner>/<repo> --rev <rev> --quiet"`), append to
-`config/self-hosted/comfyui/nodes.nix` (`nodeStore`). It sits there,
+`config/self-hosted/comfyui/catalog/nodes.nix` (`nodeStore`). It sits there,
 pinned but inert, until added to `installed.nodes`.
 
 **Check/bump a pinned node's commit**: `systemctl start
@@ -264,7 +265,7 @@ self-hosted-comfyui@update:nodes:<repo>` (any `nodeStore` entry, active
 or not) prints the new `rev`/`hash` if one exists
 (`journalctl -u self-hosted-comfyui@update:nodes:<repo>`).
 `@update:nodes:<repo>:apply` does the same check and `sed`-writes the new
-`rev`/`hash` into that exact entry in `nodes.nix` directly.
+`rev`/`hash` into that exact entry in `catalog/nodes.nix` directly.
 `@update:nodes`/`@update:nodes:apply` do every *installed* node in one
 run instead of one at a time.
 
@@ -282,7 +283,7 @@ automatically, no separate step needed beyond the regeneration itself.
 `installed.nodes`, it deactivates but stays pinned for later.
 
 **Pin a new model into the catalog (not yet installed)**: append
-`{ name, type, url, target }` to `config/self-hosted/comfyui/models.nix`
+`{ name, type, url, target }` to `config/self-hosted/comfyui/catalog/models.nix`
 (`modelStore`). Costs nothing until it's in `installed.models`.
 
 **Install/remove a pinned model from disk**: add/remove its `name` in

@@ -68,7 +68,7 @@ let
     # actual checkout, needed for the :apply variants to sed-edit.
     requirementsLockPath = "${config.vars.homeDirectory}/Dotfiles/Python/locks/self-hosted/comfyui/requirements.lock";
     configFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/comfyui/comfyui.nix";
-    nodesFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/comfyui/nodes.nix";
+    nodesFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/comfyui/catalog/nodes.nix";
   };
 
   syncModelsScript = import ./lib/models-sync.nix {
@@ -149,7 +149,7 @@ in
       ]
       # node_data/<repo> (+ any declared extra `dirs`) for every
       # currently-active nodePatches entry -- generated from
-      # cfg.nodePatches itself (config/self-hosted/comfyui/patches.nix),
+      # cfg.nodePatches itself (config/self-hosted/comfyui/catalog/patches.nix),
       # not hardcoded per-node here. Only present at all when at least
       # one patch is active, so nothing runs an empty mkdir.
       ++ lib.optional (nodeDataMkdirScript != "") nodeDataMkdirScript
@@ -196,13 +196,13 @@ in
         (map
           (n: {
             assertion = builtins.elem n (map (x: x.repo) cfg.nodeStore);
-            message = ''vars.selfHosted.comfyui.installed.nodes: "${n}" not found in nodeStore (config/self-hosted/comfyui/nodes.nix)'';
+            message = ''vars.selfHosted.comfyui.installed.nodes: "${n}" not found in nodeStore (config/self-hosted/comfyui/catalog/nodes.nix)'';
           })
           cfg.installed.nodes)
         ++ (map
           (n: {
             assertion = builtins.elem n (map (x: x.name) cfg.modelStore);
-            message = ''vars.selfHosted.comfyui.installed.models: "${n}" not found in modelStore (config/self-hosted/comfyui/models.nix)'';
+            message = ''vars.selfHosted.comfyui.installed.models: "${n}" not found in modelStore (config/self-hosted/comfyui/catalog/models.nix)'';
           })
           cfg.installed.models);
     }

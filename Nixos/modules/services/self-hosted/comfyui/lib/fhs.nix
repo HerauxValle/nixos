@@ -32,7 +32,7 @@ selfHosted.mkFHSVenv {
   #   users.
   # - unzip dropped -- old plugins.sh supported a "url" node type that
   #   unzipped downloaded archives, but every one of the 69 declared
-  #   nodes (config/self-hosted/comfyui/nodes.nix) is git-based, and
+  #   nodes (config/self-hosted/comfyui/catalog/nodes.nix) is git-based, and
   #   the schema doesn't even have a url-node-type option anymore; no
   #   model is a .zip either (checked). Actually dead weight now, not
   #   a faithful-port leftover worth keeping "just in case".

@@ -13,7 +13,7 @@ let
   # __main__.__file__ -- comfyCore's own entry point), and both of those
   # are deliberately read-only (comfyCore for reproducibility, each
   # node's own bind mount for the same reason -- see
-  # ../../../modules/services/self-hosted/comfyui/info.md's "Node
+  # ../../../../modules/services/self-hosted/comfyui/info.md's "Node
   # mounting" section). The fix in every case is the same shape:
   # redirect that one hardcoded base to a real writable location under
   # dataDir instead. `node_data/<repo>` is that convention -- one
@@ -73,20 +73,27 @@ in
     {
       # pysssss.py (bundled identically by both this node and
       # WD14-Tagger below) has two independent base-path functions:
+      #
       # get_ext_dir() -- os.path.dirname(__file__), this node's own
-      # read-only bind mount, used for pysssss.json config storage --
-      # and get_comfy_dir() -- os.path.dirname(inspect.getfile(
-      # PromptServer)), comfyCore's own read-only Nix store path, used
-      # for the web/extensions/pysssss symlink target. Both redirected
-      # to the same per-node writable dir -- get_comfy_dir's actual
-      # semantic intent ("the real Comfy install root") is best served
-      # by nodeDataDir here rather than a genuinely shared location,
-      # since nothing else needs to read what it writes. Both
-      # functions already use os.makedirs (recursive), no mkdir/
-      # makedirs fix needed.
+      # read-only bind mount -- must NOT be redirected wholesale: it's
+      # used for real reads too (get_ext_dir("py") for this node's own
+      # Python files, get_ext_dir("web/js") for install_js()'s source,
+      # get_ext_dir("pysssss.default.json") for the bundled config
+      # template), not just the one write (get_ext_dir("pysssss.json"),
+      # the live config copy). Confirmed the hard way: an earlier
+      # version of this patch redirected get_ext_dir() itself, which
+      # broke every one of those reads ("Missing pysssss.default.json"
+      # errors on a real run) -- only the specific config_path
+      # assignment inside get_extension_config() is targeted instead.
+      #
+      # get_comfy_dir() -- os.path.dirname(inspect.getfile(
+      # PromptServer)), comfyCore's own read-only Nix store path -- is
+      # safe to redirect wholesale, since every one of its callers
+      # (get_web_ext_dir(), used by install_js()) is a pure write with
+      # nothing to read back from the original location.
       repo = "ComfyUI-Custom-Scripts";
       script = ''
-        sed -i 's|dir = os\.path\.dirname(__file__)|dir = "${nodeDataDir "ComfyUI-Custom-Scripts"}"|' \
+        sed -i 's|config_path = get_ext_dir("pysssss\.json")|config_path = "${nodeDataDir "ComfyUI-Custom-Scripts"}/pysssss.json"|' \
           "$out/pysssss.py"
         sed -i 's|dir = os\.path\.dirname(inspect\.getfile(PromptServer))|dir = "${nodeDataDir "ComfyUI-Custom-Scripts"}"|' \
           "$out/pysssss.py"
@@ -94,16 +101,19 @@ in
     }
 
     {
-      # Identical bundled pysssss.py, same two functions, same fix --
-      # its own separate node_data subdirectory (not shared with
-      # Custom-Scripts, even though both use the "pysssss" name
-      # internally -- keeping every patched node's writable data under
-      # its own nodeDataDir is the one consistent rule here, no
-      # exceptions to remember).
+      # NOT the same pysssss.py as Custom-Scripts, despite the identical
+      # filename -- confirmed by actually reading both copies, not
+      # assumed from the shared name. This node's version has no
+      # default-template/copy mechanism at all: get_extension_config()
+      # reads pysssss.user.json if present, else falls back to
+      # pysssss.json directly -- and pysssss.json here is a real,
+      # bundled, read-only resource file (this node's actual model
+      # catalog, confirmed by reading it), not something ever written.
+      # So get_ext_dir() needs no patching at all for this node -- only
+      # get_comfy_dir() (comfyCore's path, used solely by install_js()'s
+      # write-only web-extension symlink) does.
       repo = "ComfyUI-WD14-Tagger";
       script = ''
-        sed -i 's|dir = os\.path\.dirname(__file__)|dir = "${nodeDataDir "ComfyUI-WD14-Tagger"}"|' \
-          "$out/pysssss.py"
         sed -i 's|dir = os\.path\.dirname(inspect\.getfile(PromptServer))|dir = "${nodeDataDir "ComfyUI-WD14-Tagger"}"|' \
           "$out/pysssss.py"
       '';
@@ -126,9 +136,24 @@ in
       # source -- same outcome, but the "this node needs a directory to
       # exist" fact stays visible as data instead of being buried in a
       # second sed patch.
+      #
+      # A second real bug, only found by actually running this after
+      # the redirect: once downloaded, usdu_patch.py does
+      # `from repositories import ultimate_upscale as usdu` -- a
+      # top-level (not relative) import, resolved via sys.path.
+      # `sys.path.insert(0, repo_dir)` (below current_dir's assignment)
+      # only adds the real, unredirected source dir -- before this
+      # patch, that was fine because current_dir and repo_dir were the
+      # same value, so `repositories/` sat right next to what was
+      # already on sys.path. Redirecting current_dir alone broke that:
+      # repositories/ now lives somewhere sys.path never points at.
+      # Fixed by inserting current_dir onto sys.path too, right after
+      # repo_dir's own insert.
       repo = "ComfyUI_UltimateSDUpscale";
       script = ''
         sed -i 's|^current_dir = os\.path\.dirname(os\.path\.realpath(__file__))|current_dir = "${nodeDataDir "ComfyUI_UltimateSDUpscale"}"|' \
+          "$out/__init__.py"
+        sed -i '/^sys\.path\.insert(0, repo_dir)$/a sys.path.insert(0, current_dir)' \
           "$out/__init__.py"
       '';
       dirs = [ "repositories/ultimate_sd_upscale" ];

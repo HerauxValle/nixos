@@ -4,11 +4,11 @@
 # ComfyUI's node/model lists are large enough that keeping them in one
 # flat comfyui.nix (the way ollama.nix/stash.nix/openwebui.nix do it)
 # would bury the actual config values under hundreds of list entries.
+# The catalog files (node/model/patch inventories) live in ./catalog/,
+# grouped together since they're all the same shape of data.
 {
   imports = [
-    ./nodes.nix
-    ./models.nix
-    ./patches.nix
+    ./catalog
     ./comfyui.nix
   ];
 }

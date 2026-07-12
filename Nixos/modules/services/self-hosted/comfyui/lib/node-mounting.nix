@@ -1,7 +1,7 @@
 { lib, pkgs, dataDir, activeNodes, nodePatches }:
 
 # Node source fetch + per-node patches (see nodePatches -- a real Nix
-# option, config/self-hosted/comfyui/patches.nix's data, not hardcoded
+# option, config/self-hosted/comfyui/catalog/patches.nix's data, not hardcoded
 # here), plus the bind-mount plumbing that makes custom_nodes/<repo>
 # look like a real, writable-looking location instead of a flat Nix
 # store path. Split out of comfyui.nix once that file grew past ~480
