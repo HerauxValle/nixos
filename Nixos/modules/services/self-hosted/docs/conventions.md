@@ -75,23 +75,28 @@ service creates for itself at runtime (a `config/*.nix` file, a
 lockfile, anything checked into the repo), it needs this same split:
 a safe default and an explicitly-named destructive/mutating variant.
 
-## Destructive vs. recoverable, named differently
+## Destructive vs. recoverable -- why there's no uninstall action at all
 
-`mkUninstallScript`'s two tiers exist because "delete what this service
-created" and "delete the actual data it was fronting" are fundamentally
-different in consequence, and conflating them was explicitly rejected.
-Tier 1 only ever removes things `@install`/`@sync` can regenerate from
-pins that stay intact. Tier 2 (`:data`) removes the real thing -- a
-vault-resident database, saved chat history, saved workflows -- and
-cannot be undone. Same reasoning is why ComfyUI's model `@cleanup` was
-eventually *merged into* `@sync` (once the store/installed split meant
-"declared list shrinks" no longer meant "the pin is gone forever") --
-but the storage-backed data tier (`uninstall:data`) was never merged
-into anything, because that boundary never stopped being real.
+This system used to have a two-tier `mkUninstallScript` (`@uninstall`/
+`@uninstall:data`), split because "delete what this service created" and
+"delete the actual data it was fronting" are fundamentally different in
+consequence. It's gone now, not narrowed -- once nodes/models removal
+became fully automatic (preStart reconciles `installed.*` against disk
+every start, pins stay intact either way) and the venv rebuilds itself on
+lock change, the only thing an "uninstall" action would still have to
+touch is whatever's left in `dataDir` -- and that's exactly the same
+precious, non-reconcilable content `storage` already protects (ComfyUI's
+`output/`, real generated images, not disposable cruft). There is no safe
+way to script "delete the disposable parts" once dataDir can also hold
+the irreplaceable parts. So the entire category was removed rather than
+kept "narrower" -- see architecture.md's "No uninstall action" section.
 
-When something you're building can destroy data a user can't get back,
-name it so that's obvious from the command alone, and never make it the
-default behavior of a shorter/more-convenient-sounding action.
+The principle survives even with the mechanism gone: anything that can
+destroy data a user can't get back must never be reachable by an
+automated/scripted path, only a deliberate, by-hand `rm -rf`. If a future
+service ever needs a real destructive action, name it so that's obvious
+from the command alone, and never make it the default behavior of a
+shorter/more-convenient-sounding action.
 
 ## Real filesystem paths vs. Nix store paths -- know which you need
 
@@ -132,8 +137,8 @@ isn't a pure function of its inputs the way a Nix derivation is), and
 that's accepted -- but it's fenced in exactly one way, everywhere it's
 used: `execStart` never references the venv as a Nix derivation, only
 `venvDir` (a plain path) is used. This means a broken lockfile can only
-ever fail that service's `@install` action -- it can never block
-`nixos-rebuild switch` for the rest of the system, no matter how badly
-pip resolution goes. If a future service needs something else impure
+ever fail that service's own `preStart` (`venvEnsureScript`) -- it can
+never block `nixos-rebuild switch` for the rest of the system, no matter
+how badly pip resolution goes. If a future service needs something else impure
 (not a venv), the same rule applies: whatever's impure must never be
 something a plain `nixos-rebuild switch` depends on succeeding.

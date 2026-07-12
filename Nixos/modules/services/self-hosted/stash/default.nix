@@ -17,10 +17,17 @@
   imports = [ ./stash.nix ];
 
   options.vars.selfHosted.stash = {
-    enable = lib.mkOption {
+    enabled = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Master switch for the Stash service.";
+      default = false;
+      description = ''
+        Master switch. true = the live service and its actions run
+        exactly as declared. false = treated as if this service doesn't
+        exist -- no systemd units at all, and if it was previously
+        installed, the next rebuild automatically tears down dataDir
+        (minus any storage entries). See ../docs/architecture.md and
+        self-hosted.nix's mkTeardownActivationScript.
+      '';
     };
 
     dataDir = lib.mkOption {
@@ -97,6 +104,18 @@
       type = lib.types.listOf lib.types.str;
       default = [ ];
       description = "Paths that must already be mountpoints before this service (or any of its preStart) runs. See modules/services/self-hosted/self-hosted.nix's mkSelfHostedService.";
+    };
+
+    teardownPaths = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = ''
+        Paths, relative to dataDir, removed when enabled is set to false
+        (see self-hosted.nix's mkTeardownActivationScript). Empty (the
+        default) means "everything directly under dataDir except what a
+        storage entry covers" -- safe here since dataDir holds nothing
+        but the storage symlink itself.
+      '';
     };
   };
 }

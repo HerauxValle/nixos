@@ -43,22 +43,51 @@ reimplement unit-building.
 One systemd service (`self-hosted-<name>.service`), `Restart=on-failure`.
 Takes `execStart`, `user`, and the generic bits every service might need:
 `packages`, `environment`, `preStart` (ordered `ExecStartPre` list),
-`storage` (tmpfiles `L+` symlink rules), `requireMounts` (mountpoint
-checks run before anything else, generic -- knows nothing about Casket
-or vaults specifically), `environmentFile` (root-owned secrets, see
-below), `dataDir`/`ensureDataDir`/`autoStart`.
+`postStart` (ordered `ExecStartPost` list -- see below), `storage`
+(tmpfiles `L+` symlink rules), `requireMounts` (mountpoint checks run
+before anything else, generic -- knows nothing about Casket or vaults
+specifically), `environmentFile` (root-owned secrets, see below),
+`dataDir`/`ensureDataDir`/`autoStart`/`homeDirectory`.
+
+**`preStart` vs `postStart`**: both are just ordered lists of shell
+strings, each wrapped in its own `writeShellScript` -- the only real
+difference is *when* systemd runs them. `ExecStartPre` (preStart) runs
+before the main process forks; use it for anything that only needs the
+filesystem (venv install/reconcile, node/model mounting). `ExecStartPost`
+(postStart) runs right after fork/exec, **not** once the process is
+actually ready to serve -- use it only when reconciliation has to go
+through the live process's own interface (Ollama's model sync goes
+through `ollama list`/`ollama pull` over its HTTP API, which isn't up the
+instant the binary forks). Anything using `postStart` for this reason
+needs its own bounded poll-until-ready loop first (see `ollama/sync.nix`)
+-- `ExecStartPost` gives you no such guarantee for free.
+
+**`homeDirectory`**: when set, `mkSelfHostedService` computes every path
+component strictly between `homeDirectory` and `dataDir` and emits a
+`d`+`z` tmpfiles rule pair for each ancestor, not just `dataDir` itself.
+Exists because an ancestor directory (e.g. `~/Applications`) can end up
+root-owned from some earlier root-run step, and `systemd-tmpfiles` refuses
+to walk through a root-owned parent to fix a child ("unsafe path
+transition") -- fixing just the leaf `dataDir` silently doesn't work if
+any ancestor above it is wrong. Pass `homeDirectory = config.vars.homeDirectory;`
+whenever `dataDir` lives under the home directory.
 
 **The `ensureDataDir` trap**: `true` gets you a tmpfiles `d` rule for
 `dataDir` plus `WorkingDirectory=dataDir` on the unit -- convenient, but
 `WorkingDirectory=` applies to *every* exec step including
-`ExecStartPre`. If `dataDir` is gated by something external (a Casket
-vault that might not be mounted yet), a preStart meant to check for that
-can't even run, because the working directory itself doesn't exist yet.
-Found this the hard way (Stash and Ollama both hit exit 200/CHDIR on a
-real rebuild) -- see the option's own comment in `self-hosted.nix` for
-the exact failure mode. Rule of thumb: `ensureDataDir = true` only if
-`dataDir`'s existence isn't conditional on anything outside Nix's
-control.
+`ExecStartPre`/`ExecStartPost`. If `dataDir` is gated by something
+external (a Casket vault that might not be mounted yet), a preStart meant
+to check for that can't even run, because the working directory itself
+doesn't exist yet. Found this the hard way (Stash and Ollama both hit
+exit 200/CHDIR on a real rebuild) -- see the option's own comment in
+`self-hosted.nix` for the exact failure mode. Rule of thumb:
+`ensureDataDir = true` only if `dataDir`'s existence isn't conditional on
+anything outside Nix's control.
+
+**`requireMounts`**: when non-empty, `mkSelfHostedService` automatically
+adds `pkgs.util-linux` to the unit's `path` -- the mountpoint check shells
+out to `mountpoint`, which isn't on PATH by default. No caller has to
+remember this.
 
 ### `mkActionService` -- manual actions, one dispatch script
 
@@ -77,22 +106,31 @@ scattering independent top-level service names, and it means the actual
 mechanism (`case` statement matching a literal string) is completely
 generic -- see "Action naming" below for how far this stretches.
 
-### `mkFHSVenv` / `mkVenvInstallScript` -- the one deliberately-impure step
+### `mkFHSVenv` / `mkVenvInstallScript` / `mkVenvEnsureScript` -- the one deliberately-impure step
 
 Python services (OpenWebUI, ComfyUI) need pip-installed compiled wheels
 that expect a real `/lib`, `/usr/lib` FHS layout, which doesn't exist on
 NixOS. `mkFHSVenv` wraps `pkgs.buildFHSEnv` -- this derivation itself is
 pure and reproducible (a symlink+bind-mount merge of `targetPkgs`, not
 copies). `mkVenvInstallScript` runs inside that sandbox: wipe `venvDir`,
-create a fresh venv, `pip install --require-hashes -r requirementsLock`.
+create a fresh venv, `pip install --require-hashes -r requirementsLock`,
+then writes `requirementsLock`'s hash (computed at eval time via
+`builtins.hashFile`) to a marker file in `venvDir` on success.
+
+`mkVenvEnsureScript` wraps that: compares the marker file against the
+lock's current hash first, and only runs the real (slow) install if
+they differ. Every service's `preStart` calls this, not
+`mkVenvInstallScript` directly -- there's no separate manual install
+action, the venv reconciles itself on every service start, and stays a
+no-op the moment `requirementsLock` hasn't actually changed.
 
 This is **the one place in the whole system that's allowed to be
 impure** -- what pip actually resolves and installs isn't reproducible
 the way a Nix derivation is. It's structurally confined: `execStart`
 never references the venv as a Nix derivation, only `venvDir` (a plain
-path) is used, so a broken or stale lock can only ever fail the
-`@install` action -- it can never block `nixos-rebuild switch` for the
-rest of the system.
+path) is used, so a broken or stale lock can only ever fail that
+service's own `preStart` -- it can never block `nixos-rebuild switch`
+for the rest of the system.
 
 `venvDir` lives under `~/.impure/python-venvs/self-hosted/<name>/`, not
 under `dataDir` -- see "`~/.impure/`" below.
@@ -112,26 +150,29 @@ nodes hit from exactly this. The mechanism itself is generic and lives
 here precisely so any other FHS-based service hitting the same problem
 doesn't need its own bespoke fix.
 
-### `mkUninstallScript` -- two-tier teardown, every service gets it
+### No uninstall action -- deliberately, not an oversight
 
-```nix
-mkUninstallScript = { dataDir, storage ? [ ], venvDir ? null, includeData ? false }
-```
+There used to be a two-tier `mkUninstallScript` (`@uninstall`/
+`@uninstall:data`). It's gone, not narrowed. Reasoning:
 
-- **Tier 1** (`@uninstall`): `venvDir` (if any) plus everything directly
-  under `dataDir` *except* whatever a `storage` entry's `src` covers.
-  I.e. exactly what `@install`/`@sync` put there. Recoverable -- the
-  pins are untouched, re-running those actions brings it all back.
-- **Tier 2** (`@uninstall:data`, `includeData = true`): tier 1, plus what
-  each `storage` entry's `dest` actually points at -- the real data this
-  service was fronting (a vault-resident database, chat history, saved
-  workflows). **Not recoverable.** Always includes tier 1 too, so it's a
-  complete teardown regardless of whether tier 1 already ran.
+- Nodes/models removal-when-undeclared is now fully automatic (preStart
+  reconciles `installed.nodes`/`installed.models` against what's
+  actually on disk every start -- verified empirically, not assumed:
+  created fake undeclared node/model fixtures, ran the real generated
+  preStart scripts, confirmed both got removed with real command output).
+- The venv already rebuilds itself on lock change via
+  `mkVenvEnsureScript` -- no separate action needed to reset it.
+- Whatever's left in `dataDir` beyond the above (ComfyUI's `output/`,
+  `temp/` -- actual generated images, not disposable cruft) is exactly
+  as precious as `storage`-backed data, and deserves the same protection:
+  never removable by anything automated, only a deliberate, by-hand
+  `rm -rf`. There is no way to script "delete the disposable parts of
+  dataDir" safely once dataDir can also hold genuinely irreplaceable
+  output.
 
-Both are idempotent (`rm -rf` on an already-missing path is a no-op), so
-they're safe to run in either order or independently. Neither ever
-touches the Nix store -- reclaiming unused store paths is garbage
-collection's job (`pacnix orphaned`), not this.
+If a service ever generates something disposable that preStart can't
+reconcile away on its own, that's a new, narrow, service-specific
+`preStart` step -- not a resurrection of a generic uninstall action.
 
 ### `mkDepsUpdateScript` -- shared by every pip-based service
 
@@ -161,17 +202,19 @@ path as a separate plain-string parameter for this exact reason -- see
 
 Every service's actions live in one flat `attrsOf str`, dispatched by a
 single `case "$1" in ... esac`. Nothing about that mechanism knows about
-colons specifically -- `"sync:models"`, `"update:nodes:ComfyUI-Manager:apply"`
+colons specifically -- `"update:nodes"`, `"update:nodes:ComfyUI-Manager:apply"`
 are just attrset keys like any other, matched as literal strings. Two
 conventions have been layered on top of that plain mechanism, both
 verified against real systemd behavior (not assumed):
 
 - **`:target`** -- narrows an action to one part of what it'd otherwise
-  do in full. `sync` (bare) does everything sync-able; `sync:models`
-  does just the models half. `update:nodes:<repo>` narrows all the way
-  down to one specific node. The bare form should always be "do
-  everything the targeted forms can do, in a sensible order" -- never a
-  separate, different behavior.
+  do in full. `update` (bare) checks core, installed nodes, and deps all
+  at once; `update:nodes` checks just the nodes; `update:nodes:<repo>`
+  narrows all the way down to one specific node. The bare form should
+  always be "do everything the targeted forms can do, in a sensible
+  order" -- never a separate, different behavior. Note this convention is
+  only about `@update*` now -- there's no `sync`/`install`/`uninstall`
+  action family left to target at all, see the sections above.
 - **`:apply`** -- every `update*` action exists in a print-only form and
   an `:apply` form that performs the same check but writes the result
   (`sed`-edits a config `.nix` file, or moves a new lockfile into place)
@@ -205,8 +248,9 @@ ComfyUI's nodes and models are each split into a **catalog**
 exists specifically because ComfyUI's model catalog is ~700GB and
 there's no realistic scenario where all of it is wanted on disk
 simultaneously -- disabling a model is a one-line removal from
-`installed.models` (plus an explicit `@sync:models` or `@sync` to
-actually reclaim the disk space), not deleting its pin and having to
+`installed.models`, and the next service start's preStart (no separate
+action needed) fetches whatever's newly declared and reclaims disk space
+for whatever just dropped out, not deleting its pin and having to
 re-derive the download URL later. Nodes get the identical treatment for
 consistency, even though in practice they tend to be installed together.
 
@@ -245,17 +289,33 @@ nothing ever conflates the two. If a future service needs some other
 kind of genuinely-impure on-disk state that isn't a venv, it likely
 belongs under `~/.impure/` too, in its own subdirectory.
 
-## What a request actually does, end to end
+## What actually happens on a rebuild + restart
 
-`systemctl start self-hosted-comfyui@sync:models` ->
+This is the primary path now -- no manual action required at all:
+`nixos-rebuild switch` -> `systemctl restart self-hosted-comfyui` ->
+1. `ExecStartPre` (preStart) runs, in list order: mount/unmount
+   `custom_nodes/` to match `installed.nodes`, run `venvEnsureScript`
+   (no-op unless `requirementsLock`'s hash changed), fetch/remove models
+   under `dataDir/models` to match `installed.models`.
+2. `ExecStart` (the real ComfyUI process) starts.
+3. Nothing about steps 1-2 needed you to run anything by hand -- editing
+   `installed.nodes`/`installed.models`/`requirementsLock` in `config/`
+   and rebuilding is sufficient on its own.
+
+## What a manual action request actually does, end to end
+
+`systemctl start self-hosted-comfyui@update:nodes` ->
 1. Starts the `self-hosted-comfyui@.service` template instance
-   `sync:models`.
+   `update:nodes`.
 2. Its `ExecStart` is the one shared dispatch script
    (`self-hosted-comfyui-dispatch %i`) built by `mkActionService`.
-3. The dispatch script's `case "$1" in ... "sync:models") exec ... ;;`
-   matches the literal string `sync:models` and execs that action's own
+3. The dispatch script's `case "$1" in ... "update:nodes") exec ... ;;`
+   matches the literal string `update:nodes` and execs that action's own
    `writeShellScript` derivation.
 4. That script runs as a oneshot, with whatever `packages`/`environment`/
    `environmentFile` the service's `mkActionService` call declared.
 5. Nothing about steps 1-4 changes when a new action is added to a
    service -- it's purely a new key in that service's `actions` attrset.
+   Remember: the only action family left is `@update*` -- checking
+   upstream for something newer. Everything else is automatic, per the
+   section above.

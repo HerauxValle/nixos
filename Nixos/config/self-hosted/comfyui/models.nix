@@ -2,11 +2,11 @@
 
 # The full catalog -- every model ever pinned here, whether or not it's
 # currently installed. `name` is the addressable key: list it in
-# config.vars.selfHosted.comfyui.installed.models (../comfyui.nix) to
-# actually have @sync fetch it. A handful of entries share a `name` on
-# purpose -- e.g. florence2-base's model/config/tokenizer/tokenizer_config
-# are one logical model split across 4 files, installing the name gets
-# all of them.
+# config.vars.selfHosted.comfyui.installed.models (../comfyui.nix) and
+# preStart fetches it automatically on the next restart, no manual action
+# needed. A handful of entries share a `name` on purpose -- e.g.
+# florence2-base's model/config/tokenizer/tokenizer_config are one logical
+# model split across 4 files, installing the name gets all of them.
 #
 # Ported from the old models.sh verbatim (category comments kept for
 # readability); the commented-out/disabled entries in that file were left

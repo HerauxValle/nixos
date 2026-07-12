@@ -7,9 +7,11 @@ Lockfile + source list: `Python/locks/self-hosted/openwebui/{requirements.lock,r
 Runs from a pip-installed venv inside a `buildFHSEnv` sandbox (compiled
 wheels like pillow/lxml need a real `/lib`,`/usr/lib` that doesn't exist on
 NixOS). The sandbox derivation itself is pure/reproducible; only what pip
-installs inside it (via `@install`) is the deliberately-impure part of this
-service. CPU-only -- talks to Ollama over its API for actual inference, no
-GPU access needed here.
+installs inside it (via `preStart`'s `venvEnsureScript`, automatically on
+every start) is the deliberately-impure part of this service. CPU-only --
+talks to Ollama over its API for actual inference, no GPU access needed
+here. No manual install step, no manual sync/uninstall action -- the only
+action left is `update`/`update:apply`, see below.
 
 ## Options (`vars.selfHosted.openwebui`)
 
@@ -17,7 +19,7 @@ GPU access needed here.
 |---|---|---|---|
 | `enable` | bool | `true` | Master switch. |
 | `dataDir` | str | `~/Applications/Networking/OpenWebUI` | Plain, always-available. Real data is at `dataDir/<storage[0].src>` (`liveDataDir`), which also sets `DATA_DIR` for the process. |
-| `venvDir` | str | `~/.impure/python-venvs/self-hosted/openwebui` | Disposable, fully regenerable from `requirements.lock` via `@install`. Lives under `~/.impure/` deliberately -- see that directory's own reasoning below. |
+| `venvDir` | str | `~/.impure/python-venvs/self-hosted/openwebui` | Disposable, fully regenerated from `requirements.lock` automatically by preStart's `venvEnsureScript` whenever the lock's hash changes. Lives under `~/.impure/` deliberately -- see that directory's own reasoning below. |
 | `autoStart` | bool | `true` | |
 | `host` | str | `"0.0.0.0"` | Passed as `--host`. |
 | `port` | port | `8080` | Passed as `--port`. |
@@ -27,17 +29,10 @@ GPU access needed here.
 
 ## systemd units
 
-- `self-hosted-openwebui.service` -- the live process, runs inside the FHS sandbox.
-- `self-hosted-openwebui@install` -- wipes and recreates `venvDir`,
-  `pip install --require-hashes -r requirements.lock`.
-- `self-hosted-openwebui@sync` -- no-op, prints a note (no declarative
-  models/nodes for this service).
-- `self-hosted-openwebui@uninstall` -- removes `venvDir`, plus anything
-  directly under `dataDir` not covered by `storage`. Recoverable: `@install`
-  rebuilds the venv.
-- `self-hosted-openwebui@uninstall:data` -- tier 1, plus what `storage`
-  actually points at: the real chat/user data inside the vault. **Not
-  recoverable.**
+- `self-hosted-openwebui.service` -- the live process, runs inside the FHS
+  sandbox. `preStart` runs `venvEnsureScript` on every start (no-op unless
+  `requirements.lock`'s hash changed) before generating the secret key and
+  starting the process.
 - `self-hosted-openwebui@update` -- re-runs pip-compile against
   `requirements.in`, diffs against the checked-in `requirements.lock`.
   **Print/diff-only** -- never overwrites the real lock. If it differs,
@@ -45,8 +40,10 @@ GPU access needed here.
   package/version diff via `journalctl -u self-hosted-openwebui@update`.
 - `self-hosted-openwebui@update:apply` -- same check, but if it differs,
   moves the new lock straight into place instead of leaving `.new` for
-  you to `mv` yourself. Still doesn't rebuild, restart, or run `@install`
-  -- those stay separate.
+  you to `mv` yourself. Still doesn't rebuild or restart anything --
+  those stay separate, deliberate steps. No follow-up install action
+  needed either: the next restart's preStart picks up the new hash
+  automatically.
 
 ## `WEBUI_SECRET_KEY`
 
@@ -69,14 +66,16 @@ releases without editing anything.
 2. To bump something specific (not just "whatever's newest"), edit
    `requirements.in` first, then run `@update`/`@update:apply` the same
    way.
-3. Rebuild, restart `self-hosted-openwebui.service`, then
-   `systemctl start self-hosted-openwebui@install`.
+3. Rebuild, restart `self-hosted-openwebui.service` -- preStart's
+   `venvEnsureScript` picks up the new lock hash and reinstalls
+   automatically, no separate step needed.
 
 ## Full teardown, including the real data
 
-`systemctl start self-hosted-openwebui@uninstall:data` -- deletes the
-actual chat/user data inside the vault, not just the venv. Think before
-running it.
+No scripted action for this, deliberately -- see
+`../docs/architecture.md`'s "No uninstall action". The actual chat/user
+data inside the vault is precious; only remove it with a deliberate,
+by-hand `rm -rf`.
 
 ## `~/.impure/`
 

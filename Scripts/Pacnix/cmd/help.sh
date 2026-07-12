@@ -46,6 +46,15 @@ usage: pacnix <command> [args]
       doesn't touch generation history/rollback, only genuinely unused
       paths). Same before/after reporting as optimise.
 
+  logs <service>[@<action>] [journalctl-args...]
+      journalctl -u self-hosted-<service> -f, minus the boilerplate --
+      just the part you actually think in. Forgiving about an
+      already-typed self-hosted- prefix. Anything after the spec passes
+      straight through to journalctl (-n 50, --since, ...).
+        e.g. pacnix logs comfyui
+             pacnix logs comfyui@sync
+             pacnix logs comfyui@update:deps:apply
+
   reload
       Runs the fish `reload` function (syncs fish/bash/nu/pwsh configs),
       `qsr` (relaunches MyBar), and `hyprctl reload`. Warns and does

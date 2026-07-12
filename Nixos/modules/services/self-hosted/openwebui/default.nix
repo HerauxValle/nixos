@@ -14,10 +14,18 @@
   imports = [ ./openwebui.nix ];
 
   options.vars.selfHosted.openwebui = {
-    enable = lib.mkOption {
+    enabled = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Master switch for the OpenWebUI service.";
+      default = false;
+      description = ''
+        Master switch. true = the live service and its actions run
+        exactly as declared. false = treated as if this service doesn't
+        exist -- no systemd units at all, and if it was previously
+        installed, the next rebuild automatically tears down the venv
+        and dataDir (minus any storage entries). See
+        ../docs/architecture.md and self-hosted.nix's
+        mkTeardownActivationScript.
+      '';
     };
 
     dataDir = lib.mkOption {
@@ -26,9 +34,10 @@
       description = "Plain, always-available path -- holds nothing on its own except the venv and the storage symlink below.";
     };
 
-    # Entirely disposable -- fully regenerable from requirementsLock via
-    # the @install action, never a Nix store path (pip needs write
-    # access, the store is read-only by design). Lives under
+    # Entirely disposable -- fully regenerated from requirementsLock
+    # automatically by preStart's venvEnsureScript whenever the lock's
+    # hash changes, never a Nix store path (pip needs write access, the
+    # store is read-only by design). Lives under
     # ~/.impure/, not dataDir -- a venv is exactly the kind of thing
     # that directory name exists to call out: real files on disk that
     # Nix did not put there and cannot fully account for, kept apart
@@ -84,6 +93,18 @@
       type = lib.types.listOf lib.types.str;
       default = [ ];
       description = "Paths that must already be mountpoints before this service (or any of its preStart) runs.";
+    };
+
+    teardownPaths = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = ''
+        Paths, relative to dataDir, removed when enabled is set to false
+        (see self-hosted.nix's mkTeardownActivationScript). Empty (the
+        default) means "everything directly under dataDir except what a
+        storage entry covers" -- safe here since dataDir holds nothing
+        but the storage symlink itself.
+      '';
     };
   };
 }

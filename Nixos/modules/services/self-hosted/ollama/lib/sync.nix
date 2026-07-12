@@ -7,13 +7,27 @@
 # (cfg.models, set in config/self-hosted.nix); this is the
 # service-specific *behavior* for that data. Declared list arrives via
 # $OLLAMA_MODELS_DECLARED (space-separated), set by ./ollama.nix.
+#
+# Runs as postStart (ExecStartPost), not preStart -- pull/rm/list all go
+# through ollama's own HTTP API, which isn't up yet during preStart.
+# ExecStartPost fires right after fork/exec, not once the server is
+# actually accepting connections, so this waits (poll, bounded) rather
+# than assuming ready.
 
 ''
   set -euo pipefail
   BIN="${package}/bin/ollama"
 
-  if ! "$BIN" list >/dev/null 2>&1; then
-    echo "[sync] ollama not reachable -- is self-hosted-ollama running?" >&2
+  ready=0
+  for _ in $(seq 1 30); do
+    if "$BIN" list >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+    sleep 1
+  done
+  if [ "$ready" -ne 1 ]; then
+    echo "[sync] ollama did not become ready within 30s" >&2
     exit 1
   fi
 

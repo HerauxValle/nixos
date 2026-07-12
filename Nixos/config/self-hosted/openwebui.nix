@@ -5,6 +5,12 @@
 # ollama.nix/stash.nix.
 {
   config.vars.selfHosted.openwebui = {
+    # true = installed: systemd units exist, preStart's venv install
+    # runs. false = torn down on the next rebuild -- venvDir and dataDir
+    # (minus the "data" storage entry) removed automatically; the real
+    # chat/user data inside the vault is never touched by that teardown.
+    enabled = true;
+
     dataDir = "${config.vars.homeDirectory}/Applications/Networking/OpenWebUI";
 
     # Off for now -- still exists, still systemctl start-able by hand,
@@ -23,6 +29,11 @@
 
     # Independent fact, not derived from storage above.
     requireMounts = [ "${config.vars.homeDirectory}/Images/SelfHosted" ];
+
+    # Empty -- dataDir holds nothing but the storage symlink itself, so
+    # the default "everything but storage" teardown (when enabled =
+    # false) is safe as-is; no need to scope it down further.
+    teardownPaths = [ ];
 
     environment = {
       OLLAMA_BASE_URL = "http://localhost:11434";

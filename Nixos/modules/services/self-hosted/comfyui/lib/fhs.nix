@@ -1,17 +1,17 @@
 { pkgs, extraBwrapArgs ? [ ] }:
 
-# extraBwrapArgs -- computed in ./comfyui.nix from the currently
+# extraBwrapArgs -- computed in ../comfyui.nix from the currently
 # installed nodes, bind-mounts each one's real Nix store source at its
 # custom_nodes/<repo> path instead of symlinking it there. See
-# ../self-hosted.nix's mkFHSVenv comment for why.
+# ../../self-hosted.nix's mkFHSVenv comment for why.
 #
 # The FHS sandbox ComfyUI's venv gets created and installed inside --
-# same reasoning as openwebui/fhs.nix, just a much heavier targetPkgs
+# same reasoning as openwebui/lib/fhs.nix, just a much heavier targetPkgs
 # list: torch+CUDA, plus native-extension-heavy custom nodes that
 # compile against a real toolchain (cmake/ninja/gcc), not just link
 # against prebuilt wheels. This derivation itself is pure/reproducible
 # (a symlink+bind-mount merge, not copies) -- only what pip installs
-# inside it, at runtime via the @install action, is impure.
+# inside it, at runtime via preStart's venvEnsureScript, is impure.
 #
 # python3.12 specifically (confirmed in the old
 # configuration/variables/toolchain.sh, same constraint as OpenWebUI).
@@ -20,7 +20,7 @@
 # test run against this derivation.
 
 let
-  selfHosted = import ../self-hosted.nix { inherit pkgs; lib = pkgs.lib; };
+  selfHosted = import ../../self-hosted.nix { inherit pkgs; lib = pkgs.lib; };
 in
 
 selfHosted.mkFHSVenv {
@@ -37,8 +37,9 @@ selfHosted.mkFHSVenv {
   #   model is a .zip either (checked). Actually dead weight now, not
   #   a faithful-port leftover worth keeping "just in case".
   # - ttf-ms-fonts dropped -- was the old system's attempt at a real
-  #   arial.ttf; the font patch (./comfyui.nix's mkNodeSrc) makes that
-  #   moot by pointing the one hardcoded call straight at dejavu_fonts.
+  #   arial.ttf; the font patch (./node-mounting.nix's mkNodeSrc) makes
+  #   that moot by pointing the one hardcoded call straight at
+  #   dejavu_fonts.
   targetPkgs = pkgs: with pkgs; [
     python312
     stdenv.cc

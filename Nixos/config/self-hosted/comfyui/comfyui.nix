@@ -4,6 +4,13 @@
 # ./nodes.nix and ./models.nix, split out purely because of their size.
 {
   config.vars.selfHosted.comfyui = {
+    # true = installed: systemd units exist, preStart/postStart
+    # reconciliation runs. false = torn down on the next rebuild --
+    # venvDir, custom_nodes/, models/ all removed automatically, but
+    # storage (the "user" vault entry) and dataDir's other real content
+    # (output/, temp/, input/) are never touched by that teardown.
+    enabled = true;
+
     dataDir = "${config.vars.homeDirectory}/Applications/Networking/ComfyUI";
 
     # Off for now -- still exists, still systemctl start-able by hand,
@@ -26,6 +33,13 @@
     ];
 
     requireMounts = [ "${config.vars.homeDirectory}/Images/SelfHosted" ];
+
+    # Non-empty, deliberately -- dataDir also holds output/temp/input
+    # (real generated/uploaded content, no storage entry covers them), so
+    # the default "everything but storage" teardown would delete them.
+    # Only these two paths are ever removed when enabled = false; the
+    # venv (venvDir, outside dataDir) is always removed too regardless.
+    teardownPaths = [ "custom_nodes" "models" ];
 
     # nodeStore/modelStore (./nodes.nix, ./models.nix) are the full
     # catalog -- everything ever pinned. This is the actually-active
@@ -107,9 +121,10 @@
 
       # Deliberately empty -- modelStore is ~700GB across every entry,
       # there's no world where all of it is wanted on disk at once. Fill
-      # in the `name`s (from ./models.nix) you actually want fetched by
-      # @sync right now; everything else stays pinned in the catalog,
-      # ready to add later without re-deriving anything.
+      # in the `name`s (from ./models.nix) you actually want fetched --
+      # preStart picks it up automatically on the next restart; everything
+      # else stays pinned in the catalog, ready to add later without
+      # re-deriving anything.
       models = [ ];
     };
   };

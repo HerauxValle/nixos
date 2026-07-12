@@ -1,7 +1,8 @@
 { lib, config, ... }:
 
-# Schema only -- logic lives in ./fhs.nix (sandbox + venv install) and
-# ./comfyui.nix (wiring), same split as every other module here.
+# Schema only -- logic lives in ./comfyui.nix (wiring) and ./lib/ (the
+# implementation-detail pieces comfyui.nix ties together: fhs.nix,
+# node-mounting.nix, requirements.nix, models-sync.nix, update.nix).
 #
 # Ported from ~/Scripts/Self-hosted/ComfyUI/, read as a behavioral
 # reference only.
@@ -9,10 +10,20 @@
   imports = [ ./comfyui.nix ];
 
   options.vars.selfHosted.comfyui = {
-    enable = lib.mkOption {
+    enabled = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Master switch for the ComfyUI service.";
+      default = false;
+      description = ''
+        Master switch. true = the live service, its actions, and
+        preStart/postStart reconciliation all run exactly as declared.
+        false = treated as if this service doesn't exist -- no systemd
+        units at all, and if it was previously installed, the next
+        rebuild automatically tears down exactly what it can safely
+        rebuild (venv, mounted nodes, fetched models), never anything
+        storage-backed or otherwise outside that reconcilable set. See
+        ../docs/architecture.md and self-hosted.nix's
+        mkTeardownActivationScript.
+      '';
     };
 
     dataDir = lib.mkOption {
@@ -28,7 +39,7 @@
     venvDir = lib.mkOption {
       type = lib.types.str;
       default = "${config.vars.homeDirectory}/.impure/python-venvs/self-hosted/comfyui";
-      description = "Where the Python venv lives -- disposable, regenerable from requirementsLock via the @install action.";
+      description = "Where the Python venv lives -- disposable, regenerated from requirementsLock automatically by preStart's venvEnsureScript whenever the lock's hash changes.";
     };
 
     autoStart = lib.mkOption {
@@ -64,6 +75,22 @@
       type = lib.types.listOf lib.types.str;
       default = [ ];
       description = "Paths that must already be mountpoints before this service (or any of its preStart) runs.";
+    };
+
+    teardownPaths = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = ''
+        Paths, relative to dataDir, removed when enabled is set to false
+        (see self-hosted.nix's mkTeardownActivationScript). Empty (the
+        default) means "everything directly under dataDir except what a
+        storage entry covers" -- only safe when dataDir holds nothing
+        else. Non-empty scopes the teardown to exactly these paths
+        instead, leaving everything else in dataDir alone regardless of
+        storage. ComfyUI's dataDir also holds output/temp/input (real
+        generated/uploaded content, no storage entry covers it), so this
+        must stay non-empty here.
+      '';
     };
 
     # Paired facts about the exact ComfyUI core commit pinned -- no
@@ -122,25 +149,26 @@
         };
       });
       default = [ ];
-      description = "Every model ever pinned. Only entries whose name is listed in installed.models are ever fetched by @sync or kept by @cleanup.";
+      description = "Every model ever pinned. Only entries whose name is listed in installed.models are ever fetched, or kept once fetched -- both handled automatically by preStart on every service start.";
     };
 
-    # The actually-active subset -- what @sync will fetch and @cleanup
-    # will keep. Two flat lists of names/repos rather than moving entries
-    # between files: toggling something on/off is a one-line change here
-    # instead of relocating a whole pinned block, and the pin itself
-    # never has to be re-fetched just to re-enable something.
+    # The actually-active subset -- what preStart bind-mounts/fetches and
+    # keeps in sync on every service start. Two flat lists of names/repos
+    # rather than moving entries between files: toggling something on/off
+    # is a one-line change here instead of relocating a whole pinned
+    # block, and the pin itself never has to be re-fetched just to
+    # re-enable something.
     installed = {
       nodes = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ ];
-        description = "repo values from nodeStore that should be symlinked into custom_nodes/. Checked against nodeStore at eval time -- an unknown repo here is a hard error, not a silent no-op.";
+        description = "repo values from nodeStore that should be bind-mounted into custom_nodes/ (see prepareNodeMountsScript). Checked against nodeStore at eval time -- an unknown repo here is a hard error, not a silent no-op.";
       };
 
       models = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ ];
-        description = "name values from modelStore that @sync should fetch and @cleanup should keep. Checked against modelStore at eval time -- an unknown name here is a hard error, not a silent no-op.";
+        description = "name values from modelStore that preStart should fetch and keep on disk, removing anything under dataDir/models backing a name not listed here. Checked against modelStore at eval time -- an unknown name here is a hard error, not a silent no-op.";
       };
     };
   };

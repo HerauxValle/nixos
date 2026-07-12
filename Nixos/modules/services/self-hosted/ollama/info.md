@@ -4,9 +4,10 @@ Schema: `./default.nix`. Wiring: `./ollama.nix`. Package fetch: `./package.nix`.
 Sync behavior: `./sync.nix`. Real values: `Nixos/config/self-hosted/ollama.nix`.
 
 Binary comes from a pure `fetchurl`-style Nix derivation (`package.nix`) --
-no venv, no FHS sandbox, no `@install` action. `nixos-rebuild switch` alone
-is enough to get a working `ollama` binary; nothing needs to be manually
-installed afterward.
+no venv, no FHS sandbox, no manual install step. `nixos-rebuild switch`
+alone is enough to get a working `ollama` binary; nothing needs to be
+manually installed afterward. The only manual action left is
+`update`/`update:apply` -- checking upstream for a newer release.
 
 ## Options (`vars.selfHosted.ollama`)
 
@@ -17,25 +18,16 @@ installed afterward.
 | `autoStart` | bool | `true` | `false` = exists, `systemctl start`-able, but not on boot/rebuild. |
 | `version` | str | *required* | Ollama release version to pin, e.g. `"0.31.2"`. |
 | `hash` | str | *required* | SRI sha256 of that version's `ollama-linux-amd64.tar.zst`. Get a new one with `nix-prefetch-url --type sha256 <url>` then `nix hash convert --to sri`. |
-| `environment` | attrsOf str | `{ }` | Plain passthrough to both the live process and the sync unit -- `OLLAMA_HOST`, `OLLAMA_CONTEXT_LENGTH`, `OLLAMA_KEEP_ALIVE`, `CUDA_VISIBLE_DEVICES`, etc. |
-| `models` | listOf str | `[ ]` | Declared models, e.g. `"llama3.1:8b"`. Reconciled only by `@sync`, never automatically. |
+| `environment` | attrsOf str | `{ }` | Plain passthrough to the live process -- `OLLAMA_HOST`, `OLLAMA_CONTEXT_LENGTH`, `OLLAMA_KEEP_ALIVE`, `CUDA_VISIBLE_DEVICES`, etc. |
+| `models` | listOf str | `[ ]` | Declared models, e.g. `"llama3.1:8b"`. Reconciled automatically every service start via `postStart`, once the server is confirmed up -- never during rebuild/activation itself. |
 | `storage` | listOf `{src,dest}` | `[ ]` | `src` relative to `dataDir` -> symlink to absolute `dest`, applied via `systemd.tmpfiles.rules`. |
 
 ## systemd units
 
-- `self-hosted-ollama.service` -- the live `ollama serve` process. `Restart=on-failure`.
-- `self-hosted-ollama@install` -- no-op, prints a note. The binary is a
-  plain Nix store path (`package.nix`), already there after any rebuild
-  -- exists purely so `@install` is valid on every self-hosted service.
-- `self-hosted-ollama@sync` / `@sync:models` -- identical, `:models` is
-  just an alias for consistency with the other services' `sync:<target>`
-  form; Ollama only ever had one syncable category.
-- `self-hosted-ollama@uninstall` -- removes `dataDir` (pulled model
-  blobs) except anything a `storage` entry covers. Recoverable: re-run
-  `@sync` with the same `models` list to get them back. Never touches
-  the Nix store -- that's garbage collection's job (`pacnix orphaned`).
-- `self-hosted-ollama@uninstall:data` -- tier 1 plus whatever `storage`
-  entries actually point at (none by default). Not recoverable.
+- `self-hosted-ollama.service` -- the live `ollama serve` process.
+  `Restart=on-failure`. `postStart` runs `sync.nix`'s script right after
+  the process forks -- see "Sync behavior" below for why it's postStart
+  and not preStart.
 - `self-hosted-ollama@update` -- checks `ollama/ollama`'s GitHub releases
   for something newer than `version`. **Print-only** -- never edits
   `config/self-hosted/ollama.nix` itself. Read the new `version`/`hash`
@@ -47,33 +39,44 @@ installed afterward.
   doesn't rebuild or restart anything -- that's still a deliberate,
   separate step.
 
+There is no uninstall action. See `../docs/architecture.md`'s "No
+uninstall action" for why -- short version: model reconciliation is
+already automatic, and the binary is just a Nix store path GC already
+handles.
+
 ## Sync behavior (`./sync.nix`)
+
+Runs as `postStart`, not `preStart`, because it goes through the live
+process's own HTTP API (`ollama list`/`ollama pull`/`ollama rm`), which
+isn't up the instant the binary forks -- `ExecStartPost` fires right
+after fork/exec, with no guarantee the server is actually accepting
+requests yet. `sync.nix` polls `ollama list` in a bounded loop (up to 30s)
+before doing any real work, and fails loudly if the server never comes up
+in that window rather than silently skipping reconciliation.
 
 Reads `$OLLAMA_MODELS_DECLARED` (space-separated, set from `cfg.models` by
 `ollama.nix`), diffs it against `ollama list`'s actual output:
 - Declared but not installed -> `ollama pull <model>`.
 - Installed but not declared -> `ollama rm <model>`.
 
-Runs against the *live* `self-hosted-ollama` service over its local API --
-the service must already be running for `@sync` to work.
+Runs on **every** service start, not just the first -- idempotent, a
+no-op diff costs one `ollama list` call.
 
 ## Workflows
 
 **Add/remove a model**: edit the `models` list in
-`Nixos/config/self-hosted/ollama.nix`, rebuild, then
-`systemctl start self-hosted-ollama@sync`. Adding pulls it; removing
-actually deletes the blob on that same sync run (unlike ComfyUI's models,
-there's no separate add/cleanup split here -- Ollama's own storage format
-makes "installed but undeclared" cheap and safe to just remove).
+`Nixos/config/self-hosted/ollama.nix`, rebuild, restart
+`self-hosted-ollama.service` -- `postStart` handles both directions on
+that same restart: adding pulls it, removing actually deletes the blob
+(unlike ComfyUI's models, there's no separate add/cleanup split here --
+Ollama's own storage format makes "installed but undeclared" cheap and
+safe to just remove).
 
 **Bump the Ollama version**: `systemctl start self-hosted-ollama@update:apply`
 (writes `version`/`hash` into `config/self-hosted/ollama.nix` directly),
 or `@update` first if you want to see the diff before it lands. Then
 rebuild, restart `self-hosted-ollama.service`. No lockfile, no venv -- the
-new binary is just a different Nix store path. `@install` has nothing to
-do with this -- it's a no-op, not a real action here.
+new binary is just a different Nix store path.
 
-**Full teardown**: `systemctl start self-hosted-ollama@uninstall:data`
-(no meaningful difference from plain `@uninstall` today, since `storage`
-is empty by default -- becomes relevant if a `storage` entry is ever
-added).
+**Full teardown**: no scripted action, deliberately -- `rm -rf dataDir`
+by hand if you actually want to wipe pulled model blobs.

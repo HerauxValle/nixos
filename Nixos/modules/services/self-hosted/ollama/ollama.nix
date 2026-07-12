@@ -11,15 +11,15 @@ let
 
   cfg = config.vars.selfHosted.ollama;
 
-  package = import ./package.nix { inherit pkgs; } { inherit (cfg) version hash; };
+  package = import ./lib/package.nix { inherit pkgs; } { inherit (cfg) version hash; };
 
-  syncScript = import ./sync.nix { inherit package; };
+  syncScript = import ./lib/sync.nix { inherit package; };
   # Plain string, not a Nix path -- see update.nix for why (resolves to a
   # read-only /nix/store copy otherwise, this needs to be the real
   # writable location for @update:apply to sed-edit).
   ollamaConfigFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/ollama.nix";
-  updateScript = import ./update.nix { inherit cfg; configFile = ollamaConfigFile; };
-  updateApplyScript = import ./update.nix { inherit cfg; configFile = ollamaConfigFile; apply = true; };
+  updateScript = import ./lib/update.nix { inherit cfg; configFile = ollamaConfigFile; };
+  updateApplyScript = import ./lib/update.nix { inherit cfg; configFile = ollamaConfigFile; apply = true; };
 
   # cfg.environment is plain passthrough (see default.nix) -- the only
   # thing added here is OLLAMA_MODELS, and only because it has to agree
@@ -34,44 +34,36 @@ let
 in
 
 {
-  config = lib.mkIf cfg.enable (lib.mkMerge [
+  config = lib.mkMerge [
     (selfHosted.mkSelfHostedService {
       name = "ollama";
+      enabled = cfg.enabled;
       user = config.vars.username;
       homeDirectory = config.vars.homeDirectory;
       execStart = "${package}/bin/ollama serve";
-      inherit (cfg) dataDir storage autoStart;
+      # Model reconciliation runs here now, every start, not as a
+      # separate manual @sync -- postStart because it goes through
+      # ollama's own HTTP API, which needs the server actually up first
+      # (see sync.nix's wait-until-ready loop).
+      postStart = [ syncScript ];
+      inherit (cfg) dataDir storage autoStart teardownPaths;
       ensureDataDir = true; # not gated by any external mount -- safe to auto-create
-      inherit environment;
+      environment = environment // {
+        OLLAMA_MODELS_DECLARED = builtins.concatStringsSep " " cfg.models;
+      };
     })
     (selfHosted.mkActionService {
       name = "ollama";
+      enabled = cfg.enabled;
       user = config.vars.username;
       # curl+jq for the GitHub releases API, nix for
       # nix-prefetch-url/nix hash convert -- only @update actually needs
       # these, but packages is shared across the whole action template.
       packages = [ pkgs.curl pkgs.jq pkgs.nix ];
       actions = {
-        # No venv, no download step -- the binary is a plain Nix store
-        # path (package.nix), already there after any rebuild. This
-        # exists purely so `@install` is a valid action on every
-        # self-hosted service, not just the ones with a real install
-        # step.
-        install = ''echo "self-hosted-ollama: nothing to install -- the binary comes directly from the Nix store (package.nix), already available after rebuild."'';
-        sync = syncScript;
-        # Alias -- Ollama only ever had one syncable category, but every
-        # other service's sync is addressable by target
-        # (sync:models/sync:nodes), so this exists purely for that same
-        # muscle memory to work here too.
-        "sync:models" = syncScript;
         update = updateScript;
         "update:apply" = updateApplyScript;
-        uninstall = selfHosted.mkUninstallScript { inherit (cfg) dataDir storage; };
-        "uninstall:data" = selfHosted.mkUninstallScript { inherit (cfg) dataDir storage; includeData = true; };
-      };
-      environment = environment // {
-        OLLAMA_MODELS_DECLARED = builtins.concatStringsSep " " cfg.models;
       };
     })
-  ]);
+  ];
 }

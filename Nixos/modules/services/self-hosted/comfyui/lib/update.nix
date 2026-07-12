@@ -15,11 +15,12 @@
 # update            -- core, then installed nodes, then deps.
 # update:core       -- just the pinned ComfyUI core commit.
 # update:nodes      -- every *installed* node (cfg.installed.nodes) --
-#                       matches what @sync:nodes actually keeps in sync.
+#                       matches what preStart's prepareNodeMountsScript
+#                       actually keeps mounted on every start.
 # update:nodes:REPO -- one specific node, by `repo` -- works for any
 #                       node in nodeStore, installed or not.
 # update:deps       -- re-run pip-compile, diff against the checked-in
-#                       lock (see ../self-hosted.nix's mkDepsUpdateScript).
+#                       lock (see ../../self-hosted.nix's mkDepsUpdateScript).
 
 let
 

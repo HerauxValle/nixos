@@ -9,6 +9,12 @@
 # module's own defaults.
 {
   config.vars.selfHosted.ollama = {
+    # true = installed: systemd units exist, postStart's model sync runs.
+    # false = torn down on the next rebuild -- dataDir (pulled model
+    # blobs) removed automatically; storage (empty by default here) is
+    # never touched by that teardown.
+    enabled = true;
+
     dataDir = "${config.vars.homeDirectory}/Applications/Networking/Ollama";
 
     # Off for now -- still exists, still systemctl start-able by hand,
@@ -26,6 +32,11 @@
     #   ];
     # None needed right now -- models/logs stay under dataDir as-is.
     storage = [ ];
+
+    # Empty -- dataDir holds nothing but pulled model blobs, so the
+    # default "everything but storage" teardown (when enabled = false)
+    # is safe as-is; no need to scope it down further.
+    teardownPaths = [ ];
 
     # Update together -- see
     # ../../modules/services/self-hosted/ollama/default.nix for how to

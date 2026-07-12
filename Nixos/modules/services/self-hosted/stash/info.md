@@ -4,9 +4,9 @@ Schema: `./default.nix`. Wiring: `./stash.nix`. Package fetch: `./package.nix`.
 Real values: `Nixos/config/self-hosted/stash.nix`.
 
 Binary comes from a pure Nix fetch (`package.nix`), same as Ollama -- no
-venv, no FHS sandbox. Simplest service in the tree: one live unit, and an
-action set that's mostly no-ops (nothing to install, nothing to sync) for
-consistency with the other services -- see below.
+venv, no FHS sandbox. Simplest service in the tree: one live unit, no
+reconciliation logic at all (no declarative models/nodes), and the only
+action is `update`/`update:apply` -- see below.
 
 ## Options (`vars.selfHosted.stash`)
 
@@ -25,18 +25,10 @@ consistency with the other services -- see below.
 
 ## systemd units
 
-- `self-hosted-stash.service` -- the live process.
-- `self-hosted-stash@install` -- no-op, prints a note (binary is a plain
-  Nix store path, already there after rebuild).
-- `self-hosted-stash@sync` -- no-op, prints a note (no declarative
-  models/nodes for this service).
-- `self-hosted-stash@uninstall` -- tier 1: removes anything directly
-  under `dataDir` not covered by `storage`. In practice, nothing --
-  Stash's entire footprint lives behind its one `storage` entry, so this
-  is effectively also a no-op today.
-- `self-hosted-stash@uninstall:data` -- tier 1, plus what `storage`
-  actually points at: the real database/metadata/cache/blobs inside the
-  vault. **Not recoverable.**
+- `self-hosted-stash.service` -- the live process. `preStart` just
+  `mkdir -p`s Stash's own subdirectories (`plugins`, `scrapers`,
+  `metadata`, `cache`, `generated`, `blobs`) under the live data dir --
+  no reconciliation, nothing to install.
 - `self-hosted-stash@update` -- checks `stashapp/stash`'s GitHub releases
   for something newer than `version`. **Print-only** -- never edits
   `config/self-hosted/stash.nix` itself. Read the new `version`/`hash`
@@ -53,7 +45,7 @@ The old `runtime.sh`'s autotag/filemonitor GraphQL calls (source was
 itself marked `Old/` -- legacy) and its Electron webapp auto-launch (a
 systemd service has no display/session to launch a GUI into). If either
 turns out to actually be wanted, it fits as a `mkActionService` action,
-same shape as Ollama's `@sync`.
+same shape as the `update` actions already here.
 
 ## Workflows
 
@@ -64,7 +56,7 @@ Then rebuild, restart `self-hosted-stash.service`.
 **Change bind host/port**: edit `host`/`port` in the same file, rebuild,
 restart.
 
-**Full teardown, including the real data**: `systemctl start
-self-hosted-stash@uninstall:data`. This deletes the actual Stash
-database/metadata/blobs inside the vault -- not just symlinks or
-install artifacts. Think before running it.
+**Full teardown, including the real data**: no scripted action for this,
+deliberately -- see `../docs/architecture.md`'s "No uninstall action".
+The actual Stash database/metadata/blobs inside the vault are precious;
+only remove them with a deliberate, by-hand `rm -rf`.

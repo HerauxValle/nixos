@@ -4,6 +4,12 @@
 # ../../modules/services/self-hosted/stash/. Data only, same as ollama.nix.
 {
   config.vars.selfHosted.stash = {
+    # true = installed: systemd units exist. false = torn down on the
+    # next rebuild -- dataDir (minus the "data" storage entry) removed
+    # automatically; the real database/metadata/blobs inside the vault
+    # are never touched by that teardown.
+    enabled = true;
+
     # Plain, always-available -- holds nothing on its own (the binary is
     # Nix-built), it's just where the storage symlink below lands.
     dataDir = "${config.vars.homeDirectory}/Applications/Networking/Stash";
@@ -34,5 +40,10 @@
     # agree because this is the vault storage points into, not because
     # one is computed from the other.
     requireMounts = [ "${config.vars.homeDirectory}/Images/SelfHosted" ];
+
+    # Empty -- dataDir holds nothing but the storage symlink itself, so
+    # the default "everything but storage" teardown (when enabled =
+    # false) is safe as-is; no need to scope it down further.
+    teardownPaths = [ ];
   };
 }

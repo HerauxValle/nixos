@@ -10,7 +10,7 @@ let
 
   cfg = config.vars.selfHosted.openwebui;
 
-  fhsEnv = import ./fhs.nix { inherit pkgs; };
+  fhsEnv = import ./lib/fhs.nix { inherit pkgs; };
 
   # dataDir/storage split same as Stash: dataDir is plain, the one real
   # data location is the (single) storage entry, pointing into the
@@ -24,7 +24,7 @@ let
   # only handled at install time.
   secretKeyFile = "${liveDataDir}/.webui_secret_key";
 
-  installScript = selfHosted.mkVenvInstallScript {
+  venvEnsureScript = selfHosted.mkVenvEnsureScript {
     inherit fhsEnv;
     venvDir = cfg.venvDir;
     # Lives under Dotfiles/Python/locks/ rather than next to this file --
@@ -42,13 +42,13 @@ let
   # the actual checkout, needed so the ".new" sibling (or the :apply
   # variant's direct write) lands somewhere real.
   openwebuiRequirementsLockPath = "${config.vars.homeDirectory}/Dotfiles/Python/locks/self-hosted/openwebui/requirements.lock";
-  updateScript = import ./update.nix {
+  updateScript = import ./lib/update.nix {
     inherit selfHosted;
     requirementsIn = ../../../../../Python/locks/self-hosted/openwebui/requirements.in;
     requirementsLock = ../../../../../Python/locks/self-hosted/openwebui/requirements.lock;
     requirementsLockPath = openwebuiRequirementsLockPath;
   };
-  updateApplyScript = import ./update.nix {
+  updateApplyScript = import ./lib/update.nix {
     inherit selfHosted;
     requirementsIn = ../../../../../Python/locks/self-hosted/openwebui/requirements.in;
     requirementsLock = ../../../../../Python/locks/self-hosted/openwebui/requirements.lock;
@@ -66,9 +66,10 @@ let
 in
 
 {
-  config = lib.mkIf cfg.enable (lib.mkMerge [
+  config = lib.mkMerge [
     (selfHosted.mkSelfHostedService {
       name = "openwebui";
+      enabled = cfg.enabled;
       user = config.vars.username;
       homeDirectory = config.vars.homeDirectory;
       # Runs inside the FHS sandbox too, not just the install action --
@@ -81,6 +82,9 @@ in
           exec "${cfg.venvDir}/bin/open-webui" serve --host ${cfg.host} --port ${toString cfg.port}
         ''}
       ''}";
+      # venv ensure runs here now, every start, not as a separate manual
+      # @install -- mkVenvEnsureScript skips the real install unless
+      # requirementsLock actually changed since the last successful run.
       preStart = [
         "mkdir -p ${liveDataDir}"
         ''
@@ -89,29 +93,26 @@ in
             chmod 600 "${secretKeyFile}"
           fi
         ''
+        venvEnsureScript
       ];
       ensureDataDir = true;
-      inherit (cfg) dataDir storage autoStart requireMounts;
+      inherit (cfg) dataDir storage autoStart requireMounts teardownPaths;
+      venvDir = cfg.venvDir;
       inherit environment;
     })
     (selfHosted.mkActionService {
       name = "openwebui";
+      enabled = cfg.enabled;
       user = config.vars.username;
       # pip-tools for @update's pip-compile -- doesn't need the FHS
-      # sandbox, compiling/resolving is pure network+pip, only the final
-      # venv install needs the real /lib,/usr/lib layout.
+      # sandbox, compiling/resolving is pure network+pip, only the actual
+      # venv install (now in preStart above) needs the real
+      # /lib,/usr/lib layout.
       packages = [ pkgs.python312Packages.pip-tools ];
       actions = {
-        install = installScript;
-        # No-op -- exists purely so `@sync` is a valid action on every
-        # self-hosted service, not just the ones with declarative
-        # models/nodes to reconcile.
-        sync = ''echo "self-hosted-openwebui: nothing to sync -- no declarative models or nodes for this service."'';
         update = updateScript;
         "update:apply" = updateApplyScript;
-        uninstall = selfHosted.mkUninstallScript { inherit (cfg) dataDir storage; venvDir = cfg.venvDir; };
-        "uninstall:data" = selfHosted.mkUninstallScript { inherit (cfg) dataDir storage; venvDir = cfg.venvDir; includeData = true; };
       };
     })
-  ]);
+  ];
 }

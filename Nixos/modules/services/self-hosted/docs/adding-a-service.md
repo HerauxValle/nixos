@@ -19,13 +19,20 @@ service is the closest template.
 2. **Does it have a declarative list of *things* to reconcile** (models,
    plugins, nodes -- anything the service should fetch/maintain based on
    config rather than you clicking around a UI)?
-   - No -> no `sync` action beyond the generic no-op (see Stash).
-   - Yes, and the full catalog is small/always-wanted-together -> a
-     flat typed list is enough (see Ollama's `models = listOf str`).
-   - Yes, and the catalog is much bigger than what's ever wanted
-     installed at once -> you need the store/installed split (see
-     ComfyUI's `nodeStore`/`installed.nodes`). Don't reach for this by
-     default -- see `docs/conventions.md`.
+   - No -> nothing to add (see Stash -- no reconciliation logic at all).
+   - Yes, and reconciliation can happen before the process starts (pure
+     filesystem work: fetch/remove files) -> a `preStart` step, no
+     manual action (see ComfyUI's node/model reconciliation).
+   - Yes, but reconciliation can only happen through the *live* process's
+     own interface (an HTTP API that isn't up until the process has
+     actually forked) -> a `postStart` step with its own
+     poll-until-ready loop first (see Ollama's `sync.nix`).
+   - Either way: if the full catalog is small/always-wanted-together, a
+     flat typed list is enough (see Ollama's `models = listOf str`). If
+     the catalog is much bigger than what's ever wanted installed at
+     once, you need the store/installed split (see ComfyUI's
+     `nodeStore`/`installed.nodes`). Don't reach for the store/installed
+     split by default -- see `docs/conventions.md`.
 3. **Does its real data need to live somewhere externally-mounted** (a
    Casket vault, a separate drive)?
    - Yes -> a `storage` entry + `requireMounts`, and `ensureDataDir = false`
@@ -93,9 +100,9 @@ your new service doesn't need a venv or a declarative fetch list.
    `requireMounts`. Copy Stash's option descriptions and adjust.
 3. `<name>.nix`: `execStart = "${package}/bin/<binary> --host ... --port ..."`,
    `mkSelfHostedService` with `ensureDataDir = true` if `dataDir` isn't
-   externally gated, `mkActionService` with the generic
-   install/sync no-ops (see below) plus `uninstall`/`uninstall:data`
-   via `mkUninstallScript`.
+   externally gated, `mkActionService` with just `update`/`update:apply`
+   (see "Wiring the generic actions" below -- there's nothing else to
+   wire for a service with no reconciliation logic).
 4. `update.nix`: same shape as `ollama/update.nix`/`stash/update.nix` --
    query the GitHub releases API, `nix-prefetch-url` + `nix hash convert`
    for the hash, print or (`apply = true`) `sed`-write into the real
@@ -127,8 +134,10 @@ ComfyUI's does.
    `--allow-unsafe` matters -- without it, `setuptools` (and similar)
    end up unpinned, which `--require-hashes` then rejects at install
    time.
-3. `<name>.nix`: `installScript = selfHosted.mkVenvInstallScript { fhsEnv; venvDir = cfg.venvDir; requirementsLock = ../../../../../Python/locks/self-hosted/<name>/requirements.lock; }`.
-   `execStart` runs inside the FHS sandbox too, not just install --
+3. `<name>.nix`: `venvEnsureScript = selfHosted.mkVenvEnsureScript { fhsEnv; venvDir = cfg.venvDir; requirementsLock = ../../../../../Python/locks/self-hosted/<name>/requirements.lock; }`,
+   added to `mkSelfHostedService`'s `preStart` list -- **not** wired into
+   `mkActionService`'s `actions`, there's no manual install step anymore.
+   `execStart` runs inside the FHS sandbox too, not just preStart --
    compiled wheels need the real `/lib`,`/usr/lib` on every import, not
    just once. `venvDir`'s default should be
    `${homeDirectory}/.impure/python-venvs/self-hosted/<name>` (see
@@ -138,25 +147,34 @@ ComfyUI's does.
 
 ## Wiring the generic actions every service gets
 
-Every service should have these, even where they're no-ops -- consistency
-matters more than saving a few lines (this was an explicit, deliberate
-decision, not an oversight):
+There is exactly one action family every service gets:
+`update`/`update:apply` (see "Update" below) -- checking upstream for
+something newer, which genuinely needs live network access and can't
+happen inside `nixos-rebuild`'s pure eval. Nothing else belongs in
+`actions` by default:
 
 ```nix
 actions = {
-  install = installScript;  # or a no-op echo if there's no real install step
-  sync = syncScript;         # or a no-op echo if nothing's declaratively fetched
   update = updateScript;
   "update:apply" = updateApplyScript;
-  uninstall = selfHosted.mkUninstallScript { inherit (cfg) dataDir storage; venvDir = cfg.venvDir or null; };
-  "uninstall:data" = selfHosted.mkUninstallScript { inherit (cfg) dataDir storage; venvDir = cfg.venvDir or null; includeData = true; };
 };
 ```
 
-The no-op shape (copy verbatim, adjust the service name):
-```nix
-sync = ''echo "self-hosted-<name>: nothing to sync -- no declarative models or nodes for this service."'';
-```
+Everything that used to be a manual action (install, sync, uninstall) is
+gone as a category, not just narrowed:
+- **Install/reconcile** -> a `preStart` (or `postStart`, see the decision
+  tree above) step on `mkSelfHostedService`, driven automatically by
+  declared config on every service start. Nothing to wire into
+  `mkActionService` at all.
+- **Uninstall** -> doesn't exist. See architecture.md's "No uninstall
+  action" and conventions.md's "Destructive vs. recoverable" for why --
+  short version: everything it used to do is either already automatic, or
+  was never safe to script once `dataDir` can hold genuinely precious,
+  non-reconcilable content.
+
+If your new service's `update.nix` needs more than one check (a pinned
+binary/source *and* declarative deps, ComfyUI's shape), that's still just
+more keys in the same flat `actions` attrset -- see "Update" below.
 
 ## Update
 
@@ -167,16 +185,17 @@ lives, instead of you remembering to manually check upstream. See
 `ollama/update.nix` (binary release check) or `openwebui/update.nix`
 (deps check) for the two shapes this takes. If the service has *both* a
 pinned binary/source *and* declarative deps (ComfyUI's shape), look at
-`comfyui/update.nix` for how to compose multiple checks under one
+`comfyui/lib/update.nix` for how to compose multiple checks under one
 `update` (bare) action while keeping each individually addressable.
 
 ## Verify before calling it done
 
 - `nixos-rebuild dry-build --flake ~/Dotfiles#herauxvalle` -- confirms
   the module evaluates. Not sufficient on its own.
-- `nix-store --realize` the actual generated dispatch/action script
-  paths (`grep` the dry-build output for `-dispatch.drv`,
-  `-install.drv`, etc.) and read the resulting script content --
+- `nix-store --realize` the actual generated dispatch/action/preStart
+  script paths (`grep` the dry-build output for `-dispatch.drv`,
+  `-preStart-*.drv`, `-update.drv`, etc.) and read the resulting script
+  content --
   confirms Nix string interpolation/escaping actually produced correct
   bash, not just that Nix accepted the syntax. This has caught real bugs
   every single time it's been done in this repo (a wrong sed pattern, a

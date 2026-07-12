@@ -8,10 +8,17 @@
   imports = [ ./ollama.nix ];
 
   options.vars.selfHosted.ollama = {
-    enable = lib.mkOption {
+    enabled = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Master switch for the Ollama service.";
+      default = false;
+      description = ''
+        Master switch. true = the live service and its actions run
+        exactly as declared. false = treated as if this service doesn't
+        exist -- no systemd units at all, and if it was previously
+        installed, the next rebuild automatically tears down dataDir
+        (minus any storage entries). See ../docs/architecture.md and
+        self-hosted.nix's mkTeardownActivationScript.
+      '';
     };
 
     dataDir = lib.mkOption {
@@ -58,7 +65,7 @@
     models = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
-      description = "Declared models. Reconciled (pulled if missing, removed if installed-but-undeclared) only by the manual self-hosted-ollama-sync unit -- never on rebuild, never on service start.";
+      description = "Declared models. Reconciled (pulled if missing, removed if installed-but-undeclared) automatically every time the service starts, via postStart -- never during rebuild/activation itself, only once the live server is actually up. See ./sync.nix.";
     };
 
     storage = lib.mkOption {
@@ -76,6 +83,18 @@
       });
       default = [ ];
       description = "Storage relocations, applied as systemd.tmpfiles.rules.";
+    };
+
+    teardownPaths = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = ''
+        Paths, relative to dataDir, removed when enabled is set to false
+        (see self-hosted.nix's mkTeardownActivationScript). Empty (the
+        default) means "everything directly under dataDir except what a
+        storage entry covers" -- safe here since dataDir holds nothing
+        but pulled model blobs.
+      '';
     };
   };
 }
