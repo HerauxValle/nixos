@@ -195,10 +195,26 @@ in
       # code, not assumed. A global replace is correct here specifically
       # because every occurrence needs the same fix, not despite there
       # being multiple occurrences.
+      #
+      # py/config.py:45 has a second, entirely independent computation
+      # of the same conceptual "styles" location (FOOOCUS_STYLES_DIR =
+      # Path(__file__).parent.parent / "styles") -- found only by
+      # actually running this: __init__.py's own styles_path/os.mkdir
+      # now correctly creates and populates the redirected nodeDataDir
+      # location, but prompt.py's define_schema() reads from
+      # FOOOCUS_STYLES_DIR instead, which still pointed at the real,
+      # empty (nothing was ever created there) bind-mounted source.
+      # Redirected to the exact same nodeDataDir/styles the other patch
+      # already populates. RESOURCES_DIR, one line above, uses the same
+      # Path(__file__).parent.parent base for a different, read-only
+      # purpose -- the line-anchored match targets only
+      # FOOOCUS_STYLES_DIR's own assignment, not that shared pattern.
       repo = "ComfyUI-Easy-Use";
       script = ''
         sed -i 's|os\.path\.dirname(__file__)|"${nodeDataDir "ComfyUI-Easy-Use"}"|g' \
           "$out/__init__.py"
+        sed -i 's|^FOOOCUS_STYLES_DIR = os\.path\.join(Path(__file__)\.parent\.parent, "styles")|FOOOCUS_STYLES_DIR = "${nodeDataDir "ComfyUI-Easy-Use"}/styles"|' \
+          "$out/py/config.py"
       '';
     }
 
