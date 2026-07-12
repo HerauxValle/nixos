@@ -25,7 +25,60 @@ let
   updateScript = selfHosted.mkFromNativeUpdateScript updateArgs;
   updateApplyScript = selfHosted.mkFromNativeUpdateScript (updateArgs // { apply = true; });
 
-  serverConfig = lib.recursiveUpdate cfg.extraServerConfig (
+  liveConf = "${cfg.profileDir}/qBittorrent/config/qBittorrent.conf";
+  webuiBackupFile = "${cfg.profileDir}/.webui-settings.bak";
+
+  # A stranger cloning this repo (or this machine, before ever running
+  # `secrets qbittorrent`) shouldn't have to go spelunking through
+  # `journalctl -u qbittorrent` for a random one-session temp password
+  # just to reach the WebUI at all -- lowest-priority layer in
+  # serverConfig below, so any real WebUI.Username/Password_PBKDF2 from
+  # extraServerConfig (config/self-hosted/qbittorrent.nix's own, once
+  # `secrets qbittorrent` generates one) wins over this the instant one
+  # exists. admin/"changeme" -- verified against qBittorrent's real
+  # PBKDF2-HMAC-SHA512/100000-iteration/16-byte-salt scheme, not typed
+  # in blind (see `secrets qbittorrent`'s own comment for the algorithm
+  # source).
+  defaultWebui = {
+    WebUI = {
+      Username = "admin";
+      Password_PBKDF2 = "@ByteArray(ZUySNa1CFPOSQBoNAzUbOg==:PST2x7yIvDISX0gOssEUmVmvIt5CAl5egeuCBzkQHSQzr0JNC3V0sah0Evzz6/zl0OXpDq/BDCEs/4XMynRf9w==)";
+    };
+  };
+
+  # services.qbittorrent's own ExecStartPre (`install -Dm600 <nix-store
+  # conf> <liveConf>`) fully overwrites liveConf on *every* start, not
+  # just the first -- confirmed live, twice, this session: anything set
+  # through the WebUI that isn't covered by serverConfig (WebUI.APIKey,
+  # or WebUI.Username/Password_PBKDF2 for anyone not using
+  # extraServerConfig/defaultWebui above) gets silently wiped on the
+  # next restart/rebuild. Instead of managing all of that, preserve
+  # whatever's already live across the overwrite: capture every WebUI\*
+  # line except WebUI\Port (the one WebUI setting serverConfig always
+  # manages, via cfg.webuiPort) before install runs, then splice it back
+  # into [Preferences] right after install runs. grep -F/sed -i, not a
+  # Nix-side parse -- this file's content is arbitrary runtime state Nix
+  # never sees.
+  captureWebuiSettings = ''
+    if [ -f "${liveConf}" ]; then
+      ${pkgs.gnugrep}/bin/grep -F 'WebUI\' "${liveConf}" | ${pkgs.gnugrep}/bin/grep -Fv 'WebUI\Port=' > "${webuiBackupFile}" || true
+    else
+      rm -f "${webuiBackupFile}"
+    fi
+  '';
+  restoreWebuiSettings = pkgs.writeShellScript "qbittorrent-restore-webui-settings" ''
+    if [ -s "${webuiBackupFile}" ]; then
+      ${pkgs.gnused}/bin/sed -i "/^\[Preferences\]$/r ${webuiBackupFile}" "${liveConf}"
+    fi
+    rm -f "${webuiBackupFile}"
+  '';
+
+  # defaultWebui is the base layer (lowest priority) -- extraServerConfig
+  # (config/self-hosted/qbittorrent.nix's own WebUI, once `secrets
+  # qbittorrent` generates one) overrides it the instant it sets WebUI
+  # itself, same recursiveUpdate right-wins-on-conflict rule as the
+  # hardcoded block below already relies on.
+  serverConfig = lib.recursiveUpdate defaultWebui (lib.recursiveUpdate cfg.extraServerConfig (
     {
       LegalNotice.Accepted = true;
       BitTorrent.Session = {
@@ -42,7 +95,7 @@ let
     // lib.optionalAttrs (cfg.host != null) {
       Preferences.WebUI.Address = cfg.host;
     }
-  );
+  ));
 
 in
 
@@ -76,6 +129,30 @@ in
           lib.mkForce (lib.optionals cfg.autoStart [ "multi-user.target" ]);
         systemd.services.qbittorrent.serviceConfig.ProtectHome = lib.mkForce "tmpfs";
         systemd.services.qbittorrent.serviceConfig.BindPaths = cfg.requireMounts;
+
+        # Both gated on cfg.immutable -- see its own description for why
+        # (off by default; prefer `secrets qbittorrent` for the
+        # password specifically, this is for everything else). Contents
+        # are cfg.immutable ? captureWebuiSettings : "", not lib.mkIf
+        # captureWebuiSettings -- preStart is types.lines with no
+        # default, and mkIf false drops the definition entirely instead
+        # of contributing "" (same trap dotfiles.nix's own preStart
+        # comment already documents hitting for
+        # system.activationScripts). optionalString always yields a
+        # real string. ExecStartPre is a plain listOf, no such trap, but
+        # mkAfter still matters -- captureWebuiSettings runs as part of
+        # this preStart, concatenating onto the requireMounts check
+        # mountCheckUnits already adds there, both landing in the same
+        # (first) ExecStartPre, ahead of services.qbittorrent's own
+        # install step; restoreWebuiSettings has to be a genuinely
+        # separate entry (mkAfter, so it lands after both preStart *and*
+        # the install step already in this list) -- preStart alone can't
+        # express "after install" timing, it's already spoken for as the
+        # first entry.
+        systemd.services.qbittorrent.preStart =
+          lib.optionalString cfg.immutable captureWebuiSettings;
+        systemd.services.qbittorrent.serviceConfig.ExecStartPre =
+          lib.mkAfter (lib.optionals cfg.immutable [ "${restoreWebuiSettings}" ]);
 
         # Real bug, found on a live run: profileDir (and its own
         # qBittorrent/ subfolder) ended up root:root -- a side effect of

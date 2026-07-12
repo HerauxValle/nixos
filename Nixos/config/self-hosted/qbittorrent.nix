@@ -18,6 +18,14 @@
     # service's real config on this machine right now.
     autoStart = false;
 
+    # false -- WebUI\* settings (password, etc) get wiped on every
+    # restart same as upstream's own behavior; prefer `secrets
+    # qbittorrent` for the password itself (see extraServerConfig's own
+    # comment below). Flip true to instead auto-preserve whatever else
+    # you tweak under Options -> Web UI that isn't declared in Nix at
+    # all. See default.nix's own immutable comment for the full story.
+    immutable = false;
+
     # Vault-backed real internal state (config, session/resume data,
     # GeoDB) -- fresh, no prior profile ever existed at this exact path
     # (the recovered real install lived under a different mount
@@ -60,12 +68,21 @@
     ];
 
     # Real, non-secret preferences ported straight from the recovered
-    # conf -- see default.nix's own extraServerConfig comment for why
-    # WebUI\Username/Password_PBKDF2/APIKey are deliberately NOT here
-    # (real values exist in the recovered conf, but this option always
-    # lands in the world-readable Nix store and this repo's git
-    # history -- set those through the WebUI itself after first start).
+    # conf, plus a real WebUI login below -- `secrets qbittorrent`
+    # prompts for a username/password directly (PBKDF2-HMAC-SHA512,
+    # matching qBittorrent's own scheme -- see that script's own
+    # comment) and prints a ready-to-paste WebUI = {...} block, no live
+    # qBittorrent conf ever read. Once pasted it's an ordinary declared
+    # value like everything else here and survives every restart on its
+    # own. Still lands in the Nix store and this repo's git history like
+    # any other extraServerConfig value -- accepted here as a real
+    # tradeoff (this is a hash, not a plaintext password, and this repo
+    # isn't public), not because that concern went away.
     extraServerConfig = {
+      WebUI = {
+        Username = "herauxvalle";
+        Password_PBKDF2 = "@ByteArray(oaZ004bvc9ejLxAPMx5I8g==:mlc8gh4G/+FYQK6zJDynouPvN3OmOpdusWTwM07Mu/zq/TTSndPLLm/3BT/hJMswV1MALc4njIaT7mGsX2Bg5g==)";
+      };
       BitTorrent = {
         MergeTrackersEnabled = true;
         Session = {

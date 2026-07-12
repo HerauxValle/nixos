@@ -50,6 +50,30 @@
       '';
     };
 
+    immutable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        services.qbittorrent reinstalls the entire qBittorrent.conf from
+        serverConfig on *every* start (not just the first), which
+        silently wipes anything set through the WebUI that isn't
+        declared in serverConfig -- WebUI.APIKey, or WebUI.Username/
+        Password_PBKDF2 for anyone not using extraServerConfig/
+        defaultWebui (see extraServerConfig's own comment). true =
+        capture whatever WebUI\* is live right before each overwrite and
+        splice it back in right after, so it survives restarts. false
+        (default) = don't bother; the file just regenerates exactly as
+        serverConfig declares it, same as upstream's own behavior.
+        Prefer `secrets qbittorrent` (generates a real WebUI login,
+        ready to paste into extraServerConfig directly) over turning
+        this on just for a password -- that becomes a real Nix-declared
+        value that survives restarts on its own, no capture/restore
+        needed. This is more for anything else you tweak under Options
+        -> Web UI that isn't worth declaring in Nix at all (HTTPS,
+        bypass-auth-for-localhost, ...).
+      '';
+    };
+
     profileDir = lib.mkOption {
       type = lib.types.str;
       description = ''
@@ -169,22 +193,25 @@
     # dedicated typed options for settings this framework has no other
     # reason to treat specially.
     #
-    # CAUTION, deliberately NOT ported through this or any option:
-    # WebUI\Username/Password_PBKDF2/APIKey. The recovered conf has real
-    # values for all three, but serverConfig always ends up as a
-    # pkgs.writeText derivation -- world-readable in the Nix store, and
-    # (since this is set in config/, a git-tracked file) committed to
-    # this repo's history. Unlike Immich's secretsFile, the wrapped
-    # module has no external-file escape hatch for just this one field.
-    # Set a real WebUI username/password through the WebUI itself after
-    # first start instead (same "configure via the app's own UI, don't
-    # bake credentials into Nix" precedent as every other service's
-    # admin account) -- see info.md for the real prior username, if you
-    # want to match it.
+    # WebUI\Username/Password_PBKDF2 CAN go here (config/self-hosted/
+    # qbittorrent.nix's own WebUI = {...} block does exactly that) --
+    # serverConfig always ends up as a pkgs.writeText derivation, so
+    # this still lands in the world-readable Nix store and (config/ is
+    # git-tracked) this repo's history, same as every other value here.
+    # Accepted tradeoff, not a non-issue: it's a PBKDF2 hash, not a
+    # plaintext password, and this repo isn't meant to be published as-
+    # is. `secrets qbittorrent` generates one (prompts for a
+    # username/password, prints a ready-to-paste WebUI = {...} block --
+    # see that script's own comment for the algorithm). Until you've run
+    # it, qbittorrent.nix's own defaultWebui falls back to a known
+    # admin/"changeme" login instead of a random one-session temp
+    # password you'd otherwise have to fish out of `journalctl -u
+    # qbittorrent` -- change it soon after first start, same as you
+    # would any other seeded default credential.
     extraServerConfig = lib.mkOption {
       type = lib.types.attrsOf lib.types.anything;
       default = { };
-      description = "Merged into services.qbittorrent.serverConfig on top of host/paths.*'s own real mapping. Never put WebUI credentials here -- see this option's own top comment.";
+      description = "Merged into services.qbittorrent.serverConfig on top of host/paths.*'s own real mapping (and qbittorrent.nix's own defaultWebui fallback, lowest priority of the three). See this option's own top comment for the WebUI credential story.";
     };
   };
 }

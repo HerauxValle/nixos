@@ -16,4 +16,11 @@ usage: secrets <command>
       at /etc/nixos-secrets/self-hosted/<name>/tokens.env. Prompts for
       KEY=VALUE pairs, existing keys keep their value unless re-entered.
       Restart the service to deploy a changed value -- no rebuild needed.
+
+  qbittorrent
+      Print the live WebUI login (Username/Password_PBKDF2/APIKey) from
+      qBittorrent.conf, ready to paste into config/self-hosted/
+      qbittorrent.nix's extraServerConfig. Read-only, writes nothing --
+      set a real password via the WebUI first (Options -> Web UI), then
+      run this to capture it. A rebuild deploys the pasted value.
 EOF
