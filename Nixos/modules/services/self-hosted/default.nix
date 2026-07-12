@@ -11,6 +11,7 @@
   imports = [
     ./comfyui
     ./filebrowser
+    ./immich
     ./jellyfin
     ./ollama
     ./openwebui

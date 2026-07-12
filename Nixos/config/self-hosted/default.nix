@@ -7,6 +7,7 @@
   imports = [
     ./comfyui
     ./filebrowser.nix
+    ./immich.nix
     ./jellyfin.nix
     ./ollama.nix
     ./openwebui.nix

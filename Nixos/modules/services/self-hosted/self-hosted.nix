@@ -26,6 +26,10 @@
 # disabled-teardown counterpart, the manual-action dispatch unit).
 # ./lib/venv/ -- the Python FHS+pip lifecycle (sandbox, install, the
 # idempotent preStart wrapper, the pip-compile update/diff logic).
+# ./lib/mk-from-native/ -- the opposite of ./lib/service/: wrap a real,
+# already-mature nixpkgs/NUR module or package instead of building a
+# service from scratch (Immich's services.immich, the first and only
+# caller so far). See its own README.md for the full category list.
 #
 # No mkUninstallScript / @uninstall action anymore -- deliberately
 # removed, not just narrowed. Everything it used to do is now either
@@ -46,6 +50,7 @@ let
   mkVenvInstallScript = import ./lib/venv/mk-venv-install-script.nix { inherit lib; };
   mkVenvEnsureScript = import ./lib/venv/mk-venv-ensure-script.nix { inherit lib mkVenvInstallScript; };
   mkDepsUpdateScript = import ./lib/venv/mk-deps-update-script.nix;
+  mkFromNativeService = import ./lib/mk-from-native/services.nix { inherit lib pkgs; };
 in
 {
   inherit
@@ -55,5 +60,6 @@ in
     mkVenvInstallScript
     mkVenvEnsureScript
     mkDepsUpdateScript
-    mkActionService;
+    mkActionService
+    mkFromNativeService;
 }
