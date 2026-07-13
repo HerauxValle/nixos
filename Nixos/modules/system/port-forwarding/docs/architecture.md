@@ -6,15 +6,30 @@
 looser `listOf attrs` this repo uses for simpler things like
 `vars.scripts` (see `packages/scripts/default.nix`). Two reasons:
 
-1. Fields interact -- `onion`/`local`/`public`/`router` are mutually
-   exclusive (an `assertions` entry in `port-forwarding.nix` enforces
+1. Fields interact -- `tls.certFile`/`tls.keyFile` must be set
+   together (an `assertions` entry in `port-forwarding.nix` enforces
    this; see "assertions live at the top level" below for why that
-   isn't inside the submodule itself).
+   isn't inside the submodule itself). `onion`/`local`/`public`/
+   `router` used to interact too (mutually exclusive, mirroring pmg's
+   own CLI flags), but that constraint was dropped entirely -- each is
+   a fully independent mechanism, confirmed by reading every one of
+   them directly, so any combination can be true on the same entry.
 2. The attrset key doubles as the addressable name -- `config.vars.
    ports.entries.jellyfin` -- and every `key`/`entry` pair downstream
    (bridge, mdns, tunnel) is threaded through by that same key, so
    systemd unit names, log prefixes, and generated script filenames
    all agree without a separate "name" field to keep in sync.
+
+Fields are grouped by concern, not one flat list -- `port`/`enabled`/
+`service`/`blocking` stay top-level (facts about the entry as a
+whole), `net.*` is layer-3/4 reachability (`ipv4`/`ipv6`/
+`loopbackOnly`), `tls.*` is how the IPv6 bridge handles TLS
+(`mode`/`certFile`/`keyFile`), `mode.*` is which exposure mechanism(s)
+are active (`onion`/`local`/`public`/`router`). `mode.local` itself
+accepts `false` | `true` | `{ name = "custom"; }` via
+`lib.types.coercedTo` (the same NixOS-idiomatic bool-or-submodule
+shape `services.tor`'s own `HiddenServicePort.map` option uses),
+replacing the old separate `localName` field.
 
 ## One flat attrset, not a top-level `lib.mkMerge` list
 
@@ -105,7 +120,13 @@ assertions` does. Confirmed live: declaring `config.assertions =
 [ ... ];` inside `lib/entry-type.nix`'s own submodule just creates an
 unrecognized local option there ("The option `...assertions' does not
 exist"), and it never reaches the real, top-level `config.assertions`
-at all. The mutual-exclusivity and `certFile`/`keyFile`-pairing checks
-live in `port-forwarding.nix` instead, computed by mapping over
-`entries` directly, where `config.assertions` is the genuine top-level
-option.
+at all. The `tls.certFile`/`tls.keyFile`-pairing check lives in
+`port-forwarding.nix` instead, computed by mapping over `entries`
+directly, where `config.assertions` is the genuine top-level option.
+(A second assertion used to live here too -- `onion`/`local`/`public`/
+`router` being mutually exclusive, mirroring pmg's own CLI flags -- but
+that was dropped entirely: each is a fully independent mechanism with
+no real conflict, confirmed by reading every one of `lib/mdns/`,
+`lib/cert/`, `lib/public-tunnel.nix`, `lib/upnp.nix`, and
+`services.tor.relay.onionServices` directly. Any combination of the
+four can be true on the same entry now.)

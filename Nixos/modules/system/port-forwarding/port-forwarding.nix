@@ -66,18 +66,18 @@ let
   entries = lib.filterAttrs (_: e: e.enabled) config.vars.ports.entries;
   globalBlocking = config.vars.ports.blocking;
 
-  ipv4Entries = lib.filterAttrs (_: e: e.ipv4) entries;
-  ipv6Entries = lib.filterAttrs (_: e: e.ipv6) entries;
-  onionEntries = lib.filterAttrs (_: e: e.onion) entries;
-  localEntries = lib.filterAttrs (_: e: e.local) entries;
-  publicEntries = lib.filterAttrs (_: e: e.public) entries;
-  routerEntries = lib.filterAttrs (_: e: e.router) entries;
+  ipv4Entries = lib.filterAttrs (_: e: e.net.ipv4) entries;
+  ipv6Entries = lib.filterAttrs (_: e: e.net.ipv6) entries;
+  onionEntries = lib.filterAttrs (_: e: e.mode.onion) entries;
+  localEntries = lib.filterAttrs (_: e: e.mode.local.enable) entries;
+  publicEntries = lib.filterAttrs (_: e: e.mode.public) entries;
+  routerEntries = lib.filterAttrs (_: e: e.mode.router) entries;
 
   # Same "pmg-<port>" fallback ../lib/mdns/default.nix resolves
   # independently -- duplicated here (one line) rather than threading
   # it through as a shared parameter, so each lib/ piece stays usable
   # on its own.
-  resolvedLocalName = e: if e.localName != null then e.localName else "pmg-${toString e.port}";
+  resolvedLocalName = e: if e.mode.local.name != null then e.mode.local.name else "pmg-${toString e.port}";
   localRoutes = lib.mapAttrs' (_: e: lib.nameValuePair "${resolvedLocalName e}.local" e.port) localEntries;
   localDnsNames = lib.mapAttrsToList (_: e: "${resolvedLocalName e}.local") localEntries;
 
@@ -88,7 +88,7 @@ let
   # ipv6 entry wanting TLS without its own cert.
   needsAutoCert =
     config.vars.ports.resolveUrl
-    || lib.any (e: e.ipv6 && e.certFile == null && e.protocol != "http") (lib.attrValues entries);
+    || lib.any (e: e.net.ipv6 && e.tls.certFile == null && e.tls.mode != "http") (lib.attrValues entries);
   cert = import ./lib/cert { inherit lib pkgs; dnsNames = localDnsNames; };
 
   bridgeService = import ./lib/ipv6-bridge {
@@ -135,19 +135,17 @@ lib.mkIf config.vars.ports.enabled {
   # config.assertions inside the submodule just creates an unrecognized
   # local option there instead ("The option `...assertions' does not
   # exist"), it never reaches here on its own.
-  assertions =
-    (lib.mapAttrsToList
-      (key: e: {
-        assertion = (lib.count (x: x) [ e.onion e.local e.public e.router ]) <= 1;
-        message = "config.vars.ports.entries.${key}: onion, local, public, and router are mutually exclusive (same as pmg's own CLI flags) -- port ${toString e.port} sets more than one.";
-      })
-      entries)
-    ++ (lib.mapAttrsToList
-      (key: e: {
-        assertion = (e.certFile == null) == (e.keyFile == null);
-        message = "config.vars.ports.entries.${key}: certFile and keyFile must be set together -- port ${toString e.port} sets only one.";
-      })
-      entries);
+  # mode.{onion,local,public,router} are no longer mutually exclusive
+  # (see entry-type.nix's own header comment for why -- each is a fully
+  # independent mechanism, the old pmg-CLI-derived restriction was
+  # never a real technical constraint), so the only assertion left here
+  # is the one genuine pairing requirement.
+  assertions = lib.mapAttrsToList
+    (key: e: {
+      assertion = (e.tls.certFile == null) == (e.tls.keyFile == null);
+      message = "config.vars.ports.entries.${key}: tls.certFile and tls.keyFile must be set together -- port ${toString e.port} sets only one.";
+    })
+    entries;
 
   # The router itself (./lib/router/, ports 80/443) never had its own
   # ports opened -- only each entry's OWN port did, above. Real bug,

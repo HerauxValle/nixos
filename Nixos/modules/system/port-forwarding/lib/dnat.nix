@@ -1,7 +1,7 @@
 { lib }:
 
-# DNAT for loopback-bound services -- entries with ipv4 = true and
-# loopbackOnly = true need networking.nat.forwardPorts (external
+# DNAT for loopback-bound services -- entries with net.ipv4 = true and
+# net.loopbackOnly = true need networking.nat.forwardPorts (external
 # interface -> 127.0.0.1:port) on top of the plain firewall ACCEPT,
 # same as pmg's own runtime loopback-bind detection, just declared
 # instead of detected. route_localnet isn't set by the nat module
@@ -12,7 +12,7 @@
 entries:
 
 let
-  loopbackEntries = lib.filterAttrs (_: e: e.ipv4 && e.loopbackOnly) entries;
+  loopbackEntries = lib.filterAttrs (_: e: e.net.ipv4 && e.net.loopbackOnly) entries;
 in
 {
   forwardPorts = lib.mapAttrsToList

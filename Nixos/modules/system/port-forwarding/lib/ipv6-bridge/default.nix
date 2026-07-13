@@ -2,13 +2,13 @@
 
 # Concatenates every fragment in this directory into one script and
 # wires it as a systemd service, one instance per port entry with
-# ipv6 = true. Fragment order doesn't matter for correctness (Python
-# resolves function calls at call time, not definition time) -- kept
-# roughly bottom-up (helpers first, server.nix's main() last) for
-# readability, not because it has to be.
+# net.ipv6 = true. Fragment order doesn't matter for correctness
+# (Python resolves function calls at call time, not definition time)
+# -- kept roughly bottom-up (helpers first, server.nix's main() last)
+# for readability, not because it has to be.
 #
 # autoCert (from ../cert/) is the fallback for any entry that wants
-# https/http-s but leaves certFile/keyFile null -- same shared
+# https/http-s but leaves tls.certFile/tls.keyFile null -- same shared
 # self-signed cert the port-80/443 router uses, matching pmg's own
 # ensure_self_signed_cert being a singleton every TLS consumer shares,
 # not a per-entry generation.
@@ -32,14 +32,14 @@
 key: entry:
 
 let
-  usingAutoCert = entry.certFile == null && entry.protocol != "http";
-  certfile = if entry.certFile != null then entry.certFile else if usingAutoCert then autoCert.certFile else null;
-  keyfile = if entry.keyFile != null then entry.keyFile else if usingAutoCert then autoCert.keyFile else null;
+  usingAutoCert = entry.tls.certFile == null && entry.tls.mode != "http";
+  certfile = if entry.tls.certFile != null then entry.tls.certFile else if usingAutoCert then autoCert.certFile else null;
+  keyfile = if entry.tls.keyFile != null then entry.tls.keyFile else if usingAutoCert then autoCert.keyFile else null;
 
   fragments = [
     (import ./preamble.nix {
       inherit (entry) port;
-      mode = entry.protocol;
+      mode = entry.tls.mode;
       inherit certfile keyfile httpRedirect;
     })
     (import ./wait-backend.nix { })
