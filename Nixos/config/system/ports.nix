@@ -46,12 +46,9 @@
 
       searxng = {
         port = 8888; # config/self-hosted/searxng.nix has port = null -- 8888 is server.port in its settings
-        local = true;
         localName = "searxng";
         service = "self-hosted-searxng.service";
-        protocol = "https";
-        certFile = "/etc/port-forwarding-test-cert/test.crt";
-        keyFile = "/etc/port-forwarding-test-cert/test.key";
+        onion = true;
       };
 
       ollama = {
