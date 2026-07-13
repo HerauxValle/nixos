@@ -4,10 +4,6 @@
 # ../../modules/system/port-forwarding/. Data only, same reasoning as every
 # config/<category>/<name>.nix file.
 {
-  # TEMP diagnostic only -- verbose logging to see HS descriptor
-  # publish confirmation directly from the real daemon, will be removed.
-  config.services.tor.settings.Log = [ "info stdout" ];
-
   config.vars.ports = {
     enabled = true;
 
@@ -50,9 +46,9 @@
 
       searxng = {
         port = 8888; # config/self-hosted/searxng.nix has port = null -- 8888 is server.port in its settings
+        local = true;
         localName = "searxng";
         service = "self-hosted-searxng.service";
-        onion = true;
       };
 
       ollama = {
