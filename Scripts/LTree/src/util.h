@@ -31,6 +31,19 @@ void sbuf_append_json_string(SBuf *s, const char *str);
 /* ===================== UTF-8 aware display width ===================== */
 size_t utf8_width(const char *s);
 
+/* Counts "visible characters" over `size` raw bytes, for the CHARS
+ * module/JSON field. Decodes real UTF-8 codepoints (rejecting
+ * invalid/overlong/surrogate sequences instead of just counting lead
+ * bytes like utf8_width does for column alignment), then skips
+ * codepoints that never render as their own glyph -- combining marks,
+ * variation selectors, zero-width joiners -- and counts an emoji flag
+ * (two regional-indicator codepoints) as the single flag it displays
+ * as. Not full UAX #29 grapheme-cluster segmentation (this project
+ * carries no Unicode property database, see docs/architecture.md),
+ * but meaningfully closer to "what a human would call one character"
+ * than raw codepoint counting. */
+long utf8_count_visible_chars(const unsigned char *data, size_t size);
+
 /* ===================== formatting helpers ===================== */
 
 /* "-rw-r--r--" style 10-char (+NUL) permission string. buf must be >= 11. */

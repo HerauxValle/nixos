@@ -90,6 +90,77 @@ size_t utf8_width(const char *s) {
     return w;
 }
 
+/* ===================== precise "visible character" counting =========
+ * See util.h for the rationale. Decodes one codepoint at a time,
+ * rejecting malformed UTF-8 (a stray/invalid byte is skipped and not
+ * counted, rather than inflating the total the way lead-byte counting
+ * would), then applies two corrections on top of raw codepoint count:
+ *   - combining marks / variation selectors / ZWJ / ZWNJ never count
+ *     as their own character (they modify the glyph before them);
+ *   - a pair of regional-indicator codepoints (an emoji flag) counts
+ *     as one character, not two.
+ * ===================================================================== */
+static int utf8_decode_one(const unsigned char *p, size_t remaining, uint32_t *cp) {
+    unsigned char c0 = p[0];
+    if (c0 < 0x80) { *cp = c0; return 1; }
+
+    int len; uint32_t min_cp, val;
+    if      ((c0 & 0xE0) == 0xC0) { len = 2; min_cp = 0x80;    val = c0 & 0x1F; }
+    else if ((c0 & 0xF0) == 0xE0) { len = 3; min_cp = 0x800;   val = c0 & 0x0F; }
+    else if ((c0 & 0xF8) == 0xF0) { len = 4; min_cp = 0x10000; val = c0 & 0x07; }
+    else return 0; /* stray continuation byte or an invalid lead byte */
+
+    if ((size_t)len > remaining) return 0; /* truncated at end of buffer */
+    for (int i = 1; i < len; i++) {
+        if ((p[i] & 0xC0) != 0x80) return 0; /* not a continuation byte -- malformed */
+        val = (val << 6) | (uint32_t)(p[i] & 0x3F);
+    }
+    /* reject overlong encodings and the surrogate/out-of-range codepoints
+     * UTF-8 must never actually encode */
+    if (val < min_cp || val > 0x10FFFF || (val >= 0xD800 && val <= 0xDFFF)) return 0;
+
+    *cp = val;
+    return len;
+}
+
+static bool utf8_is_non_spacing(uint32_t cp) {
+    return (cp >= 0x0300  && cp <= 0x036F)   /* combining diacritical marks      */
+        || (cp >= 0x1AB0  && cp <= 0x1AFF)   /* combining diacritical marks ext  */
+        || (cp >= 0x1DC0  && cp <= 0x1DFF)   /* combining diacritical marks supp */
+        || (cp >= 0x20D0  && cp <= 0x20FF)   /* combining diacritical marks sym  */
+        || (cp >= 0xFE20  && cp <= 0xFE2F)   /* combining half marks             */
+        || (cp >= 0xFE00  && cp <= 0xFE0F)   /* variation selectors              */
+        || (cp >= 0xE0100 && cp <= 0xE01EF)  /* variation selectors supplement   */
+        || cp == 0x200D                       /* zero-width joiner                */
+        || cp == 0x200C;                       /* zero-width non-joiner            */
+}
+
+long utf8_count_visible_chars(const unsigned char *data, size_t size) {
+    long count = 0;
+    size_t i = 0;
+    bool pending_regional = false; /* mid-way through a flag's 2-codepoint pair */
+
+    while (i < size) {
+        uint32_t cp;
+        int len = utf8_decode_one(data + i, size - i, &cp);
+        if (len == 0) { i++; continue; } /* malformed byte: skip, don't count */
+
+        if (utf8_is_non_spacing(cp)) { i += (size_t)len; continue; }
+
+        if (cp >= 0x1F1E6 && cp <= 0x1F1FF) { /* regional indicator symbol */
+            if (pending_regional) pending_regional = false; /* 2nd half: already counted */
+            else { count++; pending_regional = true; }
+            i += (size_t)len;
+            continue;
+        }
+
+        pending_regional = false;
+        count++;
+        i += (size_t)len;
+    }
+    return count;
+}
+
 /* ===================== permission string ===================== */
 void mode_string(mode_t mode, bool is_dir, bool is_symlink, char *buf) {
     buf[0] = is_symlink ? 'l' : is_dir ? 'd' : '-';

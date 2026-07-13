@@ -1,7 +1,7 @@
-/* colors.h -- ANSI colour palette shared by render_tree.c and
- * render_files.c. All collapse to "" when cfg->no_colour is set via
- * the COL()/RST() macros, so print sites never branch on no_colour
- * themselves. */
+/* colors.h -- ANSI colour palette shared by render_tree.c,
+ * render_files.c, and debug.c. All collapse to "" when cfg->no_colour
+ * is set via the COL()/RST() macros, so print sites never branch on
+ * no_colour themselves. */
 #ifndef LTREE_COLORS_H
 #define LTREE_COLORS_H
 
@@ -22,7 +22,7 @@
 #define ANSI_HASH     "\x1b[0;35m"   /* magenta      -- H: column           */
 #define ANSI_MODIFIED "\x1b[1;31m"   /* bold red     -- DIFF: modified name */
 #define ANSI_NOTE     "\x1b[2;37m"   /* dim grey     -- trailing notes      */
-#define ANSI_DEBUG    "\x1b[1;33m"   /* bold yellow  -- DEBUG summary       */
+#define ANSI_DEBUG    "\x1b[1;33m"   /* bold yellow  -- DEBUG: sub-dividers */
 
 #define COL(cfg, code) ((cfg)->no_colour ? "" : (code))
 #define RST(cfg)       ((cfg)->no_colour ? "" : ANSI_RESET)

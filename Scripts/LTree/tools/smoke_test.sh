@@ -180,6 +180,12 @@ build_playground() {
         touch keep.txt ignored.log
         mkdir -p build && touch build/artifact.o)
 
+    mkdir -p precise_chars
+    printf 'family:\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa6\n'  > precise_chars/f.txt   # family emoji: 4 people joined by 3 ZWJs
+    printf 'flag:\xf0\x9f\x87\xa9\xf0\x9f\x87\xaa\n'                                                                     >> precise_chars/f.txt   # DE flag: 2 regional-indicator codepoints
+    printf 'accent:e\xcc\x81\n'                                                                                          >> precise_chars/f.txt   # "e" + combining acute (U+0301)
+    printf 'plain:abc\n'                                                                                                >> precise_chars/f.txt
+
     mkdir -p empties/e1 empties/e2/e3
 
     cd - >/dev/null || exit 1
@@ -219,6 +225,13 @@ run_ok "tree view HASH (crypto)"       "$BIN" "$PG" -o HASH --cryptographic
 run_ok "tree view DEBUG"               "$BIN" "$PG" -o DEBUG
 run_ok "tree view DEBUG,DIFF ordering" "$BIN" "$PG" -o DEBUG,DIFF
 run_ok "tree view ALL modules at once" "$BIN" "$PG" -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DEBUG
+run_ok "-oA (all modules shorthand, attached)" "$BIN" "$PG" -oA
+run_ok "-o A (all modules shorthand, spaced)"  "$BIN" "$PG" -o A
+run_expect_fail "-oA,DEBUG rejected (can't combine with A)" "$BIN" "$PG" -oA,DEBUG
+run_expect_fail "-o A,DEBUG rejected (can't combine with A)" "$BIN" "$PG" -o A,DEBUG
+assert_json "-oA enables every module (TOTAL/by_extension/debug all present)" \
+    "d['hash_algo'] != 'none' and 'debug' in d and len(d['by_extension']) > 0" \
+    "$BIN" "$PG" -j -oA
 run_ok "no-colour flag"                "$BIN" "$PG" --no-colour
 run_ok "no-color (US spelling)"        "$BIN" "$PG" --no-color
 run_ok "unknown -o module (should warn, not crash)" "$BIN" "$PG" -o BOGUS_MODULE
@@ -263,6 +276,9 @@ assert_json "debug block absent from json without -o DEBUG" \
 assert_json "debug block has expected timing/memory keys" \
     "all(k in d['debug'] for k in ('wall_clock_seconds','scan_seconds','peak_rss_kb','heap_arena_bytes','tree_memory_bytes_estimate','hash_algo','pid'))" \
     "$BIN" "$PG" -j -o DEBUG
+assert_json "CHARS counts visible characters, not raw codepoints (ZWJ/flag/combining-aware)" \
+    "d['tree']['children'][0]['chars'] == 38" \
+    "$BIN" "$PG/precise_chars" -j -o CHARS
 
 header "hash correctness / determinism"
 H1="$("$BIN" "$PG/basic" -j -o HASH | python3 -c 'import json,sys; print(json.load(sys.stdin)["tree"]["hash"])')"

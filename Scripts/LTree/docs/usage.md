@@ -16,6 +16,7 @@ are the same call.
 | `-d` | List directories only. |
 | `-L <n>` (also `-L<n>`) | Max depth to descend, like `tree -L`. Directories at the cutoff are still shown, marked `(...)`, just not expanded. |
 | `-o <MODULES>` | Comma-separated, any order: `LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DIFF,DEBUG`. See below. |
+| `-o A` (also `-oA`) | Every module at once. Can't be combined with any other module name in the same list -- `ltree` rejects `-o A,DEBUG` rather than silently ignoring the redundant token. |
 | `--exclude <list>` | Comma-separated names/globs to skip. Quote entries containing spaces: `--exclude "build,*.pyc,some dir"`. |
 | `--gitignore` | Also exclude whatever the scan root's `.gitignore` would. Composes with `--exclude` -- either list can exclude a path. |
 | `--cryptographic` | `-o HASH` / `-o DIFF` use SHA-256 instead of the default xxHash64. |
@@ -35,7 +36,18 @@ totals accumulate naturally as you walk up); `PERMISSIONS`/`DATE` are
 always the entry's own, never aggregated.
 
 - **`LINES`** -- line count (`memchr`-counted newlines).
-- **`CHARS`** -- UTF-8 codepoint count (not byte count).
+- **`CHARS`** -- *visible* character count, not raw UTF-8 codepoint
+  count. `ltree` decodes real codepoints (rejecting invalid/overlong
+  UTF-8 rather than just counting lead bytes) and then applies two
+  corrections on top: combining marks, variation selectors, and
+  zero-width joiners never add their own count (they modify the glyph
+  before them, they don't add a new one), and a pair of
+  regional-indicator codepoints -- an emoji flag -- counts as one
+  character, not two. This isn't full Unicode grapheme-cluster
+  segmentation (UAX #29) -- that needs a Unicode property database
+  this project deliberately doesn't carry -- but it's meaningfully
+  closer to "what a human would call one character" than raw codepoint
+  counting, for the overwhelming majority of real text.
 - **`PERMISSIONS`** -- `[P: -rw-r--r--]`, the same 10-character form
   `ls -l` uses.
 - **`SIZE`** -- human-readable size, `[S: 4.5K]` / `[S: 128b]` /

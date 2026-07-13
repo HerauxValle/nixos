@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include "scan.h"
+#include "util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -144,7 +145,7 @@ typedef struct {
 static void scan_file_content_work(const void *map, size_t size, void *ctx_) {
     ScanWork *ctx = (ScanWork *)ctx_;
     const unsigned char *data = (const unsigned char *)map;
-    long lines = 0, chars = 0;
+    long lines = 0;
 
     const unsigned char *p = data;
     const unsigned char *end = data + size;
@@ -155,9 +156,7 @@ static void scan_file_content_work(const void *map, size_t size, void *ctx_) {
         p = nl + 1;
     }
 
-    for (size_t i = 0; i < size; i++) {
-        if ((data[i] & 0xC0) != 0x80) chars++;
-    }
+    long chars = utf8_count_visible_chars(data, size);
 
     if (ctx->need_hash) hash_compute(ctx->algo, data, size, ctx->hash, &ctx->hash_len);
 

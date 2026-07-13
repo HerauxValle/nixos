@@ -122,28 +122,48 @@ void debug_json_append(SBuf *sb, const DebugStats *d) {
 
 /* ===================== text formatting ==================================== */
 void debug_print_text(const DebugStats *d, const Config *cfg) {
-    printf("\n%sDEBUG:%s\n", COL(cfg, ANSI_DEBUG), RST(cfg));
-    printf("  -- timing --\n");
-    printf("  wall clock:              %.3f s\n", d->wall_clock_seconds);
-    printf("  scan (walk+hash) time:   %.3f s\n", d->scan_seconds);
-    printf("  cpu user / system:       %.3f s / %.3f s\n", d->cpu_user_seconds, d->cpu_system_seconds);
+    /* Header shares TOTAL:/FILES:'s colour (ANSI_TOTAL) so all three
+     * summary-section headers read as one family, the same way EXT
+     * accents FILES:'s per-row extension name. Sub-dividers use
+     * ANSI_DEBUG as a second-tier accent -- same idea, one level down.
+     * Values reuse the exact hues the tree's own L/C/P/S/D/H columns
+     * already carry, grouped by what kind of number they are, so
+     * DEBUG: doesn't read as a disconnected block of plain text: */
+    const char *C  = COL(cfg, ANSI_TOTAL);  /* top header    */
+    const char *SC = COL(cfg, ANSI_DEBUG);  /* sub-dividers  */
+    const char *TM = COL(cfg, ANSI_DATE);   /* timing values -- same dim as D: (time-flavoured) */
+    const char *MEM= COL(cfg, ANSI_SIZE);   /* memory/byte values -- same yellow as S:          */
+    const char *CNT= COL(cfg, ANSI_LINES);  /* raw counts -- same green as L:                   */
+    const char *HA = COL(cfg, ANSI_HASH);   /* hash algo -- same magenta as H:                  */
+    const char *MS = COL(cfg, ANSI_NOTE);   /* misc/system metadata -- same dim as trailing notes*/
+    const char *R  = RST(cfg);
+
+    printf("\n%sDEBUG:%s\n", C, R);
+
+    printf("  %s-- timing --%s\n", SC, R);
+    printf("  wall clock:              %s%.3f s%s\n", TM, d->wall_clock_seconds, R);
+    printf("  scan (walk+hash) time:   %s%.3f s%s\n", TM, d->scan_seconds, R);
+    printf("  cpu user / system:       %s%.3f s / %.3f s%s\n", TM, d->cpu_user_seconds, d->cpu_system_seconds, R);
     if (d->files_scanned > 0) {
-        printf("  throughput:              %.0f files/sec (%.1f us/file avg)\n",
-               d->files_per_second, d->avg_us_per_file);
+        printf("  throughput:              %s%.0f files/sec (%.1f us/file avg)%s\n",
+               TM, d->files_per_second, d->avg_us_per_file, R);
     }
-    printf("  -- memory --\n");
-    printf("  peak RSS:                %ld KB\n", d->peak_rss_kb);
-    printf("  heap in use / free:      %lld B / %lld B\n", d->heap_in_use_bytes, d->heap_free_bytes);
-    printf("  heap arena / mmap'd:     %lld B / %lld B\n", d->heap_arena_bytes, d->heap_mmap_bytes);
-    printf("  tree footprint (est.):   %lld B across %ld nodes\n",
-           d->tree_memory_bytes_estimate, d->nodes_total);
-    printf("  -- OS scheduling / IO --\n");
-    printf("  page faults (min/maj):   %ld / %ld\n", d->minor_page_faults, d->major_page_faults);
-    printf("  block IO (in/out):       %ld / %ld\n", d->block_input_ops, d->block_output_ops);
-    printf("  ctx switches (vol/inv):  %ld / %ld\n", d->voluntary_ctx_switches, d->involuntary_ctx_switches);
-    printf("  -- misc --\n");
-    printf("  dirs / files scanned:    %ld / %ld\n", d->dirs_scanned, d->files_scanned);
-    printf("  hash algo:               %s\n", d->hash_algo);
-    printf("  pid:                     %ld\n", d->pid);
-    printf("  page size:               %ld B\n", d->page_size_bytes);
+
+    printf("  %s-- memory --%s\n", SC, R);
+    printf("  peak RSS:                %s%ld KB%s\n", MEM, d->peak_rss_kb, R);
+    printf("  heap in use / free:      %s%lld B / %lld B%s\n", MEM, d->heap_in_use_bytes, d->heap_free_bytes, R);
+    printf("  heap arena / mmap'd:     %s%lld B / %lld B%s\n", MEM, d->heap_arena_bytes, d->heap_mmap_bytes, R);
+    printf("  tree footprint (est.):   %s%lld B across %ld nodes%s\n",
+           MEM, d->tree_memory_bytes_estimate, d->nodes_total, R);
+
+    printf("  %s-- OS scheduling / IO --%s\n", SC, R);
+    printf("  page faults (min/maj):   %s%ld / %ld%s\n", CNT, d->minor_page_faults, d->major_page_faults, R);
+    printf("  block IO (in/out):       %s%ld / %ld%s\n", CNT, d->block_input_ops, d->block_output_ops, R);
+    printf("  ctx switches (vol/inv):  %s%ld / %ld%s\n", CNT, d->voluntary_ctx_switches, d->involuntary_ctx_switches, R);
+
+    printf("  %s-- misc --%s\n", SC, R);
+    printf("  dirs / files scanned:    %s%ld / %ld%s\n", CNT, d->dirs_scanned, d->files_scanned, R);
+    printf("  hash algo:               %s%s%s\n", HA, d->hash_algo, R);
+    printf("  pid:                     %s%ld%s\n", MS, d->pid, R);
+    printf("  page size:               %s%ld B%s\n", MS, d->page_size_bytes, R);
 }

@@ -45,6 +45,8 @@ static void print_usage(const char *prog) {
         "  -o <MODULES>          comma-separated, any order:\n"
         "                          LINES, CHARS, TOTAL, FILES,\n"
         "                          PERMISSIONS, SIZE, DATE, EXT, HASH, DIFF, DEBUG\n"
+        "  -o A                  every module at once (also -oA). Can't be combined\n"
+        "                        with other module names -- it's already all of them.\n"
         "  --exclude <list>      comma-separated names/globs to skip, quote\n"
         "                        entries with spaces: --exclude \"build,*.pyc\"\n"
         "  --gitignore           also exclude what the scan root's .gitignore\n"
@@ -106,21 +108,49 @@ int main(int argc, char **argv) {
             char *val = (strcmp(a, "-o") == 0) ? (i + 1 < argc ? strdup(argv[++i]) : NULL)
                                                 : strdup(a + 2);
             if (val) {
-                char *tok = strtok(val, ",");
-                while (tok) {
-                    if      (strcasecmp(tok, "LINES") == 0)       cfg.o_lines = true;
-                    else if (strcasecmp(tok, "CHARS") == 0)       cfg.o_chars = true;
-                    else if (strcasecmp(tok, "TOTAL") == 0)       cfg.o_total = true;
-                    else if (strcasecmp(tok, "FILES") == 0)       cfg.o_files = true;
-                    else if (strcasecmp(tok, "PERMISSIONS") == 0) cfg.o_perm = true;
-                    else if (strcasecmp(tok, "SIZE") == 0)        cfg.o_size = true;
-                    else if (strcasecmp(tok, "DATE") == 0)        cfg.o_date = true;
-                    else if (strcasecmp(tok, "EXT") == 0)         cfg.o_ext = true;
-                    else if (strcasecmp(tok, "HASH") == 0)        cfg.o_hash = true;
-                    else if (strcasecmp(tok, "DIFF") == 0)        cfg.o_diff = true;
-                    else if (strcasecmp(tok, "DEBUG") == 0)       cfg.o_debug = true;
-                    else fprintf(stderr, "warning: unknown -o module '%s'\n", tok);
-                    tok = strtok(NULL, ",");
+                /* -oA / -o A means "every module" and must stand alone --
+                 * it's already everything, so "-oA,DEBUG" either means
+                 * nothing extra or is a typo for a specific subset the
+                 * caller actually wanted. Reject it instead of silently
+                 * doing something the flags don't literally say. */
+                char *scan = strdup(val);
+                int ntok = 0, has_all = 0;
+                char *stok = strtok(scan, ",");
+                while (stok) {
+                    ntok++;
+                    if (strcasecmp(stok, "A") == 0) has_all = 1;
+                    stok = strtok(NULL, ",");
+                }
+                free(scan);
+
+                if (has_all && ntok > 1) {
+                    fprintf(stderr,
+                            "error: -o A selects every module by itself and can't be "
+                            "combined with other module names (got '-o %s')\n", val);
+                    free(val);
+                    print_usage(argv[0]);
+                    return 1;
+                } else if (has_all) {
+                    cfg.o_lines = cfg.o_chars = cfg.o_total = cfg.o_files = true;
+                    cfg.o_perm  = cfg.o_size  = cfg.o_date  = cfg.o_ext   = true;
+                    cfg.o_hash  = cfg.o_diff  = cfg.o_debug = true;
+                } else {
+                    char *tok = strtok(val, ",");
+                    while (tok) {
+                        if      (strcasecmp(tok, "LINES") == 0)       cfg.o_lines = true;
+                        else if (strcasecmp(tok, "CHARS") == 0)       cfg.o_chars = true;
+                        else if (strcasecmp(tok, "TOTAL") == 0)       cfg.o_total = true;
+                        else if (strcasecmp(tok, "FILES") == 0)       cfg.o_files = true;
+                        else if (strcasecmp(tok, "PERMISSIONS") == 0) cfg.o_perm = true;
+                        else if (strcasecmp(tok, "SIZE") == 0)        cfg.o_size = true;
+                        else if (strcasecmp(tok, "DATE") == 0)        cfg.o_date = true;
+                        else if (strcasecmp(tok, "EXT") == 0)         cfg.o_ext = true;
+                        else if (strcasecmp(tok, "HASH") == 0)        cfg.o_hash = true;
+                        else if (strcasecmp(tok, "DIFF") == 0)        cfg.o_diff = true;
+                        else if (strcasecmp(tok, "DEBUG") == 0)       cfg.o_debug = true;
+                        else fprintf(stderr, "warning: unknown -o module '%s'\n", tok);
+                        tok = strtok(NULL, ",");
+                    }
                 }
                 free(val);
             }

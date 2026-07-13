@@ -64,6 +64,8 @@ ltree [path] [options]
   -o <MODULES>          comma-separated, any order:
                           LINES, CHARS, TOTAL, FILES,
                           PERMISSIONS, SIZE, DATE, EXT, HASH, DIFF, DEBUG
+  -o A                  every module at once (also -oA). Can't be combined
+                        with other module names -- it's already all of them.
   --exclude <list>      comma-separated names/globs to skip, quote
                         entries with spaces: --exclude "build,*.pyc"
   --gitignore           also exclude what the scan root's .gitignore
@@ -86,14 +88,19 @@ of the order you list them in `-o` (dirs aggregate
 `LINES`/`CHARS`/`SIZE` over their direct children; `PERMISSIONS`/
 `DATE` are always the entry's own). `EXT` toggles showing file
 extensions in the tree (hidden by default -- `report.md` shows as
-`report`). `DIFF` compares against the newest `.ltree` snapshot,
-marking changed entries red with a trailing `[m]`. `TOTAL`,
-`FILES`, and `DEBUG` are summary sections appended at the end, not
-per-entry columns. `DEBUG` prints a hyper-detailed run report --
-timing, peak RSS, heap stats, page faults, throughput -- right after
-`TOTAL` (and, in `-j` output, as a `"debug"` object); it's never
-written into `--save-output` snapshots, since it's ephemeral
-run-to-run noise that would only pollute diffing.
+`report`). `CHARS` counts *visible* characters, not raw codepoints --
+combining marks, variation selectors, and zero-width joiners don't
+add their own count, and an emoji flag (two regional-indicator
+codepoints) counts as one, not two. `DIFF` compares against the
+newest `.ltree` snapshot, marking changed entries red with a trailing
+`[m]`. `TOTAL`, `FILES`, and `DEBUG` are summary sections appended at
+the end, not per-entry columns. `DEBUG` prints a hyper-detailed run
+report -- timing, peak RSS, heap stats, page faults, throughput --
+right after `TOTAL` (and, in `-j` output, as a `"debug"` object); it's
+never written into `--save-output` snapshots, since it's ephemeral
+run-to-run noise that would only pollute diffing. `-o A` (or `-oA`)
+turns on every module at once and can't be combined with anything
+else in the same list.
 
 See [`docs/usage.md`](docs/usage.md) for the full breakdown of every
 flag, the exclude/gitignore matching rules, the column-alignment
@@ -126,6 +133,9 @@ ltree -j -o HASH --cryptographic
 
 # hyper-detailed run report: timing, peak RSS, heap, page faults
 ltree -o DEBUG
+
+# everything at once
+ltree -oA
 ```
 
 ## What changed from the old `countlines.py`
@@ -153,6 +163,13 @@ ltree -o DEBUG
   time, peak RSS, heap-arena breakdown, page faults, throughput) for
   anyone profiling how `ltree` itself is spending time/memory on a
   given tree; deliberately excluded from `--save-output` snapshots.
+- **New:** `-o A` / `-oA` -- turn on every module in one shot instead
+  of spelling out the full list; rejected if combined with any other
+  module name in the same `-o`, since it's already all of them.
+- **Changed:** `CHARS` now counts *visible* characters instead of raw
+  UTF-8 codepoints -- combining marks, variation selectors, and
+  zero-width joiners no longer inflate the count, and a two-codepoint
+  emoji flag counts as the one flag it displays as.
 - **New:** the project is now split across `src/*.c` by responsibility
   (scanning, rendering, JSON, hashing, diffing, persistence -- see
   `docs/architecture.md`) instead of one file, now that this many
