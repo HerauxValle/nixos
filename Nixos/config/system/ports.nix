@@ -67,7 +67,6 @@
         mode.local = {
           name = "stash";
         };
-        net.loopbackOnly = true;
       };
 
       openwebui = {
