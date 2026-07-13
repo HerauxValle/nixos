@@ -30,7 +30,6 @@ RESET = os.environ.get("dotfilesBackupColorReset", "").encode().decode("unicode_
 
 def warn(message):
     print(
-        f"{RED}warning: modules/backup/dotfiles:{RESET}\n"
         f"{YELLOW}{message}{RESET}",
         file=sys.stderr,
     )
@@ -52,7 +51,7 @@ def check_excludes(dotfiles_path, patterns_file):
 
     if missing:
         warn(
-            "[dotfiles-backup] ============================================\n"
+            f"{RED}[dotfiles-backup] ============================================{RESET}\n"
             "the following excludeFiles entries do not match anything under\n"
             "dotfilesPath (renamed, typo'd, mistyped pattern, or never\n"
             "created?) and currently exclude nothing:\n\n"
@@ -62,7 +61,7 @@ def check_excludes(dotfiles_path, patterns_file):
             "files/directories that do not currently exist. You can\n"
             "safely ignore this warning unless you expected one of\n"
             "these entries to match.\n"
-            "[dotfiles-backup] ============================================"
+            f"{RED}[dotfiles-backup] ============================================{RESET}"
         )
 
 
