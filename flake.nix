@@ -13,6 +13,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     crun.url = "path:./Scripts/CRun";
+    ltree.url = "path:./Scripts/LTree";
   };
 
   outputs =
@@ -22,6 +23,7 @@
       home-manager,
       silent-sddm,
       crun,
+      ltree,
       ...
     }@inputs:
     {

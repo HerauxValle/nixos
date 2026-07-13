@@ -11,6 +11,7 @@ let
 
   # Pull the declarative binary package out of your flake inputs
   crun = inputs.crun.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  ltree = inputs.ltree.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
   # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups (shifted
   # symbol keybinds like ctrl+dollar/asterisk/exclam) -- that's not a normal
@@ -45,6 +46,7 @@ in
       oculante # Image viewer (was installed on Arch, missing here)
       mybarBackend # MyBar's mybar-* backend binaries (same recipe as scripts/build/compile.sh)
       crun
+      ltree
 
       # Languages
       python3 # Python
