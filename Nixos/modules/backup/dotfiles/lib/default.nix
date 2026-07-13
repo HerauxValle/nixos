@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 # Dotfiles GitHub backup
 #
@@ -47,9 +52,9 @@ let
   # entry keeps its exact prior matching behavior with zero change, while
   # a new pattern entry gets real glob matching, both in one file/one
   # git-filter-repo invocation.
-  excludePathsFileContent = lib.concatMapStringsSep "\n"
-    (f: if isGlobPattern f then "glob:${f}" else "literal:${f}")
-    cfg.excludeFiles;
+  excludePathsFileContent = lib.concatMapStringsSep "\n" (
+    f: if isGlobPattern f then "glob:${f}" else "literal:${f}"
+  ) cfg.excludeFiles;
 
   # git-filter-repo's own replacements-file format: one "old==>new" per
   # line, literal by default (no regex escaping needed). Feeds the history
@@ -66,7 +71,9 @@ let
   # for replaceValues `find` is typically even more specific than
   # redactValues' bare value).
   replaceTextFileContent = lib.concatStringsSep "\n" (
-    (map (r: "${r.value}==>${lib.concatStrings (lib.replicate (builtins.stringLength r.value) "*")}") resolvedRedactValues)
+    (map (
+      r: "${r.value}==>${lib.concatStrings (lib.replicate (builtins.stringLength r.value) "*")}"
+    ) resolvedRedactValues)
     ++ (map (r: "${r.find}==>${r.replaceWith}") resolvedReplaceValues)
   );
 
@@ -77,10 +84,12 @@ let
   # pointless). Baked into dotfilesBackupFilterRepo's own definition below
   # rather than checked at runtime -- both are plain facts about the
   # current config, already known at eval time.
-  excludePathFilterArg = lib.optionalString (cfg.excludeFiles != [ ])
-    ''--paths-from-file "$dotfilesBackupExcludePathsFile" --invert-paths'';
-  replaceTextArg = lib.optionalString (resolvedRedactValues != [ ] || resolvedReplaceValues != [ ])
-    ''--replace-text "$dotfilesBackupReplaceTextFile"'';
+  excludePathFilterArg = lib.optionalString (
+    cfg.excludeFiles != [ ]
+  ) ''--paths-from-file "$dotfilesBackupExcludePathsFile" --invert-paths'';
+  replaceTextArg = lib.optionalString (
+    resolvedRedactValues != [ ] || resolvedReplaceValues != [ ]
+  ) ''--replace-text "$dotfilesBackupReplaceTextFile"'';
 
   gitSshCommand = "${pkgs.openssh}/bin/ssh -i ${cfg.keyFile} -o UserKnownHostsFile=${cfg.knownHostsFile} -o StrictHostKeyChecking=yes -o ConnectTimeout=${toString cfg.connectTimeoutSeconds}";
 
@@ -90,16 +99,20 @@ let
   # false since there's nothing to check against then).
   redactApplyJson = builtins.toJSON resolvedRedactValues;
   replaceApplyJson = builtins.toJSON resolvedReplaceValues;
-  redactChecksJson = builtins.toJSON (map (r: {
-    inherit (r) file key;
-    success = r.result.success;
-    value = if r.result.success then r.result.value else null;
-  }) redactValueResolutions);
-  replaceChecksJson = builtins.toJSON (map (r: {
-    inherit (r) file key;
-    success = r.result.success;
-    value = if r.result.success then r.result.value else null;
-  }) replaceValueResolutions);
+  redactChecksJson = builtins.toJSON (
+    map (r: {
+      inherit (r) file key;
+      success = r.result.success;
+      value = if r.result.success then r.result.value else null;
+    }) redactValueResolutions
+  );
+  replaceChecksJson = builtins.toJSON (
+    map (r: {
+      inherit (r) file key;
+      success = r.result.success;
+      value = if r.result.success then r.result.value else null;
+    }) replaceValueResolutions
+  );
 
   # The preamble -- every Nix-interpolated value this module's bash
   # actually needs, as plain `export VAR=value` lines and a handful of
@@ -161,7 +174,11 @@ let
     dotfilesBackupSshCommand="${gitSshCommand}"
     dotfilesBackupUseRepoCache="${if cfg.useRepoCache then "1" else ""}"
     dotfilesBackupScrubHistoryOnExcludeChange="${if cfg.scrubHistoryOnExcludeChange then "1" else ""}"
-    export dotfilesBackupColorYellow dotfilesBackupColorReset
+
+    export dotfilesBackupColorRed
+    export dotfilesBackupColorYellow
+    export dotfilesBackupColorGreen
+    export dotfilesBackupColorReset
 
     dotfilesBackupExcludePatternsFile="$(mktemp)"
     cat > "$dotfilesBackupExcludePatternsFile" <<'EXCLUDEPATTERNSEOF'
@@ -315,20 +332,20 @@ in
   # optionalString always yields a real string (empty when disabled), which
   # is what a default-less `types.lines` option actually needs.
   system.activationScripts.dotfilesBackup.text = lib.optionalString cfg.enable ''
-    ${lib.optionalString cfg.skipOnTest ''
-      if [ "''${NIXOS_ACTION:-}" = "test" ]; then
-        exit 0
-      fi
-    ''}
-  {
-    ${preamble}
-    ${builtins.readFile ./activation/preflight.sh}
-    ${builtins.readFile ./activation/snapshot.sh}
-    ${builtins.readFile ./activation/push.sh}
+      ${lib.optionalString cfg.skipOnTest ''
+        if [ "''${NIXOS_ACTION:-}" = "test" ]; then
+          exit 0
+        fi
+      ''}
+    {
+      ${preamble}
+      ${builtins.readFile ./activation/preflight.sh}
+      ${builtins.readFile ./activation/snapshot.sh}
+      ${builtins.readFile ./activation/push.sh}
 
-    dotfilesBackup_preflight
-    dotfilesBackup_snapshot
-    dotfilesBackup_push
-  } ${lib.optionalString (cfg.logLevel == "silent") "> /dev/null 2>&1"}
+      dotfilesBackup_preflight
+      dotfilesBackup_snapshot
+      dotfilesBackup_push
+    } ${lib.optionalString (cfg.logLevel == "silent") "> /dev/null 2>&1"}
   '';
 }
