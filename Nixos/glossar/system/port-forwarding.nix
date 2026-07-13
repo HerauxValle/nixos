@@ -220,17 +220,44 @@
   #         # Reached at http://<address>.onion:<port>/ -- the port still
   #         # has to be typed even though the address itself carries no
   #         # port info (pmg's own onion services work the exact same way:
-  #         # VIRTPORT is always set to the real port, never bare 80). The
-  #         # onion address is PERSISTENT, not regenerated per boot/rebuild
-  #         # -- Tor generates the v3 keypair once under
-  #         # /var/lib/tor/onion/<key>/ the first time this is enabled and
-  #         # reuses it forever after (confirmed live across multiple
-  #         # rebuilds and tor.service restarts, same address every time).
-  #         # Delete that directory by hand and restart tor.service if you
-  #         # ever specifically want a fresh address. WHY/WHEN: turn on for
-  #         # anything you want reachable from anywhere without opening a
-  #         # port on your actual router or knowing your public IP --
-  #         # trades the address being memorable for it being reachable
+  #         # VIRTPORT is always set to the real port, never bare 80).
+  #         # Three ways to set this field:
+  #         #   onion = false;                # off (the default)
+  #         #   onion = true;                 # on, persistent address
+  #         #   onion = { ephemeral = true; }; # on, fresh address every start
+  #         # (same lib.types.coercedTo bool-or-submodule shape as `local`
+  #         # below -- a bare true/false is coerced into the
+  #         # { enable; ephemeral; } shape either way.)
+  #         #
+  #         # PERSISTENT (default, ephemeral = false): Tor generates the v3
+  #         # keypair once under /var/lib/tor/onion/<key>/ the first time
+  #         # this is enabled and reuses it forever after -- confirmed live
+  #         # across multiple rebuilds and tor.service restarts, same
+  #         # address every time. To force a fresh address by hand anyway:
+  #         #   sudo rm -f /var/lib/tor/onion/<key>/hs_ed25519_secret_key \
+  #         #              /var/lib/tor/onion/<key>/hs_ed25519_public_key \
+  #         #              /var/lib/tor/onion/<key>/hostname
+  #         #   sudo systemctl restart tor
+  #         # (deleting only those three files, not the whole directory --
+  #         # its own ownership/mode is set up by services.tor's own
+  #         # ExecStartPre, no need to disturb that.) WHY/WHEN: this is what
+  #         # you want almost always -- an address worth bookmarking,
+  #         # sharing, or pointing a client at more than once.
+  #         #
+  #         # EPHEMERAL (ephemeral = true): the exact same three files are
+  #         # wiped automatically, every single time tor.service starts, via
+  #         # an ExecStartPre this module adds (confirmed live: 4 restarts
+  #         # in a row, 4 different addresses, every time). WHY/WHEN: use
+  #         # only for something genuinely meant to be reachable for one
+  #         # session and then forgotten -- a one-off file share, a demo you
+  #         # don't want linkable again after -- since the address can't be
+  #         # bookmarked or shared ahead of time by design. Read the current
+  #         # address fresh each time from `journalctl -u tor` or
+  #         # /var/lib/tor/onion/<key>/hostname after a (re)start.
+  #         #
+  #         # Either way: reachable from anywhere without opening a port on
+  #         # your actual router or knowing your public IP -- trades the
+  #         # address being memorable (unless ephemeral) for reachability
   #         # through Tor with no network-level exposure of this machine's
   #         # real IP at all.
 

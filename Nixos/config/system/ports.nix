@@ -59,6 +59,7 @@
         port = 9999;
         service = "self-hosted-stash.service";
         mode.local = { name = "stash"; };
+        mode.onion = true;
       };
 
       openwebui = {
@@ -114,7 +115,9 @@
       #   };
       #
       #   mode = {
-      #     onion = false;                # optional -- Tor v3 hidden service
+      #     onion = false;                # optional -- false | true | { ephemeral = true; }
+      #                                   #   true                 -> Tor v3 hidden service, persistent address
+      #                                   #   { ephemeral = true; } -> new .onion address every tor.service start
       #     local = false;                # optional -- false | true | { name = "custom"; }
       #                                   #   true            -> mDNS on, auto "pmg-<port>.local" name
       #                                   #   { name = "x"; } -> mDNS on, custom "x.local" name
