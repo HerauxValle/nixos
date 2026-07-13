@@ -59,6 +59,7 @@
         port = 9999;
         service = "self-hosted-stash.service";
         mode.local = { name = "stash"; };
+        mode.onion = { ephemeral = true; };
       };
 
       openwebui = {

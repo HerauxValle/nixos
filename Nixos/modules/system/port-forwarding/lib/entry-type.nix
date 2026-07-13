@@ -169,14 +169,60 @@ lib.types.submodule ({ config, ... }: {
     # entry at once, each running independently.
     mode = {
       onion = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
+        type = lib.types.coercedTo lib.types.bool
+          (enable: { inherit enable; ephemeral = false; })
+          (lib.types.submodule {
+            options = {
+              enable = lib.mkOption {
+                type = lib.types.bool;
+                default = true;
+                description = ''
+                  Always true when this submodule form (mode.onion = {
+                  ... }) is used at all -- set mode.onion = false (the
+                  plain bool, not { enable = false; }) to actually
+                  disable the hidden service for this entry.
+                '';
+              };
+              ephemeral = lib.mkOption {
+                type = lib.types.bool;
+                default = false;
+                description = ''
+                  false (default) -- the v3 keypair under
+                  /var/lib/tor/onion/<key>/ is generated once, the
+                  first time this entry's onion service ever starts,
+                  and reused forever after (Tor's own normal
+                  behavior for a HiddenServiceDir) -- the .onion
+                  address stays the same across every reboot/rebuild.
+                  true -- that keypair (and the .onion address it
+                  implies) is deleted and regenerated fresh every
+                  single time tor.service (re)starts, via an
+                  ExecStartPre this module adds to tor.service itself
+                  (see ../port-forwarding.nix's own comment on
+                  systemd.services.tor.serviceConfig.ExecStartPre) --
+                  a new, unrelated .onion address every run, on
+                  purpose, at the cost of it never being the same
+                  address twice (so it can't be bookmarked/shared
+                  ahead of time -- read the printed address fresh
+                  each time from `journalctl -u tor` or
+                  /var/lib/tor/onion/<key>/hostname after a restart).
+                '';
+              };
+            };
+          });
+        default = { enable = false; ephemeral = false; };
         description = ''
           Tor v3 hidden service, via services.tor.relay.onionServices.
           Reached at http://<address>.onion:<port>/ -- the port has to
           be typed even though the .onion address itself carries no
           port information; pmg's own onion services work the exact
           same way (VIRTPORT is always set to the real port, never 80).
+          Three ways to set this field:
+            mode.onion = false;                # off (the default)
+            mode.onion = true;                 # on, persistent address
+            mode.onion = { ephemeral = true; }; # on, fresh address every start
+          (same lib.types.coercedTo shape as mode.local above -- a bare
+          true/false is coerced into the { enable; ephemeral; } shape
+          either way.)
         '';
       };
 

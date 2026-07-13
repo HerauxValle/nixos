@@ -68,7 +68,8 @@ let
 
   ipv4Entries = lib.filterAttrs (_: e: e.net.ipv4) entries;
   ipv6Entries = lib.filterAttrs (_: e: e.net.ipv6) entries;
-  onionEntries = lib.filterAttrs (_: e: e.mode.onion) entries;
+  onionEntries = lib.filterAttrs (_: e: e.mode.onion.enable) entries;
+  ephemeralOnionKeys = lib.attrNames (lib.filterAttrs (_: e: e.mode.onion.ephemeral) onionEntries);
   localEntries = lib.filterAttrs (_: e: e.mode.local.enable) entries;
   publicEntries = lib.filterAttrs (_: e: e.mode.public) entries;
   routerEntries = lib.filterAttrs (_: e: e.mode.router) entries;
@@ -241,6 +242,40 @@ lib.mkIf config.vars.ports.enabled {
     ++ [
       (lib.mkIf needsAutoCert cert.config.systemd.services)
       (router.systemd.services or { })
+      # mode.onion.ephemeral -- wipe just the v3 keypair files (not the
+      # whole HiddenServiceDir -- that directory's own ownership/mode is
+      # set up by services.tor's own ExecStartPre steps, deleting it
+      # outright risks racing whichever of the two runs first) before
+      # tor.service's real ExecStart, for every entry that asked for a
+      # fresh address every start. Tor's own behavior (unchanged, not
+      # reimplemented) is to generate a new v3 keypair whenever
+      # hs_ed25519_secret_key is missing from an already-existing
+      # HiddenServiceDir -- this just guarantees that file is never
+      # THERE by the time tor's own binary looks for it, for these
+      # specific entries. Confirmed live that
+      # systemd.services.tor.serviceConfig.ExecStartPre (a real list,
+      # not a single string) merges cleanly with services.tor's own --
+      # NixOS concatenates multiple modules' contributions to this
+      # exact kind of multi-instance systemd directive automatically,
+      # nothing here replaces or races the native module's own prep
+      # steps. This has to be inside the SAME top-level systemd.services
+      # = lib.mkMerge (...) as everything else in this file, not a
+      # separate systemd.services.tor... assignment -- confirmed live,
+      # the latter is a genuine Nix "attribute already defined" error
+      # against the literal systemd.services key below.
+      (lib.mkIf (ephemeralOnionKeys != [ ]) {
+        tor.serviceConfig.ExecStartPre = [
+          (pkgs.writeShellScript "port-forwarding-onion-wipe-ephemeral" (
+            lib.concatMapStringsSep "\n"
+              (key: ''
+                rm -f ${lib.escapeShellArg "/var/lib/tor/onion/${key}/hs_ed25519_secret_key"} \
+                      ${lib.escapeShellArg "/var/lib/tor/onion/${key}/hs_ed25519_public_key"} \
+                      ${lib.escapeShellArg "/var/lib/tor/onion/${key}/hostname"}
+              '')
+              ephemeralOnionKeys
+          ))
+        ];
+      })
       (lib.mkIf config.vars.ports.ipHistory.enable {
         port-forwarding-ip-history = {
           description = "port-forwarding IP history snapshot";
