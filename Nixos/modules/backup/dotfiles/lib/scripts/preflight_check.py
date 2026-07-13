@@ -62,8 +62,8 @@ def check_excludes(dotfiles_path, patterns_file):
             "files/directories that do not currently exist. You can\n"
             "safely ignore this warning unless you expected one of\n"
             "these entries to match.\n"
-            f"{RED}[unused excludeFiles] ============================================{RESET}"
-            "uploading repository"
+            f"{RED}[unused excludeFiles] ============================================{RESET}\n"
+            "uploading repository..."
         )
 
 
