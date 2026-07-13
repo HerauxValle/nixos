@@ -51,9 +51,9 @@ def check_excludes(dotfiles_path, patterns_file):
 
     if missing:
         warn(
-            f"{RED}[dotfiles-backup] ============================================{RESET}\n"
+            f"{RED}[unused excludeFiles] ============================================{RESET}\n"
             f"{YELLOW}"
-            "the following excludeFiles entries do not match anything under\n"
+            "following excludeFiles entries do not match anything under\n"
             "dotfilesPath (renamed, typo'd, mistyped pattern, or never\n"
             "created?) and currently exclude nothing:\n\n"
             + "\n".join(f"  - {pattern}" for pattern in missing)
@@ -62,7 +62,7 @@ def check_excludes(dotfiles_path, patterns_file):
             "files/directories that do not currently exist. You can\n"
             "safely ignore this warning unless you expected one of\n"
             "these entries to match.\n"
-            f"{RED}[dotfiles-backup] ============================================{RESET}"
+            f"{RED}[unused excludeFiles] ============================================{RESET}"
         )
 
 
