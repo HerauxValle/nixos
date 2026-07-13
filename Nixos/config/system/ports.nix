@@ -48,7 +48,7 @@
         port = 8888; # config/self-hosted/searxng.nix has port = null -- 8888 is server.port in its settings
         localName = "searxng";
         service = "self-hosted-searxng.service";
-        onion = true;
+        public = true;
       };
 
       ollama = {
