@@ -17,6 +17,19 @@
       try:
           srv.bind(("::", PORT))
       except OSError as e:
+          if e.errno == errno.EADDRINUSE:
+              # Real, confirmed case (not hypothetical): some backends'
+              # own net.Listen("tcp", "0.0.0.0:PORT") -- Go's stash, at
+              # least -- actually binds ONE dual-stack [::]:PORT socket
+              # (IPV6_V6ONLY=0) that already covers IPv6 itself, once the
+              # ExecStartPre wait-for-backend step (see ./default.nix)
+              # guarantees the backend's own bind happens first. Nothing
+              # left for this bridge to do in that case -- exit 0 (not
+              # the generic sys.exit(1) below) so Restart=on-failure
+              # doesn't loop forever retrying a bind that will never
+              # succeed.
+              print(f"[bridge6 {PORT}] [::]:{PORT} already bound (likely the backend's own dual-stack listener) -- nothing to bridge, exiting.", flush=True)
+              sys.exit(0)
           print(f"[bridge6 {PORT}] could not bind [::]:{PORT}: {e}", file=sys.stderr, flush=True)
           sys.exit(1)
       srv.listen(128)

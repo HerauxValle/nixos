@@ -56,35 +56,6 @@ in
     bindsTo = lib.optional (entry.service != null) entry.service;
     wantedBy = if entry.service != null then [ entry.service ] else [ "multi-user.target" ];
     serviceConfig = {
-      # after (Type=simple's default "started" the instant ExecStart's
-      # process forks/execs, not once its own internal listener is
-      # actually bound) isn't enough ordering on its own -- confirmed
-      # live, a real crash: Go's net.Listen("tcp", "0.0.0.0:PORT")
-      # binds ONE dual-stack [::]:PORT socket (IPV6_V6ONLY=0, confirmed
-      # via strace) that already covers IPv4 too, and if THIS bridge
-      # wins the race for that exact [::]:PORT tuple first (its own
-      # startup is typically faster than the backend's -- Go's runtime
-      # init + FFmpeg detection + an upstream version check all run
-      # before its own listener binds), the backend's own bind fails
-      # instead, taking the whole real service down. Waiting here for
-      # the backend to actually be reachable on 127.0.0.1 guarantees
-      # its bind() (dual-stack or not) has already happened -- so it
-      # wins any such race deterministically, and this bridge simply
-      # doesn't run (Restart=always keeps retrying, harmlessly) on the
-      # rare backend that's genuinely dual-stack itself.
-      ExecStartPre = pkgs.writeShellScript "port-forwarding-bridge6-${key}-wait-backend" ''
-        i=0
-        while ! exec 3<>"/dev/tcp/127.0.0.1/${toString entry.port}"; do
-          exec 3<&- 3>&- 2>/dev/null
-          i=$((i + 1))
-          if [ "$i" -ge 20 ]; then
-            echo "[bridge6 ${key}] 127.0.0.1:${toString entry.port} never became reachable after 10s -- starting anyway" >&2
-            exit 0
-          fi
-          sleep 0.5
-        done
-        exec 3<&- 3>&-
-      '';
       ExecStart = "${pkgs.python3}/bin/python3 ${script}";
       Restart = "always";
       RestartSec = 2;

@@ -10,6 +10,7 @@
 # syntax: python
 ''
   #!/usr/bin/env python3
+  import errno
   import os
   import re
   import socket
