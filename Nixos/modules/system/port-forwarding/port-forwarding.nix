@@ -187,6 +187,27 @@ lib.mkIf config.vars.ports.enabled {
   system.nssDatabases.hosts =
     lib.mkIf (localEntries != { }) (lib.mkBefore [ "mdns4_minimal [NOTFOUND=return]" ]);
 
+  # system.nssModules is only ever exposed as nscd's own LD_LIBRARY_PATH
+  # (confirmed by reading nixos/modules/services/system/nscd.nix directly
+  # -- nssModulesPath = config.system.nssModules.path; LD_LIBRARY_PATH =
+  # nssModulesPath; on nscd.service specifically, nowhere else) -- no
+  # ordinary process (a browser's own getaddrinfo(), plain `getent`,
+  # anything not literally nscd) can ever dlopen mdns4_minimal on its
+  # own, full stop, regardless of what's in nsswitch.conf. So a working
+  # nscd is a hard requirement for local = true entries to resolve at
+  # all, not just an optimization -- and this repo's own nscd defaults to
+  # `enableNsncd = true` (services/system/nscd.nix's own default),
+  # nixpkgs' Rust reimplementation, which does its own hosts resolution
+  # instead of dlopen-ing arbitrary NSS modules the way real glibc nscd
+  # does. Confirmed live: with nsncd, a *.local lookup returned instantly
+  # (no network traffic at all, tcpdump showed nothing sent) even with
+  # the responder correctly answering both multicast- and unicast-
+  # response (QU) queries from a real mDNS client on the same box.
+  # Switching to real glibc nscd here (only while something actually
+  # needs mDNS resolution) is what makes system.nssModules do anything
+  # at all for this module's own local = true entries.
+  services.nscd.enableNsncd = lib.mkIf (localEntries != { }) false;
+
   systemd.services = lib.mkMerge (
     (lib.mapAttrsToList (key: e: (mdnsService key e).systemd.services) localEntries)
     ++ (lib.mapAttrsToList (key: e: (bridgeService key e).systemd.services) ipv6Entries)
