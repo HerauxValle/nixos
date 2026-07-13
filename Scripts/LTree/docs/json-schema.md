@@ -18,6 +18,7 @@ apart from each other.
     "lines": 10,
     "chars": 312
   },
+  "debug": { /* only present when -o DEBUG was requested -- see below */ },
   "by_extension": [
     { "ext": "c", "files": 1, "lines": 3, "chars": 24 }
     // sorted by lines descending, ties broken alphabetically by ext;
@@ -36,6 +37,48 @@ request `-o FILES` -- unlike the terminal view, the JSON output isn't
 gated by which `-o` modules were passed; it always carries everything
 `ltree` computed during the scan. `-o EXT`/`-o HASH` etc. only affect
 what the *tree view* prints, not what the JSON contains.
+
+**`debug` is the one exception to that rule.** It's only present when
+`-o DEBUG` was passed -- gated the same way the tree view's `DEBUG:`
+block is, rather than always-on like `total`/`by_extension` -- since
+it's a comparatively heavy, opt-in diagnostic block:
+
+```jsonc
+"debug": {
+  "wall_clock_seconds": 6.8e-05,     // process start -> just before output
+  "scan_seconds": 5e-05,             // build_tree() walk only
+  "cpu_user_seconds": 0.001489,
+  "cpu_system_seconds": 0.0,
+  "peak_rss_kb": 1692,               // getrusage ru_maxrss
+  "minor_page_faults": 88,
+  "major_page_faults": 0,
+  "block_input_ops": 0,
+  "block_output_ops": 0,
+  "voluntary_ctx_switches": 0,
+  "involuntary_ctx_switches": 0,
+  "heap_in_use_bytes": 2128,         // mallinfo2 uordblks
+  "heap_free_bytes": 133040,         // mallinfo2 fordblks
+  "heap_mmap_bytes": 0,              // mallinfo2 hblkhd
+  "heap_arena_bytes": 135168,        // mallinfo2 arena
+  "dirs_scanned": 1,
+  "files_scanned": 2,
+  "nodes_total": 4,
+  "tree_memory_bytes_estimate": 637, // Node structs + names + child arrays
+  "files_per_second": 39656.57,
+  "avg_us_per_file": 25.22,
+  "hash_algo": "none",               // whichever algo this run actually used
+  "pid": 815,
+  "page_size_bytes": 4096
+}
+```
+
+It is also never written by `--save-output`, regardless of whether
+`-o DEBUG` was passed on that run -- `save.c` always calls
+`json_render()` with a `NULL` debug pointer, since these numbers are
+per-run measurements with nothing to do with the tree's own content,
+and would just add noise for `-o DIFF` to ignore on every future
+comparison. See [`docs/usage.md`](usage.md#debug-report) for the
+tree-view rendering and full field list.
 
 ## Node object (recursive)
 

@@ -216,7 +216,9 @@ run_ok "tree view DATE"                "$BIN" "$PG" -o DATE
 run_ok "tree view EXT"                 "$BIN" "$PG" -o EXT
 run_ok "tree view HASH (fast)"         "$BIN" "$PG" -o HASH
 run_ok "tree view HASH (crypto)"       "$BIN" "$PG" -o HASH --cryptographic
-run_ok "tree view ALL modules at once" "$BIN" "$PG" -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH
+run_ok "tree view DEBUG"               "$BIN" "$PG" -o DEBUG
+run_ok "tree view DEBUG,DIFF ordering" "$BIN" "$PG" -o DEBUG,DIFF
+run_ok "tree view ALL modules at once" "$BIN" "$PG" -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DEBUG
 run_ok "no-colour flag"                "$BIN" "$PG" --no-colour
 run_ok "no-color (US spelling)"        "$BIN" "$PG" --no-color
 run_ok "unknown -o module (should warn, not crash)" "$BIN" "$PG" -o BOGUS_MODULE
@@ -242,15 +244,25 @@ assert_json "gitignore actually excludes ignored.log" \
 
 header "JSON output + validity"
 run_json "json default"              "$BIN" "$PG" -j
-run_json "json with all modules"     "$BIN" "$PG" -j -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH
+run_json "json with all modules"     "$BIN" "$PG" -j -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DEBUG
 run_json "json dirs only"            "$BIN" "$PG" -j -d
 run_json "json depth limited"        "$BIN" "$PG" -j -L 2
+run_json "json DEBUG"                "$BIN" "$PG" -j -o DEBUG
 assert_json "root hash present when -o HASH" \
     "d.get('tree',d).get('hash') is not None" \
     "$BIN" "$PG" -j -o HASH
 assert_json "total.files matches real count roughly" \
     "d['total']['files'] > 0" \
     "$BIN" "$PG" -j -o TOTAL
+assert_json "debug block present in json when -o DEBUG" \
+    "'debug' in d and d['debug']['files_scanned'] > 0" \
+    "$BIN" "$PG" -j -o DEBUG
+assert_json "debug block absent from json without -o DEBUG" \
+    "'debug' not in d" \
+    "$BIN" "$PG" -j
+assert_json "debug block has expected timing/memory keys" \
+    "all(k in d['debug'] for k in ('wall_clock_seconds','scan_seconds','peak_rss_kb','heap_arena_bytes','tree_memory_bytes_estimate','hash_algo','pid'))" \
+    "$BIN" "$PG" -j -o DEBUG
 
 header "hash correctness / determinism"
 H1="$("$BIN" "$PG/basic" -j -o HASH | python3 -c 'import json,sys; print(json.load(sys.stdin)["tree"]["hash"])')"
@@ -278,6 +290,9 @@ run_ok "diff with no prior snapshot (should not crash)" "$BIN" "$PG/manyfiles" -
 run_ok "diff after a snapshot exists" bash -c "'$BIN' '$PG/basic' --save-output >/dev/null && '$BIN' '$PG/basic' -o DIFF"
 echo "changed content" > "$PG/basic/three_lines.txt"
 run_ok "diff detects a real change"   bash -c "'$BIN' '$PG/basic' -o DIFF" # should exit clean, just marks diffs
+assert_json "save-output snapshot never contains debug block" \
+    "'debug' not in d" \
+    bash -c "mkdir -p '$WORK/dbgsnap' && '$BIN' '$PG/basic' -o DEBUG --save-output='$WORK/dbgsnap' >/dev/null 2>&1 && cat '$WORK/dbgsnap'/.ltree/*.json"
 
 header "permission edge cases (unreadable file / unreadable dir)"
 run_ok "scan tree containing unreadable file"     "$BIN" "$PG/perms"
@@ -315,8 +330,8 @@ run_ok "scan 500-file dir"                timeout 15 "$BIN" "$PG/manyfiles"
 run_ok "scan 500-file dir with all modules" timeout 15 "$BIN" "$PG/manyfiles" -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH
 
 header "combined brutal case: everything at once"
-run_ok "kitchen sink" timeout 30 "$BIN" "$PG" -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH --gitignore --cryptographic
-run_json "kitchen sink json" timeout 30 "$BIN" "$PG" -j -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH --cryptographic
+run_ok "kitchen sink" timeout 30 "$BIN" "$PG" -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DEBUG --gitignore --cryptographic
+run_json "kitchen sink json" timeout 30 "$BIN" "$PG" -j -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DEBUG --cryptographic
 
 # also sweep known-dangerous real filesystem locations briefly, guarded by timeout
 header "real filesystem danger zones (guarded, short timeout)"

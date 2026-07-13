@@ -35,7 +35,11 @@ bool save_output(Node *root, const char *display_path, const Totals *tot,
 
     SBuf sb;
     sbuf_init(&sb);
-    json_render(&sb, root, display_path, tot, ext, cfg);
+    /* dbg is intentionally NULL here: --save-output snapshots are
+     * meant to be diffed against each other later, and per-run
+     * timing/RSS/pid noise would make every snapshot spuriously
+     * "different" even when the scanned content hasn't changed. */
+    json_render(&sb, root, display_path, tot, ext, cfg, NULL);
     fwrite(sb.data, 1, sb.len, f);
     sbuf_free(&sb);
     fclose(f);

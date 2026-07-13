@@ -32,6 +32,7 @@ typedef struct {
     bool    o_ext;
     bool    o_hash;
     bool    o_diff;
+    bool    o_debug;          /* -o DEBUG -- hyper-detailed run stats     */
 
     char  **excludes;         /* --exclude, parsed name/glob list         */
     size_t  nexcludes;

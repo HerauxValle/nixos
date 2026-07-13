@@ -180,7 +180,7 @@ static char *render_module_text(ModuleId m, const PrintLine *pl) {
 
 /* ===================== tree (human) output =============================== */
 void print_tree_view(Node *root, const char *display_path, const Config *cfg,
-                      const Totals *tot, bool diff_available) {
+                      const Totals *tot, bool diff_available, const DebugStats *dbg) {
     LineBuf lb;
     linebuf_init(&lb);
     flatten(root, cfg, "", true, true, &lb);
@@ -258,6 +258,10 @@ void print_tree_view(Node *root, const char *display_path, const Config *cfg,
         printf("  files: %ld\n", tot->files);
         printf("  lines: %ld\n", tot->lines);
         printf("  chars: %ld\n", tot->chars);
+    }
+
+    if (cfg->o_debug && dbg) {
+        debug_print_text(dbg, cfg);
     }
 
     if (cfg->o_diff && !diff_available) {

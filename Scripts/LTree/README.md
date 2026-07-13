@@ -63,7 +63,7 @@ ltree [path] [options]
   -L <n>                max depth to descend (like tree -L), also -L<n>
   -o <MODULES>          comma-separated, any order:
                           LINES, CHARS, TOTAL, FILES,
-                          PERMISSIONS, SIZE, DATE, EXT, HASH, DIFF
+                          PERMISSIONS, SIZE, DATE, EXT, HASH, DIFF, DEBUG
   --exclude <list>      comma-separated names/globs to skip, quote
                         entries with spaces: --exclude "build,*.pyc"
   --gitignore           also exclude what the scan root's .gitignore
@@ -87,9 +87,13 @@ of the order you list them in `-o` (dirs aggregate
 `DATE` are always the entry's own). `EXT` toggles showing file
 extensions in the tree (hidden by default -- `report.md` shows as
 `report`). `DIFF` compares against the newest `.ltree` snapshot,
-marking changed entries red with a trailing `[m]`. `TOTAL` and
-`FILES` are summary sections appended at the end, not per-entry
-columns.
+marking changed entries red with a trailing `[m]`. `TOTAL`,
+`FILES`, and `DEBUG` are summary sections appended at the end, not
+per-entry columns. `DEBUG` prints a hyper-detailed run report --
+timing, peak RSS, heap stats, page faults, throughput -- right after
+`TOTAL` (and, in `-j` output, as a `"debug"` object); it's never
+written into `--save-output` snapshots, since it's ephemeral
+run-to-run noise that would only pollute diffing.
 
 See [`docs/usage.md`](docs/usage.md) for the full breakdown of every
 flag, the exclude/gitignore matching rules, the column-alignment
@@ -119,6 +123,9 @@ ltree -o DIFF,LINES
 
 # JSON, with cryptographic hashes, piped elsewhere
 ltree -j -o HASH --cryptographic
+
+# hyper-detailed run report: timing, peak RSS, heap, page faults
+ltree -o DEBUG
 ```
 
 ## What changed from the old `countlines.py`
@@ -142,6 +149,10 @@ ltree -j -o HASH --cryptographic
   (composes with `--exclude`); `HASH` (xxHash64 by default, SHA-256
   via `--cryptographic`); `--save-output` to snapshot a scan as JSON;
   and `DIFF` to compare the current tree against the last snapshot.
+- **New:** `DEBUG` -- a hyper-detailed run report (wall clock, CPU
+  time, peak RSS, heap-arena breakdown, page faults, throughput) for
+  anyone profiling how `ltree` itself is spending time/memory on a
+  given tree; deliberately excluded from `--save-output` snapshots.
 - **New:** the project is now split across `src/*.c` by responsibility
   (scanning, rendering, JSON, hashing, diffing, persistence -- see
   `docs/architecture.md`) instead of one file, now that this many

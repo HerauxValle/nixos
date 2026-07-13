@@ -33,6 +33,7 @@
 #include "save.h"
 #include "render_tree.h"
 #include "render_files.h"
+#include "debug.h"
 
 static void print_usage(const char *prog) {
     printf(
@@ -43,7 +44,7 @@ static void print_usage(const char *prog) {
         "  -L <n>                max depth to descend (like tree -L), also -L<n>\n"
         "  -o <MODULES>          comma-separated, any order:\n"
         "                          LINES, CHARS, TOTAL, FILES,\n"
-        "                          PERMISSIONS, SIZE, DATE, EXT, HASH, DIFF\n"
+        "                          PERMISSIONS, SIZE, DATE, EXT, HASH, DIFF, DEBUG\n"
         "  --exclude <list>      comma-separated names/globs to skip, quote\n"
         "                        entries with spaces: --exclude \"build,*.pyc\"\n"
         "  --gitignore           also exclude what the scan root's .gitignore\n"
@@ -62,11 +63,16 @@ static void print_usage(const char *prog) {
         "  EXT toggles showing file extensions in the tree (hidden by default).\n"
         "  DIFF compares against the newest .ltree snapshot, marking changed\n"
         "  entries red with a trailing [m]. TOTAL and FILES are summary\n"
-        "  sections appended at the end.\n",
+        "  sections appended at the end.\n"
+        "  DEBUG prints a hyper-detailed run report (timing, peak RSS, heap\n"
+        "  arena breakdown, page faults, throughput, ...) appended after TOTAL.\n",
         prog);
 }
 
 int main(int argc, char **argv) {
+    DebugTimer dtimer;
+    debug_timer_mark_start(&dtimer);
+
     Config cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.max_depth = -1;
@@ -112,6 +118,7 @@ int main(int argc, char **argv) {
                     else if (strcasecmp(tok, "EXT") == 0)         cfg.o_ext = true;
                     else if (strcasecmp(tok, "HASH") == 0)        cfg.o_hash = true;
                     else if (strcasecmp(tok, "DIFF") == 0)        cfg.o_diff = true;
+                    else if (strcasecmp(tok, "DEBUG") == 0)       cfg.o_debug = true;
                     else fprintf(stderr, "warning: unknown -o module '%s'\n", tok);
                     tok = strtok(NULL, ",");
                 }
@@ -179,7 +186,9 @@ int main(int argc, char **argv) {
     ExtTable ext;
     exttable_init(&ext);
 
+    debug_timer_mark_scan_start(&dtimer);
     build_tree(root, cfg.path, "", 0, &cfg, cfg.use_gitignore ? &gt : NULL, &totals, &ext);
+    debug_timer_mark_scan_end(&dtimer);
     for (size_t i = 0; i < root->nchildren; i++) {
         root->lines += root->children[i]->lines;
         root->chars += root->children[i]->chars;
@@ -209,11 +218,18 @@ int main(int argc, char **argv) {
 
     if (cfg.o_diff && snapshot_path) diff_apply(snapshot_path, root);
 
+    DebugStats dbg_stats;
+    const DebugStats *dbg = NULL;
+    if (cfg.o_debug) {
+        debug_collect(&dbg_stats, &dtimer, root, &totals, &cfg);
+        dbg = &dbg_stats;
+    }
+
     /* ---- output ---- */
     if (cfg.json) {
-        print_json(root, cfg.path, &totals, &ext, &cfg);
+        print_json(root, cfg.path, &totals, &ext, &cfg, dbg);
     } else {
-        print_tree_view(root, cfg.path, &cfg, &totals, diff_available);
+        print_tree_view(root, cfg.path, &cfg, &totals, diff_available, dbg);
         if (cfg.o_files) print_files_summary(&ext, &cfg);
     }
 

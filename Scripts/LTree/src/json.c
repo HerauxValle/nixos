@@ -66,7 +66,8 @@ static void json_node(SBuf *sb, Node *n, int indent) {
 }
 
 void json_render(SBuf *sb, Node *root, const char *display_path,
-                  const Totals *tot, const ExtTable *ext, const Config *cfg) {
+                  const Totals *tot, const ExtTable *ext, const Config *cfg,
+                  const DebugStats *dbg) {
     sbuf_append(sb, "{\n");
     sbuf_append(sb, "  \"path\": "); sbuf_append_json_string(sb, display_path); sbuf_append(sb, ",\n");
 
@@ -84,6 +85,8 @@ void json_render(SBuf *sb, Node *root, const char *display_path,
     sbuf_appendf(sb, "    \"lines\": %ld,\n", tot->lines);
     sbuf_appendf(sb, "    \"chars\": %ld\n", tot->chars);
     sbuf_append(sb, "  },\n");
+
+    if (dbg) debug_json_append(sb, dbg);
 
     ExtStat *sorted = NULL;
     if (ext->n) {
@@ -112,10 +115,10 @@ void json_render(SBuf *sb, Node *root, const char *display_path,
 }
 
 void print_json(Node *root, const char *display_path, const Totals *tot,
-                 const ExtTable *ext, const Config *cfg) {
+                 const ExtTable *ext, const Config *cfg, const DebugStats *dbg) {
     SBuf sb;
     sbuf_init(&sb);
-    json_render(&sb, root, display_path, tot, ext, cfg);
+    json_render(&sb, root, display_path, tot, ext, cfg, dbg);
     fwrite(sb.data, 1, sb.len, stdout);
     sbuf_free(&sb);
 }

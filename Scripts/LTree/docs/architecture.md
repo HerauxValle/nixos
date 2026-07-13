@@ -29,6 +29,7 @@ re-mmaps, or re-hashes a file that `scan.c` already touched.
 | `hash.h` / `hash.c` | xxHash64 and SHA-256, both implemented from the published spec/reference constants -- no external hashing library. One dispatch API (`hash_compute`) both algorithms sit behind, plus `hash_combine_children()` for directory digests. |
 | `render_tree.h` / `render_tree.c` | The aligned tree view. Flattens the `Node` tree into printable lines in one pass, measures every active `-o` module's column width in a second pass, then prints with the fixed 3-space gap / 8-space name padding described in `docs/usage.md`. Also renders the `TOTAL:` summary and the "no snapshot" `DIFF` note. |
 | `render_files.h` / `render_files.c` | The `FILES:` by-extension summary table, sorted by line count descending. |
+| `debug.h` / `debug.c` | `-o DEBUG` support: collects a hyper-detailed `DebugStats` struct once (`debug_collect`, called from `main.c` right before output) -- timing (`clock_gettime` marks taken in `main.c`), `getrusage` (peak RSS, page faults, context switches), `mallinfo2` (heap arena breakdown), and an estimate of the `Node` tree's own memory footprint -- then renders it two ways: `debug_print_text()` for the tree view's `DEBUG:` block, `debug_json_append()` for the JSON `"debug"` object. Neither output path recomputes anything; both just format the same struct. Deliberately never passed to `save.c`'s `json_render()` call, so `--save-output` snapshots never carry this ephemeral per-run data. |
 | `util.h` / `util.c` | Small, dependency-free helpers shared everywhere: the growable string builder (`SBuf`, used by `json.c`), UTF-8 display-width counting (used for column alignment), and the `PERMISSIONS`/`SIZE`/`DATE`/hash-hex formatting helpers. Deliberately has zero dependency on `Node` or `Config` to avoid circularity. |
 | `colors.h` | The ANSI palette. `COL()`/`RST()` macros collapse to `""` under `--no-colour`, so print sites never branch on that flag themselves. |
 | `json.h` / `json.c` | Two things in one file: (1) the JSON *writer* (`json_render`/`print_json`), used by both `-j` and `--save-output` so they never drift apart; (2) a minimal recursive-descent JSON *reader*, just enough to parse ltree's own snapshot files back in for `-o DIFF` -- not a general-purpose validator. |
@@ -47,10 +48,13 @@ re-mmaps, or re-hashes a file that `scan.c` already touched.
     v                  v            v           v
 render_tree.c    render_files.c  json.c      diff.c (reads a
 (terminal view)  (FILES: block)  (writer)     PAST json.c
-                                     |         snapshot back
-                                     v         via json.c's
-                                  save.c       reader, marks
-                              (--save-output)  Node.modified)
+     ^                              |         snapshot back
+     |                              v         via json.c's
+     +----- debug.c (DebugStats) save.c       reader, marks
+            (-o DEBUG, text+json  (--save-output,  Node.modified)
+             via same struct;    debug always
+             never passed to     NULL here)
+             save.c)
 ```
 
 ## Why split into modules instead of one file

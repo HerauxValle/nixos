@@ -1,9 +1,10 @@
 #ifndef LTREE_RENDER_FILES_H
 #define LTREE_RENDER_FILES_H
 
-#include "exttable.h"
 #include "config.h"
+#include "exttable.h"
 
+/* prints the FILES: per-extension summary table. */
 void print_files_summary(const ExtTable *ext, const Config *cfg);
 
 #endif

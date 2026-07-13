@@ -15,7 +15,7 @@ are the same call.
 | `-j` | Output JSON instead of a tree view. |
 | `-d` | List directories only. |
 | `-L <n>` (also `-L<n>`) | Max depth to descend, like `tree -L`. Directories at the cutoff are still shown, marked `(...)`, just not expanded. |
-| `-o <MODULES>` | Comma-separated, any order: `LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DIFF`. See below. |
+| `-o <MODULES>` | Comma-separated, any order: `LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DIFF,DEBUG`. See below. |
 | `--exclude <list>` | Comma-separated names/globs to skip. Quote entries containing spaces: `--exclude "build,*.pyc,some dir"`. |
 | `--gitignore` | Also exclude whatever the scan root's `.gitignore` would. Composes with `--exclude` -- either list can exclude a path. |
 | `--cryptographic` | `-o HASH` / `-o DIFF` use SHA-256 instead of the default xxHash64. |
@@ -52,6 +52,7 @@ always the entry's own, never aggregated.
 - **`FILES`** -- appends a by-extension breakdown (files/lines/chars
   per extension) after the tree. Not a per-entry column.
 - **`DIFF`** -- see [Diffing](#diffing) below.
+- **`DEBUG`** -- see [Debug report](#debug-report) below.
 
 Unknown `-o` tokens print a warning to stderr and are otherwise
 ignored; they don't abort the run.
@@ -164,6 +165,85 @@ Entries added since the snapshot (no match found by path) are shown
 normally, not flagged -- `DIFF` only marks entries it found *and*
 determined differ; it doesn't currently distinguish "new" from
 "unchanged, no comparable snapshot entry".
+
+## Debug report
+
+`-o DEBUG` appends a hyper-detailed "how did this run go" report,
+computed once into a plain struct and rendered either as text or as
+JSON, following the same "compute once, format twice" convention as
+every other module (see [`docs/json-schema.md`](json-schema.md)).
+
+In the tree view it prints as a `DEBUG:` block, positioned right
+after `TOTAL:` (if both are requested) and before the trailing "no
+previous snapshot" `DIFF` note, if that also applies:
+
+```
+DEBUG:
+  -- timing --
+  wall clock:              0.000 s
+  scan (walk+hash) time:   0.000 s
+  cpu user / system:       0.002 s / 0.000 s
+  throughput:              34995 files/sec (28.6 us/file avg)
+  -- memory --
+  peak RSS:                1808 KB
+  heap in use / free:      2128 B / 133040 B
+  heap arena / mmap'd:     135168 B / 0 B
+  tree footprint (est.):   637 B across 4 nodes
+  -- OS scheduling / IO --
+  page faults (min/maj):   68 / 0
+  block IO (in/out):       0 / 0
+  ctx switches (vol/inv):  0 / 1
+  -- misc --
+  dirs / files scanned:    1 / 2
+  hash algo:               none
+  pid:                     814
+  page size:               4096 B
+```
+
+In `-j` output the same numbers appear as a `"debug"` object,
+directly after `"total"`:
+
+```jsonc
+"debug": {
+  "wall_clock_seconds": 6.8e-05,   // process start -> just before output
+  "scan_seconds": 5e-05,           // build_tree() walk only
+  "cpu_user_seconds": 0.001489,
+  "cpu_system_seconds": 0.0,
+  "peak_rss_kb": 1692,
+  "minor_page_faults": 88,
+  "major_page_faults": 0,
+  "block_input_ops": 0,
+  "block_output_ops": 0,
+  "voluntary_ctx_switches": 0,
+  "involuntary_ctx_switches": 0,
+  "heap_in_use_bytes": 2128,       // mallinfo2 uordblks
+  "heap_free_bytes": 133040,       // mallinfo2 fordblks
+  "heap_mmap_bytes": 0,            // mallinfo2 hblkhd
+  "heap_arena_bytes": 135168,      // mallinfo2 arena
+  "dirs_scanned": 1,
+  "files_scanned": 2,
+  "nodes_total": 4,
+  "tree_memory_bytes_estimate": 637, // Node structs + names + child arrays
+  "files_per_second": 39656.57,
+  "avg_us_per_file": 25.22,
+  "hash_algo": "none",
+  "pid": 815,
+  "page_size_bytes": 4096
+}
+```
+
+The `debug` key is only present at all when `-o DEBUG` was actually
+requested -- unlike `total`/`by_extension`, which are always in the
+JSON regardless of `-o` flags, `debug` follows the same opt-in
+gating as the tree view's `DEBUG:` block, since collecting and
+printing this much detail by default would just be noise for anyone
+not asking for it.
+
+`--save-output` snapshots **never** include a `debug` block, even if
+`-o DEBUG` was passed on that run -- the numbers are ephemeral
+per-run measurements (wall clock, RSS, page faults), not something
+that should ever be compared against by `-o DIFF` or bloat a
+snapshot meant to represent the tree's own content.
 
 ## Saving snapshots
 
