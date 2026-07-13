@@ -34,7 +34,15 @@ in
   # is checked right after and re-thrown into the outer scope, which is
   # what actually makes a blocking entry abort `pacnix rebuild` instead
   # of every module's activationScripts.*.text just running regardless.
-  system.activationScripts.mountpoints.text = ''
+  #
+  # lib.optionalString, not lib.mkIf -- system.activationScripts.<name>.text
+  # is types.lines with no default, so mkIf false would drop the
+  # definition entirely instead of contributing "" (same trap documented
+  # in modules/services/self-hosted/dotfiles.nix and
+  # modules/system/port-forwarding/port-forwarding.nix's own UPnP step).
+  # config.vars.mountpoints.enabled = false here means genuinely zero
+  # activation-script contribution, not even an empty subshell.
+  system.activationScripts.mountpoints.text = lib.optionalString config.vars.mountpoints.enabled ''
     (
       mountpointsFailed=0
       ${resolveLeafFn}

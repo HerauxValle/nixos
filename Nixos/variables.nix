@@ -29,6 +29,17 @@
       description = "networking.hostName. Same literal as username here, but a conceptually distinct fact.";
     };
 
+    networkInterface = lib.mkOption {
+      type = lib.types.str;
+      description = ''
+        Real network interface facing the LAN/router (e.g. "enp3s0") --
+        single source of truth for anything that needs it (currently
+        modules/system/networking.nix's own interface config and
+        modules/system/port-forwarding's DNAT). Previously duplicated as a
+        literal string in both places independently.
+      '';
+    };
+
     timeZone = lib.mkOption {
       type = lib.types.str;
       description = "time.timeZone.";

@@ -10,6 +10,7 @@
   config.vars = {
     username = "maxmustermann";
     hostName = "nixos";
+    networkInterface = "enp3s0";
     timeZone = "Europe/Berlin";
     stateVersion = "26.05";
     gitCommitEmail = "maxmustermann@example.com";

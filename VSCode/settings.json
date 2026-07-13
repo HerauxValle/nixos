@@ -102,6 +102,20 @@
     // ============================================================
     "todo-tree.ripgrep.ripgrep": "/run/current-system/sw/bin/rg",
     // ============================================================
+    // Nix
+    // ============================================================
+    "nix.enableLanguageServer": true,
+    "nix.serverPath": "nil",
+    "nix-embedded-languages.variableMarkers.suffix": {
+        "Script": "shell"
+    },
+    "nix-embedded-languages.variableMarkers.prefix": {
+        "py": "python"
+    },
+    "nix-embedded-languages.functionBindings": {
+        "writePython3|writePyPy3": "python"
+    },
+    // ============================================================
     // EXTRA
     // ============================================================
     "editor.fontLigatures": true,

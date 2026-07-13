@@ -22,7 +22,7 @@ in
 {
   environment.systemPackages = with pkgs; [
 
-    # General
+    # General
     vivaldi                     # Browser
     # vscode -- now declarative, see home-manager.users.<user>.programs.vscode
     # in Nixos/config/programs.nix (package comes from that module instead)
@@ -34,7 +34,8 @@ in
     oculante                     # Image viewer (was installed on Arch, missing here)
 
     # Languages
-    python3                     # Python
+    python3                     # Python
+    nil                         # Nix LSP, for VS Code's "Nix IDE" extension (nix.serverPath)
 
     # Tools
     awww                        # Background
@@ -56,7 +57,7 @@ in
     ripgrep                     # For "todo tree" vscode extension
 
     # Shells
-    fish                        # Main
+    fish                        # Main
     nushell                     # Data
     powershell                  # Windows
     quickshell                  # Aesthetic

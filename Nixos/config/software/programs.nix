@@ -31,6 +31,7 @@
           (with pkgs.vscode-extensions; [
             bbenoist.nix
             gruntfuggly.todo-tree
+            jnoortheen.nix-ide
             ms-python.debugpy
             ms-python.python
             ms-python.vscode-pylance
@@ -39,13 +40,19 @@
             rust-lang.rust-analyzer
           ])
           ++ [
-            # Only extension whose publisher isn't in nixpkgs' vscode-extensions
+            # Only extensions whose publishers aren't in nixpkgs' vscode-extensions
             # set, so pulled straight from the Marketplace instead.
             (pkgs.vscode-utils.extensionFromVscodeMarketplace {
               publisher = "dustypomerleau";
               name = "rust-syntax";
               version = "0.6.1";
               sha256 = "0rccp8njr13jzsbr2jl9hqn74w7ji7b2spfd4ml6r2i43hz9gn53";
+            })
+            (pkgs.vscode-utils.extensionFromVscodeMarketplace {
+              publisher = "coopermaruyama";
+              name = "nix-embedded-languages";
+              version = "2.1.0";
+              sha256 = "1vr5njvzxck2nx6gqw0zfghnjpwcmvli9fwx8cqj3sgk9283ya9r";
             })
           ];
       };

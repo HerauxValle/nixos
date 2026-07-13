@@ -14,6 +14,17 @@
   imports = [ ./mountpoints.nix ];
 
   options.vars.mountpoints = {
+    enabled = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        false -- this entire module is treated as if it doesn't exist:
+        no activation script contribution at all (not even an empty
+        subshell), regardless of what's declared under `device`. Same
+        field/semantics as config.vars.ports.enabled.
+      '';
+    };
+
     blocking = lib.mkOption {
       type = lib.types.bool;
       default = false;

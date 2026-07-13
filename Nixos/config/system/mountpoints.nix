@@ -7,6 +7,8 @@
 # Get a disk's UUID with `lsblk -o NAME,MOUNTPOINTS,UUID,LABEL`.
 {
   config.vars.mountpoints = {
+    enabled = true;
+
     # Global default -- individual device.<key>.blocking entries below
     # override this per-drive.
     blocking = false;
