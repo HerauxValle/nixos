@@ -31,7 +31,7 @@ RESET = os.environ.get("dotfilesBackupColorReset", "").encode().decode("unicode_
 
 def warn(message):
     print(
-        f"warning: {RED}modules/backup/dotfiles:{RESET}\n"
+        f"warning: {YELLOW}modules/backup/dotfiles:{RESET}\n"
         f"{YELLOW}{message}{RESET}",
         file=sys.stderr,
     )
