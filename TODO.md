@@ -28,4 +28,5 @@
 8. Fix only supported # for comments in excludes.
 9. Fix inconsistency in services.nix in global configuration.
 10. Reorganize pacnix cli command tree to be more coherent with the system.
+11. Services cleanup used ports after shutdown -- do not keep stale open ports -- e.g. stash.
 ...
