@@ -14,9 +14,15 @@
           return s.getsockname()[0]
 
 
-  def send(sock, payload, what):
+  def send(sock, payload, what, dest=None):
+      # dest=None (the startup/periodic announce case, and the multicast-
+      # response query case) -- the usual (MCAST_GRP, MCAST_PORT). A real
+      # (ip, port) here is a direct unicast reply, for a query that set
+      # the QU bit (see parse_questions in ./dns-codec.nix).
+      if dest is None:
+          dest = (MCAST_GRP, MCAST_PORT)
       try:
-          sock.sendto(payload, (MCAST_GRP, MCAST_PORT))
+          sock.sendto(payload, dest)
       except OSError as e:
           print(f"[mdns {NAME}] send error ({what}, non-fatal): {e}", file=sys.stderr, flush=True)
 
@@ -67,9 +73,15 @@
               continue
 
           questions = parse_questions(data)
-          if any(q.lower() == name.lower() for q in questions):
+          matched = [qu for (q, qu) in questions if q.lower() == name.lower()]
+          if matched:
               query_id = struct.unpack(">H", data[0:2])[0]
-              send(sock, build_response(query_id, name, ip), "query response")
+              # Unicast straight back to the querier if any matching
+              # question asked for it (QU) -- multicast otherwise, same
+              # as before. addr is recvfrom's own (ip, port) -- already
+              # exactly the reply destination a QU query wants.
+              dest = addr if any(matched) else None
+              send(sock, build_response(query_id, name, ip), "query response", dest)
 
 
   if __name__ == "__main__":
