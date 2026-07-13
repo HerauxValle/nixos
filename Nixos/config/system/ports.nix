@@ -49,6 +49,7 @@
         local = true;
         localName = "searxng";
         service = "self-hosted-searxng.service";
+        protocol = "http";
       };
 
       ollama = {
