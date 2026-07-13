@@ -14,12 +14,20 @@
 #   IPv6 bridge           -> ./lib/ipv6-bridge/ (no native equivalent --
 #                            pmg's own HTTP-aware proxy, reimplemented)
 #   Tor --onion           -> services.tor.relay.onionServices (native)
-#   mDNS --local          -> ./lib/mdns/ (no native equivalent -- avahi
-#                            can't publish arbitrary custom hostnames,
-#                            only one machine-wide hostname + service-
-#                            type discovery records, confirmed by
-#                            reading its source; pmg's own responder
-#                            reimplemented instead)
+#   mDNS --local          -> ./lib/mdns/ publishes (no native equivalent
+#                            for THAT part -- avahi can't publish
+#                            arbitrary custom hostnames, only one
+#                            machine-wide hostname + service-type
+#                            discovery records, confirmed by reading its
+#                            source; pmg's own responder reimplemented
+#                            instead), but services.avahi.enable +
+#                            nssmdns4 (both native) are still required
+#                            below -- turns out nss-mdns's own client
+#                            library doesn't speak raw mDNS at all, it
+#                            delegates to avahi-daemon's local socket,
+#                            confirmed live via strace (see the comment
+#                            just above services.avahi.enable further
+#                            down in this file for the full story)
 #   Public tunnel         -> ./lib/public-tunnel.nix (no native
 #                            equivalent -- third-party SSH service)
 #   UPnP --router         -> ./lib/upnp.nix, a system.activationScripts
@@ -165,47 +173,43 @@ lib.mkIf config.vars.ports.enabled {
   # ./lib/mdns/ only ever ANSWERS mDNS queries on the wire -- it doesn't
   # make this machine (or any client) actually perform an mDNS lookup for
   # a bare `*.local` name in the first place. That's a separate, client-
-  # side NSS concern: without an `mdns4_minimal` entry in
-  # /etc/nsswitch.conf's hosts line, glibc's getaddrinfo() (which every
-  # browser/curl/etc. goes through) never even sends the multicast query,
-  # so a *.local name here just fails to resolve regardless of how
-  # correct the responder is (confirmed live -- ERR_NAME_NOT_RESOLVED
-  # even though tcpdump would show the responder answering correctly).
-  # Same system.nssModules/system.nssDatabases.hosts wiring
-  # services.avahi.nssmdns4 uses internally (confirmed by reading
-  # nixos/modules/services/networking/avahi-daemon.nix directly) --
-  # replicated here directly instead of setting services.avahi.enable +
-  # nssmdns4, since that would also start avahi-daemon itself publishing
-  # its own single machine-wide hostname, a whole extra daemon this
-  # module has no use for (./lib/mdns/ already does the actual
-  # publishing). mkBefore, not mkAfter -- mdns4_minimal's own
-  # "[NOTFOUND=return]" already makes it a no-op for anything that isn't
-  # a *.local name, so it's safe to try first; ordering it before `dns`
-  # also means a *.local query never even round-trips to a real DNS
-  # server first only to (correctly) fail there.
-  system.nssModules = lib.mkIf (localEntries != { }) [ pkgs.nssmdns ];
-  system.nssDatabases.hosts =
-    lib.mkIf (localEntries != { }) (lib.mkBefore [ "mdns4_minimal [NOTFOUND=return]" ]);
-
-  # system.nssModules is only ever exposed as nscd's own LD_LIBRARY_PATH
-  # (confirmed by reading nixos/modules/services/system/nscd.nix directly
-  # -- nssModulesPath = config.system.nssModules.path; LD_LIBRARY_PATH =
-  # nssModulesPath; on nscd.service specifically, nowhere else) -- no
-  # ordinary process (a browser's own getaddrinfo(), plain `getent`,
-  # anything not literally nscd) can ever dlopen mdns4_minimal on its
-  # own, full stop, regardless of what's in nsswitch.conf. So a working
-  # nscd is a hard requirement for local = true entries to resolve at
-  # all, not just an optimization -- and this repo's own nscd defaults to
-  # `enableNsncd = true` (services/system/nscd.nix's own default),
-  # nixpkgs' Rust reimplementation, which does its own hosts resolution
-  # instead of dlopen-ing arbitrary NSS modules the way real glibc nscd
-  # does. Confirmed live: with nsncd, a *.local lookup returned instantly
-  # (no network traffic at all, tcpdump showed nothing sent) even with
-  # the responder correctly answering both multicast- and unicast-
-  # response (QU) queries from a real mDNS client on the same box.
-  # Switching to real glibc nscd here (only while something actually
-  # needs mDNS resolution) is what makes system.nssModules do anything
-  # at all for this module's own local = true entries.
+  # side NSS concern, and getting it working took three real, independently
+  # confirmed fixes (each verified live with strace/tcpdump/a raw mDNS
+  # client, not assumed):
+  #
+  # 1. services.avahi.enable + nssmdns4 -- NOT to publish anything (its own
+  #    publish.* stays at its false default; ./lib/mdns/ already does the
+  #    real publishing pmg's own mdns_responder.py did). Confirmed via
+  #    strace that nss-mdns 0.15.1's libnss_mdns4_minimal.so.2 does NOT
+  #    speak raw mDNS itself at all -- it connects(2) to
+  #    /var/run/avahi-daemon/socket and asks AVAHI to do the actual
+  #    multicast query/cache lookup, failing instantly with ENOENT (zero
+  #    network traffic, confirmed with tcpdump) when that socket doesn't
+  #    exist. So avahi-daemon running is a hard requirement for *any*
+  #    nss-mdns-based resolution, independent of who's answering the wire
+  #    query -- the "avahi can't publish arbitrary custom hostnames"
+  #    finding elsewhere in this module is still true, but doesn't mean
+  #    avahi-daemon itself can be skipped entirely.
+  # 2. services.nscd.enableNsncd = false -- system.nssModules (which
+  #    nssmdns4 above populates) is only ever exposed as nscd.service's
+  #    own LD_LIBRARY_PATH (confirmed by reading
+  #    nixos/modules/services/system/nscd.nix directly), so no ordinary
+  #    process (a browser's own getaddrinfo(), plain `getent`) can ever
+  #    dlopen mdns4_minimal on its own -- only nscd can, and only if it's
+  #    real glibc nscd. This repo's own nscd defaults to `enableNsncd =
+  #    true` (that option's own default), nixpkgs' Rust reimplementation,
+  #    confirmed live to not perform the delegation at all (instant
+  #    result, zero network traffic even with a real, working responder
+  #    and avahi-daemon both already running).
+  # 3. The responder itself (./lib/mdns/responder.nix) has to honor the
+  #    "QU" unicast-response bit (RFC 6762 5.4) -- confirmed via a raw
+  #    Python mDNS client that avahi-daemon's own outbound query sets QU
+  #    and only ever listens on its own ephemeral port for a direct
+  #    reply, never joining the multicast group itself for a one-off
+  #    resolution. A responder that always multicasts back (this
+  #    module's own original behavior) is invisible to it.
+  services.avahi.enable = lib.mkIf (localEntries != { }) true;
+  services.avahi.nssmdns4 = lib.mkIf (localEntries != { }) true;
   services.nscd.enableNsncd = lib.mkIf (localEntries != { }) false;
 
   systemd.services = lib.mkMerge (
