@@ -42,7 +42,7 @@
       { file = "flake.nix"; find = "nixosConfigurations.maxmustermann = nixpkgs.lib.nixosSystem"; replaceWith = "nixosConfigurations.maxmustermann = nixpkgs.lib.nixosSystem"; }
       { file = "flake.nix"; find = "home-manager.users.maxmustermann = import ./Nixos/home.nix;"; replaceWith = "home-manager.users.maxmustermann = import ./Nixos/home.nix;"; }
 
-      { file = "Nixos/modules/system/networking.nix"; find = ''networking.interfaces.enp3s0.macAddress = "A8:E6:21:92:2C:E1";''; replaceWith = "networking.interfaces.enp3s0.macAddress = null;"; }
+      { file = "Nixos/modules/system/networking.nix"; find = ''networking.interfaces.''${config.vars.networkInterface}.macAddress = "A8:E6:21:92:2C:E1";''; replaceWith = ''networking.interfaces.''${config.vars.networkInterface}.macAddress = null;''; }
 
       { file = "Nixos/config/config.nix"; key = "vars.gitCommitEmail"; replaceWith = "maxmustermann@example.com"; }
       { file = "Nixos/config/config.nix"; key = "vars.usbKillswitch.usbSerialShort"; replaceWith = "0000000000000000000"; }

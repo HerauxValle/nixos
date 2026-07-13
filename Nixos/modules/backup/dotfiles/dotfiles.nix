@@ -264,23 +264,41 @@ in
       fi
     '') cfg.excludeFiles}
     ${lib.concatMapStringsSep "\n    " (r:
+      # Every branch below names BOTH the config.vars.dotfilesBackup.redactValues
+      # entry that's at fault (key + file, so you can find it in
+      # config/github/redactions.nix without guessing which of possibly
+      # several entries triggered) and, for the "not found" case, the exact
+      # resolved value it went looking for -- passed as a printf %s argument
+      # (not spliced into the format string) since an arbitrary config
+      # value could itself contain literal `%` characters.
       if !r.result.success then ''
-        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues key '"'"'${r.key}'"'"' does not resolve against config -- stale/renamed option? Skipping, nothing is being redacted there right now.${cfg.colorReset}\n' >&2
+        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues key '"'"'${r.key}'"'"' (file '"'"'${r.file}'"'"') does not resolve against config -- stale/renamed option? Skipping this entry, nothing is being redacted there right now.${cfg.colorReset}\n' >&2
       '' else ''
         if [ ! -f "${cfg.dotfilesPath}/${r.file}" ]; then
-          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues entry '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being redacted there right now.${cfg.colorReset}\n' >&2
+          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues key '"'"'${r.key}'"'"' -- file '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being redacted there right now.${cfg.colorReset}\n' >&2
         elif ! ${pkgs.gnugrep}/bin/grep -qF -- ${lib.escapeShellArg r.result.value} "${cfg.dotfilesPath}/${r.file}"; then
-          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues key '"'"'${r.key}'"'"' does not currently appear in ${r.file} -- stale entry? It is not redacting anything there right now.${cfg.colorReset}\n' >&2
+          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: redactValues key '"'"'${r.key}'"'"' resolved to '"'"'%s'"'"', but that text does not currently appear in '"'"'${r.file}'"'"' -- stale entry (file changed, or this value was already redacted/commented out there)? It is not redacting anything there right now.${cfg.colorReset}\n' ${lib.escapeShellArg r.result.value} >&2
         fi
       '') redactValueResolutions}
     ${lib.concatMapStringsSep "\n    " (r:
+      # Same reasoning as redactValues above, plus one extra distinction:
+      # a replaceValues entry is identified by EITHER `key` or a literal
+      # `find` string (never both, see default.nix's assertion) -- every
+      # message below says explicitly which kind this entry is, instead of
+      # a single generic "find/key" message that leaves you guessing.
       if !r.result.success then ''
-        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues key '"'"'${r.key}'"'"' does not resolve against config -- stale/renamed option? Skipping, nothing is being replaced there right now.${cfg.colorReset}\n' >&2
+        printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues key '"'"'${r.key}'"'"' (file '"'"'${r.file}'"'"') does not resolve against config -- stale/renamed option? Skipping this entry, nothing is being replaced there right now.${cfg.colorReset}\n' >&2
+      '' else if r.key != null then ''
+        if [ ! -f "${cfg.dotfilesPath}/${r.file}" ]; then
+          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues key '"'"'${r.key}'"'"' -- file '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being replaced there right now.${cfg.colorReset}\n' >&2
+        elif ! ${pkgs.gnugrep}/bin/grep -qF -- ${lib.escapeShellArg r.result.value} "${cfg.dotfilesPath}/${r.file}"; then
+          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues key '"'"'${r.key}'"'"' resolved to '"'"'%s'"'"', but that text does not currently appear in '"'"'${r.file}'"'"' -- stale entry (file changed, or already replaced there)? It is not replacing anything there right now.${cfg.colorReset}\n' ${lib.escapeShellArg r.result.value} >&2
+        fi
       '' else ''
         if [ ! -f "${cfg.dotfilesPath}/${r.file}" ]; then
-          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues entry '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being replaced there right now.${cfg.colorReset}\n' >&2
+          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues find text '"'"'%s'"'"' -- file '"'"'${r.file}'"'"' does not exist -- renamed, typo'"'"'d, or never created? Nothing is being replaced there right now.${cfg.colorReset}\n' ${lib.escapeShellArg r.result.value} >&2
         elif ! ${pkgs.gnugrep}/bin/grep -qF -- ${lib.escapeShellArg r.result.value} "${cfg.dotfilesPath}/${r.file}"; then
-          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues '"'"'find/key'"'"' text does not currently appear in ${r.file} -- stale entry? It is not replacing anything there right now.${cfg.colorReset}\n' >&2
+          printf '${cfg.colorYellow}warning: modules/backup/dotfiles: replaceValues find text '"'"'%s'"'"' does not currently appear in '"'"'${r.file}'"'"' -- stale entry (file content changed)? It is not replacing anything there right now.${cfg.colorReset}\n' ${lib.escapeShellArg r.result.value} >&2
         fi
       '') replaceValueResolutions}
 
