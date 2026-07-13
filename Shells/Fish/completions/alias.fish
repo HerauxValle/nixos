@@ -13,7 +13,12 @@ alias idr="sudo ~/Scripts/Shell/Bash/davinciResolve.sh"                 #&help:"
 alias gpa="python3 ~/Scripts/Python/gitpushall.py"                      #&help:"Push dotfiles to all git remotes"
 alias lwp="nohup bash ~/Scripts/Shell/Bash/wallpaper.sh > /dev/null 2>&1 &" #&help:"Cycle wallpaper"
 alias fsu="python3 ~/Scripts/Python/fixsudo.py"                         #&help:"Fix sudo permissions"
+
 alias cln="~/Scripts/Python/countlines.py"                              #&help:"Count lines in files/dirs"
+alias clo="alias cln='cloc . \
+  --exclude-dir=.git,.hg,.svn,.jj,node_modules,vendor,target,build,dist,out,result,results,bin,obj,__pycache__,.mypy_cache,.pytest_cache,.ruff_cache,.tox,.nox,.venv,venv,env,.env,.direnv,.cache,.gradle,.idea,.vscode,.vs,.dart_tool,.next,.nuxt,.svelte-kit,.parcel-cache,.turbo,coverage,htmlcov,.terraform,.terragrunt-cache,.zig-cache,zig-out \
+  --exclude-ext=lock,png,jpg,jpeg,gif,webp,svg,ico,pdf,zip,tar,gz,xz,7z,bin,exe,dll,so,dylib,class,o,a,pyc,pyo'" &#help: "Uses cloc with exclude dir"
+
 alias pyc="python3 ~/Scripts/Python/pycache.py"                         #&help:"Clean Python __pycache__"
 alias exc="python3 ~/Scripts/Python/exec.py"                            #&help:"Bulk-set executable permissions"
 alias vlt="cd ~/Images && printf %s "314159265" | cas Vaults toggle --pass 314159265 --keyfile /run/media/herauxvalle/VirtualKeys/vaults/vaults.key --no-log" #&help:"Toggle Vaults LUKS container"
