@@ -18,9 +18,10 @@
   config.home-manager.users.${config.vars.username}.programs = {
     vscode = {
       enable = false;
-      mutableExtensionsDir = false; # `code --install-extension` can no
-                                    # longer add anything outside the list
-                                    # below -- add here and rebuild instead.
+      mutableExtensionsDir = false;
+      # `code --install-extension` can no
+      # longer add anything outside the list
+      # below -- add here and rebuild instead.
       profiles.default = {
         # Paths, not attrsets -- keeps the files' own comments/section
         # headers intact instead of flattening them through the JSON
@@ -29,6 +30,7 @@
         keybindings = ../../../VSCode/keybindings.json;
         extensions =
           (with pkgs.vscode-extensions; [
+            # --- Original Extensions ---
             bbenoist.nix
             gruntfuggly.todo-tree
             jnoortheen.nix-ide
@@ -37,11 +39,37 @@
             ms-python.vscode-pylance
             ms-python.vscode-python-envs
             pkief.material-icon-theme
+            # Already handles your Rust LSP (rust-analyzer)
             rust-lang.rust-analyzer
+
+            # --- C / C++ ---
+            # C/C++ IntelliSense, debugging, and code browsing
+            ms-vscode.cpptools
+            # twxs.cmake         # (Optional) Uncomment if you use CMake
+
+            # --- Go ---
+            # Rich Go language support (uses gopls)
+            golang.go
+
+            # --- HTML / CSS / Web Development ---
+            # HTML CSS Support
+            ecmel.vscode-html-css
+            formulahendry.auto-close-tag
+            formulahendry.auto-rename-tag
+            # bradlc.vscode-tailwindcss # (Optional) Uncomment if you use Tailwind CSS
+
+            # --- General Productivity & Nix Integration ---
+            # Loads development environment shell (highly recommended)
+            mkhl.direnv
+            # Standardizes editor configs across teams
+            editorconfig.editorconfig
+            # Opinionated code formatter (highly recommended)
+            esbenp.prettier-vscode
+            # Supercharged Git visualization (highly recommended)
+            eamodio.gitlens
           ])
           ++ [
-            # Only extensions whose publishers aren't in nixpkgs' vscode-extensions
-            # set, so pulled straight from the Marketplace instead.
+            # --- Custom Marketplace Extensions ---
             (pkgs.vscode-utils.extensionFromVscodeMarketplace {
               publisher = "dustypomerleau";
               name = "rust-syntax";
@@ -105,24 +133,24 @@
     freshEditor = {
       enable = false;
       extraPackages = with pkgs; [
-        rust-analyzer                    # lsp.rust
-        gopls                            # lsp.go
-        typescript-language-server       # lsp.javascript / lsp.typescript
-        clang-tools                      # lsp.c / lsp.cpp (clangd)
-        jdt-language-server              # lsp.java (jdtls)
+        rust-analyzer # lsp.rust
+        gopls # lsp.go
+        typescript-language-server # lsp.javascript / lsp.typescript
+        clang-tools # lsp.c / lsp.cpp (clangd)
+        jdt-language-server # lsp.java (jdtls)
         python3Packages.python-lsp-server # lsp.python (pylsp)
-        nil                              # lsp.nix
-        bash-language-server             # lsp.bash -- also covers zsh dotfiles
-                                          # (.zshrc etc, routed to the bash
-                                          # language by filename) and fish's
-                                          # scripts get bash/sh highlighting
-                                          # from the same grammar, but fish
-                                          # isn't a distinct language id in
-                                          # fresh's config -- no lsp.fish to
-                                          # wire up.
-        yaml-language-server             # lsp.yaml
-        taplo                            # lsp.toml
-        vscode-langservers-extracted     # lsp.json (also brings html/css servers)
+        nil # lsp.nix
+        bash-language-server # lsp.bash -- also covers zsh dotfiles
+        # (.zshrc etc, routed to the bash
+        # language by filename) and fish's
+        # scripts get bash/sh highlighting
+        # from the same grammar, but fish
+        # isn't a distinct language id in
+        # fresh's config -- no lsp.fish to
+        # wire up.
+        yaml-language-server # lsp.yaml
+        taplo # lsp.toml
+        vscode-langservers-extracted # lsp.json (also brings html/css servers)
         # nushell's own `nu --lsp` covers lsp.nushell -- already a system
         # package (Nixos/config/packages.nix), not duplicated here.
         # PowerShell has a recognized language id but no built-in
