@@ -28,10 +28,14 @@ YELLOW = os.environ.get("dotfilesBackupColorYellow", "").encode().decode("unicod
 RED = os.environ.get("dotfilesBackupColorRed", "").encode().decode("unicode_escape")
 RESET = os.environ.get("dotfilesBackupColorReset", "").encode().decode("unicode_escape")
 
+print(repr(os.environ.get("dotfilesBackupColorRed")), file=sys.stderr)
+print(repr(RED), file=sys.stderr)
+print(f"{RED}RED TEST{RESET}", file=sys.stderr)
+
 
 def warn(message):
     print(
-        f"warning: {YELLOW}modules/backup/dotfiles:{RESET}\n"
+        f"{RED}warning: modules/backup/dotfiles:{RESET}\n"
         f"{YELLOW}{message}{RESET}",
         file=sys.stderr,
     )
