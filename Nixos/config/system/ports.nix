@@ -50,6 +50,8 @@
         localName = "searxng";
         service = "self-hosted-searxng.service";
         protocol = "https";
+        certFile = "/etc/port-forwarding-test-cert/test.crt";
+        keyFile = "/etc/port-forwarding-test-cert/test.key";
       };
 
       ollama = {
