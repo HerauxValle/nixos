@@ -12,22 +12,32 @@
       url = "github:uiriansan/SilentSDDM";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    crun.url = "path:./Scripts/CRun";
   };
 
-  outputs = { self, nixpkgs, home-manager, silent-sddm, ... }@inputs: {
-    nixosConfigurations.maxmustermann = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      specialArgs = { inherit inputs; };
-      modules = [
-        ./Nixos/configuration.nix
-        home-manager.nixosModules.home-manager
-        silent-sddm.nixosModules.default
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.users.maxmustermann = import ./Nixos/home.nix;
-        }
-      ];
+  outputs =
+    {
+      self,
+      nixpkgs,
+      home-manager,
+      silent-sddm,
+      crun,
+      ...
+    }@inputs:
+    {
+      nixosConfigurations.maxmustermann = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = { inherit inputs; };
+        modules = [
+          ./Nixos/configuration.nix
+          home-manager.nixosModules.home-manager
+          silent-sddm.nixosModules.default
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.maxmustermann = import ./Nixos/home.nix;
+          }
+        ];
+      };
     };
-  };
 }
