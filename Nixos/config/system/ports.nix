@@ -59,6 +59,8 @@
         port = 9999;
         service = "self-hosted-stash.service";
         mode.local = { name = "stash"; };
+        mode.onion = true;
+        mode.router = true;
       };
 
       openwebui = {
@@ -82,7 +84,6 @@
       comfyui = {
         port = 8188; # ComfyUI's own upstream default -- no port override in config/self-hosted/comfyui/comfyui.nix
         service = "self-hosted-comfyui.service";
-        enabled = false; # matches config.vars.selfHosted.comfyui.autoStart = false right now
         mode.local = { name = "comfyui"; };
 
         # main.py's own default listen address is 127.0.0.1 -- its

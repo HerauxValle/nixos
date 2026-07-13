@@ -284,9 +284,116 @@ lib.mkIf config.vars.ports.enabled {
           shift
           exec ${pkgs.python3}/bin/python3 ${ipHistoryScriptFile} "$@"
           ;;
+        help|--help|-h)
+          cat <<'EOF'
+port-forwarding -- manage the shared self-signed cert and public-IP
+history for this machine's declaratively-exposed ports.
+
+USAGE
+  port-forwarding <command> [args]
+
+COMMANDS
+
+  cert <subcommand>
+    Manage the shared self-signed CA + leaf certificate used by any
+    entry with net.ipv6 = true and tls.mode != "http" that doesn't set
+    its own tls.certFile/tls.keyFile, and by the port-80/443 .local
+    name resolver's own :443 side (resolveUrl = true).
+
+    cert ensure
+      Generate the CA + leaf cert if either is missing or the leaf has
+      expired/is expiring soon. Idempotent -- safe to run anytime,
+      does nothing if everything's already valid. This is exactly what
+      the port-forwarding-cert-ensure.service oneshot runs
+      automatically whenever something needs it; running it by hand
+      just pre-generates a cert before you've even declared an entry
+      that needs one.
+
+    cert show
+      Print the current leaf cert's subject, expiry date, and SAN
+      (subject alternative names -- every *.local name it's currently
+      valid for). Says so and does nothing if no cert exists yet.
+
+    cert regen
+      Delete the CA and leaf cert/key files and regenerate both from
+      scratch. A fresh CA means every device that trusted the old one
+      needs to re-trust the new one (see 'cert serve' below) -- every
+      bridge/router service using the auto cert picks up the new leaf
+      on its own next TLS handshake, no restart needed on this end.
+
+    cert serve [port]
+      Temporarily serves the CA certificate (not the leaf -- the CA is
+      what a device actually needs to trust, once, to cover every leaf
+      this machine ever issues) over plain HTTP for 3 minutes, with
+      step-by-step iOS/Safari install instructions, on the given port
+      (default 4321). Opens that one port in the firewall for the
+      duration via a direct iptables rule (not a config.vars.ports
+      entry -- this is a one-off manual action, not a persistent
+      exposure), and closes it again when the 3 minutes are up or you
+      Ctrl-C. Point an iPhone's Safari at the printed
+      http://<lan-ip>:<port>/ URL.
+
+  history <subcommand>
+    Query or record this machine's own public IPv4/IPv6 address
+    history (up to the last 10 snapshots of each), stored at
+    /var/lib/port-forwarding/ip-history.json. Only populated
+    automatically if config.vars.ports.ipHistory.enable = true (a
+    systemd timer then runs 'history record' on the interval set by
+    config.vars.ports.ipHistory.interval, default 10m) -- these
+    subcommands work standalone either way, there's just nothing to
+    show if the timer's never run.
+
+    history record
+      Snapshot the current public IPv4 address (detected via a UDP
+      connect to 8.8.8.8:80 -- never actually sends a packet, just
+      makes the kernel pick a route/source address -- plus every other
+      non-loopback IPv4 address `ip addr` reports) and public IPv6
+      addresses (every global-scope, non-private address `ip -6 addr`
+      reports), appending to history ONLY if either changed since the
+      last recorded snapshot. This is the default if no subcommand is
+      given at all.
+
+    history changed
+      Same detection as 'record', but prints whether anything actually
+      changed since the last snapshot ("still the same", or which of
+      ipv4/ipv6 changed and to what).
+
+    history ipv4 [--last:N]
+    history ipv6 [--last:N]
+      Print up to the last N recorded snapshots for that address
+      family, newest first (timestamp + addresses). N defaults to 10
+      (the most ever kept); '--last' with no ':N' means 3. Says so and
+      does nothing if nothing's been recorded yet.
+
+  help / --help / -h
+    This text.
+
+CONFIGURATION
+  Every port this machine exposes is declared in
+  config/system/ports.nix (config.vars.ports.entries.<key> = { ... };)
+  -- port-forwarding itself has no separate config file; everything
+  above is either always-on utility (cert/history) or driven entirely
+  by what's declared there. See glossar/system/port-forwarding.nix for
+  every field with a full explanation of what it does, why, and when
+  to use it, or modules/system/port-forwarding/docs/ for the design
+  rationale behind each mechanism.
+
+CHECKING STATUS
+  Nothing here replaces pmg's own `pmg list`/`pmg status` with a
+  single command -- each entry's exposure is a set of ordinary systemd
+  units instead, inspect them directly:
+    systemctl status port-forwarding-mdns-<key>        # mode.local
+    systemctl status port-forwarding-bridge6-<key>     # net.ipv6
+    systemctl status port-forwarding-tunnel-<key>      # mode.public
+    systemctl status port-forwarding-router{,-https}   # resolveUrl
+    journalctl -u tor                                  # mode.onion (native services.tor.relay.onionServices)
+  <key> is whatever attribute name you gave the entry in
+  config.vars.ports.entries (e.g. "jellyfin"), not the port number.
+EOF
+          ;;
         *)
-          echo "usage: port-forwarding cert [ensure|show|regen|serve [port]]" >&2
-          echo "       port-forwarding history [record|changed|ipv4|ipv6 [--last:N]]" >&2
+          echo "usage: port-forwarding <cert|history|help> ..." >&2
+          echo "       run 'port-forwarding help' for full documentation" >&2
           exit 1
           ;;
       esac
