@@ -142,6 +142,17 @@ lib.mkIf config.vars.ports.enabled {
       entries);
 
   networking.firewall.allowedTCPPorts = lib.mapAttrsToList (_: e: e.port) ipv4Entries;
+
+  # ./lib/mdns/'s own responder binds :5353 and joins 224.0.0.251 just
+  # fine on its own (both unprivileged socket operations, see that
+  # module's own comment) -- but without this, the firewall drops every
+  # inbound query before it ever reaches the socket, from other devices
+  # on the LAN AND from this machine's own client-side mDNS lookup alike
+  # (confirmed live: nss-mdns's query for searxng.local still failed with
+  # this port closed, even though the responder was already up and
+  # logging that it was ready to answer). UDP, not TCP -- mDNS is
+  # exclusively UDP per RFC 6762.
+  networking.firewall.allowedUDPPorts = lib.mkIf (localEntries != { }) [ 5353 ];
   networking.nat.enable = lib.mkIf (dnat.forwardPorts != [ ]) true;
   networking.nat.externalInterface =
     lib.mkIf (dnat.forwardPorts != [ ]) config.vars.networkInterface;
