@@ -25,11 +25,15 @@ Fields are grouped by concern, not one flat list -- `port`/`enabled`/
 whole), `net.*` is layer-3/4 reachability (`ipv4`/`ipv6`/
 `loopbackOnly`), `tls.*` is how the IPv6 bridge handles TLS
 (`mode`/`certFile`/`keyFile`), `mode.*` is which exposure mechanism(s)
-are active (`onion`/`local`/`public`/`router`). `mode.local` itself
-accepts `false` | `true` | `{ name = "custom"; }` via
+are active (`onion`/`local`/`public`/`router`). Two of those four
+fields are themselves `false` | `true` | `{ ... }` via
 `lib.types.coercedTo` (the same NixOS-idiomatic bool-or-submodule
-shape `services.tor`'s own `HiddenServicePort.map` option uses),
-replacing the old separate `localName` field.
+shape `services.tor`'s own `HiddenServicePort.map` option uses) rather
+than plain booleans: `mode.local` accepts `{ name = "custom"; }`
+(replacing the old separate `localName` field), and `mode.onion`
+accepts `{ ephemeral = true; }` (a fresh v3 address every
+`tor.service` start instead of the default persistent one -- see
+`decisions.md`'s own section on this).
 
 ## One flat attrset, not a top-level `lib.mkMerge` list
 

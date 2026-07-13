@@ -34,26 +34,73 @@ block runs (always the last fragment), concatenation order is free to
 follow whatever's most readable (bottom-up: helpers first, the actual
 `main()` last).
 
-## One `port-forwarding` CLI, not two
+## One `port-forwarding` CLI, not several
 
 `lib/cert/` and `lib/ip-history.nix` were originally two separate
 PATH-installed binaries (`port-forwarding-cert`, `port-forwarding-ip-
-history`). Unified into one `port-forwarding cert|history ...` command
--- a thin shell dispatcher in `port-forwarding.nix` onto each
-subsystem's own already-built script, not a merge of the underlying
-Python (which would risk namespace collisions between two otherwise-
-independent programs for no real benefit). The systemd *unit* names
-stay separate (`port-forwarding-cert-ensure.service`, `port-forwarding-
-ip-history.service`/`.timer`) -- the unification is purely at the
-manual-CLI layer, matching pmg's own single-binary-many-subcommands
-shape (`pmg cert ...`, `pmg show ...`).
+history`). Unified into one `port-forwarding cert|history|onion|help
+...` command -- a thin shell dispatcher in `port-forwarding.nix` onto
+each subsystem's own already-built script, not a merge of the
+underlying Python (which would risk namespace collisions between
+otherwise-independent programs for no real benefit). The systemd
+*unit* names stay separate (`port-forwarding-cert-ensure.service`,
+`port-forwarding-ip-history.service`/`.timer`) -- the unification is
+purely at the manual-CLI layer, matching pmg's own single-binary-many-
+subcommands shape (`pmg cert ...`, `pmg show ...`).
+
+`cert` and `history` dispatch straight to a real Python script
+(`lib/cert/`'s own concatenated fragments, `lib/ip-history.nix`) --
+`onion` doesn't, and deliberately isn't a third Python fragment set:
+every one of its operations (delete a file, `systemctl restart`, `cat`
+a file back, wait on a file appearing) is a single shell builtin or
+external command, nothing there benefits from a real interpreter, and
+writing it as inline bash directly in the dispatcher (see
+`port-forwarding.nix`'s own `onion)` case) keeps it in the one file
+that's already responsible for wiring service state into shell text,
+instead of a whole extra `lib/onion/` directory for four case
+branches. It's also the one subcommand of the three that requires
+root -- `/var/lib/tor/onion/` is `0700`, owned by the `tor` user,
+confirmed live neither readable nor writable by anything else -- so it
+checks `id -u` itself up front and fails with an actionable message
+instead of a bare "Permission denied" partway through an `rm`.
 
 The CLI is installed unconditionally, regardless of whether any entry
-currently needs auto-cert or has `ipHistory.enable = true` -- both
-subcommands are genuinely useful as on-demand manual tools even when
-nothing automatic depends on them yet (e.g. `port-forwarding cert
-ensure` to pre-generate a cert before declaring the first entry that
-needs one).
+currently needs auto-cert, has `ipHistory.enable = true`, or has
+`mode.onion` enabled at all -- every subcommand is genuinely useful as
+an on-demand manual tool even when nothing automatic depends on it yet
+(e.g. `port-forwarding cert ensure` to pre-generate a cert before
+declaring the first entry that needs one, or `port-forwarding onion
+show` to check an address without needing to know the
+`/var/lib/tor/onion/<key>/hostname` path by heart).
+
+## `mode.onion.ephemeral` and `onion regen` are the same operation
+
+Delete `hs_ed25519_secret_key`/`hs_ed25519_public_key`/`hostname` from
+under `/var/lib/tor/onion/<key>/`, then restart `tor.service` -- Tor's
+own real behavior (confirmed by reading `connection_edge.c` and, more
+directly, by testing it) is to generate a fresh v3 keypair whenever
+that secret key file is missing from an otherwise-already-existing
+`HiddenServiceDir`. `ephemeral = true` performs exactly this via an
+`ExecStartPre` this module adds to `tor.service` itself, automatically,
+on every single start (confirmed live: 4 consecutive restarts, 4
+different addresses); `port-forwarding onion regen <key>` performs the
+identical file deletion + restart by hand, once, on demand. Neither
+reimplements Tor's own key-generation logic -- both just make sure the
+old key isn't there anymore before Tor looks for it.
+
+`onion regen <key>`'s wait-for-the-new-address-to-appear step
+(confirmed live: `systemctl restart` returning does NOT itself
+guarantee Tor has finished the onion-service-specific part of its own
+startup -- the hostname file can still be a couple of seconds away) is
+a short, hard-capped poll (up to 10s), not the same category of thing
+as `../lib/ipv6-bridge/wait-backend.nix`'s netlink-based wait. That one
+exists because a *recurring, per-service-start* busy-poll would be
+genuinely wasteful across every current and future backend, forever.
+This one is a *single, user-initiated, one-shot* CLI command reporting
+back on a bounded async operation it just triggered -- the standard
+shape plenty of ordinary CLI tools use (`kubectl rollout status`,
+`docker events`, ...), not the problem the netlink wait was built to
+avoid.
 
 ## The self-signed leaf key is `0644`, not pmg's own `0600`
 

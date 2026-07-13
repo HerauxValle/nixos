@@ -234,26 +234,31 @@
   #         # this is enabled and reuses it forever after -- confirmed live
   #         # across multiple rebuilds and tor.service restarts, same
   #         # address every time. To force a fresh address by hand anyway:
-  #         #   sudo rm -f /var/lib/tor/onion/<key>/hs_ed25519_secret_key \
-  #         #              /var/lib/tor/onion/<key>/hs_ed25519_public_key \
-  #         #              /var/lib/tor/onion/<key>/hostname
-  #         #   sudo systemctl restart tor
-  #         # (deleting only those three files, not the whole directory --
-  #         # its own ownership/mode is set up by services.tor's own
-  #         # ExecStartPre, no need to disturb that.) WHY/WHEN: this is what
-  #         # you want almost always -- an address worth bookmarking,
-  #         # sharing, or pointing a client at more than once.
+  #         #   sudo port-forwarding onion regen <key>
+  #         # (`port-forwarding help` for the full onion subcommand --
+  #         # `onion show [key]` to read the current address(es) back too,
+  #         # both need root since /var/lib/tor/onion/ is 0700, owned by
+  #         # the tor user, confirmed live. Under the hood this deletes
+  #         # only the three keypair files -- hs_ed25519_secret_key,
+  #         # hs_ed25519_public_key, hostname -- not the whole directory
+  #         # -- its own ownership/mode is set up by services.tor's own
+  #         # ExecStartPre, no need to disturb that -- then restarts
+  #         # tor.service, which regenerates them fresh.) WHY/WHEN: this
+  #         # is what you want almost always -- an address worth
+  #         # bookmarking, sharing, or pointing a client at more than once.
   #         #
   #         # EPHEMERAL (ephemeral = true): the exact same three files are
   #         # wiped automatically, every single time tor.service starts, via
   #         # an ExecStartPre this module adds (confirmed live: 4 restarts
-  #         # in a row, 4 different addresses, every time). WHY/WHEN: use
-  #         # only for something genuinely meant to be reachable for one
-  #         # session and then forgotten -- a one-off file share, a demo you
-  #         # don't want linkable again after -- since the address can't be
-  #         # bookmarked or shared ahead of time by design. Read the current
-  #         # address fresh each time from `journalctl -u tor` or
-  #         # /var/lib/tor/onion/<key>/hostname after a (re)start.
+  #         # in a row, 4 different addresses, every time) -- the identical
+  #         # operation `onion regen` performs by hand, just triggered on
+  #         # every start instead of on demand. WHY/WHEN: use only for
+  #         # something genuinely meant to be reachable for one session and
+  #         # then forgotten -- a one-off file share, a demo you don't want
+  #         # linkable again after -- since the address can't be bookmarked
+  #         # or shared ahead of time by design. Read the current address
+  #         # fresh each time via `sudo port-forwarding onion show <key>`
+  #         # (or `journalctl -u tor`) after a (re)start.
   #         #
   #         # Either way: reachable from anywhere without opening a port on
   #         # your actual router or knowing your public IP -- trades the
