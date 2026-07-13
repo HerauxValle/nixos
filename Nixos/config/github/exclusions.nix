@@ -18,6 +18,17 @@
       # than mirroring every redactValues/replaceValues entry a second
       # time just for a doc, and it doesn't need to be public anyway.
       "Nixos/index.md"
+
+      "**/__pycache__"
+      "*.pyc"
+      "*.pyo"
+      ".mypy_cache"
+      ".pytest_cache"
+      ".ruff_cache"
+      ".venv"
+      "venv"
+      ".direnv"
+      ".DS_Store"
     ];
   };
 }
