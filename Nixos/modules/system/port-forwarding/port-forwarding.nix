@@ -319,6 +319,108 @@ lib.mkIf config.vars.ports.enabled {
           shift
           exec ${pkgs.python3}/bin/python3 ${ipHistoryScriptFile} "$@"
           ;;
+        onion)
+          # Plain bash, not a Python fragment -- every operation here is a
+          # file check/rm and a systemctl call, nothing this small needs
+          # its own interpreter. onionKeys is baked in at build time
+          # (config.vars.ports.entries.*.mode.onion.enable, known
+          # statically) purely so a typo'd/removed key gets a clear "not
+          # a configured entry, known: ..." message instead of a raw
+          # "No such file or directory" from a bare rm/cat.
+          shift
+          onionKeys=${lib.escapeShellArg (lib.concatStringsSep " " (lib.attrNames onionEntries))}
+          subcmd="''${1:-}"
+          key="''${2:-}"
+          knownCheck() {
+            case " $onionKeys " in
+              *" $1 "*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+          case "$subcmd" in
+            show)
+              # /var/lib/tor/onion/ is 0700, owned by the tor user
+              # (confirmed live) -- genuinely needs root to read at all,
+              # not just to be tidy about it.
+              if [ "$(id -u)" -ne 0 ]; then
+                echo "port-forwarding onion show: needs root -- /var/lib/tor/onion/ is 0700, owned by the tor user (re-run with sudo)" >&2
+                exit 1
+              fi
+              if [ -z "$key" ]; then
+                if [ -z "$onionKeys" ]; then
+                  echo "no entries have mode.onion enabled right now" >&2
+                  exit 1
+                fi
+                for k in $onionKeys; do
+                  if [ -f "/var/lib/tor/onion/$k/hostname" ]; then
+                    printf '%s: %s\n' "$k" "$(cat "/var/lib/tor/onion/$k/hostname")"
+                  else
+                    printf '%s: (no hostname file yet -- has tor.service started since this was enabled?)\n' "$k"
+                  fi
+                done
+              else
+                if ! knownCheck "$key"; then
+                  echo "port-forwarding onion show: '$key' isn't a configured onion entry -- known: ''${onionKeys:-<none>}" >&2
+                  exit 1
+                fi
+                if [ ! -f "/var/lib/tor/onion/$key/hostname" ]; then
+                  echo "port-forwarding onion show: no hostname file for '$key' yet -- has tor.service started since this was enabled?" >&2
+                  exit 1
+                fi
+                cat "/var/lib/tor/onion/$key/hostname"
+              fi
+              ;;
+            regen)
+              if [ "$(id -u)" -ne 0 ]; then
+                echo "port-forwarding onion regen: needs root -- deletes files under /var/lib/tor/onion/ (owned by the tor user) and restarts tor.service (re-run with sudo)" >&2
+                exit 1
+              fi
+              if [ -z "$key" ]; then
+                echo "usage: port-forwarding onion regen <key>" >&2
+                echo "known onion entries: ''${onionKeys:-<none>}" >&2
+                exit 1
+              fi
+              if ! knownCheck "$key"; then
+                echo "port-forwarding onion regen: '$key' isn't a configured onion entry -- known: ''${onionKeys:-<none>}" >&2
+                exit 1
+              fi
+              # Same three files mode.onion.ephemeral wipes automatically
+              # on every start -- this is the identical operation, just
+              # triggered by hand once instead of on every restart. Tor's
+              # own real behavior (unchanged, not reimplemented): a v3
+              # keypair is generated fresh whenever hs_ed25519_secret_key
+              # is missing from an otherwise-already-existing
+              # HiddenServiceDir.
+              rm -f "/var/lib/tor/onion/$key/hs_ed25519_secret_key" \
+                    "/var/lib/tor/onion/$key/hs_ed25519_public_key" \
+                    "/var/lib/tor/onion/$key/hostname"
+              echo "port-forwarding onion regen: old keypair removed, restarting tor.service..." >&2
+              systemctl restart tor
+              # systemctl restart blocks until tor.service is active, but
+              # NOT until Tor's own onion-service key generation inside
+              # that process has finished (confirmed live: the hostname
+              # file can still be a few seconds away at that point) -- a
+              # short, hard-capped wait for a single one-shot CLI
+              # invocation to report the real new address back, not a
+              # recurring per-service-start race like
+              # ./lib/ipv6-bridge/wait-backend.nix exists to avoid.
+              i=0
+              while [ ! -f "/var/lib/tor/onion/$key/hostname" ]; do
+                i=$((i + 1))
+                if [ "$i" -ge 20 ]; then
+                  echo "port-forwarding onion regen: tor.service restarted but no hostname file appeared within 10s -- check 'journalctl -u tor'" >&2
+                  exit 1
+                fi
+                sleep 0.5
+              done
+              echo "new address: $(cat "/var/lib/tor/onion/$key/hostname")"
+              ;;
+            *)
+              echo "usage: port-forwarding onion [show [key]|regen <key>]" >&2
+              exit 1
+              ;;
+          esac
+          ;;
         help|--help|-h)
           cat <<'EOF'
 port-forwarding -- manage the shared self-signed cert and public-IP
@@ -400,6 +502,34 @@ COMMANDS
       (the most ever kept); '--last' with no ':N' means 3. Says so and
       does nothing if nothing's been recorded yet.
 
+  onion <subcommand>
+    Inspect or regenerate the v3 keypair (and therefore the .onion
+    address) backing any entry with mode.onion enabled. Needs root --
+    /var/lib/tor/onion/ is 0700, owned by the tor user, not readable or
+    writable by anything else, confirmed live. Every subcommand checks
+    for root itself and fails with a clear message instead of a raw
+    Permission denied if you forget sudo.
+
+    onion show [key]
+      Print the current .onion address for one entry (all of them, one
+      per line, if no key given). Says so if tor.service hasn't
+      actually generated a hostname file for that entry yet.
+
+    onion regen <key>
+      Delete that entry's current v3 keypair (hs_ed25519_secret_key,
+      hs_ed25519_public_key, hostname) and restart tor.service, which
+      makes Tor generate a brand new one on this start (its own real
+      behavior, unchanged -- a fresh keypair is generated whenever the
+      secret key file is missing from an otherwise-already-existing
+      HiddenServiceDir). Prints the new address once it appears
+      (waits up to 10s -- confirmed live this normally takes a couple
+      of seconds, systemctl restart returning doesn't itself guarantee
+      Tor has finished the onion-service-specific part of its own
+      startup yet). The exact same operation mode.onion.ephemeral
+      performs automatically on every single tor.service start, if
+      you'd rather have a fresh address every time instead of
+      triggering it by hand once.
+
   help / --help / -h
     This text.
 
@@ -422,12 +552,13 @@ CHECKING STATUS
     systemctl status port-forwarding-tunnel-<key>      # mode.public
     systemctl status port-forwarding-router{,-https}   # resolveUrl
     journalctl -u tor                                  # mode.onion (native services.tor.relay.onionServices)
+    port-forwarding onion show [key]                   # mode.onion's current address(es), needs sudo
   <key> is whatever attribute name you gave the entry in
   config.vars.ports.entries (e.g. "jellyfin"), not the port number.
 EOF
           ;;
         *)
-          echo "usage: port-forwarding <cert|history|help> ..." >&2
+          echo "usage: port-forwarding <cert|history|onion|help> ..." >&2
           echo "       run 'port-forwarding help' for full documentation" >&2
           exit 1
           ;;
