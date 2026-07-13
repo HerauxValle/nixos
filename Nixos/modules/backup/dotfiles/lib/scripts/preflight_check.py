@@ -24,8 +24,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from exclude import find_matches
 
-YELLOW = os.environ.get("dotfilesBackupColorYellow", "")
-RESET = os.environ.get("dotfilesBackupColorReset", "")
+YELLOW = os.environ.get("dotfilesBackupColorYellow", "").encode().decode("unicode_escape")
+RESET = os.environ.get("dotfilesBackupColorReset", "").encode().decode("unicode_escape")
 
 
 def warn(message):
@@ -38,15 +38,20 @@ def line_contains(path, value):
 
 
 def check_excludes(dotfiles_path, patterns_file):
+    missing = []
+
     for pattern in Path(patterns_file).read_text().splitlines():
         if not pattern:
             continue
         if not find_matches(dotfiles_path, pattern):
-            warn(
-                f"excludeFiles entry '{pattern}' does not match anything under dotfilesPath -- "
-                "renamed, typo'd, mistyped pattern, or never created? "
-                "It is not excluding anything right now."
-            )
+            missing.append(pattern)
+
+    if missing:
+        warn(
+            "the following excludeFiles entries do not match anything under dotfilesPath "
+            "(renamed, typo'd, mistyped pattern, or never created?) and currently exclude nothing:\n"
+            + "\n".join(f"  - {pattern}" for pattern in missing)
+        )
 
 
 def check_redact(dotfiles_path, checks_file):
