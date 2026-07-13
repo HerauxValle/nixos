@@ -63,6 +63,7 @@ def check_excludes(dotfiles_path, patterns_file):
             "safely ignore this warning unless you expected one of\n"
             "these entries to match.\n"
             f"{RED}[unused excludeFiles] ============================================{RESET}"
+            "uploading repository"
         )
 
 
