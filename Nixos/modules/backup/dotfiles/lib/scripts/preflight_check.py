@@ -25,11 +25,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 from exclude import find_matches
 
 YELLOW = os.environ.get("dotfilesBackupColorYellow", "").encode().decode("unicode_escape")
+RED = os.environ.get("dotfilesBackupColorRed", "").encode().decode("unicode_escape")
 RESET = os.environ.get("dotfilesBackupColorReset", "").encode().decode("unicode_escape")
 
 
 def warn(message):
-    print(f"{YELLOW}warning: modules/backup/dotfiles: {message}{RESET}", file=sys.stderr)
+    print(
+        f"{RED}warning: modules/backup/dotfiles:{RESET}\n"
+        f"{YELLOW}{message}{RESET}",
+        file=sys.stderr,
+    )
 
 
 def line_contains(path, value):
