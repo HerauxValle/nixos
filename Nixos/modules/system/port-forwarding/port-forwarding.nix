@@ -149,7 +149,18 @@ lib.mkIf config.vars.ports.enabled {
       })
       entries);
 
-  networking.firewall.allowedTCPPorts = lib.mapAttrsToList (_: e: e.port) ipv4Entries;
+  # The router itself (./lib/router/, ports 80/443) never had its own
+  # ports opened -- only each entry's OWN port did, above. Real bug,
+  # confirmed live: http://<name>.local worked from THIS machine (NixOS's
+  # firewall is more permissive for the host talking to itself) but
+  # ERR_CONNECTION_REFUSED from every other device on the LAN, while
+  # http://<name>.local:<port> (bypassing the router, straight to the
+  # entry's own already-open port) worked fine from anywhere. Same
+  # resolveUrl/localRoutes condition ./lib/router/default.nix itself uses
+  # to decide whether it builds anything at all -- not tied to any one
+  # entry/service.
+  networking.firewall.allowedTCPPorts = lib.mapAttrsToList (_: e: e.port) ipv4Entries
+    ++ lib.optionals (config.vars.ports.resolveUrl && localRoutes != { }) [ 80 443 ];
 
   # ./lib/mdns/'s own responder binds :5353 and joins 224.0.0.251 just
   # fine on its own (both unprivileged socket operations, see that
