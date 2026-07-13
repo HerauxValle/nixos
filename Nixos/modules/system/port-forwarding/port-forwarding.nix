@@ -179,7 +179,28 @@ lib.mkIf config.vars.ports.enabled {
   boot.kernel.sysctl."net.ipv4.conf.all.route_localnet" = lib.mkIf dnat.needsRouteLocalnet true;
 
   services.tor.enable = lib.mkIf (onionEntries != { }) true;
-  services.tor.relay.onionServices = lib.mapAttrs (_: e: { map = [ e.port ]; }) onionEntries;
+  # Explicit target, not a bare port number -- confirmed live (via
+  # verbose Tor logging on both client and server) that a bare integer
+  # here (map = [ e.port ];) makes NixOS's own tor module's `apply`
+  # render `target = null` (nixos/modules/services/security/tor.nix),
+  # which in turn writes a torrc line with NO target address at all
+  # ("HiddenServicePort 8888", not "HiddenServicePort 8888 127.0.0.1:8888")
+  # -- the man-page-documented "no target means 127.0.0.1:VIRTPORT"
+  # default did NOT kick in here: the real symptom was the rendezvous
+  # circuit opening successfully (confirmed: introduce/rendezvous cells
+  # all completed) but then handle_hs_exit_conn() logging "Didn't find
+  # rendezvous service ... (DNS lookup pending)" and the connection
+  # timing out after 120s, never actually reaching this machine's own
+  # searxng on 127.0.0.1. Spelling out target = { addr = "127.0.0.1";
+  # port = e.port; } removes the ambiguity entirely.
+  services.tor.relay.onionServices = lib.mapAttrs
+    (_: e: {
+      map = [{
+        port = e.port;
+        target = { addr = "127.0.0.1"; port = e.port; };
+      }];
+    })
+    onionEntries;
 
   # ./lib/mdns/ only ever ANSWERS mDNS queries on the wire -- it doesn't
   # make this machine (or any client) actually perform an mDNS lookup for
