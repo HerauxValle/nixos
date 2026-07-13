@@ -151,6 +151,31 @@ lib.mkIf config.vars.ports.enabled {
   services.tor.enable = lib.mkIf (onionEntries != { }) true;
   services.tor.relay.onionServices = lib.mapAttrs (_: e: { map = [ e.port ]; }) onionEntries;
 
+  # ./lib/mdns/ only ever ANSWERS mDNS queries on the wire -- it doesn't
+  # make this machine (or any client) actually perform an mDNS lookup for
+  # a bare `*.local` name in the first place. That's a separate, client-
+  # side NSS concern: without an `mdns4_minimal` entry in
+  # /etc/nsswitch.conf's hosts line, glibc's getaddrinfo() (which every
+  # browser/curl/etc. goes through) never even sends the multicast query,
+  # so a *.local name here just fails to resolve regardless of how
+  # correct the responder is (confirmed live -- ERR_NAME_NOT_RESOLVED
+  # even though tcpdump would show the responder answering correctly).
+  # Same system.nssModules/system.nssDatabases.hosts wiring
+  # services.avahi.nssmdns4 uses internally (confirmed by reading
+  # nixos/modules/services/networking/avahi-daemon.nix directly) --
+  # replicated here directly instead of setting services.avahi.enable +
+  # nssmdns4, since that would also start avahi-daemon itself publishing
+  # its own single machine-wide hostname, a whole extra daemon this
+  # module has no use for (./lib/mdns/ already does the actual
+  # publishing). mkBefore, not mkAfter -- mdns4_minimal's own
+  # "[NOTFOUND=return]" already makes it a no-op for anything that isn't
+  # a *.local name, so it's safe to try first; ordering it before `dns`
+  # also means a *.local query never even round-trips to a real DNS
+  # server first only to (correctly) fail there.
+  system.nssModules = lib.mkIf (localEntries != { }) [ pkgs.nssmdns ];
+  system.nssDatabases.hosts =
+    lib.mkIf (localEntries != { }) (lib.mkBefore [ "mdns4_minimal [NOTFOUND=return]" ]);
+
   systemd.services = lib.mkMerge (
     (lib.mapAttrsToList (key: e: (mdnsService key e).systemd.services) localEntries)
     ++ (lib.mapAttrsToList (key: e: (bridgeService key e).systemd.services) ipv6Entries)
