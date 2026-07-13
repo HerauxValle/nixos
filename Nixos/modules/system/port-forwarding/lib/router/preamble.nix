@@ -8,7 +8,7 @@
 # serves both :80 (plain) and :443 (TLS, cert from ../cert/) --
 # unlike pmg's own cmd_route/cmd_route_https (two near-duplicate
 # functions), the https-or-not choice is just an argv flag here (see
-# server.nix), so the lookup/relay/handler logic isn't duplicated.
+# server.py), so the lookup/relay/handler logic isn't duplicated.
 
 # syntax: python
 ''

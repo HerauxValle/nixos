@@ -1,10 +1,10 @@
 { config, lib, ... }:
 
-# Logic that reads these lives in ./dotfiles.nix, imported below.
+# Logic that reads these lives in ./lib/, imported below.
 # remoteUrl has no sensible generic default (this specific repo's remote)
 # -- its one real definition lives in Nixos/config/customized.nix.
 {
-  imports = [ ./dotfiles.nix ];
+  imports = [ ./lib ];
 
   options.vars.dotfilesBackup = {
     enable = lib.mkOption {
@@ -56,9 +56,20 @@
     # committing -- never pushed anywhere. No sensible generic default
     # (this machine's specific sensitive paths) -- its one real definition
     # lives in Nixos/config/excludes.nix.
+    #
+    # Gitignore-style patterns are supported, not just exact paths: an
+    # entry with none of *, ?, [ is a plain literal path (matched exactly
+    # as before -- existing entries keep their exact prior behavior with
+    # no change), one containing any of those is matched with Python's
+    # fnmatch against every path under dotfilesPath -- the same engine
+    # git-filter-repo's own glob matching uses internally, so a pattern
+    # excludes identically from the live snapshot and from the
+    # (retroactive) history scrub. See lib/scripts/exclude.py's own top
+    # comment for the one real difference from an actual .gitignore
+    # (fnmatch's `*` already crosses `/`, so there's no need for `**`).
     excludeFiles = lib.mkOption {
       type = lib.types.listOf lib.types.str;
-      description = "Paths (relative to dotfilesPath) stripped from the snapshot before committing.";
+      description = "Paths (relative to dotfilesPath) stripped from the snapshot before committing. Supports gitignore-style glob patterns (*, ?, [seq]), not just exact paths.";
     };
 
     # Git identity stamped on the snapshot commit (passed via -c, never

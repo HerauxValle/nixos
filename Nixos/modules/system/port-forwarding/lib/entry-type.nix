@@ -100,7 +100,7 @@ lib.types.submodule ({ config, ... }: {
           (confirmed real for some Go binaries, e.g. via strace) -- the
           bridge detects the port's already taken at its own bind()
           and exits cleanly instead of conflicting with it (see
-          ../lib/ipv6-bridge/server.nix's own comment for the full
+          ../lib/ipv6-bridge/server.py's own comment for the full
           story, including the real crash this used to cause before
           that was fixed).
         '';

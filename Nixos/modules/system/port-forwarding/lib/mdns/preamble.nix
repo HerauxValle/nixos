@@ -3,7 +3,7 @@
 # First fragment -- imports + the per-entry constant every other
 # fragment reads (the name is Nix-interpolated per instance, same
 # reasoning as ../ipv6-bridge/preamble.nix's PORT/MODE constants; the
-# IP is auto-detected at runtime instead, see responder.nix, since it
+# IP is auto-detected at runtime instead, see responder.py, since it
 # can change after the service starts -- DHCP renew, interface roam).
 
 # syntax: python

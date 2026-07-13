@@ -71,6 +71,9 @@ in
       powershell # Windows
       quickshell # Aesthetic
 
+      shellcheck # linter
+      bash-language-server # lsp
+
     ]
     ++ (with pkgs.kdePackages; [
 

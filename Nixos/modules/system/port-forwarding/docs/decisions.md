@@ -4,19 +4,25 @@ Distilled from actual back-and-forth building this module, not
 abstract advice -- each one exists because a concrete question came up
 or a real bug was found.
 
-## Python scripts are concatenated Nix fragments, not a separate project
+## Python scripts are concatenated fragments, not a separate project
 
-`lib/ipv6-bridge/`, `lib/mdns/`, `lib/cert/`, `lib/router/`, and
-`lib/ip-history.nix` all generate their actual Python via multiple
-`.nix` files, each returning one complete, self-contained function
-definition as a string, concatenated together at build time (see any
-of those directories' own `default.nix`). Two things this
-deliberately isn't:
+`lib/ipv6-bridge/`, `lib/mdns/`, `lib/cert/`, and `lib/router/` each
+assemble their actual Python from real `.py` fragment files in that
+directory (one complete, self-contained function definition per file),
+concatenated together at build time via `builtins.readFile` (see any
+of those directories' own `default.nix`). Only each directory's own
+`preamble.nix` stays a `.nix` file generating a string -- it's the one
+piece that actually needs a Nix value baked in (a port number, a DNS
+name list, ...), so it's still templated at eval time instead of being
+a plain file. `lib/ip-history.py` has no fragments at all, since with
+no Nix-templated values needed it's just one plain file, read directly
+by `port-forwarding.nix`. Two things the fragment-directories'
+concatenation deliberately isn't:
 
 - **Not one giant script per feature.** Each fragment stays under this
   repo's own ~200-300 line-per-file convention, split by concern (e.g.
-  `ipv6-bridge/tls.nix`, `http-request.nix`, `http-response.nix`,
-  `relay.nix`, `handler.nix`, `server.nix` -- six focused pieces
+  `ipv6-bridge/tls.py`, `http-request.py`, `http-response.py`,
+  `relay.py`, `handler.py`, `server.py` -- six focused pieces
   instead of one ~250-line function).
 - **Not a standalone software project either** (no `pyproject.toml`,
   no separately-versioned package). This repo already has a precedent
@@ -36,7 +42,7 @@ follow whatever's most readable (bottom-up: helpers first, the actual
 
 ## One `port-forwarding` CLI, not several
 
-`lib/cert/` and `lib/ip-history.nix` were originally two separate
+`lib/cert/` and `lib/ip-history.py` were originally two separate
 PATH-installed binaries (`port-forwarding-cert`, `port-forwarding-ip-
 history`). Unified into one `port-forwarding cert|history|onion|help
 ...` command -- a thin shell dispatcher in `port-forwarding.nix` onto
@@ -49,7 +55,7 @@ purely at the manual-CLI layer, matching pmg's own single-binary-many-
 subcommands shape (`pmg cert ...`, `pmg show ...`).
 
 `cert` and `history` dispatch straight to a real Python script
-(`lib/cert/`'s own concatenated fragments, `lib/ip-history.nix`) --
+(`lib/cert/`'s own concatenated fragments, `lib/ip-history.py`) --
 `onion` doesn't, and deliberately isn't a third Python fragment set:
 every one of its operations (delete a file, `systemctl restart`, `cat`
 a file back, wait on a file appearing) is a single shell builtin or
@@ -93,7 +99,7 @@ old key isn't there anymore before Tor looks for it.
 guarantee Tor has finished the onion-service-specific part of its own
 startup -- the hostname file can still be a couple of seconds away) is
 a short, hard-capped poll (up to 10s), not the same category of thing
-as `../lib/ipv6-bridge/wait-backend.nix`'s netlink-based wait. That one
+as `../lib/ipv6-bridge/wait-backend.py`'s netlink-based wait. That one
 exists because a *recurring, per-service-start* busy-poll would be
 genuinely wasteful across every current and future backend, forever.
 This one is a *single, user-initiated, one-shot* CLI command reporting

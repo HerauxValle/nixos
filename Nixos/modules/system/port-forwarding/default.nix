@@ -15,7 +15,7 @@
 # name-resolver lives in ./lib/router/, self-signed cert management
 # (pmg's own `cert show/regen/serve`) in ./lib/cert/, and IP history
 # tracking (pmg's own `show changed`/`show ipv4|ipv6 --last`) in
-# ./lib/ip-history.nix.
+# ./lib/ip-history.py.
 #
 # Entry submodule type lives in ./lib/entry-type.nix (split out, same
 # reasoning as mountpoints' own device-type.nix). Logic that resolves
@@ -111,7 +111,7 @@
         description = ''
           Periodically snapshot this machine's own public IPv4/IPv6
           addresses to /var/lib/port-forwarding/ip-history.json (see
-          ./lib/ip-history.nix), queryable via `port-forwarding history
+          ./lib/ip-history.py), queryable via `port-forwarding history
           ...` -- same idea as pmg's own `show changed`/
           `show ipv4|ipv6 --last`.
         '';

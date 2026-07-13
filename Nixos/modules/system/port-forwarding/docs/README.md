@@ -11,6 +11,8 @@
 - [`decisions.md`](./decisions.md) -- the specific, sometimes-non-obvious
   calls made building this, and the concrete thing (a live test, a real
   bug) that justified each one.
+- [`stubs.md`](./stubs.md) -- why every fragment directory has a
+  `_stub.py`, and why it's inert -- never read by Nix, never executed.
 
 For the actual option reference, see `glossar/system/port-forwarding.nix`
 (every field, commented out, copy-paste ready) or `default.nix`'s own

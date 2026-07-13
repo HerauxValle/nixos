@@ -15,8 +15,8 @@ let
 
   fragments = [
     (import ./preamble.nix { inherit name; })
-    (import ./dns-codec.nix { })
-    (import ./responder.nix { })
+    (builtins.readFile ./dns-codec.py)
+    (builtins.readFile ./responder.py)
   ];
 
   script = pkgs.writeText "port-forwarding-mdns-${key}.py" (lib.concatStringsSep "\n" fragments);

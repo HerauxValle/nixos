@@ -16,8 +16,8 @@ else
     script = pkgs.writeText "port-forwarding-router.py" (
       lib.concatStringsSep "\n" [
         (import ./preamble.nix { inherit routes redirectMode; })
-        (import ./handler.nix { })
-        (import ./server.nix { })
+        (builtins.readFile ./handler.py)
+        (builtins.readFile ./server.py)
       ]
     );
   in

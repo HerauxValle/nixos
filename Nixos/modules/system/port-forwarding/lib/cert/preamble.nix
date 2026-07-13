@@ -1,4 +1,4 @@
-{ dnsNames }:
+{ dnsNames, iptables }:
 
 # First fragment -- imports + constants every other fragment in this
 # directory reads. dnsNames (the cert's SAN list) is computed in Nix
@@ -21,6 +21,7 @@
   CERT_FILE = CERT_DIR / "leaf.crt"
   KEY_FILE = CERT_DIR / "leaf.key"
   DNS_NAMES = ${builtins.toJSON dnsNames}
+  IPTABLES = ${builtins.toJSON iptables}
 
 
   def which(cmd):

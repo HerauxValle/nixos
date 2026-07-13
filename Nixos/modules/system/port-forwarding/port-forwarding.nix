@@ -38,7 +38,7 @@
 #   Self-signed certs     -> ./lib/cert/ (no native equivalent; shared
 #                            by ./lib/router/ and any ipv6-bridge entry
 #                            that wants TLS without its own cert)
-#   IP history             -> ./lib/ip-history.nix (no native equivalent)
+#   IP history             -> ./lib/ip-history.py (no native equivalent)
 #   netlink watcher        -> replaced entirely by each entry's own
 #                            `service` field binding into systemd's
 #                            native BindsTo=/PartOf=/wantedBy=, not
@@ -117,7 +117,7 @@ let
   # localRoutes is empty; this just adds the resolveUrl gate on top.
   router = if config.vars.ports.resolveUrl then routerBuilder else { };
 
-  ipHistoryScriptFile = pkgs.writeText "port-forwarding-ip-history.py" (import ./lib/ip-history.nix { });
+  ipHistoryScriptFile = pkgs.writeText "port-forwarding-ip-history.py" (builtins.readFile ./lib/ip-history.py);
 in
 
 # Global enable wraps the entire returned config -- same standard
@@ -224,7 +224,7 @@ lib.mkIf config.vars.ports.enabled {
   #    confirmed live to not perform the delegation at all (instant
   #    result, zero network traffic even with a real, working responder
   #    and avahi-daemon both already running).
-  # 3. The responder itself (./lib/mdns/responder.nix) has to honor the
+  # 3. The responder itself (./lib/mdns/responder.py) has to honor the
   #    "QU" unicast-response bit (RFC 6762 5.4) -- confirmed via a raw
   #    Python mDNS client that avahi-daemon's own outbound query sets QU
   #    and only ever listens on its own ephemeral port for a direct
@@ -403,7 +403,7 @@ lib.mkIf config.vars.ports.enabled {
               # short, hard-capped wait for a single one-shot CLI
               # invocation to report the real new address back, not a
               # recurring per-service-start race like
-              # ./lib/ipv6-bridge/wait-backend.nix exists to avoid.
+              # ./lib/ipv6-bridge/wait-backend.py exists to avoid.
               i=0
               while [ ! -f "/var/lib/tor/onion/$key/hostname" ]; do
                 i=$((i + 1))

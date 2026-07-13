@@ -14,11 +14,11 @@
 
 let
   fragments = [
-    (import ./preamble.nix { inherit dnsNames; })
-    (import ./ca.nix { })
-    (import ./leaf.nix { })
-    (import ./serve.nix { iptables = "${pkgs.iptables}/bin/iptables"; })
-    (import ./cli.nix { })
+    (import ./preamble.nix { inherit dnsNames; iptables = "${pkgs.iptables}/bin/iptables"; })
+    (builtins.readFile ./ca.py)
+    (builtins.readFile ./leaf.py)
+    (builtins.readFile ./serve.py)
+    (builtins.readFile ./cli.py)
   ];
 
   script = pkgs.writeText "port-forwarding-cert.py" (lib.concatStringsSep "\n" fragments);
@@ -43,7 +43,7 @@ in
         # read leaf.crt/leaf.key run as an arbitrary DynamicUser each
         # generation, not a group this directory could sensibly be
         # scoped to, so they need to at least traverse in. ca.key
-        # itself stays 0600 (see ca.nix) -- only the leaf cert/key
+        # itself stays 0600 (see ca.py) -- only the leaf cert/key
         # inside are meant to be broadly readable.
         StateDirectoryMode = "0755";
       };

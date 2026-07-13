@@ -4,7 +4,7 @@
 # wires it as a systemd service, one instance per port entry with
 # net.ipv6 = true. Fragment order doesn't matter for correctness
 # (Python resolves function calls at call time, not definition time)
-# -- kept roughly bottom-up (helpers first, server.nix's main() last)
+# -- kept roughly bottom-up (helpers first, server.py's main() last)
 # for readability, not because it has to be.
 #
 # autoCert (from ../cert/) is the fallback for any entry that wants
@@ -24,7 +24,7 @@
 # entry-type.nix's own comment -- but not the READINESS half: Wants=/
 # After= only orders unit *start jobs* (Type=simple's "started" fires
 # the instant the process forks, not once it's actually bound its own
-# port), so ./wait-backend.nix reintroduces pmg's exact same
+# port), so ./wait-backend.py reintroduces pmg's exact same
 # process-connector-netlink technique for that one narrower purpose --
 # see its own header comment for the real crash this fixes and why a
 # sleep/poll loop isn't good enough.
@@ -42,13 +42,13 @@ let
       mode = entry.tls.mode;
       inherit certfile keyfile httpRedirect;
     })
-    (import ./wait-backend.nix { })
-    (import ./tls.nix { })
-    (import ./relay.nix { })
-    (import ./http-request.nix { })
-    (import ./http-response.nix { })
-    (import ./handler.nix { })
-    (import ./server.nix { })
+    (builtins.readFile ./wait-backend.py)
+    (builtins.readFile ./tls.py)
+    (builtins.readFile ./relay.py)
+    (builtins.readFile ./http-request.py)
+    (builtins.readFile ./http-response.py)
+    (builtins.readFile ./handler.py)
+    (builtins.readFile ./server.py)
   ];
 
   script = pkgs.writeText "port-forwarding-bridge6-${key}.py" (lib.concatStringsSep "\n" fragments);
@@ -65,7 +65,7 @@ in
     wantedBy = if entry.service != null then [ entry.service ] else [ "multi-user.target" ];
     serviceConfig = {
       ExecStart = "${pkgs.python3}/bin/python3 ${script}";
-      # on-failure, not always -- a clean exit 0 (see ./server.nix) means
+      # on-failure, not always -- a clean exit 0 (see ./server.py) means
       # "the backend turned out to already be dual-stack, nothing to
       # bridge", a terminal state that shouldn't keep restarting every
       # 2s forever. Any real crash (nonzero exit) still retries.
