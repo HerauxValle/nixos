@@ -28,7 +28,10 @@
   #   blocking = false;       # default for entries.<key>.blocking
   #   httpRedirect = false;   # ipv6-bridge entries: 301 http->https when a cert exists
   #   tunnelHost = "localhost.run"; # SSH host every public = true entry tunnels to
-  #   resolveUrl = false;     # master toggle for the port-80/443 .local name resolver
+  #   resolveUrl = true;      # master toggle for the port-80/443 .local name resolver --
+  #                           # true (default) matches pmg's own real default: a bare
+  #                           # http://<name>.local reaches a local = true entry without
+  #                           # typing its port.
   #   redirect = false;       # resolveUrl byte-forwarding (false) vs 301 redirect (true)
 
   #   ipHistory = {

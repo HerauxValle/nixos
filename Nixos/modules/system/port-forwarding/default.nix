@@ -75,13 +75,19 @@
 
     resolveUrl = lib.mkOption {
       type = lib.types.bool;
-      default = false;
+      default = true;
       description = ''
         Master toggle for the port-80/443 .local name resolver (see
-        ./lib/router/) -- reach any local = true entry's name without
-        typing the port. false (default, matches pmg's own resolveurl
-        default): port 80 stays free, exactly as if this feature didn't
-        exist.
+        ./lib/router/) -- true (default, matches pmg's own
+        _CONFIG_DEFAULT["resolveurl"], which really is True there, not
+        False) means a bare http://<name>.local reaches any local = true
+        entry without typing its port: the resolver listens on 80/443
+        itself and proxies to the real port behind the scenes, same as
+        pmg's own `pmg _route`. This is what let the port get dropped off
+        the end of the URL in the old setup -- without this, every
+        local = true entry only ever resolves at http://<name>.local:<port>,
+        never bare. false -- port 80 stays free, exactly as if this
+        feature didn't exist.
       '';
     };
 
