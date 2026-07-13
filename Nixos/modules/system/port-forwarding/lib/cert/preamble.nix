@@ -10,6 +10,7 @@
 # syntax: python
 ''
   #!/usr/bin/env python3
+  import shutil
   import subprocess
   import sys
   from pathlib import Path
@@ -23,5 +24,10 @@
 
 
   def which(cmd):
-      return subprocess.run(["which", cmd], capture_output=True).returncode == 0
+      # shutil.which, not shelling out to the real `which` binary --
+      # confirmed live that a systemd unit's minimal PATH doesn't
+      # actually have `which` on it at all (FileNotFoundError, not a
+      # "command not found" exit code), and Python's stdlib already
+      # does the exact same PATH-search logic with no subprocess needed.
+      return shutil.which(cmd) is not None
 ''
