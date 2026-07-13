@@ -40,49 +40,66 @@
       jellyfin = {
         port = 8096; # config/self-hosted/jellyfin.nix has port = null -- 8096 is jellyfin's own upstream default
         service = "self-hosted-jellyfin.service";
-        mode.local = { name = "jellyfin"; };
+        mode.local = {
+          name = "jellyfin";
+        };
       };
 
       searxng = {
         port = 8888; # config/self-hosted/searxng.nix has port = null -- 8888 is server.port in its settings
         service = "self-hosted-searxng.service";
-        mode.local = { name = "searxng"; };
+        mode.local = {
+          name = "searxng";
+        };
       };
 
       ollama = {
         port = 11434; # config/self-hosted/ollama.nix has port = null -- OLLAMA_HOST there is "0.0.0.0:11434"
         service = "self-hosted-ollama.service";
-        mode.local = { name = "ollama"; };
+        mode.local = {
+          name = "ollama";
+        };
       };
 
       stash = {
         port = 9999;
         service = "self-hosted-stash.service";
-        mode.local = { name = "stash"; };
+        mode.local = {
+          name = "stash";
+        };
+        net.loopbackOnly = true;
       };
 
       openwebui = {
         port = 8080;
         service = "self-hosted-openwebui.service";
-        mode.local = { name = "openwebui"; };
+        mode.local = {
+          name = "openwebui";
+        };
       };
 
       odysseus = {
         port = 7000;
         service = "self-hosted-odysseus.service";
-        mode.local = { name = "odysseus"; };
+        mode.local = {
+          name = "odysseus";
+        };
       };
 
       qbittorrent = {
         port = 7080; # WebUI\Port from the recovered qBittorrent.conf (see config/self-hosted/qbittorrent.nix)
         service = "qbittorrent.service"; # native nixpkgs unit name, not self-hosted-qbittorrent
-        mode.local = { name = "qbittorrent"; };
+        mode.local = {
+          name = "qbittorrent";
+        };
       };
 
       comfyui = {
         port = 8188; # ComfyUI's own upstream default -- no port override in config/self-hosted/comfyui/comfyui.nix
         service = "self-hosted-comfyui.service";
-        mode.local = { name = "comfyui"; };
+        mode.local = {
+          name = "comfyui";
+        };
 
         # main.py's own default listen address is 127.0.0.1 -- its
         # execStart (see modules/services/self-hosted/comfyui/comfyui.nix)
