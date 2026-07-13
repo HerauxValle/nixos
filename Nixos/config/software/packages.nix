@@ -75,6 +75,19 @@ in
       shellcheck # linter
       bash-language-server # lsp
 
+      # Compilers
+      gcc
+      gnumake
+      cmake
+      meson
+      pkg-config
+      rustc
+      cargo
+      go
+      zig
+      swift
+      dotnet-sdk
+
     ]
     ++ (with pkgs.kdePackages; [
 
