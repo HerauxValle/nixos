@@ -67,6 +67,13 @@
             esbenp.prettier-vscode
             # Supercharged Git visualization (highly recommended)
             eamodio.gitlens
+
+            # --- JSON, YAML, & Configs ---
+            # Dictates strict formatting for JSON, JSONC, and markdown
+            esbenp.prettier-vscode
+
+            # Rich JSON Schema validation, autocompletion, and YAML support
+            redhat.vscode-yaml
           ])
           ++ [
             # --- Custom Marketplace Extensions ---
