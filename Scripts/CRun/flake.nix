@@ -25,7 +25,7 @@
 
           # Tip: If dependencies change, swap this string with lib.fakeHash
           # to see what string Nix expects next.
-          cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+          cargoHash = "sha256-VAgmoai/e6P6EZeO1MuBaa2UPYXTe8D0G/xS6R1gSQ8=";
         };
       }
     );

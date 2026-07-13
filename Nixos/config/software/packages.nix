@@ -9,6 +9,9 @@ let
   claudeCode = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
   mybarBackend = pkgs.callPackage ../../../Quickshell/MyBar/backend.nix { };
 
+  # Pull the declarative binary package out of your flake inputs
+  crun = inputs.crun.packages.${pkgs.stdenv.hostPlatform.system}.default;
+
   # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups (shifted
   # symbol keybinds like ctrl+dollar/asterisk/exclam) -- that's not a normal
   # linked dependency, so listing libxkbcommon in systemPackages alone never
@@ -41,6 +44,7 @@ in
       mpv # Video player (was installed on Arch, missing here)
       oculante # Image viewer (was installed on Arch, missing here)
       mybarBackend # MyBar's mybar-* backend binaries (same recipe as scripts/build/compile.sh)
+      crun
 
       # Languages
       python3 # Python
