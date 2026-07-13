@@ -51,6 +51,9 @@ def check_excludes(dotfiles_path, patterns_file):
             "the following excludeFiles entries do not match anything under dotfilesPath "
             "(renamed, typo'd, mistyped pattern, or never created?) and currently exclude nothing:\n"
             + "\n".join(f"  - {pattern}" for pattern in missing)
+            + "\n\ninfo: these are often just preventative excludes for files/directories "
+              "that do not currently exist. You can safely ignore this warning unless you "
+              "expected one of these entries to match."
         )
 
 
