@@ -11,6 +11,13 @@
   TLS_CTX = make_tls_context()
 
   def main():
+      # Zero-CPU wait for the backend's own listener on PORT -- see
+      # ./wait-backend.nix. Guarantees the backend's own bind (dual-stack
+      # or not) has already happened by the time we attempt ours, every
+      # single start, regardless of which backend this is or how long
+      # its own startup takes.
+      wait_for_backend(PORT)
+
       srv = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
       srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
       srv.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
@@ -18,16 +25,16 @@
           srv.bind(("::", PORT))
       except OSError as e:
           if e.errno == errno.EADDRINUSE:
-              # Real, confirmed case (not hypothetical): some backends'
-              # own net.Listen("tcp", "0.0.0.0:PORT") -- Go's stash, at
-              # least -- actually binds ONE dual-stack [::]:PORT socket
-              # (IPV6_V6ONLY=0) that already covers IPv6 itself, once the
-              # ExecStartPre wait-for-backend step (see ./default.nix)
-              # guarantees the backend's own bind happens first. Nothing
-              # left for this bridge to do in that case -- exit 0 (not
-              # the generic sys.exit(1) below) so Restart=on-failure
-              # doesn't loop forever retrying a bind that will never
-              # succeed.
+              # The backend itself turned out to already be dual-stack
+              # (confirmed real, not hypothetical: Go's net.Listen("tcp",
+              # "0.0.0.0:PORT") -- stash, at least -- actually binds ONE
+              # dual-stack [::]:PORT socket, IPV6_V6ONLY=0, that already
+              # covers IPv6 itself). wait_for_backend above already
+              # guarantees the backend bound first, so this means IPv6 is
+              # already served directly by the backend -- nothing left
+              # for this bridge to do. Exit 0 (not the generic
+              # sys.exit(1) below) so Restart=on-failure doesn't loop
+              # forever retrying a bind that will never succeed.
               print(f"[bridge6 {PORT}] [::]:{PORT} already bound (likely the backend's own dual-stack listener) -- nothing to bridge, exiting.", flush=True)
               sys.exit(0)
           print(f"[bridge6 {PORT}] could not bind [::]:{PORT}: {e}", file=sys.stderr, flush=True)

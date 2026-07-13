@@ -15,6 +15,7 @@
   import re
   import socket
   import ssl
+  import struct
   import sys
   import threading
   import time

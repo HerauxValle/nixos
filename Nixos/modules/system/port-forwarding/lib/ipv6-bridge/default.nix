@@ -19,8 +19,15 @@
 # wantedBy is designed to work), bindsTo + after make it start after
 # and stop with that service (plus the cert-ensure service too, when
 # falling back to autoCert). entry.service = null falls back to
-# always-on (wantedBy multi-user.target), replacing pmg's own
-# netlink-based watcher entirely -- see entry-type.nix's own comment.
+# always-on (wantedBy multi-user.target). This replaces the OPEN/CLOSE
+# half of pmg's own netlink-based watcher entirely -- see
+# entry-type.nix's own comment -- but not the READINESS half: Wants=/
+# After= only orders unit *start jobs* (Type=simple's "started" fires
+# the instant the process forks, not once it's actually bound its own
+# port), so ./wait-backend.nix reintroduces pmg's exact same
+# process-connector-netlink technique for that one narrower purpose --
+# see its own header comment for the real crash this fixes and why a
+# sleep/poll loop isn't good enough.
 
 key: entry:
 
@@ -35,6 +42,7 @@ let
       mode = entry.protocol;
       inherit certfile keyfile httpRedirect;
     })
+    (import ./wait-backend.nix { })
     (import ./tls.nix { })
     (import ./relay.nix { })
     (import ./http-request.nix { })
@@ -57,7 +65,11 @@ in
     wantedBy = if entry.service != null then [ entry.service ] else [ "multi-user.target" ];
     serviceConfig = {
       ExecStart = "${pkgs.python3}/bin/python3 ${script}";
-      Restart = "always";
+      # on-failure, not always -- a clean exit 0 (see ./server.nix) means
+      # "the backend turned out to already be dual-stack, nothing to
+      # bridge", a terminal state that shouldn't keep restarting every
+      # 2s forever. Any real crash (nonzero exit) still retries.
+      Restart = "on-failure";
       RestartSec = 2;
       DynamicUser = true;
       AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];

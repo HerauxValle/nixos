@@ -178,31 +178,6 @@ lib.mkIf config.vars.ports.enabled {
   networking.nat.forwardPorts = dnat.forwardPorts;
   boot.kernel.sysctl."net.ipv4.conf.all.route_localnet" = lib.mkIf dnat.needsRouteLocalnet true;
 
-  # The real, systemic fix for a genuine crash found live: some backends
-  # (confirmed via strace -- stash, a Go binary) told to bind "0.0.0.0"
-  # actually end up with ONE dual-stack [::]:PORT socket (Go's net
-  # package silently upgrades a wildcard bind to dual-stack whenever the
-  # kernel allows it), which already covers IPv6 clients on its own --
-  # and directly collides with this module's own IPv6 bridge trying to
-  # bind that exact same [::]:PORT tuple, whichever of the two starts
-  # first. net.ipv6.bindv6only is the actual kernel-level knob this
-  # dual-stack upgrade depends on (default 0, permissive) -- flipping it
-  # to 1 makes EVERY "0.0.0.0" bind on this machine strictly IPv4-only
-  # again, for any current or future backend, with no per-service
-  # detection/config and no startup-ordering workaround needed: this
-  # module's own bridge (explicit IPV6_V6ONLY=1 already) and any
-  # backend's IPv4 bind then always occupy genuinely separate address
-  # families for the same port number, unconditionally, every single
-  # start -- not "usually", not "after a short wait". The tradeoff is
-  # real and worth naming: any OTHER unrelated dual-stack-listening
-  # process on this machine also loses its automatic IPv6 coverage from
-  # here on and needs its own explicit IPv6 bind -- acceptable here
-  # since this module already treats IPv4/IPv6 as two deliberately
-  # separate mechanisms (firewall+DNAT vs. the bridge) everywhere else,
-  # so an implicit dual-stack upgrade was only ever an accident, not a
-  # relied-on feature.
-  boot.kernel.sysctl."net.ipv6.bindv6only" = lib.mkIf (ipv6Entries != { }) true;
-
   services.tor.enable = lib.mkIf (onionEntries != { }) true;
   services.tor.relay.onionServices = lib.mapAttrs (_: e: { map = [ e.port ]; }) onionEntries;
 
