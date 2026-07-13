@@ -30,3 +30,5 @@
 10. Reorganize pacnix cli command tree to be more coherent with the system.
 11. Services cleanup used ports after shutdown -- do not keep stale open ports -- e.g. stash.
 ...
+
+**Own the complexity you understand. Outsource the complexity you don't want to become an expert in.**

@@ -64,6 +64,7 @@ in
       btrfs-progs # btrfs restore -- no-mount btrfs keyfile read, modules/security/sudo-keyfile.nix
       tpm2-tools # TPM tooling
       ripgrep # For "todo tree" vscode extension
+      cloc # alternative / extension to tree
 
       # Shells
       fish # Main
