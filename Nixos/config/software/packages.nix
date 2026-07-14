@@ -48,6 +48,8 @@ in
       crun
       ltree
 
+      neovim
+
       # Languages
       python3 # Python
       nil # Nix LSP, for VS Code's "Nix IDE" extension (nix.serverPath)
