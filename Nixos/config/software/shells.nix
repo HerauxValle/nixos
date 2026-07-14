@@ -18,6 +18,5 @@
       packages = with pkgs; [ tmux ];
       # recursive = true; # default
     }
-
   ];
 }

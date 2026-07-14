@@ -13,11 +13,11 @@
 
 
 
--- terminal    = "sh -c 'waveterm || konsole || kitty'"
--- fileManager = "sh -c 'dolphin || pcmanfm-qt'"
+terminal    = "sh -c 'waveterm || konsole || kitty'"
+fileManager = "sh -c 'dolphin || pcmanfm-qt'"
 -- menu        = "sh -c 'wofi --show drun || rofi -show drun'"
--- browser     = "sh -c 'GTK_THEME=Adwaita:dark vivaldi --enable-features=WebUIDarkMode --force-dark-mode || firefox'"
--- editor      = "sh -c 'code-oss || nano'"
+browser     = "sh -c 'GTK_THEME=Adwaita:dark vivaldi --enable-features=WebUIDarkMode --force-dark-mode || firefox'"
+editor      = "sh -c 'code-oss || nano'"
 
 -- --------------------------
 -- -- System-wide Defaults --
@@ -29,9 +29,9 @@
 -- IMPORTANT: "super+m" is NOT enough to apply those.
 -- Log out and back in, or restart.
 
--- hl.env("EDITOR", "fresh")
--- hl.env("VISUAL", "code-oss")
--- hl.env("BROWSER", "vivaldi")
+hl.env("EDITOR", "fresh")
+hl.env("VISUAL", "code-oss")
+hl.env("BROWSER", "vivaldi")
 
 -- --------------------------
 -- ----- More variables -----
