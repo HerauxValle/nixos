@@ -21,6 +21,6 @@ hl.bind(mainMod .. " + ALT + T", hl.dsp.exec_cmd("kitty --hold -o confirm_os_win
 hl.bind(mainMod .. " + ALT + V", hl.dsp.exec_cmd("kitty --hold -o confirm_os_window_close=0 pulsemixer"))
 
 -- Usefull gadgets
-hl.bind(mainMod .. " + ALT + SPACE", hl.dsp.exec_cmd("bash -c \"kitty --class menu-float -e fish -c launcher || " .. menu .. " -show drun\""))
+-- hl.bind(mainMod .. " + ALT + SPACE", hl.dsp.exec_cmd("bash -c \"kitty --class menu-float -e fish -c launcher || " .. menu .. " -show drun\""))
 hl.bind(mainMod .. " + P",           hl.dsp.exec_cmd("hyprpicker -a -f hex && notify-send \"Color copied!\""))
 hl.bind(mainMod .. " + ALT + N",     hl.dsp.exec_cmd("nm-connection-editor"))
