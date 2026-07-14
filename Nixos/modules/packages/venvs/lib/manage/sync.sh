@@ -16,11 +16,11 @@ declared_names="$(jq -r 'keys | join(" ")' <<< "$VENVCTL_DATA")"
 status=0
 while IFS= read -r name; do
   path="$(jq -r --arg n "$name" '.[$n].resolvedPath' <<< "$VENVCTL_DATA")"
-  python_attr="$(jq -r --arg n "$name" '.[$n].python' <<< "$VENVCTL_DATA")"
+  python_bin="$(jq -r --arg n "$name" '.[$n].pythonBin' <<< "$VENVCTL_DATA")"
   packages_json="$(jq -c --arg n "$name" '.[$n].packages' <<< "$VENVCTL_DATA")"
   lockfile="$(jq -r --arg n "$name" '.[$n].lockfile' <<< "$VENVCTL_DATA")"
 
-  bash "$VENVCTL_LIBROOT/manage/build.sh" "$name" "$path" "$python_attr" "$packages_json" "$lockfile" || status=1
+  bash "$VENVCTL_LIBROOT/manage/build.sh" "$name" "$path" "$python_bin" "$packages_json" "$lockfile" || status=1
 done < <(jq -r 'keys[]' <<< "$VENVCTL_DATA")
 
 # Then prune manifest entries with no matching declaration.
