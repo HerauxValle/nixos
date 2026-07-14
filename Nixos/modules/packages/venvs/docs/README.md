@@ -56,9 +56,10 @@ venvctl list                 # show all declared venvs + build state
 venvctl update <name|all>    # bump only "latest"-pinned packages
 ```
 
-`venvctl activate` / `venvctl deactivate` exist but aren't meant to be
-run bare -- a subprocess can't mutate your shell's environment. Source
-the shim instead:
+`venvctl activate` / `venvctl deactivate` can't just be run as-is -- a
+subprocess can't mutate your shell's environment. Source the shim once
+and it shadows the real `venvctl` binary with a function of the same
+name, so there's a single command surface either way:
 
 ```fish
 # in config.fish
@@ -68,12 +69,15 @@ source ~/Dotfiles/Nixos/modules/packages/venvs/lib/shims/activate.fish
 then:
 
 ```fish
-venv-activate scraper
-venv-deactivate
+venvctl activate scraper   # handled in-shell by the shim
+venvctl deactivate          # handled in-shell by the shim
+venvctl list                 # passed through to the real binary
+venvctl update all           # passed through to the real binary
 ```
 
 (A bash/zsh equivalent ships in `lib/shims/activate.bash` for parity,
-unused today.)
+unused today -- same merged `venvctl` function, sourced from
+`.bashrc`/`.zshrc` instead.)
 
 ## A path can't be both a shell and a venv trigger
 
