@@ -34,7 +34,16 @@ vim.opt.rtp:prepend(lazypath)
 --     change_detection = { notify = false },
 -- })
 
+-- require("lazy").setup("plugins", {
+--    root = vim.fn.expand("~/.impure/neovim/plugins"),
+--    change_detection = { notify = false },
+--})
+
 require("lazy").setup("plugins", {
     root = vim.fn.expand("~/.impure/neovim/plugins"),
-    change_detection = { notify = false },
+    lockfile = vim.fn.expand("~/.impure/neovim/lazy-lock.json"),
+
+    change_detection = {
+        notify = false,
+    },
 })

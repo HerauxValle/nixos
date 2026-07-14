@@ -113,6 +113,28 @@ in
       breeze-icons # Icons
       qtstyleplugin-kvantum # Kvantum
 
+      # NEOVIM
+
+      stylua
+      shfmt
+      black
+
+      lazygit
+      lazydocker
+      fd
+
+      lua-language-server
+      pyright
+      rust-analyzer
+      gopls
+      clang-tools
+      marksman
+      yaml-language-server
+      taplo
+      sqls
+      typescript-language-server
+      vscode-langservers-extracted
+
     ])
     ++ (with pkgs.libsForQt5; [
 
