@@ -38,7 +38,7 @@ function venvctl --description 'Declarative venv control (activate/deactivate ru
             end
 
         case deactivate
-            command venvctl deactivate > /dev/null
+            command venvctl deactivate $VIRTUAL_ENV > /dev/null
             or return 1
 
             if set -q VENV_ACTIVE_BIN

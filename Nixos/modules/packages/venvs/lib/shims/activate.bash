@@ -33,7 +33,7 @@ venvctl() {
       done <<< "$out"
       ;;
     deactivate)
-      command venvctl deactivate > /dev/null || return 1
+      command venvctl deactivate "${VIRTUAL_ENV:-}" > /dev/null || return 1
 
       if [[ -n "${VENV_ACTIVE_BIN:-}" ]]; then
         PATH="$(echo "$PATH" | tr ':' '\n' | grep -vFx "$VENV_ACTIVE_BIN" | paste -sd: -)"

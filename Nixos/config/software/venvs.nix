@@ -17,6 +17,12 @@
         };
         # no activation block -- built, but not direnv-auto-activated;
         # exercises `venvctl activate test` / the fish shim instead.
+        activation = {
+          onEntry = true;
+          paths = {
+            "~/Dotfiles/test/" = "recursive";
+          };
+        };
       };
     };
   };
