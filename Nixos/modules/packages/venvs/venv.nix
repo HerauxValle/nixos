@@ -1,4 +1,10 @@
-{ config, lib, pkgs, inputs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  inputs,
+  ...
+}:
 
 # Companion to ../shells/shells.nix. Read docs/ARCHITECTURE.md first if
 # this is your first time in this file -- it explains why venvs can't
@@ -15,37 +21,42 @@ let
   # Path resolution
   # ---------------------------------------------------------------------
 
-  expandHome = p: if lib.hasPrefix "~" p
-    then homeDir + (lib.removePrefix "~" p)
-    else p;
+  expandHome = p: if lib.hasPrefix "~" p then homeDir + (lib.removePrefix "~" p) else p;
 
   basePath = expandHome cfg.basePath;
 
-  resolvedVenvs = lib.mapAttrs (name: v: v // {
-    resolvedPath =
-      if v.path != null then expandHome v.path else "${basePath}/${name}";
-    # Resolved at eval time, not left for build.sh to find on PATH --
-    # otherwise "python = \"python311\";" is display-only and every venv
-    # silently gets whatever bare `python3` happens to resolve to at
-    # activation time (which may be nothing at all -- see build.sh).
-    # lib.hasAttr check below gives a venv-specific error message instead
-    # of nix's generic "attribute missing" if you typo the attr name.
-    pythonBin =
-      if lib.hasAttr v.python pkgs then "${pkgs.${v.python}}/bin/python3"
-      else throw ''
-        vars.venvs.venvs.${name}.python = "${v.python}" is not a valid
-        nixpkgs attribute (checked pkgs.${v.python}). Common values:
-        python3, python310, python311, python312, python313.'';
-  }) cfg.venvs;
+  resolvedVenvs = lib.mapAttrs (
+    name: v:
+    v
+    // {
+      resolvedPath = if v.path != null then expandHome v.path else "${basePath}/${name}";
+      # Resolved at eval time, not left for build.sh to find on PATH --
+      # otherwise "python = \"python311\";" is display-only and every venv
+      # silently gets whatever bare `python3` happens to resolve to at
+      # activation time (which may be nothing at all -- see build.sh).
+      # lib.hasAttr check below gives a venv-specific error message instead
+      # of nix's generic "attribute missing" if you typo the attr name.
+      pythonBin =
+        if lib.hasAttr v.python pkgs then
+          "${pkgs.${v.python}}/bin/python3"
+        else
+          throw ''
+            vars.venvs.venvs.${name}.python = "${v.python}" is not a valid
+            nixpkgs attribute (checked pkgs.${v.python}). Common values:
+            python3, python310, python311, python312, python313.'';
+    }
+  ) cfg.venvs;
 
   # Effective activation trigger dirs per venv: explicit paths win outright
   # (no merge with the implicit default -- see default.nix option doc).
-  effectiveActivation = lib.mapAttrs (name: v:
+  effectiveActivation = lib.mapAttrs (
+    name: v:
     if v.activation.onEntry && v.activation.paths == { } then
       { "${v.resolvedPath}" = "recursive"; }
     else if v.activation.onEntry then
       lib.mapAttrs' (p: mode: lib.nameValuePair (expandHome p) mode) v.activation.paths
-    else { }
+    else
+      { }
   ) resolvedVenvs;
 
   # ---------------------------------------------------------------------
@@ -54,7 +65,9 @@ let
   # ---------------------------------------------------------------------
 
   shellPaths = map (s: expandHome s.path) config.vars.shells;
-  venvTriggerPaths = lib.unique (lib.concatMap (a: lib.attrNames a) (lib.attrValues effectiveActivation));
+  venvTriggerPaths = lib.unique (
+    lib.concatMap (a: lib.attrNames a) (lib.attrValues effectiveActivation)
+  );
   collisions = lib.intersectLists shellPaths venvTriggerPaths;
 
   assertNoCollisions =
@@ -78,45 +91,121 @@ let
   # docs/DECISIONS.md "source_env instead of a shared direnvrc".
   # ---------------------------------------------------------------------
 
-  mkUseFunction = name: v: ''
-    use_venv_${name}() {
-      printf "  [ \033[32m•\033[0m ] \033[32mLoading virtual environment\033[0m %s (python: ${v.python})\n" "${name}"
-      ${lib.concatStringsSep "\n      " (lib.mapAttrsToList
-        (pkg: ver: ''printf "  [ \033[32m•\033[0m ] %s (%s)\n" "${pkg}" "${ver}"'')
-        v.packages)}
-      export VIRTUAL_ENV="${v.resolvedPath}"
-      PATH_add "${v.resolvedPath}/bin"
+  mkPkgLines =
+    colorCode: pkgs:
+    lib.concatStringsSep "\n  " (
+      lib.mapAttrsToList (
+        pkg: ver: ''printf "  [ \033[${colorCode}m•\033[0m ] %s (%s)\n" "${pkg}" "${ver}"''
+      ) pkgs
+    );
+
+  # Exit-transition tracking, mirroring shells.nix's _ds_* functions
+  # exactly (same per-tty state file trick, separate cache dir) so the
+  # unload banner fires on the way OUT of a venv dir too -- direnv itself
+  # never calls anything on exit, so this is what shells.nix's own anchor
+  # relies on and venv.nix needs the same mechanism, not a hook direnv
+  # provides for free.
+  dvTransitionLogic = ''
+    _dv_state_file() {
+      local tty_slug
+      tty_slug="$(tty 2>/dev/null | tr -c 'a-zA-Z0-9' '_')"
+      echo "$HOME/.cache/declarative-venvs/active''${tty_slug:-_notty}"
+    }
+
+    _dv_print_unload() {
+      case "$1" in
+      ${lib.concatStringsSep "\n" (
+        lib.mapAttrsToList (name: v: ''
+          ${name})
+            printf "  [ \033[31m•\033[0m ] \033[31mUnloading virtual environment\033[0m %s\n" "${name}"
+            ${mkPkgLines "31" v.packages}
+            ;;
+        '') resolvedVenvs
+      )}
+      esac
+    }
+
+    _dv_check_transition() {
+      local state_file prev
+      state_file="$(_dv_state_file)"
+      if [[ -f "$state_file" ]]; then
+        prev="$(cat "$state_file")"
+        if [[ -n "$prev" && "$prev" != "$1" ]]; then
+          _dv_print_unload "$prev"
+        fi
+      fi
+      if [[ -z "$1" ]]; then
+        rm -f "$state_file"
+      fi
+    }
+
+    use_declarative_venv_anchor() {
+      _dv_check_transition ""
     }
   '';
 
-  venvrc = lib.concatStringsSep "\n" (lib.mapAttrsToList mkUseFunction resolvedVenvs);
+  mkUseFunction = name: v: ''
+    use_venv_${name}() {
+      _dv_check_transition "${name}"
+      printf "  [ \033[32m•\033[0m ] \033[32mLoading virtual environment\033[0m %s (python: ${v.python})\n" "${name}"
+      ${mkPkgLines "32" v.packages}
+      export VIRTUAL_ENV="${v.resolvedPath}"
+      PATH_add "${v.resolvedPath}/bin"
+      mkdir -p "$(dirname "$(_dv_state_file)")"
+      echo "${name}" > "$(_dv_state_file)"
+    }
+  '';
 
-  ownEnvrcFiles = lib.foldl' (acc: name:
-    let paths = lib.attrNames effectiveActivation.${name}; in
-    acc // lib.listToAttrs (map (p: {
-      name = "${lib.removePrefix "/" (lib.removePrefix homeDir p)}/.envrc";
-      value.text = ''
-        source_env ~/.config/direnv/venvrc
-        use venv_${name}
-      '';
-    }) paths)
+  venvrc =
+    dvTransitionLogic
+    + "\n"
+    + lib.concatStringsSep "\n" (lib.mapAttrsToList mkUseFunction resolvedVenvs);
+
+  ownEnvrcFiles = lib.foldl' (
+    acc: name:
+    let
+      paths = lib.attrNames effectiveActivation.${name};
+    in
+    acc
+    // lib.listToAttrs (
+      map (p: {
+        name = "${lib.removePrefix "/" (lib.removePrefix homeDir p)}/.envrc";
+        value.text = ''
+          source_env ~/.config/direnv/venvrc
+          use venv_${name}
+        '';
+      }) paths
+    )
   ) { } (lib.attrNames effectiveActivation);
 
   # Same blocking trick as shells.nix: an empty .envrc in an existing
   # child dir stops direnv walking up into a "flat" trigger's parent.
-  blockedChildrenFor = path: mode:
-    if mode == "recursive" || !(builtins.pathExists path) then [ ]
-    else lib.mapAttrsToList (n: _: path + "/${n}")
-      (lib.filterAttrs (_: t: t == "directory") (builtins.readDir path));
+  blockedChildrenFor =
+    path: mode:
+    if mode == "recursive" || !(builtins.pathExists path) then
+      [ ]
+    else
+      lib.mapAttrsToList (n: _: path + "/${n}") (
+        lib.filterAttrs (_: t: t == "directory") (builtins.readDir path)
+      );
 
-  blockingEnvrcFiles = lib.foldl' (acc: name:
-    let paths = effectiveActivation.${name}; in
-    acc // lib.listToAttrs (lib.concatLists (lib.mapAttrsToList (p: mode:
-      map (child: {
-        name = "${lib.removePrefix "/" (lib.removePrefix homeDir child)}/.envrc";
-        value.text = "";
-      }) (blockedChildrenFor p mode)
-    ) paths))
+  blockingEnvrcFiles = lib.foldl' (
+    acc: name:
+    let
+      paths = effectiveActivation.${name};
+    in
+    acc
+    // lib.listToAttrs (
+      lib.concatLists (
+        lib.mapAttrsToList (
+          p: mode:
+          map (child: {
+            name = "${lib.removePrefix "/" (lib.removePrefix homeDir child)}/.envrc";
+            value.text = "";
+          }) (blockedChildrenFor p mode)
+        ) paths
+      )
+    )
   ) { } (lib.attrNames effectiveActivation);
 
   # ---------------------------------------------------------------------
@@ -126,10 +215,18 @@ let
   # a new flag every time an option field is added.
   # ---------------------------------------------------------------------
 
-  venvsJson = builtins.toJSON (lib.mapAttrs (_: v: {
-    inherit (v) resolvedPath python pythonBin packages lockfile;
-    activation = effectiveActivation.${_} or { };
-  }) resolvedVenvs);
+  venvsJson = builtins.toJSON (
+    lib.mapAttrs (_: v: {
+      inherit (v)
+        resolvedPath
+        python
+        pythonBin
+        packages
+        lockfile
+        ;
+      activation = effectiveActivation.${_} or { };
+    }) resolvedVenvs
+  );
 
   # ${./lib} copies the whole subtree as one store path (not per-file),
   # so every script under it can find its siblings at a stable runtime
@@ -140,7 +237,10 @@ let
 
   venvctl = pkgs.writeShellApplication {
     name = "venvctl";
-    runtimeInputs = [ pkgs.jq pkgs.python3 ];
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.python3
+    ];
     text = ''
       export VENVCTL_LIBROOT=${libRoot}
       export VENVCTL_DATA=${lib.escapeShellArg venvsJson}
@@ -153,38 +253,62 @@ let
 
 in
 {
-  assertions = [{ assertion = assertNoCollisions; message = "venv/shell path collision"; }];
+  assertions = [
+    {
+      assertion = assertNoCollisions;
+      message = "venv/shell path collision";
+    }
+  ];
 
   home-manager.users.${config.vars.username} = {
     home.packages = [ venvctl ];
 
-    home.file = ownEnvrcFiles // blockingEnvrcFiles // lib.optionalAttrs (resolvedVenvs != { }) {
-      ".config/direnv/venvrc".text = venvrc;
-    };
+    # OLD
+    # home.file =
+    #   ownEnvrcFiles
+    #   // blockingEnvrcFiles
+    #   // lib.optionalAttrs (resolvedVenvs != { }) {
+    #     ".config/direnv/venvrc".text = venvrc;
+    #   };
+
+    home.file =
+      ownEnvrcFiles
+      // blockingEnvrcFiles
+      // {
+        ".config/direnv/venvrc".text = venvrc;
+      };
+
     # Fish shim is NOT installed here -- this module doesn't own
     # ~/.config/fish (see docs/DECISIONS.md "Shim distribution"). Copy
     # lib/shims/activate.fish into wherever your own fish config source
     # lives (e.g. Dotfiles/Shells/Fish/conf.d/) so your existing
     # xdg.configFile symlink picks it up.
 
-    home.activation.allowDeclarativeVenvs = inputs.home-manager.lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-      ${lib.optionalString (ownEnvrcFiles != { }) ''
-        $DRY_RUN_CMD ${pkgs.direnv}/bin/direnv allow "$HOME"
-        ${lib.concatMapStrings (name: lib.concatMapStrings (p: ''
-          $DRY_RUN_CMD ${pkgs.direnv}/bin/direnv allow "${p}"
-        '') (lib.attrNames effectiveActivation.${name})) (lib.attrNames effectiveActivation)}
-      ''}
-    '';
+    home.activation.allowDeclarativeVenvs =
+      inputs.home-manager.lib.hm.dag.entryAfter [ "linkGeneration" ]
+        ''
+          ${lib.optionalString (ownEnvrcFiles != { }) ''
+            $DRY_RUN_CMD ${pkgs.direnv}/bin/direnv allow "$HOME"
+            ${lib.concatMapStrings (
+              name:
+              lib.concatMapStrings (p: ''
+                $DRY_RUN_CMD ${pkgs.direnv}/bin/direnv allow "${p}"
+              '') (lib.attrNames effectiveActivation.${name})
+            ) (lib.attrNames effectiveActivation)}
+          ''}
+        '';
 
     # Build/prune runs after allow, so a fresh .envrc is already trusted
     # by the time build.sh potentially triggers anything direnv-adjacent.
-    home.activation.buildDeclarativeVenvs = inputs.home-manager.lib.hm.dag.entryAfter [ "allowDeclarativeVenvs" ] ''
-      export VENVCTL_LIBROOT=${libRoot}
-      export VENVCTL_DATA=${lib.escapeShellArg venvsJson}
-      export VENVCTL_MANIFEST=${lib.escapeShellArg manifestPath}
-      export VENVCTL_LOCKROOT=${lib.escapeShellArg lockRoot}
-      export VENVCTL_LOGLEVEL=${lib.escapeShellArg cfg.logLevel}
-      $DRY_RUN_CMD ${pkgs.bash}/bin/bash "${libRoot}/manage/sync.sh"
-    '';
+    home.activation.buildDeclarativeVenvs =
+      inputs.home-manager.lib.hm.dag.entryAfter [ "allowDeclarativeVenvs" ]
+        ''
+          export VENVCTL_LIBROOT=${libRoot}
+          export VENVCTL_DATA=${lib.escapeShellArg venvsJson}
+          export VENVCTL_MANIFEST=${lib.escapeShellArg manifestPath}
+          export VENVCTL_LOCKROOT=${lib.escapeShellArg lockRoot}
+          export VENVCTL_LOGLEVEL=${lib.escapeShellArg cfg.logLevel}
+          $DRY_RUN_CMD ${pkgs.bash}/bin/bash "${libRoot}/manage/sync.sh"
+        '';
   };
 }

@@ -1,4 +1,10 @@
-{ config, lib, pkgs, inputs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  inputs,
+  ...
+}:
 
 let
 
@@ -9,17 +15,24 @@ let
   # DO NOT MODIFY
   # ---------------------------
 
-  mkEntry = index: { path, packages, recursive ? true }:
+  mkEntry =
+    index:
+    {
+      path,
+      packages,
+      recursive ? true,
+    }:
     let
       # Reversed so the first-declared package ends up earliest on PATH --
       # PATH_add always prepends, so building in reverse order restores
       # the declared precedence.
       bins = lib.reverseList (lib.splitString ":" (lib.makeBinPath packages));
 
-      pkgLines = colorCode:
-        lib.concatMapStringsSep "\n  " (p: ''
-          printf "  [ \033[${colorCode}m•\033[0m ] %s (%s)\n" "${lib.getName p}" "${lib.getVersion p}"'')
-          packages;
+      pkgLines =
+        colorCode:
+        lib.concatMapStringsSep "\n  " (
+          p: ''printf "  [ \033[${colorCode}m•\033[0m ] %s (%s)\n" "${lib.getName p}" "${lib.getVersion p}"''
+        ) packages;
 
       body = lib.concatMapStringsSep "\n  " (b: ''PATH_add "${b}"'') bins;
 
@@ -30,11 +43,14 @@ let
       # exist at rebuild time; a new one added later needs a rebuild to
       # be excluded too.
       blockedChildren =
-        if recursive || !(builtins.pathExists path) then [ ]
+        if recursive || !(builtins.pathExists path) then
+          [ ]
         else
-          lib.mapAttrsToList (name: _: path + "/${name}")
-            (lib.filterAttrs (_: type: type == "directory") (builtins.readDir path));
-    in {
+          lib.mapAttrsToList (name: _: path + "/${name}") (
+            lib.filterAttrs (_: type: type == "directory") (builtins.readDir path)
+          );
+    in
+    {
       inherit path body blockedChildren;
       id = "shell_${toString index}";
       # green dot + text, aligned with the package bullets below it
@@ -51,8 +67,7 @@ let
 
   entries = lib.imap0 mkEntry shells;
 
-  toHomeRelative = path:
-    lib.removePrefix "/" (lib.removePrefix homeDir path);
+  toHomeRelative = path: lib.removePrefix "/" (lib.removePrefix homeDir path);
 
   direnvrc = ''
     _ds_state_file() {
@@ -104,20 +119,34 @@ let
     '') entries}
   '';
 
-  ownEnvrcFiles = lib.listToAttrs (map (e: {
-    name = "${toHomeRelative e.path}/.envrc";
-    value.text = "use declarative_${e.id}\n";
-  }) entries);
+  ownEnvrcFiles = lib.listToAttrs (
+    map (e: {
+      name = "${toHomeRelative e.path}/.envrc";
+      value.text = "use declarative_${e.id}\n";
+    }) entries
+  );
 
-  blockingEnvrcFiles = lib.listToAttrs (lib.concatMap
-    (e: map (child: {
-      name = "${toHomeRelative child}/.envrc";
-      value.text = "";
-    }) e.blockedChildren)
-    entries);
+  blockingEnvrcFiles = lib.listToAttrs (
+    lib.concatMap (
+      e:
+      map (child: {
+        name = "${toHomeRelative child}/.envrc";
+        value.text = "";
+      }) e.blockedChildren
+    ) entries
+  );
 
-  anchorEnvrcFile = lib.optionalAttrs (entries != [ ]) {
-    ".envrc".text = "use declarative_shell_anchor\n";
+  # Shell backup line
+  # anchorEnvrcFile = lib.optionalAttrs (entries != [ ]) {
+  #   ".envrc".text = "use declarative_shell_anchor\n";
+  # };
+
+  anchorEnvrcFile = lib.optionalAttrs (entries != [ ] || config.vars.venvs.venvs != { }) {
+    ".envrc".text = ''
+      use declarative_shell_anchor
+      source_env ~/.config/direnv/venvrc
+      use declarative_venv_anchor
+    '';
   };
 
 in
@@ -125,9 +154,13 @@ in
   # programs.direnv.* now lives in config/packages/programs.nix.
 
   home-manager.users.${config.vars.username} = {
-    home.file = ownEnvrcFiles // blockingEnvrcFiles // anchorEnvrcFile // {
-      ".config/direnv/direnvrc".text = direnvrc;
-    };
+    home.file =
+      ownEnvrcFiles
+      // blockingEnvrcFiles
+      // anchorEnvrcFile
+      // {
+        ".config/direnv/direnvrc".text = direnvrc;
+      };
 
     # direnv refuses to run an .envrc it hasn't seen/hashed before, for
     # any content change. Auto-allow every declared path's .envrc (plus
@@ -135,13 +168,15 @@ in
     # -- their content is a static one-liner each (the real logic lives
     # in direnvrc, which isn't gated), so in practice this only ever
     # needs to fire once per declared path.
-    home.activation.allowDeclarativeShells = inputs.home-manager.lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-      ${lib.optionalString (entries != [ ]) ''
-        $DRY_RUN_CMD ${pkgs.direnv}/bin/direnv allow "$HOME"
-      ''}
-      ${lib.concatMapStrings (e: ''
-        $DRY_RUN_CMD ${pkgs.direnv}/bin/direnv allow "${e.path}"
-      '') entries}
-    '';
+    home.activation.allowDeclarativeShells =
+      inputs.home-manager.lib.hm.dag.entryAfter [ "linkGeneration" ]
+        ''
+          ${lib.optionalString (entries != [ ]) ''
+            $DRY_RUN_CMD ${pkgs.direnv}/bin/direnv allow "$HOME"
+          ''}
+          ${lib.concatMapStrings (e: ''
+            $DRY_RUN_CMD ${pkgs.direnv}/bin/direnv allow "${e.path}"
+          '') entries}
+        '';
   };
 }
