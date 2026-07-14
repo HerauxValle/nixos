@@ -9,10 +9,10 @@ hl.bind(mainMod .. " + C", hl.dsp.exec_cmd("code"))
 -- hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("modrinth-app"))
 
 -- Variable based
-hl.bind(mainMod .. " + Y", hl.dsp.exec_cmd(browser))
+-- hl.bind(mainMod .. " + Y", hl.dsp.exec_cmd(browser))
 -- hl.bind(mainMod .. " + C", hl.dsp.exec_cmd(editor))
-hl.bind(mainMod .. " + T", hl.dsp.exec_cmd(terminal))
-hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
+-- hl.bind(mainMod .. " + T", hl.dsp.exec_cmd(terminal))
+-- hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 
 -- Terminal apps | KITTY
 hl.bind(mainMod .. " + N", hl.dsp.exec_cmd("kitty --hold -o confirm_os_window_close=0 nvim"))
