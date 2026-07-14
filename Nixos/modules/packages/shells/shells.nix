@@ -110,8 +110,12 @@ let
 
     ${lib.concatMapStringsSep "\n" (e: ''
       use_declarative_${e.id}() {
+        local _ds_prev=""
+        [[ -f "$(_ds_state_file)" ]] && _ds_prev="$(cat "$(_ds_state_file)")"
         _ds_check_transition "${e.id}"
+        if [[ "$_ds_prev" != "${e.id}" ]]; then
       ${e.loadingBanner}
+        fi
       ${e.body}
         mkdir -p "$(dirname "$(_ds_state_file)")"
         echo "${e.id}" > "$(_ds_state_file)"

@@ -146,9 +146,13 @@ let
 
   mkUseFunction = name: v: ''
     use_venv_${name}() {
+      local _dv_prev=""
+      [[ -f "$(_dv_state_file)" ]] && _dv_prev="$(cat "$(_dv_state_file)")"
       _dv_check_transition "${name}"
-      printf "  [ \033[32m•\033[0m ] \033[32mLoading virtual environment\033[0m %s (python: ${v.python})\n" "${name}"
-      ${mkPkgLines "32" v.packages}
+      if [[ "$_dv_prev" != "${name}" ]]; then
+        printf "  [ \033[32m•\033[0m ] \033[32mLoading virtual environment\033[0m %s (python: ${v.python})\n" "${name}"
+        ${mkPkgLines "32" v.packages}
+      fi
       export VIRTUAL_ENV="${v.resolvedPath}"
       PATH_add "${v.resolvedPath}/bin"
       mkdir -p "$(dirname "$(_dv_state_file)")"
