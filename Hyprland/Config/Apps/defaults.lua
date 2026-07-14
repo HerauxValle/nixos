@@ -10,11 +10,14 @@
 -- Simply do "hyprctl reload" and they are applied
 
 -- Fallback logic, if you dont need that you can do 'terminal = "kitty"' without sh.
-terminal    = "sh -c 'waveterm || konsole || kitty'"
-fileManager = "sh -c 'dolphin || pcmanfm-qt'"
-menu        = "sh -c 'wofi --show drun || rofi -show drun'"
-browser     = "sh -c 'GTK_THEME=Adwaita:dark vivaldi --enable-features=WebUIDarkMode --force-dark-mode || firefox'"
-editor      = "sh -c 'code-oss || nano'"
+
+
+
+-- terminal    = "sh -c 'waveterm || konsole || kitty'"
+-- fileManager = "sh -c 'dolphin || pcmanfm-qt'"
+-- menu        = "sh -c 'wofi --show drun || rofi -show drun'"
+-- browser     = "sh -c 'GTK_THEME=Adwaita:dark vivaldi --enable-features=WebUIDarkMode --force-dark-mode || firefox'"
+-- editor      = "sh -c 'code-oss || nano'"
 
 -- --------------------------
 -- -- System-wide Defaults --
@@ -26,9 +29,9 @@ editor      = "sh -c 'code-oss || nano'"
 -- IMPORTANT: "super+m" is NOT enough to apply those.
 -- Log out and back in, or restart.
 
-hl.env("EDITOR", "fresh")
-hl.env("VISUAL", "code-oss")
-hl.env("BROWSER", "vivaldi")
+-- hl.env("EDITOR", "fresh")
+-- hl.env("VISUAL", "code-oss")
+-- hl.env("BROWSER", "vivaldi")
 
 -- --------------------------
 -- ----- More variables -----
