@@ -27,5 +27,6 @@
 
     dotfilesBackup.enable = false;
     dotfilesBackup.remoteUrl = "git@github.com:HerauxValle/nixos.git";
+    dotfilesBackup.useRepoCache = true;
   };
 }
