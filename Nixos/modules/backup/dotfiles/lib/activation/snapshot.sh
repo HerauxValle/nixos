@@ -19,6 +19,26 @@ dotfilesBackup_snapshot() {
     return 0
   fi
 
+  # --- AUTO-HEAL BLOCK START ---
+  # If the dotfiles path is not a git repository, initialize it silently
+  if [ ! -d "$dotfilesBackupDotfilesPath/.git" ]; then
+    "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" init -q -b "$dotfilesBackupBranch"
+    "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" -c safe.directory="$dotfilesBackupDotfilesPath" remote add origin "$dotfilesBackupRemoteUrl" 2>/dev/null || true
+
+    # Optional: Create a commit so the working directory doesn't look completely empty to Git's diff engine
+    "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" -c safe.directory="$dotfilesBackupDotfilesPath" add -A 2>/dev/null || true
+    "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" -c safe.directory="$dotfilesBackupDotfilesPath" -c user.name="$dotfilesBackupCommitUserName" -c user.email="$dotfilesBackupCommitUserEmail" commit -q -m "init empty backup state" 2>/dev/null || true
+  fi
+  # --- AUTO-HEAL BLOCK END ---
+
+  dotfilesBackupTag="$(date "$dotfilesBackupTagDateFormat")"
+  dotfilesBackupChanged=1
+  # Autohealing END
+
+  if [ ! -f "$dotfilesBackupKeyFile" ]; then
+    return 0
+  fi
+
   dotfilesBackupTag="$(date "$dotfilesBackupTagDateFormat")"
   dotfilesBackupChanged=1
 
