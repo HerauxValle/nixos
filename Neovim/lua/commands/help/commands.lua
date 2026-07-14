@@ -1,0 +1,13 @@
+return function(_args)
+    print("Custom commands:")
+    print("")
+    print("  scheme list               — list available themes")
+    print("  scheme load <name>        — load a theme immediately")
+    print("  scheme default <name>     — set theme as default on restart")
+    print("")
+    print("  autosave enabled true|false  — toggle autosave on/off")
+    print("  autosave delay <ms>          — set inactivity delay before saving")
+    print("")
+    print("  help commands             — show this help")
+    print("  help keybinds             — show all keybinds")
+end

@@ -8,6 +8,12 @@
     "quickshell".source = ../../Quickshell;
     "uwsm/env-hyprland".source = ../../Hyprland/Uwsm/env-hyprland;
 
+    # Neovim configuration itself is declarative and tracked in Dotfiles.
+    # Plugins, Mason packages, Treesitter parsers, caches, logs, etc. live
+    # under ~/.impure/neovim/, keeping generated/editor-managed state out of
+    # the repository while allowing the config to rebuild the environment.
+    "nvim".source = ../../Neovim;
+
     # Not Hyprland-specific (Pacnix, Run, Reload, etc. are general-purpose),
     # so it's its own top-level folder/XDG dir, same pattern as the others.
     "scripts".source = ../../Scripts;
@@ -26,8 +32,9 @@
     # (traced: with a dark scheme + Dark mode, gvcore.cpp uses that color
     # directly, no swap), used only by Gwenview via its own ColorScheme key.
     "gwenviewrc" = {
-      force = true; # gwenview had already written its own copy imperatively;
-                    # home-manager refuses to clobber existing files otherwise.
+      force = true;
+      # gwenview had already written its own copy imperatively;
+      # home-manager refuses to clobber existing files otherwise.
       text = ''
         [General]
         BackgroundColorMode=DocumentView::Dark
@@ -38,7 +45,8 @@
     };
   };
 
-  xdg.dataFile."color-schemes/BreezeDarkTransparent.colors".source = ../../Themes/Gwenview/BreezeDarkTransparent.colors;
+  xdg.dataFile."color-schemes/BreezeDarkTransparent.colors".source =
+    ../../Themes/Gwenview/BreezeDarkTransparent.colors;
 
   # Declarative Proton GE: symlinks nixpkgs' proton-ge-bin into Steam's compat
   # tools dir. Version is whatever nixpkgs pins; bumps on flake update + rebuild,
