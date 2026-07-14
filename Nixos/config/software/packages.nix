@@ -134,6 +134,7 @@ in
       sqls
       typescript-language-server
       vscode-langservers-extracted
+      nodejs
 
     ])
     ++ (with pkgs.libsForQt5; [
