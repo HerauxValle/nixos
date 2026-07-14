@@ -7,5 +7,6 @@
     ./programs
     ./scripts
     ./shells
+    ./venvs
   ];
 }

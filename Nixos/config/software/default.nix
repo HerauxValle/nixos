@@ -7,5 +7,6 @@
     ./services.nix
     ./scripts.nix
     ./shells.nix
+    ./venvs.nix
   ];
 }

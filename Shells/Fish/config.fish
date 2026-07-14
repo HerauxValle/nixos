@@ -15,6 +15,10 @@ for file in $config_dir/**/*.fish
     source $file
 end
 
+# Source venv cli
+set -l venv_shim (status dirname)/../../Nixos/modules/packages/venvs/lib/shims/activate.fish
+test -f $venv_shim; and source $venv_shim
+
 # Theme colors: written by theme.py (run manually, live -- see
 # Scripts/Reload/theme.py) straight into Dotfiles/Fastfetch/,
 # copied to ~/.config/fastfetch/colors.env on rebuild, same as fastfetch's
