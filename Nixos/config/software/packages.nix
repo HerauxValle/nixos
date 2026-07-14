@@ -135,6 +135,11 @@ in
       typescript-language-server
       vscode-langservers-extracted
       nodejs
+      unzip
+      zip
+      wget
+      python3
+      python3Packages.pip
 
     ])
     ++ (with pkgs.libsForQt5; [
