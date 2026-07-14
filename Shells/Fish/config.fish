@@ -16,7 +16,7 @@ for file in $config_dir/**/*.fish
 end
 
 # Source venv cli
-set -l venv_shim (status dirname)/../../Nixos/modules/packages/venvs/lib/shims/activate.fish
+set -l venv_shim ~/Dotfiles/Nixos/modules/packages/venvs/lib/shims/activate.fish
 test -f $venv_shim; and source $venv_shim
 
 # Theme colors: written by theme.py (run manually, live -- see

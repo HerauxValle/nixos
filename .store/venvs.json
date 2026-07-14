@@ -1,1 +1,11 @@
-{"venvs":{}}
+{
+  "venvs": {
+    "test": {
+      "path": "/home/herauxvalle/.impure/python-venvs/nix-declared/test",
+      "packages": {
+        "six": "1.16.0",
+        "tabulate": "latest"
+      }
+    }
+  }
+}
