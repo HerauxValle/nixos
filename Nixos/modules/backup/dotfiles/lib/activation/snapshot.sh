@@ -19,6 +19,28 @@ dotfilesBackup_snapshot() {
     return 0
   fi
 
+  # Only auto-heal if we are NOT using the repo cache, and .git doesn't exist
+  if [ "$dotfilesBackupUseRepoCache" != "1" ] && [ ! -d "$dotfilesBackupDotfilesPath/.git" ]; then
+    if [ ! -f "$dotfilesBackupKeyFile" ]; then
+      printf '%b[dotfiles-backup-error] ============================================%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+      printf '%bwarning: Local dotfiles directory is missing its .git repository AND%b\n' "$dotfilesBackupColorYellow" "$dotfilesBackupColorReset" >&2
+      printf '%bno backup deploy key exists yet at %s.%b\n' "$dotfilesBackupColorYellow" "$dotfilesBackupKeyFile" "$dotfilesBackupColorReset" >&2
+      printf 'Pushes will be completely skipped until preflight key generation finishes.\n' >&2
+      printf '%b[dotfiles-backup-error] ============================================%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+    else
+      printf '%b[dotfiles-backup-autoheal] ============================================%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+      printf '%bwarning: Local dotfiles directory is missing its .git repository tracking.%b\n' "$dotfilesBackupColorYellow" "$dotfilesBackupColorReset" >&2
+      printf 'info: Self-healing and auto-initializing fresh repository at:\n' >&2
+      printf '      %s\n' "$dotfilesBackupDotfilesPath" >&2
+      printf '%b[dotfiles-backup-autoheal] ============================================%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+
+      "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" init -q -b "$dotfilesBackupBranch"
+      "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" -c safe.directory="$dotfilesBackupDotfilesPath" remote add origin "$dotfilesBackupRemoteUrl" 2>/dev/null || true
+      "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" -c safe.directory="$dotfilesBackupDotfilesPath" add -A 2>/dev/null || true
+      "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" -c safe.directory="$dotfilesBackupDotfilesPath" -c user.name="$dotfilesBackupCommitUserName" -c user.email="$dotfilesBackupCommitUserEmail" commit -q -m "init empty backup state" 2>/dev/null || true
+    fi
+  fi
+
   dotfilesBackupTag="$(date "$dotfilesBackupTagDateFormat")"
   dotfilesBackupChanged=1
 
