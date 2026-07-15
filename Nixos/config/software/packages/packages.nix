@@ -17,7 +17,7 @@
       rustc = { };
       cargo = { };
       zig = { };
-      swift = { };
+      # swift = { };
       dotnet-sdk = { };
 
       # Build tools
