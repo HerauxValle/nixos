@@ -4,6 +4,7 @@ hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("steam"))
 hl.bind(mainMod .. " + K", hl.dsp.exec_cmd("keepassxc"))
 hl.bind(mainMod .. " + Z", hl.dsp.exec_cmd("zapzap"))
 hl.bind(mainMod .. " + C", hl.dsp.exec_cmd("code"))
+hl.bind(mainMod .. " + P", hl.dsp.exec_cmd("pinta"))
 
 -- Deprecated yay installation
 -- hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("modrinth-app"))

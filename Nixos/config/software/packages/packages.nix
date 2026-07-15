@@ -60,6 +60,7 @@
       awww = { };
       mangohud = { };
       polkit_gnome = { };
+      pinta = { };
 
       # Media
       mpv = { };
