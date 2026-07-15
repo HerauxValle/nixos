@@ -69,6 +69,21 @@ let
     fi
   '';
 
+  # searx/webutils.py's get_result_templates() walks searx/templates/
+  # with os.walk(templates_path) -- no followlinks=True. Since
+  # themeLinkScript below replaces searx/templates/<name> with a symlink
+  # into the Nix store, os.walk refuses to descend into it, so the
+  # discovered result_templates set stays empty and every themed
+  # get_result_template() lookup (webapp.py) falls through to the
+  # un-themed "result_templates/<x>.html" path, which doesn't exist --
+  # crashing every /search with jinja2.exceptions.TemplateNotFound.
+  # Confirmed by reading webutils.py directly. sed only matches the
+  # pristine checkout, so re-running this after coreRev's git checkout is
+  # a no-op once already patched -- idempotent like srcEnsureScript.
+  webutilsFollowlinksPatch = ''
+    sed -i "s/os\.walk(templates_path):/os.walk(templates_path, followlinks=True):/" "${cfg.srcDir}/searx/webutils.py"
+  '';
+
   # Same mechanism as the old links.sh: every declared theme gets
   # symlinked into the live checkout's searx/templates/<name> and
   # searx/static/themes/<name>. rm -rf the destination first, every
@@ -129,6 +144,7 @@ in
       preStart = [
         ''mkdir -p "$(dirname "${cfg.venvDir}")" "$(dirname "${cfg.srcDir}")"''
         srcEnsureScript
+        webutilsFollowlinksPatch
         venvEnsureScript
         themeLinkScript
       ];

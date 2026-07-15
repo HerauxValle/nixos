@@ -11,3 +11,4 @@
 9. Services cleanup used ports after shutdown -- do not keep stale open ports -- e.g. stash.
    ...
 
+Make the common case easy and the uncommon case possible.
