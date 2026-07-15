@@ -1,9 +1,8 @@
 {
+  config,
   lib,
   pkgs,
-  config,
   inputs,
-  system,
   ...
 }:
 
@@ -18,7 +17,10 @@
 let
   inherit (config.vars.environment) sources packages;
 
-  helpers = import ./lib { inherit lib pkgs inputs system; };
+  helpers = import ./lib {
+    inherit lib pkgs inputs;
+    system = pkgs.system;
+  };
 
   resolvedPackages = lib.flatten (
     lib.mapAttrsToList (

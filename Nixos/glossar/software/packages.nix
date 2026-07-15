@@ -62,6 +62,10 @@
   #       });
   #     };
 
+  #     # PURE OPTION B SOURCE: Map a custom source to a pinned flake input.
+  #     # This bypasses the versions submodule entirely to expose the package.
+  #     # nixpkgs-abcdef = import inputs.nixpkgs-abcdef { inherit system; };
+
   #   };
 
   #   # --- packages to install -------------------------------------------
@@ -74,7 +78,42 @@
   #       curl = { };
   #       python3 = { };
   #       neovim = { };
+
+  #       # -----------------------------------------------------------------
+  #       # SPECIFYING VERSION "ab.cd.e" FROM COMMIT "AbcDef" OF NIXPKGS
+  #       # -----------------------------------------------------------------
+
+  #       # PURE OPTION A: Using a Flake Input Spec (Recommended)
+  #       # Safe, reproducible, fast, and does not require `--impure`.
+  #       #
+  #       # 1. In your flake.nix, register the specific commit as an input:
+  #       #    inputs.nixpkgs-abcdef.url = "github:NixOS/nixpkgs/AbcDef";
+  #       #
+  #       # 2. Reference that input name ("nixpkgs-abcdef") as the spec string:
+  #       somepkg-pure-a = {
+  #         versions = {
+  #           "ab.cd.e" = "nixpkgs-abcdef"; # maps to inputs.nixpkgs-abcdef
+  #         };
+  #         default = "ab.cd.e"; # Exposes "somepkg-pure-a" unsuffixed on your PATH
+  #       };
+
+  #       # IMPURE OPTION: Using a Raw Commit Hash Directly
+  #       # Fast to write without modifying flake.nix, but lacks lockfile pins.
+  #       # Requires running evaluations with the `--impure` flag.
+  #       somepkg-impure = {
+  #         versions = {
+  #           "ab.cd.e" = "AbcDef"; # Fetches nixpkgs/archive/AbcDef.tar.gz on the fly
+  #         };
+  #         default = "ab.cd.e"; # Exposes "somepkg-impure" unsuffixed on your PATH
+  #       };
   #     };
+
+  #     # PURE OPTION B: Using a custom source bound to a flake input
+  #     # If you prefer to bypass version suffixing entirely, reference a source
+  #     # declared directly from the flake input (defined in `sources` above).
+  #     # nixpkgs-abcdef = {
+  #     #   somepkg = { }; # Evaluates to sources.nixpkgs-abcdef.somepkg
+  #     # };
 
   #     # Install from pkgs.kdePackages
   #     kde = {

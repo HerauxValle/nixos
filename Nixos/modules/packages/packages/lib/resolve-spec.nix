@@ -19,7 +19,8 @@
 }:
 
 if spec == "" || spec == "latest" then
-  source.${packageName} or (throw "Package '${packageName}' does not exist in source '${sourceName}'.")
+  source.${packageName}
+    or (throw "Package '${packageName}' does not exist in source '${sourceName}'.")
 
 else if builtins.hasAttr spec inputs then
   (import inputs.${spec} { inherit system; }).${packageName}
@@ -27,10 +28,15 @@ else if builtins.hasAttr spec inputs then
 
 else
   let
-    fetched = builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/${spec}.tar.gz";
+    # 1. Split the string by dots (e.g., "26.11.20260629.b5aa0fb" -> ["26" "11" "20260629" "b5aa0fb"])
+    parts = builtins.filter builtins.isString (builtins.split "\\." spec);
+
+    # 2. Extract the last element (the git commit hash, or the original string if no dots existed)
+    commitOrBranch = builtins.elemAt parts (builtins.length parts - 1);
+
+    fetched = builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/${commitOrBranch}.tar.gz";
   in
-  (import fetched { inherit system; }).${packageName}
-    or (throw ''
-      Package '${packageName}' does not exist in nixpkgs at commit/channel
-      '${spec}'. This path is impure and requires `--impure`.
-    '')
+  (import fetched { inherit system; }).${packageName} or (throw ''
+    Package '${packageName}' does not exist in nixpkgs at commit/channel
+    '${commitOrBranch}' (resolved from '${spec}'). This path is impure and requires `--impure`.
+  '')

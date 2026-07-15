@@ -17,7 +17,14 @@
       rustc = { };
       cargo = { };
       zig = { };
-      # swift = { };
+
+      swift = {
+        versions = {
+          "5.10.1" = "26.11.20260629.b5aa0fb";
+        };
+        default = "5.10.1";
+      };
+
       dotnet-sdk = { };
 
       # Build tools
