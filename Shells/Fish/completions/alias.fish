@@ -5,6 +5,7 @@ alias hi='echo "Hello from Fish!"'                                      #&help:"
 alias timeshift-gui="sudo GDK_BACKEND=x11 timeshift-gtk"                #&help:"Opens Timeshift GUI"
 alias grubreload="sudo grub-mkconfig -o /boot/grub/grub.cfg"            #&help:"Reloads grub config"
 alias rebuild="pacnix rebuild 2>&1 | tee /tmp/pacnix-rebuild.log"       #&help:"Rebuilds nixos with pacnix"
+alias pri="pacnix rebuild --impure 2>&1 | tee /tmp/pacnix-rebuild.log"  #&help:"Rebuilds nixos with pacnix (impure)"
 # NIXOS (see pacnix -- Scripts/Pacnix -- for rebuild/validate/check/test-build)
 
 # UTILITIES
