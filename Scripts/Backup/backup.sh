@@ -43,6 +43,10 @@ declare -A BACKUPS=(
     # bookkeeping, not user config.
     ["mybar-theme.env"]="$HOME/.config/mybar/theme.env"
     ["mybar-custom"]="$HOME/.config/mybar/custom"
+
+    # Media scraper -- lives on the Storage drive, not under Dotfiles, so
+    # it's otherwise untracked/unbacked-up.
+    ["scrape.py"]="$HOME/Drives/Storage/Scraped/scrape.py"
 )
 
 # A file's hash is just its content hash. A directory's hash is the combined
