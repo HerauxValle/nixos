@@ -4,155 +4,172 @@
   ...
 }:
 
-# Variables
-let
-  claudeCode = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
-  mybarBackend = pkgs.callPackage ../../../Quickshell/MyBar/backend.nix { };
-
-  # Pull the declarative binary package out of your flake inputs
-  crun = inputs.crun.packages.${pkgs.stdenv.hostPlatform.system}.default;
-  ltree = inputs.ltree.packages.${pkgs.stdenv.hostPlatform.system}.default;
-
-  # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups (shifted
-  # symbol keybinds like ctrl+dollar/asterisk/exclam) -- that's not a normal
-  # linked dependency, so listing libxkbcommon in systemPackages alone never
-  # helps; NixOS doesn't add packages' lib/ outputs to the dynamic loader's
-  # search path. Has to be wired in directly via LD_LIBRARY_PATH on kitty itself.
-  kittyWrapped = pkgs.kitty.overrideAttrs (old: {
-    nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
-    postFixup = (old.postFixup or "") + ''
-      wrapProgram $out/bin/kitty --prefix LD_LIBRARY_PATH : ${
-        pkgs.lib.makeLibraryPath [ pkgs.libxkbcommon ]
-      }
-    '';
-  });
-in
-
-# Packages
 {
-  environment.systemPackages =
-    with pkgs;
-    [
+  config.vars.environment = {
+    sources = {
+      kde = pkgs.kdePackages;
+      qt5 = pkgs.libsForQt5;
+      qt6 = pkgs.qt6Packages;
+      python = pkgs.python3Packages;
 
-      # General
-      vivaldi # Browser
-      # vscode -- now declarative, see home-manager.users.<user>.programs.vscode
-      # in Nixos/config/programs.nix (package comes from that module instead)
-      git # Github
-      curl # Curl
-      kittyWrapped # Terminal (wrapped: see kittyWrapped above for why)
-      claudeCode # Claude
-      mpv # Video player (was installed on Arch, missing here)
-      oculante # Image viewer (was installed on Arch, missing here)
-      mybarBackend # MyBar's mybar-* backend binaries (same recipe as scripts/build/compile.sh)
-      crun
-      ltree
+      custom = {
+        claudeCode = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
 
-      neovim
+        mybarBackend = pkgs.callPackage ../../../Quickshell/MyBar/backend.nix { };
 
-      # Languages
-      python3 # Python
-      nil # Nix LSP, for VS Code's "Nix IDE" extension (nix.serverPath)
+        crun = inputs.crun.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
-      # Tools
-      awww # Background
-      grim # Screenshot
-      slurp # Selection
-      wl-clipboard # Clipboard
-      fastfetch # Fetch
-      tree # Tree
-      eza # Colorized ls replacement, used by ls alias in alias.fish
-      mangohud # FPS/frametime/temp overlay, use via `mangohud %command%` in Steam
-      zoxide # Frecency-based cd, used by cd.fish
-      fzf # Interactive picker, used by cd.fish's `run -i`
-      mkpasswd # Used by Scripts/Secrets/cmd/passwd.sh (secrets passwd)
-      e2fsprogs # debugfs -- no-mount ext4 keyfile read, modules/security/sudo-keyfile.nix
-      mtools # mcopy -- no-mount FAT/FAT32 keyfile read, modules/security/sudo-keyfile.nix
-      ntfs3g # ntfscat -- no-mount NTFS keyfile read, modules/security/sudo-keyfile.nix
-      btrfs-progs # btrfs restore -- no-mount btrfs keyfile read, modules/security/sudo-keyfile.nix
-      tpm2-tools # TPM tooling
-      ripgrep # For "todo tree" vscode extension
-      cloc # alternative / extension to tree
+        ltree = inputs.ltree.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
-      # Shells
-      fish # Main
-      nushell # Data
-      powershell # Windows
-      quickshell # Aesthetic
+        # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups
+        # (shifted symbol keybinds like ctrl+dollar/asterisk/exclam).
+        # libxkbcommon is loaded dynamically, so it must be injected into
+        # LD_LIBRARY_PATH manually.
+        kittyWrapped = pkgs.kitty.overrideAttrs (old: {
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
 
-      shellcheck # linter
-      bash-language-server # lsp
+          postFixup = (old.postFixup or "") + ''
+            wrapProgram $out/bin/kitty \
+              --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath [ pkgs.libxkbcommon ]}
+          '';
+        });
+      };
+    };
 
-      # Compilers
-      gcc
-      gnumake
-      cmake
-      meson
-      pkg-config
-      rustc
-      cargo
-      go
-      zig
-      swift
-      dotnet-sdk
+    packages = {
+      pkgs = {
 
-    ]
-    ++ (with pkgs.kdePackages; [
+        # Browsers
+        vivaldi = { };
 
-      dolphin # Explorer
-      kio-extras # Addons
-      kio-admin # Elevated permissions
-      polkit_gnome # Polkit agent for elevated permissions -- GUI prompt
-      kservice
-      # kbuildsycoca6 -- was only ever reachable via its nix store path,
-      # not on PATH, so KIO's own automatic cache-refresh calls silently failed
-      gwenview # Image viewer
+        # Development
+        git = { };
+        neovim = { };
 
-      # Theming
-      breeze # Looks
-      breeze-icons # Icons
-      qtstyleplugin-kvantum # Kvantum
+        # Languages & SDKs
+        python3 = { };
+        go = { };
+        rustc = { };
+        cargo = { };
+        zig = { };
+        swift = { };
+        dotnet-sdk = { };
 
-      # NEOVIM
+        # Build tools
+        gcc = { };
+        gnumake = { };
+        cmake = { };
+        meson = { };
+        pkg-config = { };
 
-      stylua
-      shfmt
-      black
+        # Nix
+        nil = { };
 
-      lazygit
-      lazydocker
-      fd
+        # Shells
+        fish = { };
+        nushell = { };
+        powershell = { };
+        quickshell = { };
 
-      lua-language-server
-      pyright
-      rust-analyzer
-      gopls
-      clang-tools
-      marksman
-      yaml-language-server
-      taplo
-      sqls
-      typescript-language-server
-      vscode-langservers-extracted
-      nodejs
-      unzip
-      zip
-      wget
-      python3
-      python3Packages.pip
+        # CLI utilities
+        curl = { };
+        fastfetch = { };
+        tree = { };
+        eza = { };
+        fzf = { };
+        zoxide = { };
+        ripgrep = { };
+        cloc = { };
 
-    ])
-    ++ (with pkgs.libsForQt5; [
+        # Desktop
+        grim = { };
+        slurp = { };
+        wl-clipboard = { };
+        awww = { };
+        mangohud = { };
 
-      # Theming
-      qt5ct # QT5
-      qtstyleplugin-kvantum # Kvantum (Qt5 variant)
+        # Media
+        mpv = { };
+        oculante = { };
 
-    ])
-    ++ (with pkgs.qt6Packages; [
+        # Security & Filesystems
+        mkpasswd = { };
+        e2fsprogs = { };
+        mtools = { };
+        ntfs3g = { };
+        btrfs-progs = { };
+        tpm2-tools = { };
 
-      # Theming
-      qt6ct # QT6
+        # Shell tooling
+        shellcheck = { };
+        bash-language-server = { };
+      };
 
-    ]);
+      custom = {
+        claudeCode = { };
+        mybarBackend = { };
+        kittyWrapped = { };
+        crun = { };
+        ltree = { };
+      };
+
+      kde = {
+
+        # File management
+        dolphin = { };
+        kio-extras = { };
+        kio-admin = { };
+        kservice = { };
+        polkit_gnome = { };
+
+        # Media
+        gwenview = { };
+
+        # Theming
+        breeze = { };
+        breeze-icons = { };
+        qtstyleplugin-kvantum = { };
+
+        # Neovim tooling
+        stylua = { };
+        shfmt = { };
+        black = { };
+
+        lazygit = { };
+        lazydocker = { };
+        fd = { };
+
+        lua-language-server = { };
+        pyright = { };
+        rust-analyzer = { };
+        gopls = { };
+        clang-tools = { };
+        marksman = { };
+        yaml-language-server = { };
+        taplo = { };
+        sqls = { };
+        typescript-language-server = { };
+        vscode-langservers-extracted = { };
+
+        # Misc
+        nodejs = { };
+        unzip = { };
+        zip = { };
+        wget = { };
+      };
+
+      python = {
+        pip = { };
+      };
+
+      qt5 = {
+        qt5ct = { };
+        qtstyleplugin-kvantum = { };
+      };
+
+      qt6 = {
+        qt6ct = { };
+      };
+    };
+  };
 }

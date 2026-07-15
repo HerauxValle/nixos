@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   # Core Polkit privilege escalation framework backend. Required to handle local
