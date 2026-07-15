@@ -19,7 +19,7 @@ let
 
   helpers = import ./lib {
     inherit lib pkgs inputs;
-    system = pkgs.system;
+    system = pkgs.stdenv.hostPlatform.system;
   };
 
   resolvedPackages = lib.flatten (

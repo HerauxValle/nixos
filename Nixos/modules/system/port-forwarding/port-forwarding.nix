@@ -235,6 +235,7 @@ lib.mkIf config.vars.ports.enabled {
   services.avahi.nssmdns4 = lib.mkIf (localEntries != { }) true;
   services.nscd.enableNsncd = lib.mkIf (localEntries != { }) false;
 
+
   systemd.services = lib.mkMerge (
     (lib.mapAttrsToList (key: e: (mdnsService key e).systemd.services) localEntries)
     ++ (lib.mapAttrsToList (key: e: (bridgeService key e).systemd.services) ipv6Entries)
@@ -242,6 +243,31 @@ lib.mkIf config.vars.ports.enabled {
     ++ [
       (lib.mkIf needsAutoCert cert.config.systemd.services)
       (router.systemd.services or { })
+      # Upstream avahi-daemon.service has no RuntimeDirectory=, so
+      # /run/avahi-daemon/pid survives across restarts -- avahi's own
+      # stale-PID detection is supposed to clear it (logs "trying to
+      # remove PID file" for a dead PID), but confirmed live via
+      # journalctl that once two starts race (e.g. a switch-triggered
+      # restart overlapping avahi-daemon.socket's own activation) and
+      # the loser dies mid-startup without cleaning up, the file is
+      # never actually removed on any future attempt -- every
+      # subsequent start hits the exact same "File exists" failure
+      # forever, not just once. Since every *.local lookup (this
+      # module's own mDNS entries included) hard-depends on
+      # avahi-daemon being up, a wedged instance silently breaks all of
+      # them until something unrelated happens to restart it
+      # successfully. ExecStartPre clears the stale file before avahi's
+      # own check ever runs; Restart=on-failure means even a genuine
+      # two-way race self-heals in a couple seconds instead of staying
+      # down indefinitely. Same "belongs in this one shared mkMerge"
+      # reasoning as the tor.serviceConfig.ExecStartPre block below.
+      (lib.mkIf (localEntries != { }) {
+        avahi-daemon.serviceConfig = {
+          ExecStartPre = [ "-${pkgs.coreutils}/bin/rm -f /run/avahi-daemon/pid" ];
+          Restart = "on-failure";
+          RestartSec = "1";
+        };
+      })
       # mode.onion.ephemeral -- wipe just the v3 keypair files (not the
       # whole HiddenServiceDir -- that directory's own ownership/mode is
       # set up by services.tor's own ExecStartPre steps, deleting it
