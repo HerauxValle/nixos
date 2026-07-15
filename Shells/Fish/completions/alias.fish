@@ -26,6 +26,7 @@ alias ytv="mpv --ytdl-format='bestvideo[height<=1080]+bestaudio/best'"  #&help:"
 # SERVICES
 
 alias shared="/home/herauxvalle/Scripts/Python/Shared/main.py"          #&help:"Easily share files"
+alias scrape="/home/herauxvalle/Drives/Storage/Scraped/scrape.py"       #&help:"Media scraper/downloader"
 
 alias jellyfin="~/Scripts/Self-hosted/Jellyfin/main.sh"                 #&help:"Launch JellyFin service"
 alias qbittorrent="~/Scripts/Self-hosted/QBitTorrent/main.sh"           #&help:"Launch QBitTorrent service"
