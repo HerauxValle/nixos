@@ -69,7 +69,6 @@ if status is-interactive
     and not set -q _fastfetch_ran
     set -gx _fastfetch_ran 1
     fastfetch --percent-color-green "$theme_contrast_ansi"
-    fish -c 'reload' > /dev/null 2>&1 &
 end
 
 set -g fish_color_cancel normal
