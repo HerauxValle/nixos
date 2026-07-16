@@ -20,7 +20,7 @@
 
       swift = {
         versions = {
-          "5.10.1" = "26.11.20260629.b5aa0fb#";
+          "5.10.1" = "26.11.20260629.b5aa0fb#sha256-oPXCU/SSUokcGaJREHibG1CBX3+s/W7orDWQOZDsEeQ=";
         };
         default = "5.10.1";
       };
