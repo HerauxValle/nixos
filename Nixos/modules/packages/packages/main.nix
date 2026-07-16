@@ -70,20 +70,12 @@ in
       if [ -s "$manifest" ] && [ "$(${lib.getExe pkgs.jq} 'length' "$manifest")" -gt 0 ]; then
         red=$(printf '\033[31m')
         reset=$(printf '\033[0m')
-        border="!! ---------------------------------------------------------------- !!"
         ${lib.getExe pkgs.jq} -c '.[]' "$manifest" | while IFS= read -r entry; do
           name=$(printf '%s' "$entry" | ${lib.getExe pkgs.jq} -r '.name')
           version=$(printf '%s' "$entry" | ${lib.getExe pkgs.jq} -r '.version')
-          spec=$(printf '%s' "$entry" | ${lib.getExe pkgs.jq} -r '.spec')
           sourcePath=$(printf '%s' "$entry" | ${lib.getExe pkgs.jq} -r '.sourcePath')
           hash=$(${lib.getExe' pkgs.nix "nix"} hash path "$sourcePath" 2>/dev/null) || hash="<failed to hash '$sourcePath'>"
-          printf '%s\n' "$red"
-          echo "$border"
-          echo "!! [Packages] $name $version - MISSING HASH"
-          echo "!! $hash"
-          echo "!! (spec '$spec') - copy the hash after '#' in packages.nix"
-          echo "$border"
-          printf '%s' "$reset"
+          echo "$red[Packages] Missing hash: $name $version $hash$reset"
         done
       fi
     '';
