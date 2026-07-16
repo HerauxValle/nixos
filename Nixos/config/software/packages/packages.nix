@@ -20,9 +20,20 @@
 
       swift = {
         versions = {
-          "5.10.1" = "26.11.20260629.b5aa0fb#sha256-oPXCU/SSUokcGaJREHibG1CBX3+s/W7orDWQOZDsEeQ=";
+          # Version pinning -- allows multiple versions per package from different commits.
+          # Default gets linked to the normal PATH name. A hash can be added after # to run
+          # without --impure. Adding only # outputs the hash during rebuild. No # after the
+          # commit requires --impure to rebuild. One --impure run and then always pure is
+          # entirly possible. Use a @ after the version to get a alias that gets added to
+          # PATH as preference of the name of the binary.
+          "5.10.1@swift5" = "26.11.20260629.b5aa0fb#sha256-oPXCU/SSUokcGaJREHibG1CBX3+s/W7orDWQOZDsEeQ=";
         };
-        default = "5.10.1";
+        # Selects the default version for this package. All other versions are still available
+        # as "<package>-<version>" in PATH. The default package is also (redundatnyl, but for)
+        # consistency available as "<package>-latest"
+        # IMPORTANT: The <version> needs to match one of the versions of above literally --
+        # including alias!
+        default = "5.10.1@swift5";
       };
 
       dotnet-sdk = { };

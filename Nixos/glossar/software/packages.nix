@@ -5,8 +5,10 @@
 # Same shape as glossar/main/variables.nix, scoped to one module. Schema:
 # modules/packages/packages/default.nix. Real values on this machine:
 # config/software/packages/{registry,packages}.nix. Logic that resolves
-# this registry into environment.systemPackages:
-# modules/packages/packages/config.nix.
+# this registry into environment.systemPackages, writes
+# /etc/packages-hash-manifest.json, and defines the packagesHashDiscovery
+# activation script (see the "#" / "#<hash>" block below):
+# modules/packages/packages/main.nix.
 #
 # Packages are declared in two stages:
 #
@@ -105,6 +107,48 @@
   #           "ab.cd.e" = "AbcDef"; # Fetches nixpkgs/archive/AbcDef.tar.gz on the fly
   #         };
   #         default = "ab.cd.e"; # Exposes "somepkg-impure" unsuffixed on your PATH
+  #       };
+
+  #       # PINNING A RAW COMMIT: append "#<hash>"
+  #       # Makes the impure option above pure -- no --impure needed. Used
+  #       # exactly as written and never re-verified; a wrong hash just
+  #       # fails the build the normal way, same as any other mispinned fetch.
+  #       somepkg-pinned = {
+  #         versions = {
+  #           "ab.cd.e" = "AbcDef#sha256-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=";
+  #         };
+  #         default = "ab.cd.e";
+  #       };
+
+  #       # DON'T KNOW THE HASH YET? bare trailing "#", no value after it
+  #       # Still needs --impure to build (identical fetch to the impure
+  #       # option above -- only difference is this also gets picked up for
+  #       # discovery). After a successful --impure rebuild, the real hash
+  #       # prints as a red one-liner via the packagesHashDiscovery
+  #       # activation script (modules/packages/packages/main.nix):
+  #       #   [Packages] Missing hash: somepkg-discover ab.cd.e sha256-...
+  #       # Copy that value back in as "#<hash>" above and rebuild -- pinned
+  #       # and pure from then on, no more --impure needed for this entry.
+  #       somepkg-discover = {
+  #         versions = {
+  #           "ab.cd.e" = "AbcDef#";
+  #         };
+  #         default = "ab.cd.e";
+  #       };
+
+  #       # CUSTOM ALIAS: append "@<alias>" to a versions key
+  #       # Doesn't change what gets fetched or the normal "-ab.cd.e"
+  #       # suffixed exposure -- adds one extra, direct PATH name for
+  #       # whichever bin/ file is literally named "somepkg-aliased", e.g.
+  #       # "somepkg5" runs the exact same binary as "somepkg-aliased-ab.cd.e".
+  #       # Alias names must be globally unique across every package
+  #       # declared anywhere in this file, not just within one entry --
+  #       # a clear eval-time error names the exact duplicate(s) if not.
+  #       somepkg-aliased = {
+  #         versions = {
+  #           "ab.cd.e@somepkg5" = "AbcDef#sha256-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=";
+  #         };
+  #         default = "ab.cd.e@somepkg5"; # default must name the key in full, "@alias" included
   #       };
   #     };
 

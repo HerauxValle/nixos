@@ -117,6 +117,30 @@ clear error (lib/validate.nix) instead of silently picking something.
 Leaving `versions = { }` (the default) skips all of this and behaves
 exactly like the basic, no-versioning case above.
 
+CUSTOM ALIASES ("@<alias>" in a versions key)
+
+A `versions` key may carry an optional "@<alias>" suffix, e.g.
+"5.10.1@swift5". Doesn't change what gets fetched -- `versions.${key}`
+is still looked up by the raw, full key -- and doesn't change the
+normal "-<version>" suffixed exposure either, since that's built from
+the part before "@" (so "swift-5.10.1" gets built exactly as it would
+without the alias). All it adds is one extra, direct PATH name:
+whichever single file in that build's bin/ is literally named like the
+package (e.g. bin/swift, not every file the way suffixing covers all of
+them) gets an additional plain symlink under the alias name -- "swift5"
+runs the exact same binary as "swift-5.10.1".
+
+`default` still names a raw key exactly as before -- if you want an
+aliased key to also be `default`, name it in full, "@<alias>" included.
+
+Alias names must be globally unique across every declared package, not
+just within one -- two different packages (or two labels of the same
+package) both claiming "swift5" would otherwise collide when building
+environment.systemPackages. Checked with a single assertion in
+main.nix, same pattern as lib/validate.nix's `default` check: a clear
+eval-time error naming the exact duplicate(s) instead of a cryptic
+file-collision failure later in the build.
+
 WHY VERSION LABELS AREN'T ALWAYS ENOUGH
 
 Two builds can report the same version number but behave differently
@@ -139,13 +163,18 @@ FILES
                             per-package versions/default submodule)
   main.nix                 resolution entrypoint; turns declared
                             packages into environment.systemPackages,
-                            also writes /etc/packages-hash-manifest.json
-                            and defines the packagesHashDiscovery
-                            activation script (see HASH DISCOVERY above)
+                            also writes /etc/packages-hash-manifest.json,
+                            defines the packagesHashDiscovery activation
+                            script (see HASH DISCOVERY above), and
+                            asserts alias names are globally unique
+                            (see CUSTOM ALIASES above)
   lib/default.nix           wires up the helper functions below
   lib/resolve-default.nix   no-versions case (plain, unsuffixed pkg)
-  lib/resolve-versions.nix  versions case: suffixed copies + default,
-                            returns { drvs; manifestEntries; }
+  lib/resolve-versions.nix  versions case: suffixed + aliased copies +
+                            default, returns { drvs; manifestEntries;
+                            aliasNames; }
+  lib/wrap-aliased.nix      builds the "@<alias>" wrapper derivation
+                            (see CUSTOM ALIASES above)
   lib/resolve-spec.nix      turns one spec string into { drv;
                             manifestEntry; } -- manifestEntry is only
                             ever non-null for a bare-"#" spec

@@ -37,6 +37,7 @@ let
           {
             drvs = [ (helpers.resolveDefault { inherit sourceName packageName source; }) ];
             manifestEntries = [ ];
+            aliasNames = [ ];
           }
         else
           helpers.resolveVersions {
@@ -52,8 +53,32 @@ let
   manifestEntries = lib.unique (lib.flatten (map (r: r.manifestEntries) resolved));
 
   manifestFile = pkgs.writeText "packages-hash-manifest.json" (builtins.toJSON manifestEntries);
+
+  allAliasNames = lib.flatten (map (r: r.aliasNames) resolved);
+
+  duplicateAliasNames = lib.unique (
+    lib.filter (name: lib.count (n: n == name) allAliasNames > 1) allAliasNames
+  );
 in
 {
+  # A top-level `assert` here (like lib/validate.nix's, which is safe --
+  # it's a plain function, only forced when `resolved` above is read)
+  # would instead gate this ENTIRE module's returned attrset, forcing
+  # `packages` (and everything under it) strictly before the module
+  # system can even structurally inspect the output -- broke the
+  # laziness the config fixed-point relies on and caused a genuine
+  # infinite recursion in practice. `assertions` is the actual NixOS
+  # mechanism for this: lazy, checked only after config resolves.
+  assertions = [
+    {
+      assertion = duplicateAliasNames == [ ];
+      message =
+        "Duplicate package alias(es) declared across config.vars.environment.packages: "
+        + lib.concatStringsSep ", " duplicateAliasNames
+        + ". Alias names (the \"@<alias>\" part of a versions key) must be globally unique.";
+    }
+  ];
+
   environment.systemPackages = lib.flatten (map (r: r.drvs) resolved);
 
   environment.etc."packages-hash-manifest.json".source = manifestFile;

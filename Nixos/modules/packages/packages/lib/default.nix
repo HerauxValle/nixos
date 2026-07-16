@@ -10,6 +10,8 @@
 rec {
   wrapSuffixed = import ./wrap-suffixed.nix { inherit pkgs; };
 
+  wrapAliased = import ./wrap-aliased.nix { inherit pkgs; };
+
   validate = import ./validate.nix { inherit lib; };
 
   resolveSpec = import ./resolve-spec.nix { inherit inputs system lib; };
@@ -17,6 +19,6 @@ rec {
   resolveDefault = import ./resolve-default.nix { };
 
   resolveVersions = import ./resolve-versions.nix {
-    inherit lib wrapSuffixed validate resolveSpec;
+    inherit lib wrapSuffixed wrapAliased validate resolveSpec;
   };
 }
