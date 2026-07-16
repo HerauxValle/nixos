@@ -64,7 +64,12 @@ while true; do
     entries["$key"]="$val"
 done
 
+# bash quirk: an associative array that's never had an element assigned
+# reads as unbound under `set -u`, even though it was `declare -A`'d --
+# hit this for real (blank first prompt = 0 keys entered = crash here).
+set +u
 count="${#entries[@]}"
+set -u
 if [ "$count" -eq 0 ]; then
     echo "No keys, nothing written." >&2
     exit 0

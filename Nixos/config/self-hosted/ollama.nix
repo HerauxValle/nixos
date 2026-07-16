@@ -64,7 +64,7 @@
 
     models = [
       # CHAT / GENERAL
-      # "gpt-oss:20b"
+      "gpt-oss:20b"
       # "deepseek-r1:14b"
       # "dolphin3:8b-llama3.1-q8_0"
       # "glm-4.7-flash:q4_K_M"
@@ -83,11 +83,12 @@
       # "nomic-embed-text"
 
       # UNCENSORED
-      # "ikiru/dolphin-mistral-24b-venice-edition:latest"
+      "ikiru/dolphin-mistral-24b-venice-edition:latest"
       # "mdhm_hmmd/gemma4-e4b-uncensored-q8:latest"
       # "baytout3/Gemma-4-Uncensored-HauhauCS-Aggressive:e4b"
       # "fredrezones55/Gemma-4-Uncensored-HauhauCS-Aggressive:e4b"
       # "llama2-uncensored:7b"
+      "baytout3/gemma4-12b-qat-uncensored-hauhaucs-balanced:q4_k_m"
 
       # GEMMA FAMILY
       # "gemma4:26b-a4b-it-q4_K_M"

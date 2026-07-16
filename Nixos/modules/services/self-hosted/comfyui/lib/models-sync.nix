@@ -52,6 +52,12 @@ let
       dest="${dataDir}/$target"
       mkdir -p "$(dirname "$dest")"
 
+      header=""
+      case "$type" in
+        hf) [ -n "''${HF_TOKEN:-}" ] && header="Authorization: Bearer $HF_TOKEN" ;;
+        civitai) [ -n "''${CIVITAI_TOKEN:-}" ] && header="Authorization: Bearer $CIVITAI_TOKEN" ;;
+      esac
+
       if [ -f "$dest" ]; then
         ext="''${dest##*.}"
         min_size=0
@@ -63,17 +69,45 @@ let
           echo "[corrupt] removing $target (''${size}B < ''${min_size}B)" >&2
           rm -f "$dest"
         else
-          echo "[skip] $target"
-          count=$((count + 1))
-          continue
+          # The min_size floor above only catches obviously-tiny garbage
+          # (10MB) -- nowhere near enough to catch a multi-GB download that
+          # stalled partway (found this the hard way: a truncated ~300MB
+          # civitai fetch of a 6.47GB file passed that floor and got
+          # silently treated as complete on every restart after). Ask the
+          # server what the real size actually is (HEAD, following
+          # redirects same as the real fetch does) and compare -- a
+          # mismatch means the local file is stale/incomplete, not that a
+          # new version was published (these URLs are pinned to one exact
+          # file/version each, never re-point at different content).
+          # git entries never reach here (dest is a directory, "-f" is
+          # already false for those) so no per-type branch needed below.
+          if [ -n "$header" ]; then
+            remote_size="$(curl -sI -L --max-time 15 -A "Mozilla/5.0" -H "$header" "$url" 2>/dev/null | tr -d '\r' | grep -i '^content-length:' | tail -1 | cut -d' ' -f2)"
+          else
+            remote_size="$(curl -sI -L --max-time 15 -A "Mozilla/5.0" "$url" 2>/dev/null | tr -d '\r' | grep -i '^content-length:' | tail -1 | cut -d' ' -f2)"
+          fi
+          case "$remote_size" in
+          "" | *[!0-9]*)
+            # No usable Content-Length back (HEAD unsupported, network
+            # hiccup, whatever) -- can't compare, fall back to trusting
+            # the floor check like before rather than force a redundant
+            # re-download on every restart.
+            echo "[skip] $target"
+            count=$((count + 1))
+            continue
+            ;;
+          "$size")
+            echo "[skip] $target"
+            count=$((count + 1))
+            continue
+            ;;
+          *)
+            echo "[stale] removing $target (local ''${size}B != remote ''${remote_size}B)" >&2
+            rm -f "$dest"
+            ;;
+          esac
         fi
       fi
-
-      header=""
-      case "$type" in
-        hf) [ -n "''${HF_TOKEN:-}" ] && header="Authorization: Bearer $HF_TOKEN" ;;
-        civitai) [ -n "''${CIVITAI_TOKEN:-}" ] && header="Authorization: Bearer $CIVITAI_TOKEN" ;;
-      esac
 
       case "$type" in
       git)
