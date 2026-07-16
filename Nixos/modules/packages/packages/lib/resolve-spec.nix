@@ -6,13 +6,14 @@
 #   anything else  -> `pkgs.<packageName>` fetched from that commit or
 #                      channel string via fetchTarball. The commit/channel
 #                      part may carry a `#<hash>` suffix:
-#                        no "#" at all  -> unpinned fetchTarball. Impure —
-#                                          needs `--impure`. Unchanged,
-#                                          long-standing behavior; prints
-#                                          a `builtins.trace` banner.
+#                        no "#" at all  -> unpinned fetchTarball. Impure --
+#                                          needs `--impure`. Original,
+#                                          undecorated behavior, exactly
+#                                          as it was before "#"/"#hash"
+#                                          existed -- no trace, no banner.
 #                        "#<hash>"      -> pinned fetchTarball, pure, no
 #                                          `--impure` needed. Used as-is,
-#                                          never independently verified —
+#                                          never independently verified --
 #                                          if it's wrong, Nix's own build
 #                                          fails on it, same as any other
 #                                          mispinned fetch.
@@ -26,18 +27,18 @@
 #                                          manifest for the
 #                                          system.activationScripts hash
 #                                          -discovery step (see main.nix)
-#                                          — that's the only place the
+#                                          -- that's the only place the
 #                                          real hash gets printed cleanly,
 #                                          since nothing in the Nix
 #                                          expression language can read a
 #                                          builtin fetch failure's hash
 #                                          back out for reformatting.
 #
-# Returns `{ drv; manifestEntry; }` — manifestEntry is null except for
+# Returns `{ drv; manifestEntry; }` -- manifestEntry is null except for
 # the bare "#" case described above.
 #
 # The flake-input and raw-commit branches always resolve through a
-# plain top-level `pkgs.<packageName>`, regardless of `sourceName` —
+# plain top-level `pkgs.<packageName>`, regardless of `sourceName` --
 # they don't know about non-`pkgs` sources like `pkgs.kdePackages`.
 
 {
@@ -85,26 +86,15 @@ else
 
     url = "https://github.com/NixOS/nixpkgs/archive/${commitOrBranch}.tar.gz";
 
+    # No "#" at all and a bare "#" both fetch identically (unpinned,
+    # impure, no eval-time decoration) -- they only differ in whether a
+    # manifestEntry gets emitted below for the activation script to pick
+    # up.
     fetched =
       if isPinned then
         builtins.fetchTarball { inherit url; sha256 = givenHash; }
-      else if isBareMarker then
-        builtins.fetchTarball url
       else
-        let
-          border = "!! ---------------------------------------------------------------- !!";
-        in
-        builtins.trace ''
-
-          ${border}
-          !! [Packages] ${packageName} ${version} (spec '${spec}')
-          !! NO HASH PINNED — fetching '${commitOrBranch}' impurely. Needs
-          !! `nixos-rebuild switch --impure` (or equivalent) to evaluate.
-          !! To make this pure, add '#<hash>' after the version string, or
-          !! a bare trailing '#' to discover the hash without a Nix error
-          !! (see /etc/packages-hash-manifest.json after an impure build).
-          ${border}
-        '' (builtins.fetchTarball url);
+        builtins.fetchTarball url;
   in
   {
     drv =

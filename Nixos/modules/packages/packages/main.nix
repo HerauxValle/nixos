@@ -12,7 +12,7 @@
 #
 # `inputs` and `system` must be supplied via specialArgs in flake.nix.
 # They're only touched by version specs that name a flake input or a
-# raw commit/channel string — see ./docs/README.
+# raw commit/channel string -- see ./docs/README.
 
 let
   inherit (config.vars.environment) sources packages;
@@ -60,7 +60,7 @@ in
 
   # Discovers real hashes for bare-"#" (unpinned-on-purpose) package specs.
   # Only runs post-build, and only ever has entries to report when the
-  # build itself already succeeded impurely — see resolve-spec.nix for
+  # build itself already succeeded impurely -- see resolve-spec.nix for
   # why this can't happen at eval time (Nix's own fetch errors can't be
   # caught and reformatted from inside the expression language).
   system.activationScripts.packagesHashDiscovery = {
@@ -68,13 +68,22 @@ in
     text = ''
       manifest="/etc/packages-hash-manifest.json"
       if [ -s "$manifest" ] && [ "$(${lib.getExe pkgs.jq} 'length' "$manifest")" -gt 0 ]; then
+        red=$(printf '\033[31m')
+        reset=$(printf '\033[0m')
+        border="!! ---------------------------------------------------------------- !!"
         ${lib.getExe pkgs.jq} -c '.[]' "$manifest" | while IFS= read -r entry; do
           name=$(printf '%s' "$entry" | ${lib.getExe pkgs.jq} -r '.name')
           version=$(printf '%s' "$entry" | ${lib.getExe pkgs.jq} -r '.version')
           spec=$(printf '%s' "$entry" | ${lib.getExe pkgs.jq} -r '.spec')
           sourcePath=$(printf '%s' "$entry" | ${lib.getExe pkgs.jq} -r '.sourcePath')
           hash=$(${lib.getExe' pkgs.nix "nix"} hash path "$sourcePath" 2>/dev/null) || hash="<failed to hash '$sourcePath'>"
-          echo "[Packages] Missing hash: $name $version $hash  (spec '$spec')"
+          printf '%s\n' "$red"
+          echo "$border"
+          echo "!! [Packages] $name $version - MISSING HASH"
+          echo "!! $hash"
+          echo "!! (spec '$spec') - copy the hash after '#' in packages.nix"
+          echo "$border"
+          printf '%s' "$reset"
         done
       fi
     '';

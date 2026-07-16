@@ -9,10 +9,10 @@
 # one suffixed wrapper per version label, plus the `default` label's
 # derivation again, unsuffixed, for plain PATH access.
 #
-# Returns `{ drvs; manifestEntries; }` — manifestEntries carries any
+# Returns `{ drvs; manifestEntries; }` -- manifestEntries carries any
 # bare-"#" hash-discovery entries (see resolve-spec.nix), nulls already
 # filtered out, entries de-duplicated by `spec` (the same label can be
-# resolved twice — once suffixed, once as `default`).
+# resolved twice -- once suffixed, once as `default`).
 
 {
   sourceName,

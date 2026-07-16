@@ -54,7 +54,7 @@ that label's build comes from:
                              "26.11.20260629.b5aa0fb#"
                                -> bare trailing "#". Fetched impurely,
                                   same as the unpinned case above (still
-                                  needs --impure) — but the fetch's real
+                                  needs --impure) -- but the fetch's real
                                   hash also gets reported cleanly after
                                   the build, see HASH DISCOVERY below.
                                   Used to find the hash to paste back in
@@ -63,7 +63,7 @@ that label's build comes from:
 
                            A hash given after "#" is used exactly as
                            written and never independently checked by
-                           this module — if it's wrong, the build just
+                           this module -- if it's wrong, the build just
                            fails on it the normal way, same as any other
                            mispinned fetch. Only the unpinned case (no
                            "#" at all) prints a bordered `builtins.trace`
@@ -75,13 +75,13 @@ that label's build comes from:
 HASH DISCOVERY (bare "#" specs)
 
 A bare trailing "#" can't be resolved to a clean, custom-formatted hash
-message from inside Nix itself — nothing in the Nix expression language
+message from inside Nix itself -- nothing in the Nix expression language
 can catch a builtin fetch's error and read the real hash back out of it
 (confirmed: `builtins.trace` strips control bytes from its own
 messages, so not even coloring the output is possible that way; and
 `builtins.exec`, the one builtin that could shell out to compute it
 directly, is gated behind the system-wide `nix.settings.
-allow-unsafe-native-code-during-evaluation` daemon setting — literally
+allow-unsafe-native-code-during-evaluation` daemon setting -- literally
 named unsafe, and not scoped to just this feature).
 
 So hash discovery happens after the build instead, as a normal,
@@ -92,17 +92,17 @@ unrestricted NixOS activation script:
      deduplicated), written to `/etc/packages-hash-manifest.json`.
   2. `system.activationScripts.packagesHashDiscovery` reads that
      manifest after the build completes (it can only run at all if the
-     build already succeeded — which for a bare-"#" spec means building
+     build already succeeded -- which for a bare-"#" spec means building
      with `--impure`), runs `nix hash path` on each entry's fetched
      store path, and prints:
        [Packages] Missing hash: <name> <version> <hash>  (spec '<spec>')
-     Plain bash, so no purity restrictions — full control over the
+     Plain bash, so no purity restrictions -- full control over the
      output format, real colors if wanted, no Nix error noise at all.
   3. Copy the printed hash back into `packages.nix` after the "#" and
-     rebuild — now pinned and pure, no more `--impure` needed for that
+     rebuild -- now pinned and pure, no more `--impure` needed for that
      entry, and it drops out of the manifest.
 
-No caching, no drift detection against a previous hash — deliberately
+No caching, no drift detection against a previous hash -- deliberately
 kept simple. A "#<hash>" spec is trusted as-is and never re-verified;
 only a bare "#" ever triggers discovery.
 
@@ -147,7 +147,7 @@ FILES
   lib/resolve-versions.nix  versions case: suffixed copies + default,
                             returns { drvs; manifestEntries; }
   lib/resolve-spec.nix      turns one spec string into { drv;
-                            manifestEntry; } — manifestEntry is only
+                            manifestEntry; } -- manifestEntry is only
                             ever non-null for a bare-"#" spec
   lib/validate.nix          checks that default is a key of versions
   lib/wrap-suffixed.nix     builds the suffixed-bin/ wrapper derivation
