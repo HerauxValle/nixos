@@ -8,7 +8,9 @@
 
 # Resolves all derivations for a package declared with `versions`:
 # one suffixed wrapper per version key, plus the `default` key's
-# derivation again, unsuffixed, for plain PATH access.
+# derivation again both unsuffixed (plain PATH access) and suffixed
+# "-latest" (so whichever version is `default` is always reachable
+# under a name that doesn't change when `default` is repointed later).
 #
 # A `versions` key may carry an optional "@<alias>" suffix, e.g.
 # "5.10.1@swift5" -- doesn't change what gets fetched (`versions.${key}`
@@ -61,7 +63,7 @@ let
         spec = versions.${key};
       };
     in
-    parsed // resolved;
+    { inherit key; } // parsed // resolved;
 
   resolvedByKey = lib.mapAttrsToList (key: _: resolveKey key) versions;
   resolvedDefault = resolveKey default;
@@ -71,9 +73,20 @@ let
   aliasedDrvs = map (r: wrapAliased r.drv packageName r.alias) (
     lib.filter (r: r.alias != null) resolvedByKey
   );
+
+  latestDrv = wrapSuffixed resolvedDefault.drv "latest";
 in
+# A real version key literally named "latest" would produce its own
+# "-latest" suffix too (same as any other key), colliding with the
+# automatic one above unless it's also what `default` points at.
+assert lib.assertMsg (
+  !(lib.any (r: r.version == "latest" && r.key != default) resolvedByKey)
+) "Package '${packageName}': a version key literally named 'latest' conflicts with the automatic '<package>-latest' alias for whatever 'default' points to (currently '${default}'). Rename that key or set default to it.";
 {
-  drvs = suffixedDrvs ++ aliasedDrvs ++ [ resolvedDefault.drv ];
+  drvs = suffixedDrvs ++ aliasedDrvs ++ [
+    latestDrv
+    resolvedDefault.drv
+  ];
   manifestEntries = lib.unique (
     lib.filter (e: e != null) (
       (map (r: r.manifestEntry) resolvedByKey) ++ [ resolvedDefault.manifestEntry ]

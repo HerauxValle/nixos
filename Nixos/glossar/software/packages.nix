@@ -96,7 +96,12 @@
   #         versions = {
   #           "ab.cd.e" = "nixpkgs-abcdef"; # maps to inputs.nixpkgs-abcdef
   #         };
-  #         default = "ab.cd.e"; # Exposes "somepkg-pure-a" unsuffixed on your PATH
+  #         # default also exposes two extra names automatically: unsuffixed
+  #         # ("somepkg-pure-a") for plain PATH lookups, and "-latest"
+  #         # ("somepkg-pure-a-latest") that keeps working if default later
+  #         # points at a different key. A key literally named "latest" that
+  #         # ISN'T also default is a checked error (would collide with it).
+  #         default = "ab.cd.e";
   #       };
 
   #       # IMPURE OPTION: Using a Raw Commit Hash Directly
@@ -105,7 +110,7 @@
   #       somepkg-impure = {
   #         versions = {
   #           "ab.cd.e" = "AbcDef"; # Fetches nixpkgs/archive/AbcDef.tar.gz on the fly
-  #         };
+  #         };&
   #         default = "ab.cd.e"; # Exposes "somepkg-impure" unsuffixed on your PATH
   #       };
 

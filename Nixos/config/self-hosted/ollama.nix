@@ -107,7 +107,7 @@
       # "qwen3-vl:8b-thinking-q8_0"
       # "qwen3-vl:2b-thinking"
       # "fredrezones55/Qwen3.5-Uncensored-HauhauCS-Aggressive:4b"
-      # "fredrezones55/Qwen3.5-Uncensored-HauhauCS-Aggressive:9b"
+      "fredrezones55/Qwen3.5-Uncensored-HauhauCS-Aggressive:9b"
 
       # VISION
       # "llava:13b"

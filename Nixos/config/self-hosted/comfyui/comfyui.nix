@@ -29,7 +29,10 @@
     # referenced -- same stale-hook pattern already confirmed for
     # OpenWebUI, dropped here too).
     storage = [
-      { src = "user"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/ComfyUI/user"; }
+      {
+        src = "user";
+        dest = "${config.vars.homeDirectory}/Images/SelfHosted/ComfyUI/user";
+      }
     ];
 
     requireMounts = [ "${config.vars.homeDirectory}/Images/SelfHosted" ];
@@ -39,7 +42,10 @@
     # the default "everything but storage" teardown would delete them.
     # Only these two paths are ever removed when enabled = false; the
     # venv (venvDir, outside dataDir) is always removed too regardless.
-    teardownPaths = [ "custom_nodes" "models" ];
+    teardownPaths = [
+      "custom_nodes"
+      "models"
+    ];
 
     # nodeStore/modelStore (./nodes.nix, ./models.nix) are the full
     # catalog -- everything ever pinned. This is the actually-active
@@ -125,7 +131,9 @@
       # preStart picks it up automatically on the next restart; everything
       # else stays pinned in the catalog, ready to add later without
       # re-deriving anything.
-      models = [ ];
+      models = [
+        "cyberilloustrious-fp16-v12-0"
+      ];
     };
   };
 }

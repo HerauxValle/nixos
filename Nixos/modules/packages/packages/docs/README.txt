@@ -109,10 +109,17 @@ only a bare "#" ever triggers discovery.
 Every entry in `versions` gets built and exposed suffixed with its
 label, e.g. `swift-5.9.4`, `swiftc-5.9.4` (every file in that build's
 bin/, not just one hardcoded name). Whichever label is named in
-`default` is *additionally* exposed unsuffixed — `swift`, `swiftc` —
-so plain PATH lookups keep working. `default` must be a key that
-actually exists in `versions`; if it doesn't, evaluation fails with a
-clear error (lib/validate.nix) instead of silently picking something.
+`default` is *additionally* exposed two more ways: unsuffixed --
+`swift`, `swiftc` -- so plain PATH lookups keep working, and suffixed
+"-latest" -- `swift-latest`, `swiftc-latest` -- so it stays reachable
+under a name that doesn't change later if `default` gets repointed at a
+different label. `default` must be a key that actually exists in
+`versions`; if it doesn't, evaluation fails with a clear error
+(lib/validate.nix) instead of silently picking something. A real
+version key literally named "latest" is also checked -- if present and
+not itself the one named in `default`, it would collide with the
+automatic "-latest" name, so evaluation fails with a clear error
+instead of two derivations silently fighting over the same file.
 
 Leaving `versions = { }` (the default) skips all of this and behaves
 exactly like the basic, no-versioning case above.
@@ -165,14 +172,20 @@ FILES
                             packages into environment.systemPackages,
                             also writes /etc/packages-hash-manifest.json,
                             defines the packagesHashDiscovery activation
-                            script (see HASH DISCOVERY above), and
-                            asserts alias names are globally unique
-                            (see CUSTOM ALIASES above)
+                            script (see HASH DISCOVERY above), and checks
+                            alias names are globally unique (see CUSTOM
+                            ALIASES above) via config.assertions -- NOT a
+                            top-level `assert` wrapping the module's
+                            returned attrset, which forces evaluation
+                            before the module system can even inspect
+                            the module's shape and causes real infinite
+                            recursion; config.assertions is lazy,
+                            checked only after config resolves
   lib/default.nix           wires up the helper functions below
   lib/resolve-default.nix   no-versions case (plain, unsuffixed pkg)
-  lib/resolve-versions.nix  versions case: suffixed + aliased copies +
-                            default, returns { drvs; manifestEntries;
-                            aliasNames; }
+  lib/resolve-versions.nix  versions case: suffixed + aliased copies,
+                            default (both unsuffixed and "-latest"),
+                            returns { drvs; manifestEntries; aliasNames; }
   lib/wrap-aliased.nix      builds the "@<alias>" wrapper derivation
                             (see CUSTOM ALIASES above)
   lib/resolve-spec.nix      turns one spec string into { drv;
