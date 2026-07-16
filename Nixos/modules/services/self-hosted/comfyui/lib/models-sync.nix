@@ -81,10 +81,17 @@ let
           # file/version each, never re-point at different content).
           # git entries never reach here (dest is a directory, "-f" is
           # already false for those) so no per-type branch needed below.
+          # `|| true` on each: grep exits 1 when no content-length header
+          # comes back (HEAD unsupported, no auth, whatever) -- under
+          # `set -euo pipefail` that non-zero status is otherwise fatal
+          # right here, no `if`/`||` guarding it. Found this the hard way:
+          # first real deploy of this check killed the service in a
+          # restart-loop the moment the file was already fully present
+          # and curl/header wasn't what this was even reached to test.
           if [ -n "$header" ]; then
-            remote_size="$(curl -sI -L --max-time 15 -A "Mozilla/5.0" -H "$header" "$url" 2>/dev/null | tr -d '\r' | grep -i '^content-length:' | tail -1 | cut -d' ' -f2)"
+            remote_size="$(curl -sI -L --max-time 15 -A "Mozilla/5.0" -H "$header" "$url" 2>/dev/null | tr -d '\r' | grep -i '^content-length:' | tail -1 | cut -d' ' -f2)" || true
           else
-            remote_size="$(curl -sI -L --max-time 15 -A "Mozilla/5.0" "$url" 2>/dev/null | tr -d '\r' | grep -i '^content-length:' | tail -1 | cut -d' ' -f2)"
+            remote_size="$(curl -sI -L --max-time 15 -A "Mozilla/5.0" "$url" 2>/dev/null | tr -d '\r' | grep -i '^content-length:' | tail -1 | cut -d' ' -f2)" || true
           fi
           case "$remote_size" in
           "" | *[!0-9]*)
