@@ -12,7 +12,7 @@ rec {
 
   validate = import ./validate.nix { inherit lib; };
 
-  resolveSpec = import ./resolve-spec.nix { inherit inputs system; };
+  resolveSpec = import ./resolve-spec.nix { inherit inputs system lib; };
 
   resolveDefault = import ./resolve-default.nix { };
 

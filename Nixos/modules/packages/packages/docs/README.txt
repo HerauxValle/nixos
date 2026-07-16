@@ -38,11 +38,73 @@ that label's build comes from:
   anything else          -> treated as a raw commit hash or channel
                            string, e.g. "b5aa0fb" or
                            "26.11.20260629.b5aa0fb". Fetched on the fly
-                           with `builtins.fetchTarball`. Impure — you
-                           need `nixos-rebuild switch --impure` (or
-                           equivalent) for this branch to evaluate.
-                           No flake.nix edits needed, but also no
-                           lockfile pin, so re-fetches can drift.
+                           with `builtins.fetchTarball`. No flake.nix
+                           edits needed, but also no lockfile pin, so
+                           re-fetches can drift. Optionally carries a
+                           "#<hash>" suffix that pins the fetch:
+
+                             "26.11.20260629.b5aa0fb"
+                               -> unpinned, impure. Needs
+                                  `nixos-rebuild switch --impure` (or
+                                  equivalent) to evaluate.
+
+                             "26.11.20260629.b5aa0fb#<sha256>"
+                               -> pinned, pure. No --impure needed.
+
+                             "26.11.20260629.b5aa0fb#"
+                               -> bare trailing "#". Fetched impurely,
+                                  same as the unpinned case above (still
+                                  needs --impure) — but the fetch's real
+                                  hash also gets reported cleanly after
+                                  the build, see HASH DISCOVERY below.
+                                  Used to find the hash to paste back in
+                                  as "#<sha256>", without ever touching
+                                  Nix's own error text.
+
+                           A hash given after "#" is used exactly as
+                           written and never independently checked by
+                           this module — if it's wrong, the build just
+                           fails on it the normal way, same as any other
+                           mispinned fetch. Only the unpinned case (no
+                           "#" at all) prints a bordered `builtins.trace`
+                           banner naming the package/label right before
+                           Nix's own "requires a 'sha256' argument"
+                           error, so it's easy to spot scrolling past a
+                           full-system rebuild's noise.
+
+HASH DISCOVERY (bare "#" specs)
+
+A bare trailing "#" can't be resolved to a clean, custom-formatted hash
+message from inside Nix itself — nothing in the Nix expression language
+can catch a builtin fetch's error and read the real hash back out of it
+(confirmed: `builtins.trace` strips control bytes from its own
+messages, so not even coloring the output is possible that way; and
+`builtins.exec`, the one builtin that could shell out to compute it
+directly, is gated behind the system-wide `nix.settings.
+allow-unsafe-native-code-during-evaluation` daemon setting — literally
+named unsafe, and not scoped to just this feature).
+
+So hash discovery happens after the build instead, as a normal,
+unrestricted NixOS activation script:
+
+  1. Every bare-"#" spec across all declared packages gets collected
+     into a manifest (`{ name; version; spec; sourcePath; }` per entry,
+     deduplicated), written to `/etc/packages-hash-manifest.json`.
+  2. `system.activationScripts.packagesHashDiscovery` reads that
+     manifest after the build completes (it can only run at all if the
+     build already succeeded — which for a bare-"#" spec means building
+     with `--impure`), runs `nix hash path` on each entry's fetched
+     store path, and prints:
+       [Packages] Missing hash: <name> <version> <hash>  (spec '<spec>')
+     Plain bash, so no purity restrictions — full control over the
+     output format, real colors if wanted, no Nix error noise at all.
+  3. Copy the printed hash back into `packages.nix` after the "#" and
+     rebuild — now pinned and pure, no more `--impure` needed for that
+     entry, and it drops out of the manifest.
+
+No caching, no drift detection against a previous hash — deliberately
+kept simple. A "#<hash>" spec is trusted as-is and never re-verified;
+only a bare "#" ever triggers discovery.
 
 Every entry in `versions` gets built and exposed suffixed with its
 label, e.g. `swift-5.9.4`, `swiftc-5.9.4` (every file in that build's
@@ -76,11 +138,17 @@ FILES
   default.nix              options schema (sources, packages, and the
                             per-package versions/default submodule)
   main.nix                 resolution entrypoint; turns declared
-                            packages into environment.systemPackages
+                            packages into environment.systemPackages,
+                            also writes /etc/packages-hash-manifest.json
+                            and defines the packagesHashDiscovery
+                            activation script (see HASH DISCOVERY above)
   lib/default.nix           wires up the helper functions below
   lib/resolve-default.nix   no-versions case (plain, unsuffixed pkg)
-  lib/resolve-versions.nix  versions case: suffixed copies + default
-  lib/resolve-spec.nix      turns one spec string into a derivation
+  lib/resolve-versions.nix  versions case: suffixed copies + default,
+                            returns { drvs; manifestEntries; }
+  lib/resolve-spec.nix      turns one spec string into { drv;
+                            manifestEntry; } — manifestEntry is only
+                            ever non-null for a bare-"#" spec
   lib/validate.nix          checks that default is a key of versions
   lib/wrap-suffixed.nix     builds the suffixed-bin/ wrapper derivation
 
