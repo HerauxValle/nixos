@@ -43,12 +43,17 @@ typedef struct {
      * what used to be 11 hand-written bool fields (o_lines, o_chars, ...);
      * every module this run enabled is modules[MOD_*] == true. */
     bool     modules[MOD_COUNT];
-    bool     o_order;             /* -o ...,O -- render columns in the
-                                    * order they were typed in -o, instead
-                                    * of MODULE_TABLE's fixed order        */
+    bool     o_order;             /* -o O / -oO -- its own standalone -o
+                                    * token (like -o A): render columns in
+                                    * the order they were typed across
+                                    * every -o passed this run, instead of
+                                    * MODULE_TABLE's fixed order. NOT a
+                                    * modifier combinable with a module
+                                    * list in the same token.              */
     ModuleId order_seen[MOD_COUNT]; /* -o argument order, filled regardless
-                                      * of o_order so O can be added after
-                                      * other tokens in the same list      */
+                                      * of whether -o O/-oO was also passed,
+                                      * so it can appear before or after the
+                                      * module-listing -o's in the same run */
     int      n_order_seen;
 
     char  **excludes;         /* --exclude, parsed name/glob list         */

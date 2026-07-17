@@ -95,13 +95,16 @@ static void print_usage(const char *prog) {
         "                          LINES, CHARS, TOTAL, FILES,\n"
         "                          PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,\n"
         "                          TREE, HIDDEN\n"
-        "  -o A                  every module at once (also -oA). Can't be combined\n"
-        "                        with other module names -- it's already all of them.\n"
-        "  -o E,<MODULES>        every module EXCEPT the ones listed (also -oE,...,\n"
-        "                        or -oE <MODULES> / -o E <MODULES> as a separate arg).\n"
-        "                        E must come first; needs at least one module after it.\n"
-        "  -o ...,O               (combinable) render columns in the order you typed\n"
-        "                        them in -o instead of the fixed L/C/P/S/D/H order.\n"
+        "  -oA                   every module at once. Can't be combined with other\n"
+        "                        module names -- it's already all of them. Must be\n"
+        "                        glued onto -o like this, not \"-o A\" (space).\n"
+        "  -oE,<MODULES>         every module EXCEPT the ones listed. E must come\n"
+        "                        first; needs at least one module after it. Must be\n"
+        "                        glued onto -o like this, not \"-o E,...\" (space).\n"
+        "  -oO                   render columns in the order you typed them in -o,\n"
+        "                        instead of the fixed L/C/P/S/D/H order. Standalone,\n"
+        "                        like -oA -- not combinable with other module names.\n"
+        "                        Must be glued onto -o like this, not \"-o O\" (space).\n"
         "  --exclude <list>      comma-separated names/globs to skip, quote\n"
         "                        entries with spaces: --exclude \"build,*.pyc\"\n"
         "  --gitignore           also exclude what the scan root's .gitignore\n"
@@ -256,75 +259,59 @@ int main(int argc, char **argv) {
         } else if (strcmp(a, "-L") == 0) {
             if (i + 1 < argc) cfg.max_depth = atoi(argv[++i]);
         } else if (strcmp(a, "-o") == 0 || (strncmp(a, "-o", 2) == 0 && strlen(a) > 2)) {
-            char *val = (strcmp(a, "-o") == 0) ? (i + 1 < argc ? strdup(argv[++i]) : NULL)
-                                                : strdup(a + 2);
+            bool attached = (strcmp(a, "-o") != 0);
+            char *val = attached ? strdup(a + 2)
+                                  : (i + 1 < argc ? strdup(argv[++i]) : NULL);
             if (val) {
-                /* -oA / -o A means "every display module" and must stand
-                 * alone -- it's already everything, so "-oA,DEBUG" either
-                 * means nothing extra or is a typo for a specific subset
-                 * the caller actually wanted. -oE / -o E is the mirror
-                 * image: "every display module EXCEPT the ones listed
-                 * after it", where "E" must be the FIRST token (unlike
-                 * "A", which is rejected wherever it appears alongside
-                 * other tokens, "E" is expected to have tokens after it
-                 * -- that's the whole point). Reject either shorthand
+                /* -oA/-oE/-oO are shorthand glued directly onto -o, never
+                 * space-separated ("-o A"/"-o E"/"-o O" are usage errors,
+                 * caught below) -- "-o" followed by a space always means a
+                 * plain module list (-o LINES,CHARS). Gluing keeps -o's
+                 * two jobs (module list vs. one of these three shorthand
+                 * directives) visually and syntactically distinct at the
+                 * token level, instead of only distinguishable by what the
+                 * value happens to parse to.
+                 *
+                 * -oA means "every display module" and must stand alone
+                 * -- it's already everything, so "-oA,DEBUG" either means
+                 * nothing extra or is a typo for a specific subset the
+                 * caller actually wanted. -oE is the mirror image: "every
+                 * display module EXCEPT the ones listed after it", where
+                 * "E" must be the FIRST token (unlike "A", which is
+                 * rejected wherever it appears alongside other tokens, "E"
+                 * is expected to have tokens after it -- that's the whole
+                 * point). -oO means "render columns in the order they
+                 * were typed" and, like A, must stand alone -- it's not a
+                 * modifier tacked onto a module list. Reject any of these
                  * instead of silently doing something the flags don't
                  * literally say. TREE/HIDDEN (MODCAT_TOGGLE) are
                  * deliberately excluded from what "every module" means
                  * for both A and E -- they change what's walked/how it's
                  * laid out, not what's displayed (see
                  * docs/plan-ls-rework.md, Category 1). */
-                int ntok = 0, has_all = 0, has_exclude = 0, has_order = 0;
-                for (;;) {
-                    char *scan = strdup(val);
-                    ntok = 0; has_all = 0; has_exclude = 0; has_order = 0;
-                    bool first_tok = true;
-                    char *stok = strtok(scan, ",");
-                    while (stok) {
-                        ntok++;
-                        if (strcasecmp(stok, "A") == 0) has_all = 1;
-                        if (first_tok && strcasecmp(stok, "E") == 0) has_exclude = 1;
-                        if (strcasecmp(stok, "O") == 0) has_order = 1;
-                        first_tok = false;
-                        stok = strtok(NULL, ",");
-                    }
-                    free(scan);
-
-                    /* "-oE"/"-o E" alone (nothing glued on with a comma)
-                     * is otherwise always a hard error below -- rather
-                     * than force the exclude list onto the SAME token
-                     * (",DESC" with no space), also accept it as a
-                     * separate space-separated argv the way every other
-                     * "<flag> <value>" pair in this parser works (`-L 3`,
-                     * `--desc <format>`, ...). Only pulls in one further
-                     * token, and only when E alone would otherwise error
-                     * -- a normal `-oE,DESC` or `-o E,DESC` never reaches
-                     * here since ntok is already > 1. */
-                    if (has_exclude && ntok == 1 && i + 1 < argc && argv[i + 1][0] != '-') {
-                        char *next = argv[++i];
-                        size_t need = strlen(val) + 1 + strlen(next) + 1;
-                        char *extended = (char *)malloc(need);
-                        snprintf(extended, need, "%s,%s", val, next);
-                        free(val);
-                        val = extended;
-                        continue;
-                    }
-                    break;
+                char *scan = strdup(val);
+                int ntok = 0, has_all = 0, has_exclude = 0;
+                bool first_tok = true;
+                char *stok = strtok(scan, ",");
+                while (stok) {
+                    ntok++;
+                    if (strcasecmp(stok, "A") == 0) has_all = 1;
+                    if (first_tok && strcasecmp(stok, "E") == 0) has_exclude = 1;
+                    first_tok = false;
+                    stok = strtok(NULL, ",");
                 }
-                /* -o ...,O (can combine with a plain module list or with
-                 * E) means "respect the order these were typed in"
-                 * instead of MODULE_TABLE's fixed L/C/P/S/D/H order --
-                 * see docs/plan-ls-rework.md, Category 5. Doesn't
-                 * combine with A: "every module, in the order I typed
-                 * them" is incoherent once A already means all of them
-                 * -- that case falls through to the existing
-                 * has_all-can't-combine error below. With E, there's no
-                 * "typed order" for the modules E actually *enables*
-                 * (only the excluded ones were named), so O has nothing
-                 * to apply there; cfg.o_order still gets set but
-                 * n_order_seen stays 0, and the renderer falls back to
-                 * the fixed order whenever n_order_seen is 0. */
-                cfg.o_order = has_order;
+                free(scan);
+                bool has_order_only = (ntok == 1 && strcasecmp(val, "O") == 0);
+
+                if (!attached && (has_all || has_exclude || has_order_only)) {
+                    fprintf(stderr,
+                            "error: -o A / -o E / -o O must be glued directly onto -o "
+                            "(-oA, -oE,<modules>, -oO), not space-separated (got '-o %s')\n",
+                            val);
+                    free(val);
+                    print_usage(argv[0]);
+                    return 1;
+                }
 
                 if (has_all && ntok > 1) {
                     fprintf(stderr,
@@ -340,6 +327,8 @@ int main(int argc, char **argv) {
                     free(val);
                     print_usage(argv[0]);
                     return 1;
+                } else if (has_order_only) {
+                    cfg.o_order = true;
                 } else if (has_all) {
                     for (int m = 0; m < MOD_COUNT; m++) {
                         if (MODULE_TABLE[m].cat == MODCAT_TOGGLE) continue;
@@ -350,10 +339,6 @@ int main(int argc, char **argv) {
                     char *tok = strtok(val, ",");
                     tok = strtok(NULL, ",");  /* skip the leading "E" token */
                     while (tok) {
-                        if (strcasecmp(tok, "O") == 0) {
-                            tok = strtok(NULL, ",");
-                            continue;
-                        }
                         const ModuleDef *def = module_lookup(tok);
                         if (def) {
                             excluded[def->id] = true;
@@ -370,10 +355,6 @@ int main(int argc, char **argv) {
                 } else {
                     char *tok = strtok(val, ",");
                     while (tok) {
-                        if (strcasecmp(tok, "O") == 0) {
-                            tok = strtok(NULL, ",");
-                            continue;
-                        }
                         const ModuleDef *def = module_lookup(tok);
                         if (def) {
                             cfg.modules[def->id] = true;

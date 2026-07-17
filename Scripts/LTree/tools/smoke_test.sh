@@ -232,19 +232,44 @@ run_ok "tree view DEBUG"               "$BIN" "$PG" -o DEBUG
 run_ok "tree view DEBUG,DIFF ordering" "$BIN" "$PG" -o DEBUG,DIFF
 run_ok "tree view ALL modules at once" "$BIN" "$PG" -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DEBUG
 run_ok "-oA (all modules shorthand, attached)" "$BIN" "$PG" -oA
-run_ok "-o A (all modules shorthand, spaced)"  "$BIN" "$PG" -o A
+run_expect_fail "-o A (space-separated) rejected -- must be glued onto -o" "$BIN" "$PG" -o A
 run_expect_fail "-oA,DEBUG rejected (can't combine with A)" "$BIN" "$PG" -oA,DEBUG
-run_expect_fail "-o A,DEBUG rejected (can't combine with A)" "$BIN" "$PG" -o A,DEBUG
-run_ok "-oE <MODULE> as a separate space-separated arg (not just comma-glued)" "$BIN" "$PG" -oE DEBUG
-run_ok "-o E <MODULE> as a separate space-separated arg"                      "$BIN" "$PG" -o E DEBUG
-assert_json "-oE DEBUG (space) excludes only DEBUG, same as -oE,DEBUG" \
+run_expect_fail "-o A,DEBUG rejected (space AND combine, either is enough)" "$BIN" "$PG" -o A,DEBUG
+run_ok "-oE,<MODULE> attached (comma-glued)" "$BIN" "$PG" -oE,DEBUG
+assert_json "-oE,DEBUG excludes only DEBUG, everything else stays on" \
     "d['hash_algo'] != 'none' and len(d['by_extension']) > 0 and 'debug' not in d" \
-    "$BIN" "$PG" -j -oE DEBUG
+    "$BIN" "$PG" -j -oE,DEBUG
+run_expect_fail "-oE DEBUG (space-separated, not comma-glued) rejected" "$BIN" "$PG" -oE DEBUG
+run_expect_fail "-o E,DEBUG (space-separated) rejected -- must be glued onto -o" "$BIN" "$PG" -o E,DEBUG
 run_expect_fail "-oE with truly nothing after it still errors cleanly" "$BIN" "$PG" -oE
-run_expect_fail "-oE followed by another flag (not a module) still errors, doesn't swallow it" "$BIN" "$PG" -oE --no-colour
 assert_json "-oA enables every module (TOTAL/by_extension/debug all present)" \
     "d['hash_algo'] != 'none' and 'debug' in d and len(d['by_extension']) > 0" \
     "$BIN" "$PG" -j -oA
+
+header "-oO (typed column order, standalone/attached only)"
+run_ok "-oO attached alone" "$BIN" "$PG/basic" -oO
+run_expect_fail "-o O (space-separated) rejected -- must be glued onto -o" "$BIN" "$PG/basic" -o O
+run_ok "-oO,LINES combined in one token doesn't crash (falls back to plain list, warns on 'O')" "$BIN" "$PG/basic" -oO,LINES
+ORDER_OUT="$("$BIN" "$PG/basic" -o CHARS,LINES -oO 2>&1)"
+if echo "$ORDER_OUT" | python3 -c "
+import sys
+text = sys.stdin.read()
+c, l = text.find('[C:'), text.find('[L:')
+sys.exit(0 if (c != -1 and l != -1 and c < l) else 1)"; then
+    PASS=$((PASS+1)); note "ok    -oO renders columns in typed order (CHARS before LINES)"
+else
+    FAIL=$((FAIL+1)); FAILED_NAMES+=("-oO typed order"); note "FAIL  -oO did not reorder columns as typed"
+fi
+DEFAULT_ORDER_OUT="$("$BIN" "$PG/basic" -o CHARS,LINES 2>&1)"
+if echo "$DEFAULT_ORDER_OUT" | python3 -c "
+import sys
+text = sys.stdin.read()
+l, c = text.find('[L:'), text.find('[C:')
+sys.exit(0 if (c != -1 and l != -1 and l < c) else 1)"; then
+    PASS=$((PASS+1)); note "ok    without -oO, columns stay in fixed L/C/... order regardless of -o argument order"
+else
+    FAIL=$((FAIL+1)); FAILED_NAMES+=("default fixed column order"); note "FAIL  default fixed order broke"
+fi
 run_ok "no-colour flag"                "$BIN" "$PG" --no-colour
 run_ok "no-color (US spelling)"        "$BIN" "$PG" --no-color
 run_ok "unknown -o module (should warn, not crash)" "$BIN" "$PG" -o BOGUS_MODULE

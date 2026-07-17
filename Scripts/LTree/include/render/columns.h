@@ -60,8 +60,8 @@ extern const ModuleId RENDER_COLUMNS[RENDER_COLUMN_COUNT];
 typedef struct {
     ModuleId order[RENDER_COLUMN_COUNT];   /* slot mi's module id -- fixed
                                              * L/C/P/S/D/H order, unless
-                                             * -o ...,O asked to respect
-                                             * -o argument order instead */
+                                             * -oO asked to respect -o
+                                             * argument order instead */
     bool    active[RENDER_COLUMN_COUNT];
     size_t  colwidth[RENDER_COLUMN_COUNT];
     char  **rendered[RENDER_COLUMN_COUNT]; /* rendered[mi][i], line i's text */

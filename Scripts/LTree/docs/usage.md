@@ -44,9 +44,9 @@ mode they just sort into their normal alphabetical position.
 | `-d` | List directories only. |
 | `-L <n>` (also `-L<n>`) | Max depth to descend, like `tree -L`. Only meaningful with `-o TREE` -- ls-mode is always exactly one level deep. Directories at the cutoff are still shown, marked `(...)`, just not expanded. |
 | `-o <MODULES>` | Comma-separated, any order: `LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DESC,DIFF,DEBUG,TREE,HIDDEN`. See below. |
-| `-o A` (also `-oA`) | Every *display* module at once (`TREE`/`HIDDEN` excluded -- see below). Can't be combined with any other module name in the same list -- `ltree` rejects `-o A,DEBUG` rather than silently ignoring the redundant token. |
-| `-o E,<MODULES>` (also `-oE,<MODULES>`, or `-oE <MODULES>`/`-o E <MODULES>` as a separate space-separated arg) | Every display module **except** the ones listed. `E` must be the first token; needs at least one module named after it (bare `-oE`/`-o E` with nothing following at all -- comma-glued or as the next arg -- is a usage error). |
-| `-o ...,O` | Combinable modifier: render `-o` columns in the order you actually typed them, instead of the fixed `L`/`C`/`P`/`S`/`D`/`H`/`DESC` order. Doesn't combine with `A`. Combined with `E`, has nothing to apply to (there's no "typed order" for modules `E` *enables*, only the ones it excludes) and is silently a no-op. |
+| `-oA` | Every *display* module at once (`TREE`/`HIDDEN` excluded -- see below). Can't be combined with any other module name in the same list -- `ltree` rejects `-oA,DEBUG` rather than silently ignoring the redundant token. Must be glued directly onto `-o` -- `-o A` (space) is a usage error. |
+| `-oE,<MODULES>` | Every display module **except** the ones listed. `E` must be the first token; needs at least one module named after it (bare `-oE` alone is a usage error). Must be glued directly onto `-o` -- `-o E,<MODULES>` (space) is a usage error. |
+| `-oO` | Standalone, like `-oA` -- not a modifier combinable with a module list in the same token. Renders `-o` columns in the order they were actually typed across the run, instead of the fixed `L`/`C`/`P`/`S`/`D`/`H`/`DESC` order. |
 | `--exclude <list>` | Comma-separated names/globs to skip. Quote entries containing spaces: `--exclude "build,*.pyc,some dir"`. |
 | `--gitignore` | Also exclude whatever the scan root's `.gitignore` would. Composes with `--exclude` -- either list can exclude a path. |
 | `--cryptographic` | `-o HASH` / `-o DIFF` use SHA-256 instead of the default xxHash64. |
@@ -66,7 +66,7 @@ mode they just sort into their normal alphabetical position.
 Each of `LINES` / `CHARS` / `PERMISSIONS` / `SIZE` / `DATE` / `HASH`
 prints as its **own** aligned `[X: ...]` bracket per entry, in a fixed
 order (`L`, `C`, `P`, `S`, `D`, `H`) regardless of what order you list
-them in `-o` -- unless `-o ...,O` is also present, which switches to
+them in `-o` -- unless `-oO` is also passed, which switches to
 the order you actually typed (see the flags table above). Directories
 aggregate `LINES`/`CHARS`/`SIZE` over their **direct** children only
 (not the whole subtree at once -- totals accumulate naturally as you

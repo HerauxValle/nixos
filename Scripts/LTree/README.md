@@ -90,13 +90,15 @@ ltree [path] [options]
                           LINES, CHARS, TOTAL, FILES,
                           PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,
                           TREE, HIDDEN
-  -o A                  every display module at once (also -oA). Can't
-                        be combined with other module names.
-  -o E,<MODULES>        every display module EXCEPT the ones listed
-                        (also -oE,..., or -oE <MODULES> as a separate arg).
-                        E must come first.
-  -o ...,O               (combinable) render columns in the order you
-                        typed them in -o, not the fixed L/C/P/S/D/H order
+  -oA                   every display module at once. Can't be combined
+                        with other module names. Glued onto -o -- "-o A"
+                        (space) is a usage error.
+  -oE,<MODULES>         every display module EXCEPT the ones listed.
+                        E must come first. Glued onto -o -- "-o E,..."
+                        (space) is a usage error.
+  -oO                   render columns in the order you typed them in
+                        -o, not the fixed L/C/P/S/D/H order. Standalone,
+                        like -oA. Glued onto -o -- "-o O" is a usage error.
   --exclude <list>      comma-separated names/globs to skip, quote
                         entries with spaces: --exclude "build,*.pyc"
   --gitignore           also exclude what the scan root's .gitignore
@@ -146,8 +148,8 @@ visible entries within their own `[Folders]`/`[Files]` block.
 own aligned `[X: ...]` column per entry, in a fixed order regardless
 of the order you list them in `-o` (dirs aggregate
 `LINES`/`CHARS`/`SIZE` over their direct children; `PERMISSIONS`/
-`DATE` are always the entry's own) -- unless `-o ...,O` is also
-present, which switches to rendering columns in the order you actually
+`DATE` are always the entry's own) -- unless `-oO` is also
+passed, which switches to rendering columns in the order you actually
 typed them. `EXT` toggles showing file extensions in the tree (hidden
 by default -- `report.md` shows as `report`). `CHARS` counts *visible*
 characters, not raw codepoints -- combining marks, variation
@@ -161,8 +163,8 @@ hyper-detailed run report -- timing, peak RSS, heap stats, page
 faults, throughput -- right after `TOTAL` (and, in `-j` output, as a
 `"debug"` object); it's never written into `--save-output` snapshots,
 since it's ephemeral run-to-run noise that would only pollute
-diffing. `-o A` (or `-oA`) turns on every display module at once;
-`-o E,<list>` (or `-oE,<list>`) turns on every display module *except*
+diffing. `-oA` turns on every display module at once;
+`-oE,<list>` turns on every display module *except*
 the ones named. Neither counts `TREE`/`HIDDEN` as part of "every
 module" -- those change behavior, not what's displayed.
 
@@ -315,7 +317,7 @@ ltree -o DESC --desc "&description: *...*"
   time, peak RSS, heap-arena breakdown, page faults, throughput) for
   anyone profiling how `ltree` itself is spending time/memory on a
   given tree; deliberately excluded from `--save-output` snapshots.
-- **New:** `-o A` / `-oA` -- turn on every module in one shot instead
+- **New:** `-oA` -- turn on every module in one shot instead
   of spelling out the full list; rejected if combined with any other
   module name in the same `-o`, since it's already all of them.
 - **Changed:** `CHARS` now counts *visible* characters instead of raw
@@ -338,10 +340,12 @@ Full design reasoning in [`docs/plan-ls-rework.md`](docs/plan-ls-rework.md).
 - **New:** `-o HIDDEN` -- shows dotfiles/dot-dirs, hidden by default
   now (previously always shown); appended after visible entries within
   each ls-mode block.
-- **New:** `-o E,<MODULES>` (`-oE,...`) -- every display module
+- **New:** `-oE,<MODULES>` -- every display module
   *except* the ones listed, the inverse of `-oA`.
-- **New:** `-o ...,O` -- render `-o` columns in the order you typed
-  them instead of the fixed `L`/`C`/`P`/`S`/`D`/`H` order.
+- **New:** `-oO` -- render `-o` columns in the order you typed
+  them instead of the fixed `L`/`C`/`P`/`S`/`D`/`H` order. Standalone,
+  like `-oA` (see the later addendum below on `-oA`/`-oE`/`-oO` all
+  needing to be glued directly onto `-o`, never space-separated).
 - **New:** `--condense` -- one `[L:x C:y ...]` bracket per entry
   instead of one bracket per active column.
 - **New:** `--sort <abc|birth|modified|lines|chars|types>[,combined][,reversed]`
@@ -405,7 +409,9 @@ Full design reasoning in
   that takes long enough to notice, so it's clear `ltree` is working
   rather than stuck -- the only thing on screen without `--live`,
   always redrawn as the bottom-most line with `--live`.
-- **Fixed:** `-oE`/`-o E` (module-exclude shorthand) with its module
-  list as a separate space-separated argument (`-oE DESC`, not just
-  comma-glued `-oE,DESC`) now works instead of erroring while also
-  silently swallowing that argument as the scan path.
+- **Changed:** `-oA`/`-oE,<MODULES>`/`-oO` must now be glued directly
+  onto `-o` -- `-o A`/`-o E,<MODULES>`/`-o O` (space-separated) are
+  usage errors instead of being silently accepted as equivalent. Keeps
+  `-o`'s two jobs (a plain module list vs. one of these three shorthand
+  directives) visually distinct at the token level. `-o LINES,CHARS`
+  (an ordinary module list, space-separated) is unaffected.

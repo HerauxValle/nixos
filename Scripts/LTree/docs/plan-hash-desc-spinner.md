@@ -1,4 +1,4 @@
-<!-- &desc: "The category-by-category implementation plan and flagged design-decision ASSUMPTIONs for --stdout-aware lazy hash computation, --simple-hash, the lt binary alias, -o DESC/--desc/-D, and the loading spinner, all 6 categories shipped; original raw prompt appended verbatim at the bottom." -->
+<!-- &desc: "The category-by-category implementation plan and flagged design-decision ASSUMPTIONs for --stdout-aware lazy hash computation, --simple-hash, the lt binary alias, -o DESC/--desc/-D, and the loading spinner, all 6 categories shipped, plus an addendum correcting -oA/-oE/-oO to a strictly glued-onto--o, never space-separated syntax; original raw prompt appended verbatim at the bottom." -->
 
 # Plan: --stdout-aware lazy compute, --simple-hash, lt alias, -o DESC/--desc/-D, loading spinner
 
@@ -167,6 +167,48 @@ inclusive HASH` actually computing a hash without `-o HASH`,
 `--simple-hash` on a large file, `-o DESC` with both the default and a
 custom `--desc`/`-D` format, and a malformed `--desc` being cleanly
 rejected.
+
+## Addendum: `-oA`/`-oE`/`-oO` must be glued directly onto `-o`
+
+Follow-up feedback after Category 18 shipped (`ltree-v19.tar.gz` /
+`ltree-v20.tar.gz`), in two rounds:
+
+1. First, a real bug: `-oE DESC` (space) failed with a confusing
+   double surprise -- it errored ("-o E excludes modules but none were
+   named after it") *and* silently reinterpreted `DESC` as the scan
+   path, since the attached form (`-oE`) never looked at the next argv
+   the way bare `-o` does. `ltree-v19.tar.gz` fixed this by making the
+   attached shorthand forms also pull in one following space-separated
+   argv as a continuation, so `-oE DESC` worked the same as `-oE,DESC`.
+2. Then, explicit correction: that fix was **not** wanted. The user's
+   actual intent, stated directly: `-o` is the base flag, and `A`/`E`/`O`
+   are shorthand that must be **glued directly onto it** (`-oA`,
+   `-oE,<MODULES>`, `-oO`) -- never space-separated (`-o A`, `-o E,...`,
+   `-o O`). Also, the column-order flag itself should never have been a
+   modifier embedded in a module list (`-o LINES,CHARS,O`) in the first
+   place -- it's `-oO`, its own standalone token, exactly like `-oA`.
+
+Final shape, replacing both the v19 fix and the original Category 5
+design:
+
+- `-oA` / `-oE,<MODULES>` / `-oO` -- must be glued directly onto `-o`.
+  `-o A` / `-o E,<MODULES>` / `-o O` (space-separated) are now usage
+  errors (`attached` bool in `main.c`'s `-o` branch gates this: if the
+  token came from bare `-o <space>` and resolves to any of the three
+  shorthand directives, reject before the more specific per-directive
+  validation runs).
+- `-oO` is standalone like `-oA` -- not combinable with a module list
+  in the same token (`-oO,LINES` isn't recognized as anything special;
+  it falls through to the plain module-list branch, where `O` just
+  warns as an unknown module like any other bad token, same leniency
+  class as everywhere else in this parser).
+- A plain module list via bare `-o` (space-separated) is completely
+  unaffected -- `-o LINES,CHARS` still works exactly as before. Only
+  the three single-letter shorthand directives require gluing.
+
+`docs/plan-ls-rework.md`'s Category 5 (`-o O`) and Category 1 (`-oE`)
+are the original design record for these features -- left as-is
+(historical), superseded by this addendum for the actual CLI syntax.
 
 ---
 
