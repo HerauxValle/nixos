@@ -235,6 +235,13 @@ run_ok "-oA (all modules shorthand, attached)" "$BIN" "$PG" -oA
 run_ok "-o A (all modules shorthand, spaced)"  "$BIN" "$PG" -o A
 run_expect_fail "-oA,DEBUG rejected (can't combine with A)" "$BIN" "$PG" -oA,DEBUG
 run_expect_fail "-o A,DEBUG rejected (can't combine with A)" "$BIN" "$PG" -o A,DEBUG
+run_ok "-oE <MODULE> as a separate space-separated arg (not just comma-glued)" "$BIN" "$PG" -oE DEBUG
+run_ok "-o E <MODULE> as a separate space-separated arg"                      "$BIN" "$PG" -o E DEBUG
+assert_json "-oE DEBUG (space) excludes only DEBUG, same as -oE,DEBUG" \
+    "d['hash_algo'] != 'none' and len(d['by_extension']) > 0 and 'debug' not in d" \
+    "$BIN" "$PG" -j -oE DEBUG
+run_expect_fail "-oE with truly nothing after it still errors cleanly" "$BIN" "$PG" -oE
+run_expect_fail "-oE followed by another flag (not a module) still errors, doesn't swallow it" "$BIN" "$PG" -oE --no-colour
 assert_json "-oA enables every module (TOTAL/by_extension/debug all present)" \
     "d['hash_algo'] != 'none' and 'debug' in d and len(d['by_extension']) > 0" \
     "$BIN" "$PG" -j -oA

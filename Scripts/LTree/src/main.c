@@ -97,7 +97,8 @@ static void print_usage(const char *prog) {
         "                          TREE, HIDDEN\n"
         "  -o A                  every module at once (also -oA). Can't be combined\n"
         "                        with other module names -- it's already all of them.\n"
-        "  -o E,<MODULES>        every module EXCEPT the ones listed (also -oE,...).\n"
+        "  -o E,<MODULES>        every module EXCEPT the ones listed (also -oE,...,\n"
+        "                        or -oE <MODULES> / -o E <MODULES> as a separate arg).\n"
         "                        E must come first; needs at least one module after it.\n"
         "  -o ...,O               (combinable) render columns in the order you typed\n"
         "                        them in -o instead of the fixed L/C/P/S/D/H order.\n"
@@ -273,19 +274,43 @@ int main(int argc, char **argv) {
                  * for both A and E -- they change what's walked/how it's
                  * laid out, not what's displayed (see
                  * docs/plan-ls-rework.md, Category 1). */
-                char *scan = strdup(val);
                 int ntok = 0, has_all = 0, has_exclude = 0, has_order = 0;
-                bool first_tok = true;
-                char *stok = strtok(scan, ",");
-                while (stok) {
-                    ntok++;
-                    if (strcasecmp(stok, "A") == 0) has_all = 1;
-                    if (first_tok && strcasecmp(stok, "E") == 0) has_exclude = 1;
-                    if (strcasecmp(stok, "O") == 0) has_order = 1;
-                    first_tok = false;
-                    stok = strtok(NULL, ",");
+                for (;;) {
+                    char *scan = strdup(val);
+                    ntok = 0; has_all = 0; has_exclude = 0; has_order = 0;
+                    bool first_tok = true;
+                    char *stok = strtok(scan, ",");
+                    while (stok) {
+                        ntok++;
+                        if (strcasecmp(stok, "A") == 0) has_all = 1;
+                        if (first_tok && strcasecmp(stok, "E") == 0) has_exclude = 1;
+                        if (strcasecmp(stok, "O") == 0) has_order = 1;
+                        first_tok = false;
+                        stok = strtok(NULL, ",");
+                    }
+                    free(scan);
+
+                    /* "-oE"/"-o E" alone (nothing glued on with a comma)
+                     * is otherwise always a hard error below -- rather
+                     * than force the exclude list onto the SAME token
+                     * (",DESC" with no space), also accept it as a
+                     * separate space-separated argv the way every other
+                     * "<flag> <value>" pair in this parser works (`-L 3`,
+                     * `--desc <format>`, ...). Only pulls in one further
+                     * token, and only when E alone would otherwise error
+                     * -- a normal `-oE,DESC` or `-o E,DESC` never reaches
+                     * here since ntok is already > 1. */
+                    if (has_exclude && ntok == 1 && i + 1 < argc && argv[i + 1][0] != '-') {
+                        char *next = argv[++i];
+                        size_t need = strlen(val) + 1 + strlen(next) + 1;
+                        char *extended = (char *)malloc(need);
+                        snprintf(extended, need, "%s,%s", val, next);
+                        free(val);
+                        val = extended;
+                        continue;
+                    }
+                    break;
                 }
-                free(scan);
                 /* -o ...,O (can combine with a plain module list or with
                  * E) means "respect the order these were typed in"
                  * instead of MODULE_TABLE's fixed L/C/P/S/D/H order --

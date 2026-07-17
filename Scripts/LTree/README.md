@@ -93,7 +93,8 @@ ltree [path] [options]
   -o A                  every display module at once (also -oA). Can't
                         be combined with other module names.
   -o E,<MODULES>        every display module EXCEPT the ones listed
-                        (also -oE,...). E must come first.
+                        (also -oE,..., or -oE <MODULES> as a separate arg).
+                        E must come first.
   -o ...,O               (combinable) render columns in the order you
                         typed them in -o, not the fixed L/C/P/S/D/H order
   --exclude <list>      comma-separated names/globs to skip, quote
@@ -404,3 +405,7 @@ Full design reasoning in
   that takes long enough to notice, so it's clear `ltree` is working
   rather than stuck -- the only thing on screen without `--live`,
   always redrawn as the bottom-most line with `--live`.
+- **Fixed:** `-oE`/`-o E` (module-exclude shorthand) with its module
+  list as a separate space-separated argument (`-oE DESC`, not just
+  comma-glued `-oE,DESC`) now works instead of erroring while also
+  silently swallowing that argument as the scan path.
