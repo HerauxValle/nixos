@@ -1,3 +1,4 @@
+/* &desc: "Declares the GitTable type and gitignore_load/gitignore_is_excluded, --gitignore's single-root-.gitignore matcher (a documented subset of real gitignore semantics)." */
 /* gitignore.h -- reads a single .gitignore at the scan root and
  * matches against it. This is a *subset* of real gitignore semantics
  * (documented in docs/usage.md), not a full implementation:

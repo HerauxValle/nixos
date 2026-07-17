@@ -1,3 +1,4 @@
+/* &desc: "Implements the shared PrintLine/LineBuf plumbing and the two-pass column-measure-then-print pipeline (columns_measure/columns_print_line, condense- and -o O-order-aware) every terminal renderer builds on, plus print_summary_tail." */
 #define _GNU_SOURCE
 #include "render/columns.h"
 #include "render/colors.h"

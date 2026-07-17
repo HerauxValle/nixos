@@ -1,3 +1,4 @@
+/* &desc: "Implements the ExtTable per-extension accumulator, its descending-by-lines qsort comparator, and file_ext()/strip_ext_for_display()." */
 #define _GNU_SOURCE
 #include "scan/exttable.h"
 #include <stdlib.h>

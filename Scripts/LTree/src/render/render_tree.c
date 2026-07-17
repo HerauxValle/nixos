@@ -1,3 +1,4 @@
+/* &desc: "Implements the -o TREE streaming renderer: measures a directory's children once (on_dir_measure), prints each one interleaved with recursion (on_entry_ready) so subtrees appear right after their own line, and frees per-depth state once a directory's whole subtree is done (on_dir_done)." */
 #define _GNU_SOURCE
 #include "render/render_tree.h"
 #include "render/colors.h"
@@ -8,75 +9,148 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ===================== recursive flatten (tree mode only) ================
- * ls mode (render_ls.c) doesn't recurse and has no connector prefixes
- * to draw, so it builds its own LineBuf directly rather than sharing
- * this function -- but both share the PrintLine/LineBuf shape and the
- * whole column-rendering pipeline below, see render/columns.h. */
-static void flatten(Node *n, const Config *cfg, const char *prefix,
-                     bool is_last, bool is_root, LineBuf *lb) {
-    if (!is_root) {
-        PrintLine *pl = linebuf_push(lb);
+/* ===================== per-depth streaming state ==========================
+ * Two things are threaded from a directory down to its children, both
+ * indexed by depth (the depth of the ENTRIES being printed, i.e. one
+ * more than their parent directory's own depth):
+ *
+ *   - `prefix`: the connector-ancestor string entries at this depth
+ *     print before their own ├──/╰──. Set by the PARENT's
+ *     on_entry_ready call (computed from ITS OWN prefix + whether the
+ *     parent itself was last among its siblings), read by
+ *     on_dir_measure when building this depth's PrintLines.
+ *   - `lb`/`mc`/`col_start`: this depth's siblings, measured once (by
+ *     on_dir_measure) so per-entry printing (on_entry_ready) can align
+ *     columns across all of them -- the per-directory-block trade-off
+ *     documented in docs/plan-ls-rework.md, Category 7.
+ *
+ * A plain array indexed by depth is safe here (no per-sibling
+ * collision) because scan.c's build_tree() recurses one child fully
+ * to completion (including everything at deeper depths) before
+ * starting the next sibling -- by the time a depth's value would get
+ * overwritten by a new directory, the previous occupant's entire
+ * subtree has already finished reading it. Static because this is a
+ * single-threaded, one-scan-per-process tool (same convention as
+ * scan.c's signal-guard globals). ===================================== */
+typedef struct {
+    char           *prefix;
+    LineBuf         lb;
+    MeasuredColumns mc;
+    size_t          col_start;
+    bool            have_measurement;
+} DepthState;
+
+static DepthState *g_depth = NULL;
+static size_t g_depth_cap = 0;
+
+static void ensure_depth(size_t depth) {
+    if (depth < g_depth_cap) return;
+    size_t new_cap = depth + 16;
+    g_depth = (DepthState *)realloc(g_depth, sizeof(DepthState) * new_cap);
+    for (size_t i = g_depth_cap; i < new_cap; i++) {
+        g_depth[i].prefix = NULL;
+        g_depth[i].have_measurement = false;
+        memset(&g_depth[i].lb, 0, sizeof(LineBuf));
+        memset(&g_depth[i].mc, 0, sizeof(MeasuredColumns));
+        g_depth[i].col_start = 0;
+    }
+    g_depth_cap = new_cap;
+}
+
+void tree_stream_start(const char *display_path, const Config *cfg) {
+    printf("%s%s%s\n", COL(cfg, ANSI_DIR), display_path, RST(cfg));
+    ensure_depth(2);
+    free(g_depth[1].prefix);
+    g_depth[1].prefix = strdup("");
+}
+
+void tree_stream_on_dir_measure(Node *dir, int depth, const Config *cfg, void *ctx) {
+    (void)ctx;
+    size_t child_depth = (size_t)depth + 1;
+    ensure_depth(child_depth + 1);
+
+    const char *prefix = g_depth[child_depth].prefix ? g_depth[child_depth].prefix : "";
+
+    LineBuf *lb = &g_depth[child_depth].lb;
+    linebuf_init(lb);
+    for (size_t i = 0; i < dir->nchildren; i++) {
+        Node *n = dir->children[i];
+        bool is_last = (i + 1 == dir->nchildren);
         const char *connector = is_last ? "\xE2\x95\xB0\xE2\x94\x80\xE2\x94\x80 " /* ╰── */
                                          : "\xE2\x94\x9C\xE2\x94\x80\xE2\x94\x80 " /* ├── */;
+
+        PrintLine *pl = linebuf_push(lb);
+        printline_fill(pl, n, cfg);
         size_t plen = strlen(prefix) + strlen(connector) + 1;
         pl->prefix = (char *)malloc(plen);
         snprintf(pl->prefix, plen, "%s%s", prefix, connector);
-
-        printline_fill(pl, n, cfg);
         pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
     }
 
-    if (!n->is_dir) return;
+    size_t maxw = 0;
+    for (size_t i = 0; i < lb->n; i++) if (lb->items[i].width > maxw) maxw = lb->items[i].width;
+    g_depth[child_depth].col_start = maxw + 8;
 
-    char childprefix[4096];
-    if (is_root) {
-        childprefix[0] = '\0';
-    } else {
+    columns_measure(lb, cfg, &g_depth[child_depth].mc);
+    g_depth[child_depth].have_measurement = true;
+}
+
+void tree_stream_on_entry_ready(Node *node, size_t index, bool is_last, int depth,
+                                 const Config *cfg, void *ctx) {
+    (void)ctx;
+    size_t d = (size_t)depth;
+    ensure_depth(d + 1);
+    DepthState *ds = &g_depth[d];
+    PrintLine *pl = &ds->lb.items[index];
+
+    /* -o DIFF can't mark anything here -- diffing needs the complete
+     * tree, which only exists after the whole walk finishes, well
+     * after this line has already printed. */
+    const char *namecol = pl->is_symlink ? COL(cfg, ANSI_SYMLINK)
+                        : pl->is_dir     ? COL(cfg, ANSI_DIR)
+                                         : COL(cfg, ANSI_FILE);
+    printf("%s%s%s%s%s%s%s", COL(cfg, ANSI_BRANCH), pl->prefix, RST(cfg),
+           namecol, pl->name, pl->is_dir ? "/" : "", RST(cfg));
+
+    columns_print_line(&ds->mc, cfg, pl, index, ds->col_start);
+
+    if (pl->truncated) printf("  %s(...)%s", COL(cfg, ANSI_BRANCH), RST(cfg));
+    putchar('\n');
+    fflush(stdout);
+
+    if (node->is_dir && !node->truncated) {
+        const char *my_prefix = ds->prefix ? ds->prefix : "";
         const char *cont = is_last ? "    " : "\xE2\x94\x82   " /* │   */;
-        snprintf(childprefix, sizeof(childprefix), "%s%s", prefix, cont);
-    }
+        size_t clen = strlen(my_prefix) + strlen(cont) + 1;
+        char *childprefix = (char *)malloc(clen);
+        snprintf(childprefix, clen, "%s%s", my_prefix, cont);
 
-    for (size_t i = 0; i < n->nchildren; i++) {
-        bool last = (i == n->nchildren - 1);
-        flatten(n->children[i], cfg, childprefix, last, false, lb);
+        ensure_depth(d + 2);
+        free(g_depth[d + 1].prefix);
+        g_depth[d + 1].prefix = childprefix;
     }
 }
 
-/* ===================== tree (human) output =============================== */
-void print_tree_view(Node *root, const char *display_path, const Config *cfg,
-                      const Totals *tot, bool diff_available, const DebugStats *dbg) {
-    LineBuf lb;
-    linebuf_init(&lb);
-    flatten(root, cfg, "", true, true, &lb);
-
-    size_t maxw = utf8_width(display_path);
-    for (size_t i = 0; i < lb.n; i++) if (lb.items[i].width > maxw) maxw = lb.items[i].width;
-    size_t col_start = maxw + 8;
-
-    MeasuredColumns mc;
-    columns_measure(&lb, cfg, &mc);
-
-    printf("%s%s%s\n", COL(cfg, ANSI_DIR), display_path, RST(cfg));
-
-    for (size_t i = 0; i < lb.n; i++) {
-        PrintLine *pl = &lb.items[i];
-        bool is_mod = cfg->modules[MOD_DIFF] && pl->diff_checked && pl->modified;
-        const char *namecol = is_mod                ? COL(cfg, ANSI_MODIFIED)
-                               : pl->is_symlink       ? COL(cfg, ANSI_SYMLINK)
-                               : pl->is_dir           ? COL(cfg, ANSI_DIR)
-                                                       : COL(cfg, ANSI_FILE);
-        printf("%s%s%s%s%s%s%s", COL(cfg, ANSI_BRANCH), pl->prefix, RST(cfg),
-               namecol, pl->name, pl->is_dir ? "/" : "", RST(cfg));
-
-        columns_print_line(&mc, cfg, pl, i, col_start);
-
-        if (pl->truncated) printf("  %s(...)%s", COL(cfg, ANSI_BRANCH), RST(cfg));
-        putchar('\n');
+void tree_stream_on_dir_done(int depth, const Config *cfg, void *ctx) {
+    (void)cfg;
+    (void)ctx;
+    size_t d = (size_t)depth;
+    if (d < g_depth_cap && g_depth[d].have_measurement) {
+        columns_free(&g_depth[d].lb, &g_depth[d].mc);
+        linebuf_free(&g_depth[d].lb);
+        g_depth[d].have_measurement = false;
     }
+}
 
-    columns_free(&lb, &mc);
-    linebuf_free(&lb);
-
-    print_summary_tail(cfg, tot, diff_available, dbg);
+void tree_stream_end(void) {
+    for (size_t i = 0; i < g_depth_cap; i++) {
+        free(g_depth[i].prefix);
+        if (g_depth[i].have_measurement) {
+            columns_free(&g_depth[i].lb, &g_depth[i].mc);
+            linebuf_free(&g_depth[i].lb);
+        }
+    }
+    free(g_depth);
+    g_depth = NULL;
+    g_depth_cap = 0;
 }

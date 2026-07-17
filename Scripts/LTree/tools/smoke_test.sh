@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Self-contained black-box smoke test that builds a throwaway playground covering every edge case (symlinks, permissions, unicode, gitignore, deep nesting) and exercises every CLI flag/-o module combination against it, checking exit codes and JSON validity."
 # smoke_test.sh -- brutal, self-contained smoke test for ltree.
 #
 # Builds a throwaway playground covering every known edge case (deep

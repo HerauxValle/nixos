@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Measures ltree's real memory footprint (peak RSS via GNU time -v, optional valgrind massif/memcheck passes) across several synthetic directory shapes (wide, deep, many-small-files, few-big-files) and every hashing mode."
 # mem_profile.sh -- measure ltree's memory footprint with real numbers.
 #
 # For each scenario:

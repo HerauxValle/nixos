@@ -1,3 +1,4 @@
+/* &desc: "Implements sort_parse (--sort's comma-separated mode/modifier parsing) and sort_nodes (the qsort comparator for abc/birth/modified/lines/chars/types with combined/reversed)." */
 #define _GNU_SOURCE
 #include "sort/sortmodes.h"
 #include "core/node.h"

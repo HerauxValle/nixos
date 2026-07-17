@@ -1,3 +1,4 @@
+/* &desc: "Implements json_render/print_json (the JSON writer, with json_key_allowed() gating every optional field through --stdout's exclusive/inclusive filter) and the minimal recursive-descent JSON reader used to load snapshots back in for -o DIFF." */
 #define _GNU_SOURCE
 #include "io/json.h"
 #include <stdio.h>

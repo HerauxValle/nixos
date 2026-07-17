@@ -1,3 +1,4 @@
+/* &desc: "Declares save_output, the --save-output entry point that writes a timestamped JSON snapshot into <path>/.ltree/ for later -o DIFF comparisons." */
 #ifndef LTREE_SAVE_H
 #define LTREE_SAVE_H
 

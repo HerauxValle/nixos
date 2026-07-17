@@ -1,3 +1,5 @@
+<!-- &desc: "The complete flag-by-flag reference: the ls-mode-vs-tree-mode split (including -o TREE's always-on top-down streaming and ls-mode's ls -C grid), every -o module, --condense, --sort, --stdout JSON filtering, exclude/gitignore matching, hashing, diffing, and the debug report." -->
+
 # Usage
 
 ```
@@ -16,10 +18,17 @@ call.
 Without `-o TREE`, `ltree` lists only `path`'s **direct children**
 (non-recursive, like plain `ls`), grouped into a `[Folders]` block
 then a `[Files]` block, each case-insensitive alphabetical by default.
+On a terminal, with no `-o` data column active, each block packs into
+a real multi-column grid the way bare `ls` does (piped output, or any
+active `-o` column, always stays one entry per line -- see
+[The ls-style grid](#the-ls-style-grid-ls-mode-only)).
+
 `-o TREE` switches to the classic recursive connector-tree view
-instead -- everything about depth/recursion (`-L`), `--sort`, and
-`--live`'s streaming granularity differs between the two, noted at
-each relevant section below.
+instead -- everything about depth/recursion (`-L`) and `--sort` only
+applies in that mode, noted at each relevant section below. Unlike
+ls-mode, `-o TREE` always prints top-down as the walk happens rather
+than after the whole tree is known -- see
+[Streaming](#streaming--o-tree-only).
 
 `-o HIDDEN` shows dotfiles/dot-dirs -- hidden from the walk entirely
 by default, in *either* view (this is a scan-level exclusion, not just
@@ -45,7 +54,6 @@ mode they just sort into their normal alphabetical position.
 | `--no-colour` (also `--no-color`) | Disable ANSI colour. |
 | `--condense` | One `[L:x C:y ...]` bracket per entry instead of one bracket per active column. See [Condensed columns](#condensed-columns). |
 | `--sort <MODES>` | ls-mode only (warns and is ignored with `-o TREE`). See [Sorting](#sorting-ls-mode-only). |
-| `--live` | Print each directory's listing as soon as it's scanned instead of waiting for the whole walk. See [Live streaming](#live-streaming). No effect with `-j`. |
 | `--stdout <exclusive\|inclusive> <MODULES>` | Forces JSON output (implies `-j`) filtered to a subset of fields. See [Filtered JSON output](#filtered-json-output---stdout). |
 | `-h`, `--help` | Show help and exit. |
 
@@ -157,14 +165,31 @@ each other:
 does **not** layer on top of a `--sort` order; hidden entries sort in
 wherever the chosen mode puts them.
 
-## Live streaming
+## The ls-style grid (ls-mode only)
 
-`--live` prints each directory's listing to the terminal as soon as
-its own direct children are known, flushing after each one, instead
-of waiting for the entire walk to finish before printing anything --
-most useful on a large or deeply nested tree with `-o TREE`, where the
-default (buffer everything, print once) can leave the terminal blank
-for a while.
+When stdout is a terminal and no `-o` data column (`LINES`, `CHARS`,
+`PERMISSIONS`, `SIZE`, `DATE`, `HASH`) is active, each `[Folders]`/
+`[Files]` block (or each `--sort types` `[ext]` bucket, or the single
+flat list under `--sort combined`) packs into a real multi-column
+grid, the same column-major "fill down, then across" layout bare
+`ls` uses: as many columns as fit the terminal width (`ioctl`
+`TIOCGWINSZ`, falling back to the `COLUMNS` environment variable, then
+80), each column padded to its own widest entry.
+
+Piped output (or output redirected to a file) always stays one entry
+per line instead, the same way real `ls` only grids when writing to a
+terminal -- and so does any run with an active `-o` data column, since
+per-entry brackets and a packed grid don't mix.
+
+## Streaming (`-o TREE` only)
+
+`-o TREE` prints connector-tree lines to the terminal the instant each
+directory's own direct children are known, instead of waiting for the
+entire walk to finish before printing anything -- there's no flag to
+turn this on or off, it's just how `-o TREE` works, the same way plain
+`tree`/`find` don't buffer their output either. This matters most on a
+large or deeply nested tree, where buffer-then-print-once can leave
+the terminal blank for a while.
 
 It streams **top-down**: the root directory's own listing prints
 first, then each subdirectory's as `ltree` enters it (depth-first
@@ -172,25 +197,23 @@ after that, following the same order the walk itself descends in) --
 not bottom-up, which is what a naïve print-after-recursing
 implementation would give you.
 
-`--live` uses its own, simpler rendering -- a plain `path/:` header
-followed by that directory's indented entries, column-aligned to just
-that one directory's own rows (not the whole tree the way non-live
-output is). This is a real, deliberate difference from both the
-tree/ls views: columns won't line up *across* different directories'
-blocks the way they do in buffered output, and (in `-o TREE` mode) you
-don't get the connector-glyph tree art, since that requires knowing
-the whole tree's shape up front. `TOTAL`/`FILES`/`DEBUG`/the DIFF note
-still print once, at the very end, since those need the complete
-walk regardless of `--live`.
+Column alignment is **per-directory-block**, not whole-tree, since the
+rest of the tree's shape isn't known yet when a given block prints --
+a short `[L: 1]` and a long `[L: 128]` line up within the *same*
+directory's children, but columns won't line up *across* different
+directories' blocks the way non-streaming output could in principle
+achieve. `TOTAL`/`FILES`/`DEBUG`/the DIFF note still print once, at
+the very end, since those need the complete walk regardless.
 
 Diff marking (`-o DIFF`'s red name + trailing `[m]`) never appears in
-live-streamed rows, even if `-o DIFF` is also passed -- diffing
-compares against the finished tree, which isn't available until after
+streamed rows, even if `-o DIFF` is also passed -- diffing compares
+against the finished tree, which isn't available until after
 everything has already streamed.
 
-`--live` has no effect combined with `-j`: JSON needs the complete
-tree before it can emit one value, so `-j` silently wins (a warning is
-printed) and normal `-j` output happens instead.
+This only applies to the terminal view -- `-j` always stays fully
+recursive and fully buffered, since JSON needs the complete tree
+before it can emit one value; `-o TREE`'s streaming has no bearing on
+`-j` output at all.
 
 ## Filtered JSON output (`--stdout`)
 
@@ -235,29 +258,39 @@ against it.
 
 ## Column alignment
 
-`ltree` does two passes before printing anything: first it flattens
-the whole listing into lines and renders every active module's text
-(plain, no colour) to measure that module's own max width, *then* it
-prints. Two effects fall out of that:
+The alignment *unit* differs by view, since `-o TREE` always streams
+(see [Streaming](#streaming--o-tree-only) above) and can't know
+anything beyond the directory it's currently printing:
+
+- **ls-mode**: aligned across the **whole listing** (one non-recursive
+  directory) -- two passes, first flattening every entry into lines
+  and rendering each active module's text (plain, no colour) to
+  measure that module's own max width, *then* printing.
+- **`-o TREE`**: aligned **per directory** -- each directory's own
+  children are measured (same two-pass logic) right before that
+  directory's block prints, since the rest of the tree's shape isn't
+  known yet. A short `[L: 1]` and a long `[L: 128]` line up within the
+  same directory's children; columns don't line up *across* different
+  directories' blocks.
+
+Within whichever unit applies, two effects fall out of the two-pass
+measurement:
 
 - Every entry's brackets start at the same column, `8` characters past
-  the widest name+prefix in the whole listing (not just the current
-  line) -- so nothing shifts around based on how deep an entry is
-  nested (tree mode) or how it's indented (ls-mode, `--sort types`'s
-  extra nesting under an `[ext]` header).
-- Each module column is padded to its own widest value across the
-  whole listing, then followed by a fixed 3-space gap before the next
-  module's bracket (unless `--condense` is active -- see
+  the widest name+prefix in that unit -- so nothing shifts around
+  based on how deep an entry is nested or how it's indented (ls-mode,
+  `--sort types`'s extra nesting under an `[ext]` header).
+- Each module column is padded to its own widest value across that
+  unit, then followed by a fixed 3-space gap before the next module's
+  bracket (unless `--condense` is active -- see
   [Condensed columns](#condensed-columns)). A short `[L: 1]` and a
   long `[L: 128]` line up their *closing* brackets, and the next
-  module (say `[C: ...]`) starts in the same column on every line.
+  module (say `[C: ...]`) starts in the same column on every line
+  within that unit.
 
 This is why enabling more modules costs a wider terminal, not a
 messier one -- see the example in the main README for what a
-multi-column `-o` output looks like in practice. `--live` is the one
-exception -- it aligns each directory's block to itself, not the
-whole tree, since the whole tree isn't known yet when a block prints
-(see [Live streaming](#live-streaming) above).
+multi-column `-o` output looks like in practice.
 
 ## Exclude / gitignore matching
 
@@ -349,8 +382,8 @@ normally, not flagged -- `DIFF` only marks entries it found *and*
 determined differ; it doesn't currently distinguish "new" from
 "unchanged, no comparable snapshot entry".
 
-Diff marking never appears in `--live`-streamed rows -- see
-[Live streaming](#live-streaming) above.
+Diff marking never appears in `-o TREE`'s streamed rows -- see
+[Streaming](#streaming--o-tree-only) above.
 
 ## Debug report
 

@@ -1,3 +1,4 @@
+/* &desc: "Declares the shared ModuleId/ModuleCat/ModuleDef/MODULE_TABLE that both main.c's -o parser and every renderer read from, replacing what used to be a hand-duplicated module list in each." */
 /* modules.h -- the single source of truth for what an -o token means.
  * main.c's CLI parser and every renderer read this table instead of
  * each keeping its own hand-written module list/switch (see

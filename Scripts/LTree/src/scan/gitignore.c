@@ -1,3 +1,4 @@
+/* &desc: "Implements --gitignore's single-root .gitignore loader and matcher (comments, trailing-slash dir-only, leading-slash anchoring, ! re-inclusion with last-match-wins)." */
 #define _GNU_SOURCE
 #include "scan/gitignore.h"
 #include <stdio.h>

@@ -1,3 +1,4 @@
+/* &desc: "Defines the shared ANSI colour palette and the COL()/RST() macros that collapse to empty strings under --no-colour, so no print site has to branch on that flag itself." */
 /* colors.h -- ANSI colour palette shared by render_tree.c,
  * render_files.c, and debug.c. All collapse to "" when cfg->no_colour
  * is set via the COL()/RST() macros, so print sites never branch on

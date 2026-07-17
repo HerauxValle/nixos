@@ -1,3 +1,4 @@
+/* &desc: "Declares DebugStats and the DebugTimer/debug_collect/debug_print_text/debug_json_append API behind -o DEBUG's hyper-detailed timing/memory/IO run report, computed once and rendered two ways from the same struct." */
 /* debug.h -- -o DEBUG: a hyper-detailed "how did this run go" report.
  * Timing (wall clock + CPU), memory (peak RSS, page faults, glibc
  * heap-arena breakdown, an estimate of the in-memory Node tree's own

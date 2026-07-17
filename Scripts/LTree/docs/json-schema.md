@@ -1,3 +1,5 @@
+<!-- &desc: "Documents the exact JSON object shape shared by -j and --save-output (top-level path/total/by_extension/debug/tree keys and the recursive per-entry node shape), including which fields are always present versus gated by -o DEBUG or -o DIFF." -->
+
 # JSON schema
 
 Both `-j` (printed to stdout) and `--save-output` (written to

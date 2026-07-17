@@ -1,3 +1,4 @@
+# &desc: "Nix flake packaging ltree as a stdenv derivation (plain gcc build, no per-file compilation) plus a devShell with gcc/gdb/valgrind for local hacking."
 {
   description = "LTree - blazing fast recursive tree, line/char counter, JSON exporter";
 

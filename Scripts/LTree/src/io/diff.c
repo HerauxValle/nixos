@@ -1,3 +1,4 @@
+/* &desc: "Implements -o DIFF: finds the newest JSON snapshot under .ltree/, flattens it into a sorted-by-path table for bsearch comparison, and marks Node.modified on anything that changed by type/hash/size/mtime." */
 #define _GNU_SOURCE
 #include "io/diff.h"
 #include "io/json.h"

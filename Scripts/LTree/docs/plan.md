@@ -1,3 +1,5 @@
+<!-- &desc: "Design-decision record (hashing algorithm choice, DATE timezone, monolith-vs-modules split, column-alignment layout) from when PERMISSIONS/SIZE/DATE/HASH/--gitignore/--save-output/-o DIFF were first added, predating the later ls-mode rework." -->
+
 # Design decisions
 
 This records the decisions made while adding `PERMISSIONS`, `SIZE`,

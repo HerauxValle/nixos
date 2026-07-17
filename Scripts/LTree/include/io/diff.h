@@ -1,3 +1,4 @@
+/* &desc: "Declares diff_apply/find_latest_snapshot/diff_peek_algo, the -o DIFF API that loads the newest .ltree JSON snapshot and marks which Node entries changed since it was taken." */
 /* diff.h -- -o DIFF support: find the newest .ltree JSON snapshot,
  * load it, and mark Nodes in the freshly-scanned tree as `modified`
  * when they differ from the snapshot. Per the design decision in

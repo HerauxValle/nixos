@@ -1,3 +1,4 @@
+/* &desc: "Defines the Config struct -- the fully-parsed command line (modules[] array, sort spec, --stdout filter, every other flag) passed by const pointer to every module that needs to read a flag, and the HashAlgo enum." */
 /* config.h -- the parsed command line, in one place. Every module
  * that needs a flag takes `const Config *cfg` rather than growing its
  * own globals; main.c is the only place that ever writes to it. */
@@ -25,9 +26,6 @@ typedef struct {
     bool    condense;         /* --condense -- one [L:x C:y ...] bracket
                                 * instead of one bracket per column       */
     SortSpec sort;            /* --sort, ls-mode only (see sort/sortmodes.h) */
-    bool    live;             /* --live -- stream each directory's block as
-                                * it's scanned instead of printing after the
-                                * whole walk finishes (see render/render_live.h) */
 
     /* --stdout exclusive|inclusive <MODULES> -- forces JSON (like -j)
      * filtered to a subset of top-level/per-entry keys. Module names

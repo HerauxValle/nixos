@@ -1,3 +1,4 @@
+/* &desc: "Implements print_files_summary, the FILES: by-extension table using the same [X: value] bracket-and-column-alignment convention as per-entry columns." */
 #define _GNU_SOURCE
 #include "render/render_files.h"
 #include "render/colors.h"

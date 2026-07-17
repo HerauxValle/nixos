@@ -1,3 +1,4 @@
+/* &desc: "Implements xxHash64 and SHA-256 from the published reference constants (no external hashing library) behind one hash_compute dispatch function, plus hash_combine_children for directory digests." */
 #define _GNU_SOURCE
 /* hash.c -- see hash.h.
  *

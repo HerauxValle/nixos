@@ -1,3 +1,4 @@
+/* &desc: "Declares the unified hashing API (hash_compute, hash_combine_children, HASH_MAX_BYTES) behind -o HASH/-o DIFF/--save-output, dispatching between the from-scratch xxHash64 (default) and SHA-256 (--cryptographic) implementations." */
 /* hash.h -- unified hashing API for -o HASH / -o DIFF / --save-output.
  *
  * Two algorithms, both implemented from scratch (no external deps,

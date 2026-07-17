@@ -1,3 +1,4 @@
+/* &desc: "Declares the per-extension files/lines/chars accumulator (ExtTable) shared by the FILES: summary, the JSON by_extension block, and --sort types' bucketing, plus file_ext()/strip_ext_for_display()." */
 #ifndef LTREE_EXTTABLE_H
 #define LTREE_EXTTABLE_H
 

@@ -1,3 +1,5 @@
+<!-- &desc: "Project pitch, build instructions (plain gcc or Nix), full usage summary with examples, and two changelog sections covering the original feature build-out and the later ls-mode rework." -->
+
 # LTree
 
 A directory-listing tool that counts lines and characters per
@@ -7,8 +9,12 @@ filesystem walk), and can dump the same information as JSON instead of
 a pretty-printed listing.
 
 No-args `ltree` behaves like plain `ls` -- one directory, grouped into
-`[Folders]`/`[Files]`. `-o TREE` brings back the classic recursive
-connector-tree view instead.
+`[Folders]`/`[Files]`, packed into a real multi-column grid when
+writing to a terminal (piped output, or any `-o` data column, stays
+one entry per line). `-o TREE` brings back the classic recursive
+connector-tree view instead, printed top-down as it scans rather than
+after the whole walk finishes -- no flag needed for that, it's just
+how `-o TREE` works, the same way plain `tree`/`find` don't need one.
 
 Zero external dependencies -- straight libc + POSIX (`dirent`,
 `mmap`, `fnmatch`, `statx`). Builds the same everywhere with just a C
@@ -16,6 +22,13 @@ compiler; the Nix flake exists for reproducibility, not because it
 needs anything exotic.
 
 ```
+$ ltree
+testtree
+[Folders]
+  docs/  src/
+[Files]
+  README
+
 $ ltree -o LINES,SIZE
 testtree
 [Folders]
@@ -96,9 +109,6 @@ ltree [path] [options]
   --sort <MODES>        ls-mode only (no effect with -o TREE). One base:
                           abc (default), birth, modified, lines, chars,
                           types -- plus modifiers: combined, reversed
-  --live                 print each directory's listing as soon as it's
-                        scanned instead of waiting for the whole walk
-                        (no effect with -j)
   --stdout <exclusive|inclusive> <MODULES>
                         forces JSON output (like -j) filtered to exclude
                         or keep only the named modules' JSON fields
@@ -111,9 +121,14 @@ appear in any order, including before the path.
 
 Without `-o TREE`, `ltree` lists only `path`'s direct children
 (non-recursive, like plain `ls`), grouped into a `[Folders]` block
-then a `[Files]` block. `-o TREE` brings back the full recursive
-connector-tree view (respecting `-L`) instead -- everything below
-about depth/recursion only applies in that mode. `HIDDEN` shows
+then a `[Files]` block. On a terminal, with no `-o` data column
+active, each block packs into a real multi-column grid the way `ls`
+does (piped output, or any active `-o` column, stays one entry per
+line). `-o TREE` brings back the full recursive connector-tree view
+(respecting `-L`) instead -- everything below about depth/recursion
+only applies in that mode, and it always prints top-down as the walk
+happens rather than after the whole tree is known, the same way plain
+`tree`/`find` don't need a flag for that. `HIDDEN` shows
 dotfiles/dot-dirs, hidden by default like `ls` without `-a`; in
 ls-mode they're appended after the visible entries within their own
 `[Folders]`/`[Files]` block.
@@ -147,14 +162,17 @@ printed and it's ignored under `-o TREE`, which keeps plain
 alphabetical order). `--sort types` buckets the `[Files]` block into
 per-extension `[ext]` sub-headers instead of one flat list.
 
-`--live` streams each directory's listing to the terminal as soon as
-it's scanned, top-down, instead of waiting for the whole walk to
-finish before printing anything -- useful on large/deep trees with
-`-o TREE`. It uses its own simpler flat rendering (a `path/:` header
-per directory), not a live-updating version of the tree/ls views;
-`TOTAL`/`FILES`/`DEBUG`/the DIFF note still print once at the end,
-once the full tree is known. Has no effect combined with `-j`, which
-needs the complete tree before it can emit one JSON value.
+`-o TREE` streams by design, not as an opt-in mode: each directory's
+connector-tree lines print the instant that directory is scanned,
+top-down, depth-first -- the same order the walk itself explores the
+tree -- instead of buffering the whole thing and printing once at the
+end. Column alignment is per-directory-block rather than whole-tree
+(the rest of the tree's shape isn't known yet when a block prints),
+and `-o DIFF` can't mark anything on a streamed line -- diffing needs
+the complete tree, which only exists after the whole walk finishes.
+`TOTAL`/`FILES`/`DEBUG`/the DIFF note still print once at the end.
+This only applies to the terminal view -- `-j` stays fully buffered,
+since JSON needs the complete tree before it can emit one value.
 
 `--stdout exclusive <MODULES>` / `--stdout inclusive <MODULES>` forces
 JSON output filtered to exclude (or keep only) the listed modules'
@@ -206,8 +224,8 @@ ltree -oE,HASH,DEBUG
 # largest files last, files bucketed by extension
 ltree --sort lines,types -o LINES
 
-# watch a big recursive scan stream in instead of waiting for it to finish
-ltree -o TREE --live
+# watch a big recursive scan stream in top-down as it happens
+ltree -o TREE
 
 # dotfiles included, one compact bracket per entry
 ltree -o HIDDEN,LINES,CHARS --condense
@@ -274,9 +292,16 @@ Full design reasoning in [`docs/plan-ls-rework.md`](docs/plan-ls-rework.md).
   -- ls-mode only. `types` buckets `[Files]` into per-extension
   `[ext]` sub-headers; `combined` drops the `[Folders]`/`[Files]`
   split entirely.
-- **New:** `--live` -- streams each directory's listing to the
-  terminal as it's scanned (top-down) instead of waiting for the whole
-  walk, works with both ls-mode and `-o TREE`.
+- **New:** `-o TREE` always streams top-down as the walk happens
+  instead of buffering the whole tree first -- no flag to opt into it
+  (an earlier `--live` flag draft was scrapped in favor of just always
+  streaming, the same way plain `tree`/`find` don't need one either).
+  Per-directory-block column alignment instead of whole-tree, and
+  `-o DIFF` can't mark streamed lines, are the trade-offs.
+- **New:** the default ls-mode listing packs into a real `ls -C`-style
+  multi-column grid when writing to a terminal with no `-o` data
+  column active (piped output, or any active column, stays
+  one-per-line).
 - **New:** stdin as path input -- `path` defaults to reading a line
   from stdin when no positional arg was given and stdin isn't a
   terminal.

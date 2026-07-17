@@ -1,3 +1,4 @@
+/* &desc: "Defines the in-memory Node tree struct (fixed-size stat/line/char/hash/btime fields filled once by scan.c, formatted to text only at print time) and declares node_cmp, the case-insensitive alphabetical ordering used by default everywhere." */
 /* node.h -- the in-memory tree. One filesystem walk (scan.c) fills
  * every field exactly once; everything downstream (render_tree.c,
  * render_files.c, json.c, diff.c) just reads it back in different

@@ -1,3 +1,4 @@
+/* &desc: "Declares the PrintLine/LineBuf row types and the shared two-pass column-rendering pipeline (columns_measure/columns_print_line, --condense- and -o O-aware) that render_tree.c and render_ls.c both build on, plus print_summary_tail for the shared TOTAL:/DEBUG:/DIFF-note tail." */
 /* columns.h -- the flattened printable row (PrintLine) and the -o
  * column-rendering pipeline (measure every active column's text/width,
  * then print it aligned), shared by the recursive tree view
@@ -81,11 +82,10 @@ void columns_free(const LineBuf *lb, MeasuredColumns *mc);
 void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
                          const PrintLine *pl, size_t i, size_t col_start);
 
-/* The TOTAL:/DEBUG:/DIFF-note tail both print_tree_view() and
- * print_ls_view() end with, factored out here so --live (which skips
- * both of those views and streams per-directory blocks during the
- * scan instead, see render/render_live.h) can print just this tail
- * once the walk finishes. */
+/* The TOTAL:/DEBUG:/DIFF-note tail both the (streaming) -o TREE view
+ * and the ls-mode view end with, factored out here so main.c can
+ * print just this tail once the walk finishes, after every
+ * directory's own block has already streamed to the terminal. */
 void print_summary_tail(const Config *cfg, const Totals *tot, bool diff_available,
                          const DebugStats *dbg);
 

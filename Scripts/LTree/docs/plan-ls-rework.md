@@ -1,3 +1,5 @@
+<!-- &desc: "The full spec, category-by-category implementation plan, and flagged design-decision ASSUMPTIONs for the ls-mode default flip and everything built on top of it (-oE, -o O, HIDDEN, --condense, --sort, streaming, stdin, --stdout), all 12 categories shipped, plus an addendum on the later revision that replaced the --live flag with always-on -o TREE streaming and added the ls-style grid; original raw prompt appended verbatim at the bottom." -->
+
 # Plan: default ls-mode, -oE, HIDDEN, --condense, -o O, --sort, live output, stdin/--stdout
 
 Everything in this doc implements the spec at the bottom (`## Initial prompt (verbatim)`).
@@ -385,6 +387,41 @@ same as before -- factored into a shared `print_summary_tail()`
 (`render/columns.c`) since `render_tree.c`, `render_ls.c`, and now `main.c`
 (for the `--live` path, which skips both view functions entirely) all need
 the exact same tail.
+
+**Superseded by a later revision (post-ship):** the `--live` flag
+described above shipped, then got removed a session later, per explicit
+feedback that it shouldn't be an opt-in flag at all -- "like `tree`
+does", i.e. streaming should just be how `-o TREE` always behaves, the
+same way real `tree`/`find` don't need a flag to print as they walk.
+
+That revision also caught a real bug in the design above: firing one
+callback per directory with *all* of its children already known, then
+recursing into each afterward, prints a directory's entire sibling
+list before any of them get to show their own subtree -- which is the
+wrong shape for a connector tree entirely (`core/`, `debug/`, `hash/`,
+etc. all print their own names first, then all their contents get
+concatenated afterward, not interleaved under each one). Correct
+recursive-tree streaming needs per-*entry* interleaving (print entry,
+recurse into it immediately if it's a directory, *then* move to the
+next sibling) while still wanting per-directory column alignment
+(needs all siblings' widths before printing the first one) -- these
+two requirements don't fit in one callback, so `scan.c`'s `build_tree`
+now takes **three** hooks instead of one: `on_dir_measure` (fired once
+per directory, before any of its children print, to size columns),
+`on_entry_ready` (fired once per entry, interleaved with recursion),
+and `on_dir_done` (fired once a directory's whole subtree -- including
+recursion -- has finished, to free that directory's measurement). See
+`scan/scan.h` and `render/render_tree.c` for the shipped version;
+`render_live.h`/`render_live.c` (the flat, non-connector renderer the
+original `--live` flag used) were deleted, since `-o TREE` streaming
+now always draws proper connector glyphs instead of falling back to a
+simpler format.
+
+The same session also implemented the ls-mode default's own
+long-deferred piece: packing `[Folders]`/`[Files]` (and `--sort
+types`/`combined`) blocks into a real `ls -C`-style multi-column grid
+on a terminal, one entry per line only when piped or when an `-o` data
+column is active -- see `render/render_ls.c`'s `print_grid()`.
 
 ---
 

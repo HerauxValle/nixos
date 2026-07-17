@@ -1,3 +1,4 @@
+/* &desc: "Declares json_render/print_json (the JSON writer shared by -j and --save-output) plus a minimal recursive-descent JSON reader (json_parse and friends) just capable enough to round-trip ltree's own snapshot files for -o DIFF." */
 #ifndef LTREE_JSON_H
 #define LTREE_JSON_H
 

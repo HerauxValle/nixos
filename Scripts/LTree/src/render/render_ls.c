@@ -1,3 +1,4 @@
+/* &desc: "Implements print_ls_view, the default [Folders]/[Files] listing: packs entries into an ls -C style multi-column grid on a tty when no -o data columns are active, falls back to one-per-line otherwise (piped output, or with columns), full --sort integration including the types extension-bucket sub-headers." */
 #define _GNU_SOURCE
 #include "render/render_ls.h"
 #include "render/colors.h"
@@ -10,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 
 /* Pushes one PrintLine for `n` into `lb`, with `indent` (plain, no
  * colour, e.g. "  " or "    ") stored as its prefix -- col_start then
@@ -140,6 +143,114 @@ static void print_ls_line(const LineBuf *lb, const MeasuredColumns *mc, const Co
     putchar('\n');
 }
 
+static size_t terminal_width(void) {
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0) return ws.ws_col;
+    const char *cols_env = getenv("COLUMNS");
+    if (cols_env) {
+        int c = atoi(cols_env);
+        if (c > 0) return (size_t)c;
+    }
+    return 80;
+}
+
+/* Name(+slash) width, plus " [m]" if -o DIFF marked this entry --
+ * deliberately NOT pl->width, which bakes in the one-per-line "  "/
+ * "    " indent prefix that a packed grid manages itself. */
+static size_t entry_grid_width(const PrintLine *pl, const Config *cfg) {
+    size_t w = utf8_width(pl->name) + (pl->is_dir ? 1 : 0);
+    bool is_mod = cfg->modules[MOD_DIFF] && pl->diff_checked && pl->modified;
+    if (is_mod) w += 4; /* " [m]" */
+    return w;
+}
+
+/* Packs [from,to) into a column-major grid the way plain `ls` (no
+ * -l/-o data columns) lays out a terminal listing: fill down the
+ * first column, then the next, using as many columns as fit
+ * `term_width`, each column padded to its own widest entry. */
+static void print_grid(const LineBuf *lb, size_t from, size_t to, const Config *cfg,
+                        size_t term_width) {
+    size_t n = to - from;
+    if (n == 0) return;
+
+    const size_t gap = 2;
+    const size_t margin = 2; /* leading "  " indent, matches the non-grid rows */
+
+    size_t *w = (size_t *)malloc(sizeof(size_t) * n);
+    size_t maxw = 0;
+    for (size_t i = 0; i < n; i++) {
+        w[i] = entry_grid_width(&lb->items[from + i], cfg);
+        if (w[i] > maxw) maxw = w[i];
+    }
+
+    size_t avail = (term_width > margin) ? term_width - margin : 1;
+    size_t max_cols = (avail + gap) / (maxw + gap);
+    if (max_cols < 1) max_cols = 1;
+    if (max_cols > n) max_cols = n;
+
+    size_t cols = 1, rows = n;
+    size_t *colw = (size_t *)malloc(sizeof(size_t) * max_cols);
+
+    for (size_t try_cols = max_cols; try_cols >= 1; try_cols--) {
+        size_t try_rows = (n + try_cols - 1) / try_cols;
+        size_t total = 0;
+        for (size_t c = 0; c < try_cols; c++) {
+            size_t cw = 0;
+            for (size_t r = 0; r < try_rows; r++) {
+                size_t idx = c * try_rows + r;
+                if (idx < n && w[idx] > cw) cw = w[idx];
+            }
+            colw[c] = cw;
+            total += cw;
+            if (c + 1 < try_cols) total += gap;
+        }
+        if (total <= avail || try_cols == 1) {
+            cols = try_cols;
+            rows = try_rows;
+            break;
+        }
+    }
+
+    for (size_t r = 0; r < rows; r++) {
+        printf("  ");
+        for (size_t c = 0; c < cols; c++) {
+            size_t idx = c * rows + r;
+            if (idx >= n) continue;
+            PrintLine *pl = &lb->items[from + idx];
+            bool is_mod = cfg->modules[MOD_DIFF] && pl->diff_checked && pl->modified;
+            const char *namecol = is_mod             ? COL(cfg, ANSI_MODIFIED)
+                                  : pl->is_symlink    ? COL(cfg, ANSI_SYMLINK)
+                                  : pl->is_dir        ? COL(cfg, ANSI_DIR)
+                                                       : COL(cfg, ANSI_FILE);
+            printf("%s%s%s%s", namecol, pl->name, pl->is_dir ? "/" : "", RST(cfg));
+            if (is_mod) printf(" [m]");
+
+            bool last_in_row = (c + 1 == cols) || (idx + rows >= n);
+            if (!last_in_row) {
+                size_t pad = colw[c] - w[idx];
+                for (size_t s = 0; s < pad; s++) putchar(' ');
+                for (size_t s = 0; s < gap; s++) putchar(' ');
+            }
+        }
+        putchar('\n');
+    }
+
+    free(w);
+    free(colw);
+}
+
+/* Dispatches [from,to) to either the packed grid or the existing
+ * one-per-line (-o column aware) rendering. */
+static void print_block(const LineBuf *lb, size_t from, size_t to, const MeasuredColumns *mc,
+                         const Config *cfg, size_t col_start, bool grid_mode, size_t term_width) {
+    if (from >= to) return;
+    if (grid_mode) {
+        print_grid(lb, from, to, cfg, term_width);
+    } else {
+        for (size_t i = from; i < to; i++) print_ls_line(lb, mc, cfg, i, col_start);
+    }
+}
+
 void print_ls_view(Node *root, const char *display_path, const Config *cfg,
                     const Totals *tot, bool diff_available, const DebugStats *dbg) {
     LineBuf lb;
@@ -155,26 +266,36 @@ void print_ls_view(Node *root, const char *display_path, const Config *cfg,
     MeasuredColumns mc;
     columns_measure(&lb, cfg, &mc);
 
+    /* Packed multi-column grid, like plain `ls`, only when there's no
+     * per-entry data to show (an -o column would make a packed grid
+     * unreadable) and stdout is actually a terminal -- piped output
+     * always stays one-per-line, the same way real `ls` only grids
+     * when writing to a tty. */
+    bool grid_mode = !mc.any_module && isatty(STDOUT_FILENO);
+    size_t term_width = grid_mode ? terminal_width() : 0;
+
     printf("%s%s%s\n", COL(cfg, ANSI_DIR), display_path, RST(cfg));
 
     bool combined = cfg->sort.set && cfg->sort.combined;
-    size_t bi = 0;
 
     if (combined) {
-        for (size_t i = 0; i < lb.n; i++) print_ls_line(&lb, &mc, cfg, i, col_start);
+        print_block(&lb, 0, lb.n, &mc, cfg, col_start, grid_mode, term_width);
     } else {
         if (ndirs > 0) {
             printf("%s[Folders]%s\n", COL(cfg, ANSI_DIR), RST(cfg));
-            for (size_t i = 0; i < ndirs; i++) print_ls_line(&lb, &mc, cfg, i, col_start);
+            print_block(&lb, 0, ndirs, &mc, cfg, col_start, grid_mode, term_width);
         }
         if (lb.n > ndirs) {
             printf("%s[Files]%s\n", COL(cfg, ANSI_FILE), RST(cfg));
-            for (size_t i = ndirs; i < lb.n; i++) {
-                while (bi < n_buckets && bucket_at[bi] == i) {
+            if (n_buckets > 0) {
+                for (size_t bi = 0; bi < n_buckets; bi++) {
                     printf("  %s[%s]%s\n", COL(cfg, ANSI_EXT), bucket_names[bi], RST(cfg));
-                    bi++;
+                    size_t seg_start = bucket_at[bi];
+                    size_t seg_end = (bi + 1 < n_buckets) ? bucket_at[bi + 1] : lb.n;
+                    print_block(&lb, seg_start, seg_end, &mc, cfg, col_start, grid_mode, term_width);
                 }
-                print_ls_line(&lb, &mc, cfg, i, col_start);
+            } else {
+                print_block(&lb, ndirs, lb.n, &mc, cfg, col_start, grid_mode, term_width);
             }
         }
     }

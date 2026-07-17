@@ -1,3 +1,4 @@
+/* &desc: "Implements the dependency-free SBuf string builder, UTF-8 display-width and visible-character counting, and the PERMISSIONS/SIZE/DATE/hash-hex formatting helpers." */
 /* util.c -- see util.h. Kept dependency-free on purpose: this is the
  * one file that both the renderer and the JSON writer both pull in,
  * so it must never grow a dependency on Node, Config, or anything

@@ -1,3 +1,4 @@
+/* &desc: "Declares dependency-free shared helpers used everywhere: the growable SBuf string builder, UTF-8 display-width and visible-character counting, and the PERMISSIONS/SIZE/DATE/hash-hex formatting functions." */
 /* util.h -- small, dependency-free helpers shared by every module:
  * a growable string builder (used for JSON), UTF-8 column-width
  * counting (used for alignment), and formatting for the new

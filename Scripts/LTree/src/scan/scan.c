@@ -1,3 +1,4 @@
+/* &desc: "Implements build_tree, the one recursive filesystem walk (exclude/gitignore/-o HIDDEN filtering, per-file mmap+memchr line/char/hash scanning, statx birth-time fetch) with three streaming hooks interleaved into the recursion so -o TREE can print top-down as it goes." */
 #define _GNU_SOURCE
 #include "scan/scan.h"
 #include "util/util.h"
@@ -233,7 +234,8 @@ time_t fetch_btime(const char *path, time_t mtime_fallback) {
 void build_tree(Node *parent, const char *fullpath, const char *relbase,
                  int depth, const Config *cfg, const GitTable *gt,
                  Totals *totals, ExtTable *ext,
-                 DirReadyFn on_dir_ready, void *live_ctx) {
+                 DirMeasureFn on_dir_measure, EntryReadyFn on_entry_ready,
+                 DirDoneFn on_dir_done, void *ctx) {
     DIR *d = opendir(fullpath);
     if (!d) return;
 
@@ -315,54 +317,56 @@ void build_tree(Node *parent, const char *fullpath, const char *relbase,
     for (size_t i = 0; i < local_n; i++) node_add_child(parent, local[i]);
     free(local);
 
-    /* Phase 2: `parent`'s own direct children are now fully known
-     * (files fully scanned; subdirectories present but not yet
-     * expanded) -- exactly "one directory's listing", the same
-     * granularity the ls-mode default already renders one block of.
-     * Fire the --live streaming callback now, BEFORE recursing into
-     * any child directory, so live output prints top-down (root's own
-     * listing, then each subdirectory's as it's entered) instead of
-     * depth-first-last -- see docs/plan-ls-rework.md, Category 7. */
-    if (on_dir_ready) on_dir_ready(parent, relbase, cfg, live_ctx);
+    /* `parent`'s own direct children are now fully known (files fully
+     * scanned; subdirectories present but not yet expanded). Fire the
+     * measure hook once, up front, so a streaming renderer can size
+     * columns across all of `parent`'s children before printing any
+     * of them (see render/render_tree.h) -- then print+recurse ONE
+     * ENTRY AT A TIME, interleaved, so a subtree prints immediately
+     * after its own directory's line instead of after all of that
+     * directory's siblings (batching all of `parent`'s lines before
+     * recursing into any of them produces the wrong shape entirely --
+     * see docs/plan-ls-rework.md, Category 7, for why this replaced
+     * an earlier "print all siblings, then recurse" attempt). */
+    if (on_dir_measure) on_dir_measure(parent, depth, cfg, ctx);
 
-    /* Phase 3: now descend into whichever child directories can still
-     * go deeper. Order here (sorted, not readdir order) doesn't
-     * affect the final tree/totals/ext-table contents -- only Phase 1
-     * needs to run in a single pass before this can start, since a
-     * directory's OWN listing has to be complete before its callback
-     * fires, but nothing downstream cares what order siblings recurse
-     * in. */
     for (size_t i = 0; i < parent->nchildren; i++) {
         Node *node = parent->children[i];
-        if (!node->is_dir || node->truncated) continue;
+        bool is_last = (i + 1 == parent->nchildren);
 
-        char childpath[PATH_MAX];
-        snprintf(childpath, sizeof(childpath), "%s/%s", fullpath, node->name);
-        char relpath[PATH_MAX];
-        if (relbase[0] == '\0') snprintf(relpath, sizeof(relpath), "%s", node->name);
-        else snprintf(relpath, sizeof(relpath), "%s/%s", relbase, node->name);
+        if (on_entry_ready) on_entry_ready(node, i, is_last, depth + 1, cfg, ctx);
 
-        build_tree(node, childpath, relpath, depth + 1, cfg, gt, totals, ext,
-                   on_dir_ready, live_ctx);
+        if (node->is_dir && !node->truncated) {
+            char childpath[PATH_MAX];
+            snprintf(childpath, sizeof(childpath), "%s/%s", fullpath, node->name);
+            char relpath[PATH_MAX];
+            if (relbase[0] == '\0') snprintf(relpath, sizeof(relpath), "%s", node->name);
+            else snprintf(relpath, sizeof(relpath), "%s/%s", relbase, node->name);
 
-        for (size_t k = 0; k < node->nchildren; k++) {
-            node->lines += node->children[k]->lines;
-            node->chars += node->children[k]->chars;
-            node->size_bytes += node->children[k]->size_bytes;
-        }
-        if (need_hash && node->nchildren > 0) {
-            char **names = (char **)malloc(sizeof(char *) * node->nchildren);
-            uint8_t (*hashes)[HASH_MAX_BYTES] =
-                malloc(sizeof(uint8_t[HASH_MAX_BYTES]) * node->nchildren);
-            uint8_t *lens = (uint8_t *)malloc(node->nchildren);
+            build_tree(node, childpath, relpath, depth + 1, cfg, gt, totals, ext,
+                       on_dir_measure, on_entry_ready, on_dir_done, ctx);
+
             for (size_t k = 0; k < node->nchildren; k++) {
-                names[k] = node->children[k]->name;
-                memcpy(hashes[k], node->children[k]->hash, HASH_MAX_BYTES);
-                lens[k] = node->children[k]->hash_len;
+                node->lines += node->children[k]->lines;
+                node->chars += node->children[k]->chars;
+                node->size_bytes += node->children[k]->size_bytes;
             }
-            hash_combine_children(cfg->hash_algo, names, hashes, lens,
-                                   node->nchildren, node->hash, &node->hash_len);
-            free(names); free(hashes); free(lens);
+            if (need_hash && node->nchildren > 0) {
+                char **names = (char **)malloc(sizeof(char *) * node->nchildren);
+                uint8_t (*hashes)[HASH_MAX_BYTES] =
+                    malloc(sizeof(uint8_t[HASH_MAX_BYTES]) * node->nchildren);
+                uint8_t *lens = (uint8_t *)malloc(node->nchildren);
+                for (size_t k = 0; k < node->nchildren; k++) {
+                    names[k] = node->children[k]->name;
+                    memcpy(hashes[k], node->children[k]->hash, HASH_MAX_BYTES);
+                    lens[k] = node->children[k]->hash_len;
+                }
+                hash_combine_children(cfg->hash_algo, names, hashes, lens,
+                                       node->nchildren, node->hash, &node->hash_len);
+                free(names); free(hashes); free(lens);
+            }
         }
     }
+
+    if (on_dir_done) on_dir_done(depth + 1, cfg, ctx);
 }

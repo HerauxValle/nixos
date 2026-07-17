@@ -1,3 +1,4 @@
+/* &desc: "Declares SortSpec/sort_parse/sort_nodes, --sort's ls-mode-only mode parsing (abc/birth/modified/lines/chars/types plus combined/reversed modifiers) and qsort comparator." */
 /* sortmodes.h -- --sort parsing + the qsort comparator it drives.
  * ls-mode only (render/render_ls.c) -- tree mode keeps node_cmp's
  * plain case-insensitive alphabetical order, see

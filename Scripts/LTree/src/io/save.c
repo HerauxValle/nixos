@@ -1,3 +1,4 @@
+/* &desc: "Implements save_output: creates .ltree/ if needed and writes a timestamped, --stdout-filter-immune JSON snapshot via the same json_render() the -j path uses." */
 #define _GNU_SOURCE
 #include "io/save.h"
 #include "io/json.h"

@@ -1,3 +1,4 @@
+/* &desc: "Implements node_new/node_add_child/node_free and node_cmp, the case-insensitive alphabetical qsort comparator used as the default ordering throughout." */
 #define _GNU_SOURCE
 #include "core/node.h"
 #include <stdio.h>

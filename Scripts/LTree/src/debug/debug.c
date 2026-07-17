@@ -1,3 +1,4 @@
+/* &desc: "Implements -o DEBUG's DebugTimer checkpoints and debug_collect (getrusage/mallinfo2/clock_gettime-based DebugStats collection), plus its two renderers, debug_print_text and debug_json_append." */
 #define _GNU_SOURCE
 #include "debug/debug.h"
 #include "hash/hash.h"
