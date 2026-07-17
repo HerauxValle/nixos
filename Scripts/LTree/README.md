@@ -90,15 +90,10 @@ ltree [path] [options]
                           LINES, CHARS, TOTAL, FILES,
                           PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,
                           TREE, HIDDEN
-  -oA                   every display module at once. Can't be combined
-                        with other module names. Glued onto -o -- "-o A"
-                        (space) is a usage error.
-  -oE,<MODULES>         every display module EXCEPT the ones listed.
-                        E must come first. Glued onto -o -- "-o E,..."
-                        (space) is a usage error.
-  -oO                   render columns in the order you typed them in
-                        -o, not the fixed L/C/P/S/D/H order. Standalone,
-                        like -oA. Glued onto -o -- "-o O" is a usage error.
+  -oA                   every display module at once, always alone
+  -oE <MODULES>         every display module EXCEPT the ones named
+  -oO <MODULES>         render columns in the order you typed them in -o
+                        (MODULES optional -- also just enables them)
   --exclude <list>      comma-separated names/globs to skip, quote
                         entries with spaces: --exclude "build,*.pyc"
   --gitignore           also exclude what the scan root's .gitignore
@@ -164,7 +159,7 @@ faults, throughput -- right after `TOTAL` (and, in `-j` output, as a
 `"debug"` object); it's never written into `--save-output` snapshots,
 since it's ephemeral run-to-run noise that would only pollute
 diffing. `-oA` turns on every display module at once;
-`-oE,<list>` turns on every display module *except*
+`-oE <list>` turns on every display module *except*
 the ones named. Neither counts `TREE`/`HIDDEN` as part of "every
 module" -- those change behavior, not what's displayed.
 
@@ -268,7 +263,7 @@ ltree -o DEBUG
 ltree -oA
 
 # everything except HASH and DEBUG
-ltree -oE,HASH,DEBUG
+ltree -oE HASH,DEBUG
 
 # largest files last, files bucketed by extension
 ltree --sort lines,types -o LINES
@@ -340,12 +335,12 @@ Full design reasoning in [`docs/plan-ls-rework.md`](docs/plan-ls-rework.md).
 - **New:** `-o HIDDEN` -- shows dotfiles/dot-dirs, hidden by default
   now (previously always shown); appended after visible entries within
   each ls-mode block.
-- **New:** `-oE,<MODULES>` -- every display module
-  *except* the ones listed, the inverse of `-oA`.
-- **New:** `-oO` -- render `-o` columns in the order you typed
-  them instead of the fixed `L`/`C`/`P`/`S`/`D`/`H` order. Standalone,
-  like `-oA` (see the later addendum below on `-oA`/`-oE`/`-oO` all
-  needing to be glued directly onto `-o`, never space-separated).
+- **New:** `-oE <MODULES>` -- every display module
+  *except* the ones named, the inverse of `-oA`.
+- **New:** `-oO [MODULES]` -- render `-o` columns in the order you
+  typed them instead of the fixed `L`/`C`/`P`/`S`/`D`/`H` order; the
+  module list is optional, since `-oO` on its own already means
+  something (apply typed order to whatever's already enabled).
 - **New:** `--condense` -- one `[L:x C:y ...]` bracket per entry
   instead of one bracket per active column.
 - **New:** `--sort <abc|birth|modified|lines|chars|types>[,combined][,reversed]`
@@ -409,9 +404,10 @@ Full design reasoning in
   that takes long enough to notice, so it's clear `ltree` is working
   rather than stuck -- the only thing on screen without `--live`,
   always redrawn as the bottom-most line with `--live`.
-- **Changed:** `-oA`/`-oE,<MODULES>`/`-oO` must now be glued directly
-  onto `-o` -- `-o A`/`-o E,<MODULES>`/`-o O` (space-separated) are
-  usage errors instead of being silently accepted as equivalent. Keeps
-  `-o`'s two jobs (a plain module list vs. one of these three shorthand
-  directives) visually distinct at the token level. `-o LINES,CHARS`
-  (an ordinary module list, space-separated) is unaffected.
+- **Changed:** `-oE`/`-oO` now take their module list as a normal
+  space-separated argument (`-oE DESC`, `-oO HASH`), the same way `-L`
+  or `--desc` take theirs -- comma-gluing it directly onto the flag
+  (`-oE,DESC`) is no longer special-cased. `-oO`'s module list is
+  optional (`-oO` alone still just sets typed-order rendering). `-oA`
+  never takes any module list, ever. Plain `-o LINES,CHARS` (an
+  ordinary module list) is unaffected.

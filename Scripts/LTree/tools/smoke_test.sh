@@ -231,25 +231,22 @@ run_ok "tree view HASH (crypto)"       "$BIN" "$PG" -o HASH --cryptographic
 run_ok "tree view DEBUG"               "$BIN" "$PG" -o DEBUG
 run_ok "tree view DEBUG,DIFF ordering" "$BIN" "$PG" -o DEBUG,DIFF
 run_ok "tree view ALL modules at once" "$BIN" "$PG" -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DEBUG
-run_ok "-oA (all modules shorthand, attached)" "$BIN" "$PG" -oA
-run_expect_fail "-o A (space-separated) rejected -- must be glued onto -o" "$BIN" "$PG" -o A
-run_expect_fail "-oA,DEBUG rejected (can't combine with A)" "$BIN" "$PG" -oA,DEBUG
-run_expect_fail "-o A,DEBUG rejected (space AND combine, either is enough)" "$BIN" "$PG" -o A,DEBUG
-run_ok "-oE,<MODULE> attached (comma-glued)" "$BIN" "$PG" -oE,DEBUG
-assert_json "-oE,DEBUG excludes only DEBUG, everything else stays on" \
-    "d['hash_algo'] != 'none' and len(d['by_extension']) > 0 and 'debug' not in d" \
-    "$BIN" "$PG" -j -oE,DEBUG
-run_expect_fail "-oE DEBUG (space-separated, not comma-glued) rejected" "$BIN" "$PG" -oE DEBUG
-run_expect_fail "-o E,DEBUG (space-separated) rejected -- must be glued onto -o" "$BIN" "$PG" -o E,DEBUG
-run_expect_fail "-oE with truly nothing after it still errors cleanly" "$BIN" "$PG" -oE
+run_ok "-oA (all modules at once, always alone)" "$BIN" "$PG" -oA
 assert_json "-oA enables every module (TOTAL/by_extension/debug all present)" \
     "d['hash_algo'] != 'none' and 'debug' in d and len(d['by_extension']) > 0" \
     "$BIN" "$PG" -j -oA
+run_ok "-oE <MODULE> excludes just that module" "$BIN" "$PG" -oE DEBUG
+assert_json "-oE DEBUG excludes only DEBUG, everything else stays on" \
+    "d['hash_algo'] != 'none' and len(d['by_extension']) > 0 and 'debug' not in d" \
+    "$BIN" "$PG" -j -oE DEBUG
+run_expect_fail "-oE with nothing after it errors cleanly" "$BIN" "$PG" -oE
 
-header "-oO (typed column order, standalone/attached only)"
-run_ok "-oO attached alone" "$BIN" "$PG/basic" -oO
-run_expect_fail "-o O (space-separated) rejected -- must be glued onto -o" "$BIN" "$PG/basic" -o O
-run_ok "-oO,LINES combined in one token doesn't crash (falls back to plain list, warns on 'O')" "$BIN" "$PG/basic" -oO,LINES
+header "-oO (typed column order)"
+run_ok "-oO alone (just sets order, no extra module)" "$BIN" "$PG/basic" -oO
+run_ok "-oO <MODULE> (sets order and enables that module in one go)" "$BIN" "$PG/basic" -oO HASH
+assert_json "-oO HASH both preserves order and actually enables HASH" \
+    "next(c['hash'] for c in d['tree']['children'] if c['name']=='three_lines.txt') is not None" \
+    "$BIN" "$PG/basic" -j -oO HASH
 ORDER_OUT="$("$BIN" "$PG/basic" -o CHARS,LINES -oO 2>&1)"
 if echo "$ORDER_OUT" | python3 -c "
 import sys

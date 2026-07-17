@@ -84,6 +84,46 @@ static bool field_wanted(const Config *cfg, ModuleId id) {
     return false;
 }
 
+/* Enables every comma-separated module named in `val` (mutated by
+ * strtok -- pass a caller-owned copy). Unknown names warn and are
+ * otherwise ignored, same leniency as every other -o path. Shared by
+ * plain "-o <MODULES>"/"-oLINES,CHARS" and -oO's optional module arg. */
+static void enable_modules_from_list(Config *cfg, char *val) {
+    char *tok = strtok(val, ",");
+    while (tok) {
+        const ModuleDef *def = module_lookup(tok);
+        if (def) {
+            cfg->modules[def->id] = true;
+            cfg->order_seen[cfg->n_order_seen++] = def->id;
+        } else {
+            fprintf(stderr, "warning: unknown -o module '%s'\n", tok);
+        }
+        tok = strtok(NULL, ",");
+    }
+}
+
+/* -oE's complement: enables every display module (TREE/HIDDEN excluded,
+ * see docs/plan-ls-rework.md, Category 1) EXCEPT the ones named in
+ * `val`. */
+static void enable_all_except(Config *cfg, char *val) {
+    bool excluded[MOD_COUNT] = {0};
+    char *tok = strtok(val, ",");
+    while (tok) {
+        const ModuleDef *def = module_lookup(tok);
+        if (def) {
+            excluded[def->id] = true;
+        } else {
+            fprintf(stderr, "warning: unknown -o module '%s'\n", tok);
+        }
+        tok = strtok(NULL, ",");
+    }
+    for (int m = 0; m < MOD_COUNT; m++) {
+        if (MODULE_TABLE[m].cat == MODCAT_TOGGLE) continue;
+        if (excluded[m]) continue;
+        cfg->modules[m] = true;
+    }
+}
+
 static void print_usage(const char *prog) {
     printf(
         "usage: %s [path] [options]\n"
@@ -95,16 +135,10 @@ static void print_usage(const char *prog) {
         "                          LINES, CHARS, TOTAL, FILES,\n"
         "                          PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,\n"
         "                          TREE, HIDDEN\n"
-        "  -oA                   every module at once. Can't be combined with other\n"
-        "                        module names -- it's already all of them. Must be\n"
-        "                        glued onto -o like this, not \"-o A\" (space).\n"
-        "  -oE,<MODULES>         every module EXCEPT the ones listed. E must come\n"
-        "                        first; needs at least one module after it. Must be\n"
-        "                        glued onto -o like this, not \"-o E,...\" (space).\n"
-        "  -oO                   render columns in the order you typed them in -o,\n"
-        "                        instead of the fixed L/C/P/S/D/H order. Standalone,\n"
-        "                        like -oA -- not combinable with other module names.\n"
-        "                        Must be glued onto -o like this, not \"-o O\" (space).\n"
+        "  -oA                   every module at once, always alone\n"
+        "  -oE <MODULES>         every module EXCEPT the ones named\n"
+        "  -oO <MODULES>         render columns in the order you typed them in -o\n"
+        "                        (MODULES optional -- also just enables them)\n"
         "  --exclude <list>      comma-separated names/globs to skip, quote\n"
         "                        entries with spaces: --exclude \"build,*.pyc\"\n"
         "  --gitignore           also exclude what the scan root's .gitignore\n"
@@ -258,115 +292,51 @@ int main(int argc, char **argv) {
             cfg.max_depth = atoi(a + 2);
         } else if (strcmp(a, "-L") == 0) {
             if (i + 1 < argc) cfg.max_depth = atoi(argv[++i]);
-        } else if (strcmp(a, "-o") == 0 || (strncmp(a, "-o", 2) == 0 && strlen(a) > 2)) {
-            bool attached = (strcmp(a, "-o") != 0);
-            char *val = attached ? strdup(a + 2)
-                                  : (i + 1 < argc ? strdup(argv[++i]) : NULL);
-            if (val) {
-                /* -oA/-oE/-oO are shorthand glued directly onto -o, never
-                 * space-separated ("-o A"/"-o E"/"-o O" are usage errors,
-                 * caught below) -- "-o" followed by a space always means a
-                 * plain module list (-o LINES,CHARS). Gluing keeps -o's
-                 * two jobs (module list vs. one of these three shorthand
-                 * directives) visually and syntactically distinct at the
-                 * token level, instead of only distinguishable by what the
-                 * value happens to parse to.
-                 *
-                 * -oA means "every display module" and must stand alone
-                 * -- it's already everything, so "-oA,DEBUG" either means
-                 * nothing extra or is a typo for a specific subset the
-                 * caller actually wanted. -oE is the mirror image: "every
-                 * display module EXCEPT the ones listed after it", where
-                 * "E" must be the FIRST token (unlike "A", which is
-                 * rejected wherever it appears alongside other tokens, "E"
-                 * is expected to have tokens after it -- that's the whole
-                 * point). -oO means "render columns in the order they
-                 * were typed" and, like A, must stand alone -- it's not a
-                 * modifier tacked onto a module list. Reject any of these
-                 * instead of silently doing something the flags don't
-                 * literally say. TREE/HIDDEN (MODCAT_TOGGLE) are
-                 * deliberately excluded from what "every module" means
-                 * for both A and E -- they change what's walked/how it's
-                 * laid out, not what's displayed (see
-                 * docs/plan-ls-rework.md, Category 1). */
-                char *scan = strdup(val);
-                int ntok = 0, has_all = 0, has_exclude = 0;
-                bool first_tok = true;
-                char *stok = strtok(scan, ",");
-                while (stok) {
-                    ntok++;
-                    if (strcasecmp(stok, "A") == 0) has_all = 1;
-                    if (first_tok && strcasecmp(stok, "E") == 0) has_exclude = 1;
-                    first_tok = false;
-                    stok = strtok(NULL, ",");
-                }
-                free(scan);
-                bool has_order_only = (ntok == 1 && strcasecmp(val, "O") == 0);
-
-                if (!attached && (has_all || has_exclude || has_order_only)) {
-                    fprintf(stderr,
-                            "error: -o A / -o E / -o O must be glued directly onto -o "
-                            "(-oA, -oE,<modules>, -oO), not space-separated (got '-o %s')\n",
-                            val);
-                    free(val);
-                    print_usage(argv[0]);
-                    return 1;
-                }
-
-                if (has_all && ntok > 1) {
-                    fprintf(stderr,
-                            "error: -o A selects every display module by itself and can't "
-                            "be combined with other module names (got '-o %s')\n", val);
-                    free(val);
-                    print_usage(argv[0]);
-                    return 1;
-                } else if (has_exclude && ntok == 1) {
-                    fprintf(stderr,
-                            "error: -o E excludes modules but none were named after it "
-                            "(got '-o %s')\n", val);
-                    free(val);
-                    print_usage(argv[0]);
-                    return 1;
-                } else if (has_order_only) {
-                    cfg.o_order = true;
-                } else if (has_all) {
-                    for (int m = 0; m < MOD_COUNT; m++) {
-                        if (MODULE_TABLE[m].cat == MODCAT_TOGGLE) continue;
-                        cfg.modules[m] = true;
-                    }
-                } else if (has_exclude) {
-                    bool excluded[MOD_COUNT] = {0};
-                    char *tok = strtok(val, ",");
-                    tok = strtok(NULL, ",");  /* skip the leading "E" token */
-                    while (tok) {
-                        const ModuleDef *def = module_lookup(tok);
-                        if (def) {
-                            excluded[def->id] = true;
-                        } else {
-                            fprintf(stderr, "warning: unknown -o module '%s'\n", tok);
-                        }
-                        tok = strtok(NULL, ",");
-                    }
-                    for (int m = 0; m < MOD_COUNT; m++) {
-                        if (MODULE_TABLE[m].cat == MODCAT_TOGGLE) continue;
-                        if (excluded[m]) continue;
-                        cfg.modules[m] = true;
-                    }
-                } else {
-                    char *tok = strtok(val, ",");
-                    while (tok) {
-                        const ModuleDef *def = module_lookup(tok);
-                        if (def) {
-                            cfg.modules[def->id] = true;
-                            cfg.order_seen[cfg.n_order_seen++] = def->id;
-                        } else {
-                            fprintf(stderr, "warning: unknown -o module '%s'\n", tok);
-                        }
-                        tok = strtok(NULL, ",");
-                    }
-                }
+        } else if (strcmp(a, "-o") == 0) {
+            /* Plain module list: "-o LINES,CHARS". Always literal -- "A"/
+             * "E"/"O" here are just (unknown) module names, not shorthand;
+             * the shorthand only exists as -oA/-oE/-oO below. */
+            if (i + 1 < argc) {
+                char *val = strdup(argv[++i]);
+                enable_modules_from_list(&cfg, val);
                 free(val);
             }
+        } else if (strncmp(a, "-o", 2) == 0 && strcasecmp(a + 2, "A") == 0) {
+            /* Every display module at once. Always alone -- no argument,
+             * ever (TREE/HIDDEN excluded, see docs/plan-ls-rework.md,
+             * Category 1). */
+            for (int m = 0; m < MOD_COUNT; m++) {
+                if (MODULE_TABLE[m].cat == MODCAT_TOGGLE) continue;
+                cfg.modules[m] = true;
+            }
+        } else if (strncmp(a, "-o", 2) == 0 && strcasecmp(a + 2, "E") == 0) {
+            /* Every display module EXCEPT the ones named in the next
+             * argv -- "-oE DESC" or "-oE DESC,TREE". */
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                char *val = strdup(argv[++i]);
+                enable_all_except(&cfg, val);
+                free(val);
+            } else {
+                fprintf(stderr, "error: -oE excludes modules but none were named after it\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+        } else if (strncmp(a, "-o", 2) == 0 && strcasecmp(a + 2, "O") == 0) {
+            /* Render -o columns in the order they were typed, across the
+             * whole run. Optionally followed by more modules to enable in
+             * the same breath -- "-oO HASH" enables HASH and preserves
+             * typed order, same as "-oO" alone plus a separate "-o HASH". */
+            cfg.o_order = true;
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                char *val = strdup(argv[++i]);
+                enable_modules_from_list(&cfg, val);
+                free(val);
+            }
+        } else if (strncmp(a, "-o", 2) == 0 && strlen(a) > 2) {
+            /* -oLINES,CHARS -- modules glued directly onto -o. */
+            char *val = strdup(a + 2);
+            enable_modules_from_list(&cfg, val);
+            free(val);
         } else if (strcmp(a, "--exclude") == 0) {
             if (i + 1 < argc) {
                 char **list; size_t n;
