@@ -14,6 +14,7 @@ apart from each other.
   "path": "testtree",                 // the scanned path, as given on the command line
   "generated_at": "13-07-2026 21:34:37", // local time, "dd-mm-yyyy hh:mm:ss"
   "hash_algo": "xxhash64",            // "xxhash64" | "sha256" | "none"
+  "hash_sampled": false,               // true if this run used --simple-hash
   "total": {
     "dirs": 4,
     "files": 6,
@@ -31,8 +32,18 @@ apart from each other.
 ```
 
 `hash_algo` is `"none"` whenever nothing in the run actually needed a
-digest (no `-o HASH`, `-o DIFF`, or `--save-output`) -- hashing is
-otherwise skipped entirely, not just hidden from output.
+digest (no `-o HASH`, `-o DIFF`, `--save-output`, or a `--stdout
+exclusive|inclusive` filter that resolves to wanting `HASH` -- e.g.
+`--stdout inclusive HASH` computes it even without `-o HASH`) -- hashing
+is otherwise skipped entirely, not just hidden from output.
+
+`hash_sampled` is always present (like `hash_algo`), never gated by
+`--stdout` -- a later `-o DIFF` run reads it (`diff_peek_algo()` in
+`io/diff.c`) to force its own `--simple-hash` setting to match the
+snapshot's, the same way it already forces the hash algorithm to
+match; comparing a full hash against a sampled one would otherwise
+flag every large file as modified regardless of whether it actually
+changed. See [`docs/usage.md`](usage.md#--simple-hash).
 
 `by_extension` is always present, even for `-j` calls that didn't
 request `-o FILES` -- unlike the terminal view, the JSON output isn't
@@ -95,6 +106,7 @@ tree-view rendering and full field list.
   "size": 24,                    // bytes. file: st_size. dir: sum of DIRECT children
   "mtime": 1783978477,           // Unix epoch seconds, own mtime -- never aggregated
   "hash": "f50bbd2a8ebb44c9",    // hex-encoded digest, or null if not computed
+  "desc": "hello world",         // -o DESC marker text, or null if none/not requested
   "modified": false,             // only present when -o DIFF was requested AND
                                   // a matching entry was found in the snapshot
   "truncated": true,             // dirs only, only present when true (hit -L cutoff)
@@ -108,6 +120,11 @@ Field notes:
   32 bytes/64 hex chars for SHA-256) -- unlike the terminal `[H: ...]`
   column, which always truncates to 8 bytes for display. `null` when
   hashing wasn't requested for this run.
+- **`desc`** is the full, untruncated marker text found by `-o DESC` /
+  `--desc`/`-D` (see [`docs/usage.md`](usage.md#desc)) -- unlike the
+  terminal `[DESC: ...]` column, which caps display at 480 characters.
+  `null` when `DESC` wasn't requested for this run, or no marker
+  matched within the search bounds.
 - **`modified`** is omitted entirely (not `false`) unless `-o DIFF`
   was passed *and* this entry was matched against the loaded
   snapshot by path. An entry with no `modified` key means DIFF either

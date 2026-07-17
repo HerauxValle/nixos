@@ -56,6 +56,11 @@ typedef struct {
 
     bool    use_gitignore;    /* --gitignore                             */
     bool    cryptographic;    /* --cryptographic                          */
+    bool    simple_hash;      /* --simple-hash -- hash a bounded sample
+                                * (size + first/last 64KiB) instead of the
+                                * whole file for anything past 128KiB, same
+                                * algorithm either way (see hash/hash.h and
+                                * scan/scan.c's hash_simple_or_full())      */
 
     bool    save_output;      /* --save-output[=DIR]                      */
     char   *save_output_dir;  /* NULL = use `path`                        */
@@ -64,6 +69,19 @@ typedef struct {
      * HASH, --save-output, or -o DIFF actually need one -- see
      * docs/plan.md for why DIFF can override --cryptographic). */
     HashAlgo hash_algo;
+
+    /* -o DESC / --desc <format> / -D <format> -- search each file for a
+     * marker and extract the text between two delimiters. `format`
+     * defaults to `&desc: "..."` (this project's own header-comment
+     * convention -- see docs/plan-hash-desc-spinner.md) and is split once
+     * at startup on the literal "..." into desc_prefix (everything
+     * before, e.g. `&desc: "`) and desc_suffix (everything after, e.g.
+     * `"`) -- both malloc'd, both always non-NULL/non-empty once parsing
+     * succeeds. need_desc is resolved once like hash_algo (see
+     * field_wanted() in main.c). */
+    char    *desc_prefix;
+    char    *desc_suffix;
+    bool     need_desc;
 } Config;
 
 #endif

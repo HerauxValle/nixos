@@ -34,6 +34,7 @@ typedef struct {
     time_t   mtime;
     uint8_t  hash[HASH_MAX_BYTES];
     uint8_t  hash_len;
+    char    *desc;        /* -o DESC text, or NULL (see core/node.h)     */
     bool     diff_checked;
     bool     modified;
     size_t   width;       /* utf8 display width of prefix+name(+"/")     */
@@ -53,7 +54,7 @@ void       linebuf_free(LineBuf *lb);
  * leaves prefix as ""). Applies EXT display-name stripping per cfg. */
 void printline_fill(PrintLine *pl, Node *n, const Config *cfg);
 
-#define RENDER_COLUMN_COUNT 6
+#define RENDER_COLUMN_COUNT 7
 extern const ModuleId RENDER_COLUMNS[RENDER_COLUMN_COUNT];
 
 typedef struct {
@@ -67,7 +68,7 @@ typedef struct {
     bool    any_module;
 } MeasuredColumns;
 
-/* Pass 1: for every active LINES/CHARS/PERMISSIONS/SIZE/DATE/HASH
+/* Pass 1: for every active LINES/CHARS/PERMISSIONS/SIZE/DATE/HASH/DESC
  * column, render every line's text (plain, no colour) and track that
  * column's own max width across the whole of `lb`. Caller must call
  * columns_free() when done with `mc`. */

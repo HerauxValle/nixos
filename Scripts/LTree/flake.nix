@@ -79,12 +79,13 @@
             runHook preInstall
             mkdir -p $out/bin
             cp ltree $out/bin/ltree
+            ln -s ltree $out/bin/lt
             runHook postInstall
           '';
 
           meta = {
             description = "Recursive directory tree with line/char counts, permissions, size, hashing, diffing, and JSON export";
-            mainProgram = "ltree";
+            mainProgram = "ltree"; # "lt" is a second, shorter symlinked name -- see installPhase
           };
         };
 

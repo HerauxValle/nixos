@@ -4,6 +4,7 @@
 #include "render/colors.h"
 #include "render/columns.h"
 #include "util/util.h"
+#include "util/spinner.h"
 #include "core/modules.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -133,6 +134,8 @@ static void ensure_depth(size_t depth) {
 
 void tree_live_start(const char *display_path, const Config *cfg) {
     printf("%s%s%s\n", COL(cfg, ANSI_DIR), display_path, RST(cfg));
+    fflush(stdout);
+    spinner_tick(true); /* spinner appears right under the path line */
     ensure_depth(2);
     free(g_depth[1].prefix);
     g_depth[1].prefix = strdup("");
@@ -179,6 +182,11 @@ void tree_live_on_entry_ready(Node *node, size_t index, bool is_last, int depth,
     const char *namecol = pl->is_symlink ? COL(cfg, ANSI_SYMLINK)
                         : pl->is_dir     ? COL(cfg, ANSI_DIR)
                                          : COL(cfg, ANSI_FILE);
+
+    /* Erase the spinner before this real line prints, then redraw it
+     * immediately after -- keeps it "always the bottom line" through the
+     * whole streamed walk (see util/spinner.h). */
+    spinner_erase();
     printf("%s%s%s%s%s%s%s", COL(cfg, ANSI_BRANCH), pl->prefix, RST(cfg),
            namecol, pl->name, pl->is_dir ? "/" : "", RST(cfg));
 
@@ -187,6 +195,7 @@ void tree_live_on_entry_ready(Node *node, size_t index, bool is_last, int depth,
     if (pl->truncated) printf("  %s(...)%s", COL(cfg, ANSI_BRANCH), RST(cfg));
     putchar('\n');
     fflush(stdout);
+    spinner_tick(true);
 
     if (node->is_dir && !node->truncated) {
         const char *my_prefix = ds->prefix ? ds->prefix : "";

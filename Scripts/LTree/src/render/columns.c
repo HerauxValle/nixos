@@ -27,7 +27,11 @@ PrintLine *linebuf_push(LineBuf *lb) {
 }
 
 void linebuf_free(LineBuf *lb) {
-    for (size_t i = 0; i < lb->n; i++) { free(lb->items[i].prefix); free(lb->items[i].name); }
+    for (size_t i = 0; i < lb->n; i++) {
+        free(lb->items[i].prefix);
+        free(lb->items[i].name);
+        free(lb->items[i].desc);
+    }
     free(lb->items);
 }
 
@@ -45,12 +49,13 @@ void printline_fill(PrintLine *pl, Node *n, const Config *cfg) {
     pl->mtime = n->mtime;
     memcpy(pl->hash, n->hash, HASH_MAX_BYTES);
     pl->hash_len = n->hash_len;
+    pl->desc = n->desc ? strdup(n->desc) : NULL;
     pl->diff_checked = n->diff_checked;
     pl->modified = n->modified;
 }
 
 const ModuleId RENDER_COLUMNS[RENDER_COLUMN_COUNT] = {
-    MOD_LINES, MOD_CHARS, MOD_PERM, MOD_SIZE, MOD_DATE, MOD_HASH
+    MOD_LINES, MOD_CHARS, MOD_PERM, MOD_SIZE, MOD_DATE, MOD_HASH, MOD_DESC
 };
 
 static const char *module_color(const Config *cfg, ModuleId m) {
@@ -61,12 +66,14 @@ static const char *module_color(const Config *cfg, ModuleId m) {
         case MOD_SIZE:  return COL(cfg, ANSI_SIZE);
         case MOD_DATE:  return COL(cfg, ANSI_DATE);
         case MOD_HASH:  return COL(cfg, ANSI_HASH);
+        case MOD_DESC:  return COL(cfg, ANSI_DESC);
         default:        return "";
     }
 }
 
 static char *render_module_text(ModuleId m, const PrintLine *pl) {
-    char buf[128];
+    char buf[512]; /* big enough for DESC's %.480s below; every other
+                     * case here is far shorter than 128, unchanged */
     switch (m) {
         case MOD_LINES:
             snprintf(buf, sizeof(buf), "[L: %ld]", pl->lines);
@@ -103,6 +110,10 @@ static char *render_module_text(ModuleId m, const PrintLine *pl) {
             }
             break;
         }
+        case MOD_DESC:
+            if (pl->desc) snprintf(buf, sizeof(buf), "[DESC: %.480s]", pl->desc);
+            else          snprintf(buf, sizeof(buf), "[DESC: -]");
+            break;
         default:
             buf[0] = '\0';
     }
@@ -169,6 +180,9 @@ static size_t fixed_colwidth_for(ModuleId m) {
         case MOD_SIZE:  return 11; /* "[S: 999.9G]"          -- human_size max */
         case MOD_DATE:  return 24; /* "[D: dd-mm-yyyy hh:mm:ss]" -- always this */
         case MOD_HASH:  return 21; /* "[H: xxxxxxxxxxxxxxxx]" -- 16 hex chars  */
+        case MOD_DESC:  return 30; /* generous guess -- real descriptions vary
+                                     * wildly in length, same overflow-allowed
+                                     * tradeoff as everywhere else in --live  */
         default:        return 0;
     }
 }

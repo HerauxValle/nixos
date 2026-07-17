@@ -29,6 +29,7 @@ void node_free(Node *n) {
     for (size_t i = 0; i < n->nchildren; i++) node_free(n->children[i]);
     free(n->children);
     free(n->name);
+    free(n->desc);
     free(n);
 }
 

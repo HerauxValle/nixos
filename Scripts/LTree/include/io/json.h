@@ -19,6 +19,14 @@ void json_render(SBuf *sb, Node *root, const char *display_path,
                   const Totals *tot, const ExtTable *ext, const Config *cfg,
                   const DebugStats *dbg);
 
+/* Whether module `id` is allowed to appear as a JSON key this run --
+ * always true without --stdout, otherwise gated by exclusive/inclusive
+ * filtering. Exposed (not just json.c-internal) so main.c can reuse the
+ * exact same rule to decide whether a --stdout-only-requested field (e.g.
+ * `--stdout inclusive HASH` without `-o HASH`) is worth computing at all --
+ * see field_wanted() in main.c. */
+bool json_key_allowed(const Config *cfg, ModuleId id);
+
 /* Convenience wrapper: renders and writes straight to stdout (the `-j`
  * code path). */
 void print_json(Node *root, const char *display_path, const Totals *tot,

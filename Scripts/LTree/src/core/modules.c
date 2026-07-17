@@ -11,6 +11,7 @@ const ModuleDef MODULE_TABLE[MOD_COUNT] = {
     [MOD_DATE]   = { "DATE",        MOD_DATE,   MODCAT_COLUMN  },
     [MOD_EXT]    = { "EXT",         MOD_EXT,    MODCAT_COLUMN  },
     [MOD_HASH]   = { "HASH",        MOD_HASH,   MODCAT_COLUMN  },
+    [MOD_DESC]   = { "DESC",        MOD_DESC,   MODCAT_COLUMN  },
     [MOD_TOTAL]  = { "TOTAL",       MOD_TOTAL,  MODCAT_SUMMARY },
     [MOD_FILES]  = { "FILES",       MOD_FILES,  MODCAT_SUMMARY },
     [MOD_DEBUG]  = { "DEBUG",       MOD_DEBUG,  MODCAT_SUMMARY },

@@ -73,7 +73,7 @@ gcc -O3 -std=c11 -Wall -Wextra -Iinclude -o ltree src/*.c src/*/*.c
 Or via the flake:
 
 ```sh
-nix build .#default        # -> result/bin/ltree
+nix build .#default        # -> result/bin/ltree, result/bin/lt (same binary, shorter name)
 nix develop                 # gcc + gdb + valgrind for hacking on it
 ```
 
@@ -88,7 +88,7 @@ ltree [path] [options]
                         only), also -L<n>
   -o <MODULES>          comma-separated, any order:
                           LINES, CHARS, TOTAL, FILES,
-                          PERMISSIONS, SIZE, DATE, EXT, HASH, DIFF, DEBUG,
+                          PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,
                           TREE, HIDDEN
   -o A                  every display module at once (also -oA). Can't
                         be combined with other module names.
@@ -102,6 +102,9 @@ ltree [path] [options]
                         would (composes with --exclude)
   --cryptographic       -o HASH / -o DIFF use SHA-256 instead of the
                         default xxHash64
+  --simple-hash         hash a bounded sample (size + first/last 64KiB)
+                        instead of the whole file for anything over
+                        128KiB, same algorithm either way -- see below
   --save-output[=DIR]   write a JSON snapshot to DIR/.ltree/ (default:
                         <path>/.ltree/); filename is a local
                         dd-mm-yyyy_hh:mm:ss timestamp
@@ -117,6 +120,9 @@ ltree [path] [options]
   --stdout <exclusive|inclusive> <MODULES>
                         forces JSON output (like -j) filtered to exclude
                         or keep only the named modules' JSON fields
+  --desc <format>       what -o DESC searches file content for (default:
+                        &desc: "...") -- see below. Also --desc=<format>.
+  -D <format>           alias for --desc (NOT -d, which is dirs-only)
   -h, --help            this help
 ```
 
@@ -159,6 +165,34 @@ diffing. `-o A` (or `-oA`) turns on every display module at once;
 the ones named. Neither counts `TREE`/`HIDDEN` as part of "every
 module" -- those change behavior, not what's displayed.
 
+`--simple-hash` hashes a bounded sample -- the file's size plus its
+first and last 64KiB -- instead of every byte, for anything over
+128KiB (smaller files just get hashed whole, same as always; sampling
+wouldn't save anything). Same `hash_compute` dispatch either way, so it
+works for both the default xxHash64 and `--cryptographic`'s SHA-256.
+Since the file's already `mmap`'d, only the touched head/tail pages
+ever get read off disk -- that's the actual win on large files, on top
+of not running the hash's compression function over the whole thing.
+Trade-off: a change confined entirely to the untouched middle of a
+large file won't be detected. `-o DIFF`/`--save-output` snapshots
+record whether a run used `--simple-hash` (`"hash_sampled"` in the
+JSON), and a later `-o DIFF` always forces its own run to match the
+snapshot's setting -- comparing a full hash against a sampled one would
+otherwise flag every large file as modified.
+
+`DESC` searches each file's content for a marker and prints the text
+found between two delimiters as its own column (`[DESC: -]` when
+nothing matches). What it searches for is `--desc <format>` (alias
+`-D`, *not* `-d`), split on the literal `"..."` -- everything before
+is the literal prefix to search for, everything after is the closing
+delimiter, so the default `&desc: "..."` (this project's own header-
+comment convention -- see the top of any `.c`/`.h` file here) searches
+for `&desc: "` and reads up to the next `"`. `--desc "&description:
+*...*"` instead searches for `&description: *` up to the next `*`. The
+search only looks within the first 64KiB of a file and only within
+4096 bytes of a matched prefix for the closing delimiter -- past that,
+it's treated as no match rather than scanning arbitrarily far.
+
 `--sort` only applies in the default ls-mode view (a warning is
 printed and it's ignored under `-o TREE`, which keeps plain
 alphabetical order). `--sort types` buckets the `[Files]` block into
@@ -178,6 +212,13 @@ instead, so output still lines up predictably rather than jaggedly
 that one row). `-o DIFF` can't mark anything on a `--live`-streamed
 line either -- diffing needs the complete tree. `TOTAL`/`FILES`/
 `DEBUG`/the DIFF note always print once at the end, in either mode.
+
+Any scan taking more than a fraction of a second shows an animated
+spinner on stderr (never stdout, so `-j`/piped output is unaffected;
+only draws when stderr is actually a terminal) so it's clear `ltree`
+is working rather than stuck. Without `--live` it's the only thing on
+screen until the whole walk finishes; with `--live` it's redrawn after
+every streamed line so it's always the last thing at the bottom.
 
 `--stdout exclusive <MODULES>` / `--stdout inclusive <MODULES>` forces
 JSON output filtered to exclude (or keep only) the listed modules'
@@ -237,6 +278,15 @@ ltree -o HIDDEN,LINES,CHARS --condense
 
 # JSON with just the tree + line counts, nothing else
 ltree --stdout inclusive TREE,LINES
+
+# hash a directory full of large files without reading every byte of each one
+ltree -o HASH --simple-hash
+
+# pull this project's own &desc: "..." header comments out as a column
+ltree -o DESC
+
+# a custom marker format instead of the default
+ltree -o DESC --desc "&description: *...*"
 ```
 
 ## What changed from the old `countlines.py`
@@ -327,3 +377,30 @@ Full design reasoning in [`docs/plan-ls-rework.md`](docs/plan-ls-rework.md).
   the module list that used to be hand-duplicated between `main.c`'s
   CLI parser and `render_tree.c`'s local rendering code is now one
   shared table (`core/modules.h`/`.c`).
+
+## What changed in the hash-perf/DESC/spinner batch
+
+Full design reasoning in
+[`docs/plan-hash-desc-spinner.md`](docs/plan-hash-desc-spinner.md).
+
+- **New:** `--simple-hash` -- hash a bounded size+first/last-64KiB
+  sample instead of the whole file for anything over 128KiB, for both
+  hash algorithms. `-o DIFF`/`--save-output` snapshots record whether a
+  run used it (`"hash_sampled"`), and a later `-o DIFF` run always
+  forces its own setting to match the snapshot's.
+- **New:** `lt` -- a second, shorter binary name for the same
+  executable, added as a symlink in the Nix package's `installPhase`
+  (`ltree` stays `meta.mainProgram`).
+- **Fixed:** `--stdout exclusive|inclusive <MODULES>` naming a module
+  (e.g. `HASH`) without a matching `-o` now actually computes it, not
+  just allows it through the JSON writer -- previously it silently
+  came back `null`. Plain `-j` with no `--stdout` filter is unaffected
+  (still lazy, unchanged, documented contract).
+- **New:** `-o DESC` + `--desc <format>`/`-D <format>` -- searches each
+  file for a marker (default `&desc: "..."`, this project's own
+  header-comment convention) and prints the text found as its own
+  column, or in `-j`/`--save-output` as a `"desc"` field.
+- **New:** an animated spinner (stderr-only, tty-gated) during any scan
+  that takes long enough to notice, so it's clear `ltree` is working
+  rather than stuck -- the only thing on screen without `--live`,
+  always redrawn as the bottom-most line with `--live`.

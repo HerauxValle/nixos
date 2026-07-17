@@ -189,6 +189,11 @@ build_playground() {
 
     mkdir -p empties/e1 empties/e2/e3
 
+    mkdir -p desctest
+    printf '/* &desc: "hello from desctest" */\nint main(){}\n' > desctest/marked.c
+    printf 'no marker in this file at all\n'                     > desctest/unmarked.txt
+    printf '// &description: *custom marker text*\nsome code\n'  > desctest/custom.c
+
     cd - >/dev/null || exit 1
 }
 
@@ -299,6 +304,62 @@ else
 fi
 # revert
 sed -i '$ d' "$PG/basic/three_lines.txt" 2>/dev/null
+
+header "--stdout-aware lazy computation (--stdout naming a module without a matching -o)"
+assert_json "--stdout inclusive HASH,TREE computes a real hash without -o HASH" \
+    "next(c['hash'] for c in d['tree']['children'] if c['name']=='three_lines.txt') is not None" \
+    "$BIN" "$PG/basic" --stdout inclusive HASH,TREE
+assert_json "--stdout exclusive DEBUG (i.e. NOT excluding HASH) also computes it" \
+    "next(c['hash'] for c in d['tree']['children'] if c['name']=='three_lines.txt') is not None" \
+    "$BIN" "$PG/basic" --stdout exclusive DEBUG
+assert_json "--stdout exclusive HASH (excluding it) correctly stays lazy, no hash key at all" \
+    "'hash' not in d['tree']['children'][0]" \
+    "$BIN" "$PG/basic" --stdout exclusive HASH
+assert_json "plain -j with no --stdout filter stays lazy (unchanged contract)" \
+    "d['hash_algo'] == 'none'" \
+    "$BIN" "$PG/basic" -j
+
+header "--simple-hash"
+run_ok "simple-hash on a small file (below threshold, no-op)" "$BIN" "$PG/basic" -o HASH --simple-hash
+run_ok "simple-hash on a large file (above threshold, sampling kicks in)" "$BIN" "$PG/bigfile" -o HASH --simple-hash
+run_ok "simple-hash + cryptographic together" "$BIN" "$PG/bigfile" -o HASH --simple-hash --cryptographic
+SH1="$("$BIN" "$PG/bigfile" -j -o HASH | python3 -c 'import json,sys; print(json.load(sys.stdin)["tree"]["hash"])')"
+SH2="$("$BIN" "$PG/bigfile" -j -o HASH --simple-hash | python3 -c 'import json,sys; print(json.load(sys.stdin)["tree"]["hash"])')"
+if [ -n "$SH1" ] && [ -n "$SH2" ] && [ "$SH1" != "$SH2" ]; then
+    PASS=$((PASS+1)); note "ok    --simple-hash produces a different digest than full-file hash on a large file"
+else
+    FAIL=$((FAIL+1)); FAILED_NAMES+=("simple-hash differs from full hash"); note "FAIL  simple-hash digest ($SH2) matched full hash ($SH1)"
+fi
+assert_json "hash_sampled field reflects --simple-hash" \
+    "d['hash_sampled'] is True" \
+    "$BIN" "$PG/bigfile" -j -o HASH --simple-hash
+assert_json "hash_sampled is false without the flag" \
+    "d['hash_sampled'] is False" \
+    "$BIN" "$PG/bigfile" -j -o HASH
+assert_json "DIFF forces --simple-hash to match an unchanged snapshot (no false positive)" \
+    "not any(c.get('modified') for c in d['tree']['children'])" \
+    bash -c "mkdir -p '$WORK/simplehash_snap' && '$BIN' '$PG/bigfile' --simple-hash --save-output='$WORK/simplehash_snap' >/dev/null 2>&1 && '$BIN' '$PG/bigfile' -o DIFF,HASH -j --save-output='$WORK/simplehash_snap' 2>/dev/null"
+
+header "-o DESC / --desc / -D"
+assert_json "default &desc: \"...\" format extracts the marker text" \
+    "next(c['desc'] for c in d['tree']['children'] if c['name']=='marked.c') == 'hello from desctest'" \
+    "$BIN" "$PG/desctest" -j -o DESC
+assert_json "file with no marker gets desc: null" \
+    "next(c['desc'] for c in d['tree']['children'] if c['name']=='unmarked.txt') is None" \
+    "$BIN" "$PG/desctest" -j -o DESC
+assert_json "custom --desc format extracts a differently-delimited marker" \
+    "next(c['desc'] for c in d['tree']['children'] if c['name']=='custom.c') == 'custom marker text'" \
+    "$BIN" "$PG/desctest" -j -o DESC --desc "&description: *...*"
+assert_json "-D is a working alias for --desc" \
+    "next(c['desc'] for c in d['tree']['children'] if c['name']=='custom.c') == 'custom marker text'" \
+    "$BIN" "$PG/desctest" -j -o DESC -D "&description: *...*"
+run_ok "-o DESC terminal rendering doesn't crash"  "$BIN" "$PG/desctest" -o DESC
+run_ok "-o DESC combined with --condense"          "$BIN" "$PG/desctest" -o DESC,LINES --condense
+assert_json "desc not computed without -o DESC (lazy, same contract as HASH)" \
+    "d['tree']['children'][0]['desc'] is None" \
+    "$BIN" "$PG/desctest" -j
+run_expect_fail "malformed --desc (no \"...\") is cleanly rejected" "$BIN" "$PG/desctest" --desc "no dots here"
+run_expect_fail "malformed --desc (empty prefix) is cleanly rejected" "$BIN" "$PG/desctest" --desc "..."
 
 header "--save-output and -o DIFF roundtrip"
 run_ok "save-output default location" "$BIN" "$PG/basic" --save-output

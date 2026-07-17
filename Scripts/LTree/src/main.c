@@ -46,6 +46,43 @@
 #include "render/render_files.h"
 #include "render/columns.h"
 #include "debug/debug.h"
+#include "util/spinner.h"
+
+/* Whether module `id` is worth actually computing this run: named in -o,
+ * forced by --save-output (always the full snapshot), or -- the gap this
+ * closes -- named in a --stdout exclusive/inclusive filter even without a
+ * matching -o (see docs/json-schema.md). Deliberately does NOT fire for
+ * plain -j with no --stdout filter: that's the pre-existing, documented
+ * "only what --stdout/-o/--save-output actually asked for" contract, not a
+ * blanket "-j means everything." */
+/* Splits a --desc/-D format string on the literal "..." into a search
+ * prefix (everything before, e.g. `&desc: "`) and a closing suffix
+ * (everything after, e.g. `"`). No special-casing of "the character
+ * touching the dots" is needed beyond this plain split -- it falls out
+ * naturally, since the prefix already ends at whatever character
+ * immediately precedes "..." and the suffix starts at whatever
+ * immediately follows it. Both sides must be non-empty (an empty prefix
+ * would match everywhere; an empty suffix would capture nothing every
+ * time), so `&desc: "..."` and `&description: *...*` both work but a bare
+ * `...` or a format ending right at "..." doesn't. Returns false (leaving
+ * out_prefix/out_suffix untouched) on anything malformed. */
+static bool desc_parse_format(const char *format, char **out_prefix, char **out_suffix) {
+    const char *dots = strstr(format, "...");
+    if (!dots) return false;
+    size_t prefix_len = (size_t)(dots - format);
+    size_t suffix_len = strlen(dots + 3);
+    if (prefix_len == 0 || suffix_len == 0) return false;
+    *out_prefix = strndup(format, prefix_len);
+    *out_suffix = strdup(dots + 3);
+    return true;
+}
+
+static bool field_wanted(const Config *cfg, ModuleId id) {
+    if (cfg->modules[id]) return true;
+    if (cfg->save_output) return true;
+    if (cfg->stdout_filter != STDOUT_FILTER_NONE) return json_key_allowed(cfg, id);
+    return false;
+}
 
 static void print_usage(const char *prog) {
     printf(
@@ -56,7 +93,7 @@ static void print_usage(const char *prog) {
         "  -L <n>                max depth to descend (like tree -L), also -L<n>\n"
         "  -o <MODULES>          comma-separated, any order:\n"
         "                          LINES, CHARS, TOTAL, FILES,\n"
-        "                          PERMISSIONS, SIZE, DATE, EXT, HASH, DIFF, DEBUG,\n"
+        "                          PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,\n"
         "                          TREE, HIDDEN\n"
         "  -o A                  every module at once (also -oA). Can't be combined\n"
         "                        with other module names -- it's already all of them.\n"
@@ -70,6 +107,12 @@ static void print_usage(const char *prog) {
         "                        would (composes with --exclude)\n"
         "  --cryptographic       -o HASH / -o DIFF use SHA-256 instead of the\n"
         "                        default xxHash64\n"
+        "  --simple-hash         hash a bounded sample (size + first/last 64KiB)\n"
+        "                        instead of the whole file for anything over 128KiB --\n"
+        "                        same algorithm either way, just far less to read on\n"
+        "                        large files. -o DIFF/--save-output snapshots record\n"
+        "                        whether this was on, so a later DIFF run always\n"
+        "                        compares like-for-like regardless of its own flags.\n"
         "  --save-output[=DIR]   write a JSON snapshot to DIR/.ltree/ (default:\n"
         "                        <path>/.ltree/); filename is a local\n"
         "                        dd-mm-yyyy_hh:mm:ss timestamp\n"
@@ -86,12 +129,21 @@ static void print_usage(const char *prog) {
         "  --stdout <exclusive|inclusive> <MODULES>\n"
         "                        forces JSON output (like -j) filtered to exclude\n"
         "                        or keep only the named modules' JSON fields\n"
+        "  --desc <format>       what -o DESC searches file content for, split on the\n"
+        "                        literal \"...\" (default: &desc: \"...\", matching this\n"
+        "                        project's own header-comment convention) -- everything\n"
+        "                        before \"...\" is the search prefix, everything after is\n"
+        "                        the closing delimiter, e.g. --desc \"&description: *...*\"\n"
+        "                        searches for &description: * ... * instead. Also --desc=<format>.\n"
+        "  -D <format>           alias for --desc (NOT -d, which is dirs-only)\n"
         "  -h, --help            this help\n"
         "\n"
         "  LINES/CHARS/PERMISSIONS/SIZE/DATE/HASH each print as their own\n"
         "  aligned [X: ...] column per entry (dirs aggregate LINES/CHARS/SIZE\n"
         "  over their DIRECT children; PERMISSIONS/DATE are the entry's own).\n"
         "  EXT toggles showing file extensions in the tree (hidden by default).\n"
+        "  DESC prints the first matching --desc marker's text as its own column,\n"
+        "  or [DESC: -] when a file has none.\n"
         "  DIFF compares against the newest .ltree snapshot, marking changed\n"
         "  entries red with a trailing [m]. TOTAL and FILES are summary\n"
         "  sections appended at the end.\n"
@@ -163,11 +215,38 @@ int main(int argc, char **argv) {
             cfg.use_gitignore = true;
         } else if (strcmp(a, "--cryptographic") == 0) {
             cfg.cryptographic = true;
+        } else if (strcmp(a, "--simple-hash") == 0) {
+            cfg.simple_hash = true;
         } else if (strcmp(a, "--save-output") == 0) {
             cfg.save_output = true;
         } else if (strncmp(a, "--save-output=", 14) == 0) {
             cfg.save_output = true;
             cfg.save_output_dir = strdup(a + 14);
+        } else if (strcmp(a, "--desc") == 0 || strcmp(a, "-D") == 0) {
+            if (i + 1 < argc) {
+                const char *format = argv[++i];
+                char *prefix = NULL, *suffix = NULL;
+                if (!desc_parse_format(format, &prefix, &suffix)) {
+                    fprintf(stderr, "error: --desc/-D format needs \"...\" with a non-empty "
+                                     "prefix and suffix around it (got '%s')\n", format);
+                    print_usage(argv[0]);
+                    return 1;
+                }
+                free(cfg.desc_prefix); free(cfg.desc_suffix);
+                cfg.desc_prefix = prefix;
+                cfg.desc_suffix = suffix;
+            }
+        } else if (strncmp(a, "--desc=", 7) == 0) {
+            char *prefix = NULL, *suffix = NULL;
+            if (!desc_parse_format(a + 7, &prefix, &suffix)) {
+                fprintf(stderr, "error: --desc format needs \"...\" with a non-empty "
+                                 "prefix and suffix around it (got '%s')\n", a + 7);
+                print_usage(argv[0]);
+                return 1;
+            }
+            free(cfg.desc_prefix); free(cfg.desc_suffix);
+            cfg.desc_prefix = prefix;
+            cfg.desc_suffix = suffix;
         } else if (strcmp(a, "-h") == 0 || strcmp(a, "--help") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -317,6 +396,15 @@ int main(int argc, char **argv) {
     }
     if (!cfg.path) cfg.path = strdup(".");
 
+    /* --desc/-D's default, matching this project's own `&desc: "..."`
+     * header-comment convention -- only set if the user didn't already
+     * pass a custom format above. */
+    if (!cfg.desc_prefix) {
+        cfg.desc_prefix = strdup("&desc: \"");
+        cfg.desc_suffix = strdup("\"");
+    }
+    cfg.need_desc = field_wanted(&cfg, MOD_DESC);
+
     /* --sort only means anything in the ls-mode view -- tree mode
      * (-o TREE) keeps node_cmp's plain alphabetical order (see
      * docs/plan-ls-rework.md, Category 6). Warn and ignore rather than
@@ -346,8 +434,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    /* ---- resolve hashing: DIFF forces the snapshot's own algorithm,
-     * regardless of --cryptographic (see docs/plan.md) ---- */
+    /* ---- resolve hashing: DIFF forces the snapshot's own algorithm AND
+     * --simple-hash setting, regardless of --cryptographic/--simple-hash
+     * on this run (see docs/plan.md) -- comparing a full hash against a
+     * sampled one would show every file as modified. ---- */
     HashAlgo desired_algo = cfg.cryptographic ? HASH_ALGO_CRYPTO : HASH_ALGO_FAST;
     char *snapshot_path = NULL;
     bool diff_available = false;
@@ -357,13 +447,17 @@ int main(int argc, char **argv) {
         snapshot_path = find_latest_snapshot(snapdir);
         free(snapdir);
         if (snapshot_path) {
-            HashAlgo snap_algo = diff_peek_algo(snapshot_path);
-            if (snap_algo != HASH_ALGO_NONE) desired_algo = snap_algo;
+            bool snap_simple_hash = false;
+            HashAlgo snap_algo = diff_peek_algo(snapshot_path, &snap_simple_hash);
+            if (snap_algo != HASH_ALGO_NONE) {
+                desired_algo = snap_algo;
+                cfg.simple_hash = snap_simple_hash;
+            }
             diff_available = true;
         }
     }
 
-    bool need_hash = cfg.modules[MOD_HASH] || cfg.save_output || cfg.modules[MOD_DIFF];
+    bool need_hash = field_wanted(&cfg, MOD_HASH) || cfg.modules[MOD_DIFF];
     cfg.hash_algo = need_hash ? desired_algo : HASH_ALGO_NONE;
 
     /* ---- optional .gitignore, composed with --exclude ---- */
@@ -392,6 +486,15 @@ int main(int argc, char **argv) {
      * the walk (see render/render_tree.h) -- the default is fully
      * buffered, whole-tree-aligned, same as every other view. */
     bool stream_tree = cfg.live;
+
+    /* Animated "still working" indicator (see util/spinner.h) -- a no-op
+     * unless stderr is a tty. Started before tree_live_start() so --live's
+     * header print is itself wrapped by the spinner the same way every
+     * later streamed line is. spinner_stop() below (right after the walk
+     * finishes) covers both modes: for the buffered views it clears the
+     * line before anything prints; for --live it clears the last redrawn
+     * frame before print_summary_tail(). */
+    spinner_start(cfg.no_colour);
     if (stream_tree) tree_live_start(cfg.path, &cfg);
 
     debug_timer_mark_scan_start(&dtimer);
@@ -402,6 +505,7 @@ int main(int argc, char **argv) {
                NULL);
     debug_timer_mark_scan_end(&dtimer);
     if (stream_tree) tree_live_end();
+    spinner_stop();
     for (size_t i = 0; i < root->nchildren; i++) {
         root->lines += root->children[i]->lines;
         root->chars += root->children[i]->chars;
@@ -466,6 +570,8 @@ int main(int argc, char **argv) {
     free(cfg.excludes);
     free(cfg.path);
     free(cfg.save_output_dir);
+    free(cfg.desc_prefix);
+    free(cfg.desc_suffix);
     free(snapshot_path);
     return 0;
 }

@@ -169,7 +169,7 @@ static void mark_diff_recursive(Node *n, const char *prefix, SnapTable *t) {
     }
 }
 
-HashAlgo diff_peek_algo(const char *snapshot_path) {
+HashAlgo diff_peek_algo(const char *snapshot_path, bool *out_simple_hash) {
     FILE *f = fopen(snapshot_path, "rb");
     if (!f) return HASH_ALGO_NONE;
     fseek(f, 0, SEEK_END);
@@ -185,6 +185,10 @@ HashAlgo diff_peek_algo(const char *snapshot_path) {
     free(buf);
     if (!doc) return HASH_ALGO_NONE;
     HashAlgo algo = hash_algo_from_name(json_as_string(json_obj_get(doc, "hash_algo")));
+    if (out_simple_hash) {
+        JVal *sampled = json_obj_get(doc, "hash_sampled");
+        *out_simple_hash = sampled && sampled->type == JSON_BOOL && sampled->b;
+    }
     json_free(doc);
     return algo;
 }

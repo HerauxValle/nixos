@@ -35,6 +35,10 @@ typedef struct Node {
     uint8_t      hash[HASH_MAX_BYTES];
     uint8_t      hash_len;   /* 0 = not computed, 8 = xxhash64, 32 = sha256*/
 
+    char        *desc;       /* -o DESC / --desc / -D: marker text found in
+                               * the file's content, malloc'd. NULL if not
+                               * requested, not a file, or no match found. */
+
     bool         diff_checked; /* -o DIFF compared this node against a snapshot */
     bool         modified;     /* -o DIFF: differs from the loaded snapshot     */
 

@@ -43,19 +43,22 @@ mode they just sort into their normal alphabetical position.
 | `-j` | Output JSON instead of a directory listing. |
 | `-d` | List directories only. |
 | `-L <n>` (also `-L<n>`) | Max depth to descend, like `tree -L`. Only meaningful with `-o TREE` -- ls-mode is always exactly one level deep. Directories at the cutoff are still shown, marked `(...)`, just not expanded. |
-| `-o <MODULES>` | Comma-separated, any order: `LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DIFF,DEBUG,TREE,HIDDEN`. See below. |
+| `-o <MODULES>` | Comma-separated, any order: `LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DESC,DIFF,DEBUG,TREE,HIDDEN`. See below. |
 | `-o A` (also `-oA`) | Every *display* module at once (`TREE`/`HIDDEN` excluded -- see below). Can't be combined with any other module name in the same list -- `ltree` rejects `-o A,DEBUG` rather than silently ignoring the redundant token. |
 | `-o E,<MODULES>` (also `-oE,<MODULES>`) | Every display module **except** the ones listed. `E` must be the first token in the list; needs at least one module named after it (`-oE` alone is a usage error). |
-| `-o ...,O` | Combinable modifier: render `-o` columns in the order you actually typed them, instead of the fixed `L`/`C`/`P`/`S`/`D`/`H` order. Doesn't combine with `A`. Combined with `E`, has nothing to apply to (there's no "typed order" for modules `E` *enables*, only the ones it excludes) and is silently a no-op. |
+| `-o ...,O` | Combinable modifier: render `-o` columns in the order you actually typed them, instead of the fixed `L`/`C`/`P`/`S`/`D`/`H`/`DESC` order. Doesn't combine with `A`. Combined with `E`, has nothing to apply to (there's no "typed order" for modules `E` *enables*, only the ones it excludes) and is silently a no-op. |
 | `--exclude <list>` | Comma-separated names/globs to skip. Quote entries containing spaces: `--exclude "build,*.pyc,some dir"`. |
 | `--gitignore` | Also exclude whatever the scan root's `.gitignore` would. Composes with `--exclude` -- either list can exclude a path. |
 | `--cryptographic` | `-o HASH` / `-o DIFF` use SHA-256 instead of the default xxHash64. |
+| `--simple-hash` | `-o HASH`/`-o DIFF` hash a bounded sample instead of the whole file for anything over 128KiB. See [Hashing](#hashing). |
 | `--save-output[=DIR]` | Write a JSON snapshot to `DIR/.ltree/` (default: `<path>/.ltree/`). Filename is a local-time `dd-mm-yyyy_hh:mm:ss.json` timestamp. Always complete regardless of `--stdout` filtering on the same run. |
 | `--no-colour` (also `--no-color`) | Disable ANSI colour. |
 | `--condense` | One `[L:x C:y ...]` bracket per entry instead of one bracket per active column. See [Condensed columns](#condensed-columns). |
 | `--live` | `-o TREE` only (warns and is ignored otherwise), no effect with `-j`. Streams top-down as the walk happens instead of waiting for it to finish; fixed-width columns instead of whole-tree-measured ones. See [--live streaming](#--live-streaming--o-tree-only). |
 | `--sort <MODES>` | ls-mode only (warns and is ignored with `-o TREE`). See [Sorting](#sorting-ls-mode-only). |
 | `--stdout <exclusive\|inclusive> <MODULES>` | Forces JSON output (implies `-j`) filtered to a subset of fields. See [Filtered JSON output](#filtered-json-output---stdout). |
+| `--desc <format>` (also `--desc=<format>`) | What `-o DESC` searches file content for. See [DESC](#desc). |
+| `-D <format>` | Alias for `--desc` -- **not** `-d`, which is dirs-only. |
 | `-h`, `--help` | Show help and exit. |
 
 ## The `-o` modules
@@ -95,6 +98,7 @@ aggregated.
   summary, the JSON `by_extension` block, `--sort types`) is
   unaffected either way.
 - **`HASH`** -- see [Hashing](#hashing) below.
+- **`DESC`** -- see [DESC](#desc) below.
 - **`TOTAL`** -- appends a `[dirs: n]   [files: n]   [lines: n]
   [chars: n]` summary line after the listing. Not a per-entry column.
 - **`FILES`** -- appends a by-extension `[TYPE: x]   [FILES: n]
@@ -232,6 +236,24 @@ Diff marking (`-o DIFF`'s red name + trailing `[m]`) never appears in
 compares against the finished tree, which isn't available until after
 everything has already streamed.
 
+## Loading spinner
+
+Any scan taking long enough to notice shows an animated spinner --
+writes only to **stderr** (never stdout, so `-j`/piped/redirected
+output is byte-for-byte unaffected) and only draws anything when
+stderr is actually a terminal, so non-interactive runs (scripts, CI,
+`tools/smoke_test.sh`) are a no-op by construction. Rate-limited to
+about once every 90ms, so a scan finishing faster than that never
+draws anything at all -- no flicker on ordinary runs.
+
+- **Without `--live`:** nothing else prints until the whole walk
+  finishes, so the spinner is the only thing on screen; it's cleared
+  right before the buffered tree/ls/JSON view prints.
+- **With `--live`:** every real line streamed to stdout is preceded by
+  erasing the spinner and followed by immediately redrawing it, so it
+  always stays the bottom-most line through the whole run, then clears
+  once before `TOTAL`/`FILES`/`DEBUG`/the DIFF note print at the end.
+
 ## Filtered JSON output (`--stdout`)
 
 `--stdout <exclusive|inclusive> <MODULES>` forces JSON output (as if
@@ -250,6 +272,7 @@ uses the same names as `-o`, mapped onto JSON keys:
 | `SIZE` | `"size"` | per-entry |
 | `DATE` | `"mtime"` | per-entry |
 | `HASH` | `"hash"` | per-entry |
+| `DESC` | `"desc"` | per-entry |
 | `DIFF` | `"modified"` | per-entry (only present when `-o DIFF` was also passed) |
 
 `"name"`/`"type"`/`"symlink"` per entry and `"path"`/`"generated_at"`/
@@ -272,6 +295,16 @@ a snapshot always writes the complete JSON regardless of what the
 terminal output was filtered to, since a filtered snapshot missing
 (say) `HASH` would silently break `-o DIFF` on every future run
 against it.
+
+Naming a heavy-to-compute module (`HASH`, `DESC`) in a `--stdout`
+filter actually computes it, the same as if the matching `-o` had been
+passed -- `--stdout inclusive HASH,TREE` produces real hashes even
+without `-o HASH`, and `--stdout exclusive HASH` (i.e. *not* excluding
+it) does too. Plain `-j` with **no** `--stdout` filter is the one
+exception to that: it stays lazy, computing `HASH`/`DESC` only when the
+matching `-o` (or `--save-output`) actually asked for them -- this is
+the pre-existing, documented "only what was actually asked for"
+contract, not something `-j` on its own overrides.
 
 ## Column alignment
 
@@ -359,6 +392,63 @@ If `-o HASH` is requested but a file/directory has no digest (this
 shouldn't happen in practice, but hashing is skipped for symlinks and
 zero-byte files), the column reads `[H: -]`.
 
+### `--simple-hash`
+
+Files `<= 128KiB` are always hashed whole (sampling wouldn't save
+anything at that size). Above that, `--simple-hash` hashes a small
+fixed buffer -- `[size as 8 bytes][first 64KiB][last 64KiB]` -- through
+the exact same `hash_compute()` dispatch, instead of the whole file.
+Works unchanged for both xxHash64 and `--cryptographic`'s SHA-256. The
+file is already `mmap`'d either way, so only the touched head/tail
+pages ever actually get read off disk -- the real I/O saving on large
+files, on top of not running the hash's compression function over the
+whole thing.
+
+Trade-off: a change confined entirely to a large file's untouched
+middle won't be detected. `--save-output`/`-o DIFF` snapshots record
+whether the run used it, as a top-level `"hash_sampled"` boolean (see
+[`docs/json-schema.md`](json-schema.md)) -- `-o DIFF` always forces its
+own run's `--simple-hash` setting to match whatever the snapshot being
+compared against used, the same way it already forces the hash
+*algorithm* to match (see [Diffing](#diffing) below); otherwise a full
+hash compared against a sampled one would flag every large file as
+modified regardless of whether it actually changed.
+
+## DESC
+
+`-o DESC` searches each file's content for a marker and prints the
+text found between two delimiters as its own `[DESC: ...]` column (or
+`[DESC: -]` when nothing matches), and as a `"desc"` JSON field
+(string or `null`) when requested via `-o DESC -j` / `--save-output` /
+a `--stdout` filter naming `DESC`.
+
+What it searches for is controlled by `--desc <format>` (alias `-D`,
+**not** `-d`, which is dirs-only), split once on the literal substring
+`"..."`:
+
+- Everything **before** `"..."` is the literal prefix `ltree` searches
+  for in the file's bytes.
+- Everything **after** `"..."` is the literal closing delimiter it then
+  reads up to; the text in between is the description.
+
+The default, `&desc: "..."`, matches this project's own header-comment
+convention (see the top of any `.c`/`.h` file in this repo) -- it
+searches for `&desc: "` and reads up to the next `"`. A custom
+`--desc "&description: *...*"` instead searches for `&description: *`
+and reads up to the next `*`. No special-casing of "the character
+touching the dots" is needed beyond the plain split -- whatever
+immediately precedes/follows `"..."` in the format naturally becomes
+the boundary. A format missing `"..."`, or with nothing before/after
+it, is a usage error (empty prefix would match everywhere; empty
+suffix would capture nothing every time).
+
+The search is bounded for performance: only the first 64KiB of a file
+is searched for the prefix (this project's own `&desc:` comments
+always sit at the top), and the closing delimiter is only looked for
+within 4096 bytes after a prefix match -- past that, it's treated as
+no match rather than scanning arbitrarily far into a large file. Only
+the first match is used.
+
 ## Diffing
 
 `-o DIFF` finds the newest `*.json` snapshot under `.ltree/` (see
@@ -378,6 +468,8 @@ field), regardless of whether `--cryptographic` was passed on the
 current run -- see [`docs/plan.md`](plan.md) for the reasoning. This
 means the current scan is hashed with the *snapshot's* algorithm
 whenever `-o DIFF` finds one, not necessarily the one you asked for.
+Same for `--simple-hash` (recorded as `"hash_sampled"`) -- see
+[`--simple-hash`](#--simple-hash) above.
 
 If no previous snapshot exists, the listing prints normally and a
 non-blocking note appears at the end, after `TOTAL`/`DEBUG` -- always

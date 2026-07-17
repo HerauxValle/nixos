@@ -1,7 +1,8 @@
-/* &desc: "Implements build_tree, the one recursive filesystem walk (exclude/gitignore/-o HIDDEN filtering, per-file mmap+memchr line/char/hash scanning, statx birth-time fetch) with three streaming hooks interleaved into the recursion, wired up only when --live is passed, so -o TREE can print top-down as it goes." */
+/* &desc: "Implements build_tree, the one recursive filesystem walk (exclude/gitignore/-o HIDDEN filtering, per-file mmap+memchr line/char/hash/DESC-marker scanning, --simple-hash sampling, statx birth-time fetch) with three streaming hooks interleaved into the recursion, wired up only when --live is passed, so -o TREE can print top-down as it goes." */
 #define _GNU_SOURCE
 #include "scan/scan.h"
 #include "util/util.h"
+#include "util/spinner.h"
 #include "core/modules.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -145,12 +146,81 @@ void parse_exclude_list(const char *arg, char ***out, size_t *out_n) {
  * control.
  * ===================================================================== */
 typedef struct {
-    HashAlgo algo;
-    bool     need_hash;
-    long     lines, chars;
-    uint8_t  hash[HASH_MAX_BYTES];
-    uint8_t  hash_len;
+    HashAlgo    algo;
+    bool        need_hash;
+    bool        simple_hash;
+    bool        need_desc;
+    const char *desc_prefix;
+    const char *desc_suffix;
+    long        lines, chars;
+    uint8_t     hash[HASH_MAX_BYTES];
+    uint8_t     hash_len;
+    char       *desc;
 } ScanWork;
+
+/* ===================== -o DESC marker search ==============================
+ * Bounded, not exhaustive: this project's own `&desc: "..."` header
+ * comments always sit at the very top of a file, so only the first
+ * DESC_SEARCH_WINDOW bytes are searched for the prefix, and the closing
+ * suffix is only looked for within DESC_MAX_LEN bytes after it -- past
+ * that, treat it as "no description" rather than scanning arbitrarily far
+ * into a large file just to rule one out (ASSUMPTION -- see
+ * docs/plan-hash-desc-spinner.md). Only the first match is used; returns
+ * a malloc'd string, or NULL if nothing matched within those bounds. */
+#define DESC_SEARCH_WINDOW (64u * 1024u)
+#define DESC_MAX_LEN 4096u
+
+static char *desc_search(const unsigned char *data, size_t size,
+                          const char *prefix, const char *suffix) {
+    size_t prefix_len = strlen(prefix);
+    size_t suffix_len = strlen(suffix);
+    size_t window = size < DESC_SEARCH_WINDOW ? size : DESC_SEARCH_WINDOW;
+    if (window < prefix_len) return NULL;
+
+    const void *hit = memmem(data, window, prefix, prefix_len);
+    if (!hit) return NULL;
+
+    const unsigned char *value_start = (const unsigned char *)hit + prefix_len;
+    size_t remaining = size - (size_t)(value_start - data);
+    size_t scan_len = remaining < DESC_MAX_LEN ? remaining : DESC_MAX_LEN;
+    if (scan_len < suffix_len) return NULL;
+
+    const void *end_hit = memmem(value_start, scan_len, suffix, suffix_len);
+    if (!end_hit) return NULL;
+
+    size_t desc_len = (size_t)((const unsigned char *)end_hit - value_start);
+    return strndup((const char *)value_start, desc_len);
+}
+
+/* ===================== --simple-hash sampling ===========================
+ * Below SIMPLE_HASH_THRESHOLD, sampling wouldn't save anything -- hash the
+ * whole file exactly like the default. Above it, hash a small fixed
+ * buffer built from the file ([size as 8 bytes][first 64KiB][last 64KiB])
+ * instead of every byte -- same hash_compute() dispatch either way, so
+ * this works unchanged for both xxhash64 and --cryptographic's sha256.
+ * Since the file is already mmap'd, only the touched head/tail pages ever
+ * actually get read off disk -- that's the real I/O win on large files, on
+ * top of not running the hash's compression function over the whole
+ * thing. `g_simple_hash_scratch` is static/reused rather than
+ * malloc'd per call -- this is a single-threaded, one-scan-per-process
+ * tool (same convention as render_tree.c's g_depth statics). */
+#define SIMPLE_HASH_CHUNK 65536u
+#define SIMPLE_HASH_THRESHOLD (SIMPLE_HASH_CHUNK * 2u)
+static uint8_t g_simple_hash_scratch[8 + SIMPLE_HASH_CHUNK * 2];
+
+static void hash_simple_or_full(HashAlgo algo, bool simple, const unsigned char *data,
+                                 size_t size, uint8_t out[HASH_MAX_BYTES], uint8_t *out_len) {
+    if (!simple || size <= SIMPLE_HASH_THRESHOLD) {
+        hash_compute(algo, data, size, out, out_len);
+        return;
+    }
+    uint64_t size_le = (uint64_t)size; /* host is little-endian, see hash.c's file header note */
+    memcpy(g_simple_hash_scratch, &size_le, 8);
+    memcpy(g_simple_hash_scratch + 8, data, SIMPLE_HASH_CHUNK);
+    memcpy(g_simple_hash_scratch + 8 + SIMPLE_HASH_CHUNK, data + size - SIMPLE_HASH_CHUNK,
+           SIMPLE_HASH_CHUNK);
+    hash_compute(algo, g_simple_hash_scratch, sizeof(g_simple_hash_scratch), out, out_len);
+}
 
 static void scan_file_content_work(const void *map, size_t size, void *ctx_) {
     ScanWork *ctx = (ScanWork *)ctx_;
@@ -168,18 +238,25 @@ static void scan_file_content_work(const void *map, size_t size, void *ctx_) {
 
     long chars = utf8_count_visible_chars(data, size);
 
-    if (ctx->need_hash) hash_compute(ctx->algo, data, size, ctx->hash, &ctx->hash_len);
+    if (ctx->need_hash)
+        hash_simple_or_full(ctx->algo, ctx->simple_hash, data, size, ctx->hash, &ctx->hash_len);
+
+    if (ctx->need_desc)
+        ctx->desc = desc_search(data, size, ctx->desc_prefix, ctx->desc_suffix);
 
     ctx->lines = lines;
     ctx->chars = chars;
 }
 
-static void scan_file_content(const char *path, HashAlgo algo, bool need_hash,
+static void scan_file_content(const char *path, HashAlgo algo, bool need_hash, bool simple_hash,
+                               bool need_desc, const char *desc_prefix, const char *desc_suffix,
                                long *out_lines, long *out_chars,
-                               uint8_t out_hash[HASH_MAX_BYTES], uint8_t *out_hash_len) {
+                               uint8_t out_hash[HASH_MAX_BYTES], uint8_t *out_hash_len,
+                               char **out_desc) {
     *out_lines = 0;
     *out_chars = 0;
     *out_hash_len = 0;
+    *out_desc = NULL;
 
     int fd = open(path, O_RDONLY);
     if (fd < 0) return;
@@ -196,7 +273,9 @@ static void scan_file_content(const char *path, HashAlgo algo, bool need_hash,
     if (map == MAP_FAILED) return;
     madvise(map, size, MADV_SEQUENTIAL);
 
-    ScanWork ctx = { .algo = algo, .need_hash = need_hash, .lines = 0, .chars = 0, .hash_len = 0 };
+    ScanWork ctx = { .algo = algo, .need_hash = need_hash, .simple_hash = simple_hash,
+                     .need_desc = need_desc, .desc_prefix = desc_prefix, .desc_suffix = desc_suffix,
+                     .lines = 0, .chars = 0, .hash_len = 0, .desc = NULL };
     memset(ctx.hash, 0, HASH_MAX_BYTES);
 
     bool ok = scan_guarded(scan_file_content_work, map, size, &ctx);
@@ -208,6 +287,7 @@ static void scan_file_content(const char *path, HashAlgo algo, bool need_hash,
     *out_chars = ctx.chars;
     memcpy(out_hash, ctx.hash, HASH_MAX_BYTES);
     *out_hash_len = ctx.hash_len;
+    *out_desc = ctx.desc;
 }
 
 /* ===================== birth time (--sort birth) =========================
@@ -290,15 +370,18 @@ void build_tree(Node *parent, const char *fullpath, const char *relbase,
         } else {
             long lines = 0, chars = 0;
             uint8_t hbuf[HASH_MAX_BYTES] = {0}; uint8_t hlen = 0;
+            char *desc = NULL;
             if (!is_symlink) {
-                scan_file_content(childpath, cfg->hash_algo, need_hash,
-                                   &lines, &chars, hbuf, &hlen);
+                scan_file_content(childpath, cfg->hash_algo, need_hash, cfg->simple_hash,
+                                   cfg->need_desc, cfg->desc_prefix, cfg->desc_suffix,
+                                   &lines, &chars, hbuf, &hlen, &desc);
             }
             node->lines = lines;
             node->chars = chars;
             node->size_bytes = st.st_size;
             memcpy(node->hash, hbuf, HASH_MAX_BYTES);
             node->hash_len = hlen;
+            node->desc = desc;
             totals->files++;
             totals->lines += lines;
             totals->chars += chars;
@@ -310,6 +393,7 @@ void build_tree(Node *parent, const char *fullpath, const char *relbase,
             local = (Node **)realloc(local, sizeof(Node *) * local_cap);
         }
         local[local_n++] = node;
+        spinner_tick(false); /* rate-limited -- see util/spinner.h */
     }
     closedir(d);
 

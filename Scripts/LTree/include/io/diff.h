@@ -5,7 +5,10 @@
  * plan.md, comparison always uses whichever hash algorithm produced
  * the snapshot (stored in its "hash_algo" field), regardless of
  * --cryptographic on the current run -- diffing only works when both
- * sides are hashed the same way. */
+ * sides are hashed the same way. Same reasoning covers --simple-hash
+ * ("hash_sampled" field): the current run's sampling gets forced to
+ * match the snapshot's, not left to whatever flags this invocation
+ * happened to pass. */
 #ifndef LTREE_DIFF_H
 #define LTREE_DIFF_H
 
@@ -26,11 +29,15 @@ char *ltree_snapshot_dir(const Config *cfg);
  * text. */
 char *find_latest_snapshot(const char *dir);
 
-/* Reads just the "hash_algo" field out of a snapshot, without doing
- * any tree comparison work. Used by main.c BEFORE scanning, since the
- * scan itself needs to know which algorithm to hash with in order to
- * produce comparable digests. Returns HASH_ALGO_NONE if unreadable. */
-HashAlgo diff_peek_algo(const char *snapshot_path);
+/* Reads just the "hash_algo"/"hash_sampled" fields out of a snapshot,
+ * without doing any tree comparison work. Used by main.c BEFORE
+ * scanning, since the scan itself needs to know which algorithm (and
+ * whether to sample, see --simple-hash) to hash with in order to
+ * produce comparable digests -- a snapshot hashed one way and a run
+ * comparing against it the other way would otherwise show every entry
+ * as modified. Returns HASH_ALGO_NONE (and leaves *out_simple_hash
+ * untouched) if unreadable. */
+HashAlgo diff_peek_algo(const char *snapshot_path, bool *out_simple_hash);
 
 /* Loads `snapshot_path`, determines which hash algorithm it was
  * generated with (from its "hash_algo" field), and walks `root`

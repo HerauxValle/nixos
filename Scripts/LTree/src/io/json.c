@@ -15,7 +15,7 @@
  * view's display name; JSON always uses full names) so they're
  * accepted as --stdout module names but have nothing to hide -- a
  * harmless no-op, not an error. ===================================== */
-static bool json_key_allowed(const Config *cfg, ModuleId id) {
+bool json_key_allowed(const Config *cfg, ModuleId id) {
     if (cfg->stdout_filter == STDOUT_FILTER_NONE) return true;
     bool listed = cfg->stdout_filter_keys[id];
     return cfg->stdout_filter == STDOUT_FILTER_EXCLUSIVE ? !listed : listed;
@@ -70,6 +70,15 @@ static void json_node(SBuf *sb, Node *n, int indent, const Config *cfg) {
             sbuf_append(sb, "\"hash\": null");
         }
     }
+    if (json_key_allowed(cfg, MOD_DESC)) {
+        sbuf_append(sb, ",\n");
+        for (int i = 0; i < indent + 1; i++) sbuf_append(sb, "  ");
+        if (n->desc) {
+            sbuf_append(sb, "\"desc\": "); sbuf_append_json_string(sb, n->desc);
+        } else {
+            sbuf_append(sb, "\"desc\": null");
+        }
+    }
     if (n->diff_checked && json_key_allowed(cfg, MOD_DIFF)) {
         sbuf_append(sb, ",\n");
         for (int i = 0; i < indent + 1; i++) sbuf_append(sb, "  ");
@@ -112,6 +121,12 @@ void json_render(SBuf *sb, Node *root, const char *display_path,
 
     sbuf_append(sb, ",\n  \"hash_algo\": ");
     sbuf_append_json_string(sb, hash_algo_name(cfg->hash_algo));
+
+    /* Always present (like hash_algo), never gated by --stdout -- a later
+     * -o DIFF run needs to know this regardless of its own --simple-hash
+     * flag to detect a mismatched comparison (see diff_peek_simple() in
+     * io/diff.c). */
+    sbuf_appendf(sb, ",\n  \"hash_sampled\": %s", cfg->simple_hash ? "true" : "false");
 
     /* Every block below is self-contained (no leading/trailing comma
      * of its own) since --stdout filtering means any subset of them
