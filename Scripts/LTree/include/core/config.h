@@ -26,6 +26,10 @@ typedef struct {
     bool    condense;         /* --condense -- one [L:x C:y ...] bracket
                                 * instead of one bracket per column       */
     SortSpec sort;            /* --sort, ls-mode only (see sort/sortmodes.h) */
+    bool    live;             /* --live -- -o TREE only. Streams top-down as
+                                * the walk happens, fixed-width columns instead
+                                * of the default's whole-tree-measured ones
+                                * (see render/render_tree.h). */
 
     /* --stdout exclusive|inclusive <MODULES> -- forces JSON (like -j)
      * filtered to a subset of top-level/per-entry keys. Module names

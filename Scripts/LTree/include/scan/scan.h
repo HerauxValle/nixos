@@ -1,4 +1,4 @@
-/* &desc: "Declares build_tree (the one recursive filesystem walk, with three optional streaming hooks -- measure/entry/done -- that let -o TREE print top-down as it walks), fetch_btime (creation time via statx for --sort birth), and the Totals struct." */
+/* &desc: "Declares build_tree (the one recursive filesystem walk, with three optional streaming hooks -- measure/entry/done -- that let --live print -o TREE top-down as it walks), fetch_btime (creation time via statx for --sort birth), and the Totals struct." */
 /* scan.h -- the one filesystem walk. Fills in every stat/line/char/
  * hash field on the Node tree as it goes, so the expensive part
  * (stat + mmap + byte scanning + hashing) happens exactly once per

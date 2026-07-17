@@ -1,4 +1,4 @@
-/* &desc: "Declares the PrintLine/LineBuf row types and the shared two-pass column-rendering pipeline (columns_measure/columns_print_line, --condense- and -o O-aware) that render_tree.c and render_ls.c both build on, plus print_summary_tail for the shared TOTAL:/DEBUG:/DIFF-note tail." */
+/* &desc: "Declares the PrintLine/LineBuf row types and the shared column-rendering pipeline (columns_measure for whole-tree/whole-listing width, columns_measure_fixed for --live's fixed widths, columns_print_line, --condense- and -o O-aware) that render_tree.c and render_ls.c both build on, plus print_summary_tail for the shared TOTAL:/DEBUG:/DIFF-note tail." */
 /* columns.h -- the flattened printable row (PrintLine) and the -o
  * column-rendering pipeline (measure every active column's text/width,
  * then print it aligned), shared by the recursive tree view
@@ -72,6 +72,18 @@ typedef struct {
  * column's own max width across the whole of `lb`. Caller must call
  * columns_free() when done with `mc`. */
 void columns_measure(const LineBuf *lb, const Config *cfg, MeasuredColumns *mc);
+
+/* Same as columns_measure(), but every column's width is a fixed
+ * constant (see columns.c) instead of the actual widest value in
+ * `lb` -- used by --live, where the widest value anywhere isn't known
+ * yet (nothing beyond the current directory has been scanned), so
+ * columns still need to line up at a predictable position rather than
+ * a computed one. If an individual value is wider than its column's
+ * fixed constant (an 8-figure line count, say), that one row's
+ * following columns just won't line up -- the same kind of overflow
+ * any fixed-width table accepts. */
+void columns_measure_fixed(const LineBuf *lb, const Config *cfg, MeasuredColumns *mc);
+
 void columns_free(const LineBuf *lb, MeasuredColumns *mc);
 
 /* Pass 2, one line at a time: prints the gap-to-columns padding (using

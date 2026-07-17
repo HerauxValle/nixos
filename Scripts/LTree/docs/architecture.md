@@ -15,7 +15,7 @@ seven subsystem subdirectories:
 | `core/` | `config.h`/`node.h`/`node.c`/`modules.h`/`modules.c` -- the `Config` struct, the `Node` tree, and the shared `-o` module table everything else (CLI parsing, every renderer) reads from instead of each keeping its own list. |
 | `scan/` | `scan.*`, `gitignore.*`, `exttable.*` -- the filesystem walk and everything that filters/accumulates during it. |
 | `hash/` | `hash.*` -- xxHash64 + SHA-256. |
-| `render/` | `columns.*` (shared column-rendering pipeline), `render_tree.*` (the streaming recursive tree view), `render_ls.*` (default non-recursive `[Folders]`/`[Files]` view, packs into an `ls`-style grid on a tty), `render_files.*`, `colors.h` -- turning a `Node` tree into terminal output, one file per output *mode*, all built on `columns.*`. |
+| `render/` | `columns.*` (shared column-rendering pipeline), `render_tree.*` (the recursive tree view -- buffered by default, `--live` streams it), `render_ls.*` (default non-recursive `[Folders]`/`[Files]` view, packs into an `ls`-style grid on a tty), `render_files.*`, `colors.h` -- turning a `Node` tree into terminal output, one file per output *mode*, all built on `columns.*`. |
 | `io/` | `json.*`, `save.*`, `diff.*` -- JSON read/write and everything built on top of it (snapshots, diffing). |
 | `debug/` | `debug.*` -- `-o DEBUG` support. |
 | `util/` | `util.*` -- dependency-free shared helpers (`SBuf`, UTF-8 width, formatting). |
@@ -33,20 +33,22 @@ module boundaries below are unchanged.
 
 We walk the filesystem exactly once (`scan.c`), building an in-memory
 `Node` tree with every stat/line/char/hash/btime field already filled
-in. Everything downstream -- the default non-recursive listing
-(`render_ls.c`), the `FILES`-by-extension summary (`render_files.c`),
-JSON export (`json.c`), `--save-output` (`save.c`), and `-o DIFF`
-(`diff.c`) -- is just a different way of reading that same tree. No
-module re-stats, re-mmaps, or re-hashes a file that `scan.c` already
-touched. **`-o TREE` is the one exception to "walk finishes, then
-render":** it always streams, unconditionally -- no flag to opt into
-it, the same way plain `tree`/`find` don't need one. `scan.c`'s
-`build_tree()` takes three optional hooks (measure a directory's
-children once, print each one interleaved with recursing into it,
-free per-directory state once that whole subtree is done -- see
-`scan.h`), which `render_tree.c` uses to print connector-tree lines
-the instant each directory is scanned, top-down, instead of waiting
-for the whole walk.
+in. By default, everything downstream -- the recursive tree view
+(`render_tree.c`), the default non-recursive listing (`render_ls.c`),
+the `FILES`-by-extension summary (`render_files.c`), JSON export
+(`json.c`), `--save-output` (`save.c`), and `-o DIFF` (`diff.c`) -- is
+just a different way of reading that same, complete tree, once the
+walk finishes. No module re-stats, re-mmaps, or re-hashes a file that
+`scan.c` already touched. **`--live` is the one exception to "walk
+finishes, then render":** it streams `-o TREE`'s output instead.
+`scan.c`'s `build_tree()` takes three optional hooks (measure a
+directory's columns once, print each entry interleaved with recursing
+into it, free per-directory state once that whole subtree is done --
+see `scan.h`), which `render_tree.c` wires up only when `--live` is
+passed, printing connector-tree lines the instant each directory is
+scanned (fixed-width columns, since the rest of the tree isn't known
+yet) instead of waiting for the whole walk and whole-tree-aligning
+against it.
 
 ## Module map
 
@@ -56,12 +58,12 @@ for the whole walk.
 | `config.h` | The `Config` struct -- the fully-parsed command line, passed as `const Config *cfg` to every module that needs a flag. Only `main.c` ever writes to it. Also defines `HashAlgo`. |
 | `modules.h` / `modules.c` | The shared `-o` module table (`ModuleId`, `ModuleCat`, `MODULE_TABLE`, `module_lookup()`) -- one source of truth `main.c`'s CLI parser and every renderer read from, replacing what used to be a hand-duplicated module list in each. |
 | `node.h` / `node.c` | The in-memory tree (`Node`). Fixed-size fields only (`mode_t`/`int64_t`/`time_t`/byte array) -- formatting to text happens at print time, never stored. `node_cmp` gives the case-insensitive alphabetical ordering used everywhere by default. |
-| `scan.h` / `scan.c` | The one filesystem walk. `build_tree` recurses, applying `--exclude`/`--gitignore`/`-o HIDDEN`, respecting `-L`/`-d` (ls-mode forces effective depth 0 from `main.c`), and -- in a single `mmap` + linear pass per file -- counts lines, counts UTF-8 chars, and (if needed) hashes the file's bytes. Also fetches birth time (`fetch_btime`, `--sort birth`) via `statx()`. Directory hashes are combined from already-computed child hashes, no re-reading involved. Takes three optional streaming hooks (`on_dir_measure`/`on_entry_ready`/`on_dir_done`) interleaved into the recursion itself, so `-o TREE` can print top-down as the walk happens. |
+| `scan.h` / `scan.c` | The one filesystem walk. `build_tree` recurses, applying `--exclude`/`--gitignore`/`-o HIDDEN`, respecting `-L`/`-d` (ls-mode forces effective depth 0 from `main.c`), and -- in a single `mmap` + linear pass per file -- counts lines, counts UTF-8 chars, and (if needed) hashes the file's bytes. Also fetches birth time (`fetch_btime`, `--sort birth`) via `statx()`. Directory hashes are combined from already-computed child hashes, no re-reading involved. Takes three optional streaming hooks (`on_dir_measure`/`on_entry_ready`/`on_dir_done`), interleaved into the recursion itself, that `main.c` only wires up when `--live` is passed. |
 | `exttable.h` / `exttable.c` | Per-extension accumulator (files/lines/chars), used by the terminal `FILES:` section, the JSON `by_extension` block, and `--sort types`'s bucketing, so they can never drift apart. Also owns `file_ext()` / `strip_ext_for_display()` (the default `-o EXT`-hidden display logic). |
 | `gitignore.h` / `gitignore.c` | Reads and matches a single root-level `.gitignore` (documented subset of real gitignore semantics -- see `docs/usage.md`). Composes with `--exclude` inside `scan.c`'s `is_excluded()`. |
 | `hash.h` / `hash.c` | xxHash64 and SHA-256, both implemented from the published spec/reference constants -- no external hashing library. One dispatch API (`hash_compute`) both algorithms sit behind, plus `hash_combine_children()` for directory digests. |
-| `columns.h` / `columns.c` | The shared column-rendering pipeline: `PrintLine`/`LineBuf` (one flattened printable row), `columns_measure()`/`columns_print_line()` (the two-pass "measure every active LINES/CHARS/PERMISSIONS/SIZE/DATE/HASH column's width, then print aligned" logic, `--condense`/`-o O` aware), and `print_summary_tail()` (the shared `TOTAL:`/`DEBUG:`/DIFF-note tail both `render_tree.c` and `render_ls.c` -- and `main.c` directly, after `-o TREE` finishes streaming -- call). Everything terminal-output-shaped funnels through here. |
-| `render_tree.h` / `render_tree.c` | The streaming recursive connector-tree view (`-o TREE`), wired up as `scan.c`'s three hooks: `tree_stream_on_dir_measure` sizes a directory's columns once (per-directory-block alignment, since the rest of the tree isn't known yet), `tree_stream_on_entry_ready` prints each entry interleaved with recursion (a per-depth prefix, threaded via a plain array since siblings fully complete their own subtrees before the next one starts, gives correct connector glyphs without buffering), `tree_stream_on_dir_done` frees that directory's measurement. |
+| `columns.h` / `columns.c` | The shared column-rendering pipeline: `PrintLine`/`LineBuf` (one flattened printable row), `columns_measure()`/`columns_measure_fixed()`/`columns_print_line()` (the two-pass "measure every active LINES/CHARS/PERMISSIONS/SIZE/DATE/HASH column's width -- actual widest value, or a fixed constant for `--live` -- then print aligned" logic, `--condense`/`-o O` aware; `columns_print_line`'s padding is clamped against underflow, since a fixed width a value happens to exceed would otherwise wrap a `size_t` subtraction into a huge pad count), and `print_summary_tail()` (the shared `TOTAL:`/`DEBUG:`/DIFF-note tail both `render_tree.c` and `render_ls.c` -- and `main.c` directly, after `--live` finishes streaming -- call). Everything terminal-output-shaped funnels through here. |
+| `render_tree.h` / `render_tree.c` | Two renderers for `-o TREE`: `print_tree_view` (default) flattens the complete tree into one `LineBuf` and whole-tree-aligns it, same convention as `render_ls.c`. `tree_live_*` (`--live`) is wired up as `scan.c`'s three hooks instead: `tree_live_on_dir_measure` sizes a directory's columns via `columns_measure_fixed` (fixed width, not measured -- the rest of the tree isn't known yet), `tree_live_on_entry_ready` prints each entry interleaved with recursion (a per-depth prefix, threaded via a plain array since siblings fully complete their own subtrees before the next one starts, gives correct connector glyphs without buffering), `tree_live_on_dir_done` frees that directory's measurement. |
 | `render_ls.h` / `render_ls.c` | The default (no `-o TREE`) view: `root`'s direct children only, grouped into `[Folders]`/`[Files]`, `--sort`/`-o HIDDEN`-aware, `--sort types`'s `[ext]` sub-header bucketing. On a terminal with no `-o` data column active, packs each block into a real `ls -C`-style multi-column grid (`print_grid`) instead of one-per-line. Also built on `columns.c`. |
 | `render_files.h` / `render_files.c` | The `FILES:` by-extension summary table (`[TYPE: x] [FILES: n] [LINES: n] [CHARS: n]`, one bracket per column, sorted by line count descending). |
 | `debug.h` / `debug.c` | `-o DEBUG` support: collects a hyper-detailed `DebugStats` struct once (`debug_collect`, called from `main.c` right before output) -- timing (`clock_gettime` marks taken in `main.c`), `getrusage` (peak RSS, page faults, context switches), `mallinfo2` (heap arena breakdown), and an estimate of the `Node` tree's own memory footprint -- then renders it two ways: `debug_print_text()` for the `DEBUG:` block, `debug_json_append()` for the JSON `"debug"` object (no leading/trailing comma of its own -- `json_render()` manages all top-level separators, since `--stdout` filtering means any subset of blocks can be present). Neither output path recomputes anything; both just format the same struct. Deliberately never passed to `save.c`'s `json_render()` call, so `--save-output` snapshots never carry this ephemeral per-run data. |
@@ -74,45 +76,44 @@ for the whole walk.
 
 ## Data flow
 
-`-o TREE` doesn't fit the usual "walk finishes, then render" shape, so
-it's shown separately:
+`--live` is the one path that doesn't fit the usual "walk finishes,
+then render" shape, so it's shown separately:
 
 ```
--o TREE:  scan.c's build_tree() walk
+--live:  scan.c's build_tree() walk
               |
               | on_dir_measure / on_entry_ready / on_dir_done fire
               | DURING the walk, interleaved with the recursion itself
               v
-          render_tree.c prints connector-tree lines top-down,
-          as each directory is scanned -- nothing buffered
+          render_tree.c's tree_live_* prints connector-tree lines
+          top-down, fixed-width columns, as each directory is
+          scanned -- nothing buffered
 ```
 
-Every other output path still reads the complete, already-built tree
-once the walk finishes:
+Every other output path (including `-o TREE`'s default, buffered
+form) reads the complete, already-built tree once the walk finishes:
 
 ```
         scan.c's build_tree() walk (finished)
                        |
                        v
                    Node tree
-       +--------+------+------------+------------+
-       v        v      v            v            v
-render_ls.c  render_files.c      json.c        (-o TREE already
-(default,    (FILES: block)     (writer)        streamed, see above)
-ls -C grid        |                |
-on a tty)         v                v
-    \         debug.c ------> save.c (--save-output: debug always
-     \       (-o DEBUG,        NULL, stdout_filter forced off)
-      \       text+json            |
-       \      via same             v
-        \     struct)          diff.c (reads a PAST json.c snapshot
-         \                      back via json.c's reader, marks
-          +-- columns.c (shared    Node.modified)
-              column measure/
-              print pipeline)
-                  ^
-                  |
-              sortmodes.c (--sort, ls-mode only)
+    +---------+-------+------------+------------+------------+
+    v         v       v            v            v            v
+render_tree.c render_ls.c  render_files.c      json.c   (--live already
+(-o TREE,     (default,    (FILES: block)     (writer)   streamed, see
+buffered)     ls -C grid        |                |         above)
+    \         on a tty)         v                v
+     \             /       debug.c ------> save.c (--save-output:
+      \           /       (-o DEBUG,        debug always NULL,
+       \         /         text+json          stdout_filter forced
+        +-- columns.c (shared via same          off)
+            column measure/    struct)              |
+            print pipeline)                         v
+                ^                                diff.c (reads a PAST
+                |                                  json.c snapshot back
+            sortmodes.c (--sort,                   via json.c's reader,
+             ls-mode only)                          marks Node.modified)
 ```
 
 ## Why split into modules instead of one file

@@ -1,4 +1,4 @@
-<!-- &desc: "The full spec, category-by-category implementation plan, and flagged design-decision ASSUMPTIONs for the ls-mode default flip and everything built on top of it (-oE, -o O, HIDDEN, --condense, --sort, streaming, stdin, --stdout), all 12 categories shipped, plus an addendum on the later revision that replaced the --live flag with always-on -o TREE streaming and added the ls-style grid; original raw prompt appended verbatim at the bottom." -->
+<!-- &desc: "The full spec, category-by-category implementation plan, and flagged design-decision ASSUMPTIONs for the ls-mode default flip and everything built on top of it (-oE, -o O, HIDDEN, --condense, --sort, --live streaming, stdin, --stdout), all 12 categories shipped, plus two addenda on later revisions: always-on streaming (tried, reverted -- jagged per-block alignment) and the final shape (buffered -o TREE default, --live opt-in with fixed-width columns), plus the ls-style grid; original raw prompt appended verbatim at the bottom." -->
 
 # Plan: default ls-mode, -oE, HIDDEN, --condense, -o O, --sort, live output, stdin/--stdout
 
@@ -416,6 +416,37 @@ recursion -- has finished, to free that directory's measurement). See
 original `--live` flag used) were deleted, since `-o TREE` streaming
 now always draws proper connector glyphs instead of falling back to a
 simpler format.
+
+**Superseded again, same session:** always-streaming `-o TREE`
+shipped, built, smoke-tested clean -- and then looked visibly jagged
+in actual use: per-directory-block alignment means `docs/`'s columns
+start at a different position than `include/core/`'s, since each
+block only knows its own widest value, not the whole tree's. That's
+not a bug (it's the direct, unavoidable cost of true real-time
+streaming -- you cannot know the widest value anywhere in a tree
+before you've seen the whole tree), but once actually looked at, it
+wasn't the desired trade-off after all. Final shape: `-o TREE` reverts
+to buffered-by-default, whole-tree-aligned, exactly like it originally
+was and like every other view still is. `--live` comes back as an
+explicit opt-in flag for the streaming behavior -- but instead of
+per-directory-measured alignment, it uses **fixed-width columns**
+(`columns_measure_fixed()` in `columns.c`, a small table of
+plausible-but-arbitrary widths per module, e.g. 8 digits for `LINES`,
+16 hex chars for `HASH`) and a fixed name-column start position
+(`TREE_LIVE_COL_START`, 44, in `render_tree.c`), so streamed output
+still lines up predictably instead of jaggedly, at the cost of any
+individual value wider than its column's fixed width throwing off
+just that one row (the same overflow trade-off any fixed-width table
+accepts) -- guarded by clamping `columns_print_line`'s padding
+subtraction against underflow, since an unclamped `size_t` subtraction
+where the actual value exceeds the fixed width would otherwise wrap
+into a catastrophic multi-gigabyte space flood instead of just
+skipping the padding. The `on_dir_measure`/`on_entry_ready`/
+`on_dir_done` three-hook interleaved-recursion design from the
+previous revision is unchanged and reused as-is -- only what
+`on_dir_measure` does internally (call `columns_measure_fixed()`
+instead of `columns_measure()`) and whether `main.c` wires the hooks
+up at all (only when `--live` is passed, not unconditionally) changed.
 
 The same session also implemented the ls-mode default's own
 long-deferred piece: packing `[Folders]`/`[Files]` (and `--sort

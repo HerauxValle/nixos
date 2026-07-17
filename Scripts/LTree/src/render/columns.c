@@ -1,4 +1,4 @@
-/* &desc: "Implements the shared PrintLine/LineBuf plumbing and the two-pass column-measure-then-print pipeline (columns_measure/columns_print_line, condense- and -o O-order-aware) every terminal renderer builds on, plus print_summary_tail." */
+/* &desc: "Implements the shared PrintLine/LineBuf plumbing and the column-measure-then-print pipeline (columns_measure for actual widest value, columns_measure_fixed for --live's fixed widths, columns_print_line with underflow-clamped padding, condense- and -o O-order-aware) every terminal renderer builds on, plus print_summary_tail." */
 #define _GNU_SOURCE
 #include "render/columns.h"
 #include "render/colors.h"
@@ -156,6 +156,40 @@ void columns_measure(const LineBuf *lb, const Config *cfg, MeasuredColumns *mc) 
     }
 }
 
+/* Generous-but-plausible fixed widths for --live (see columns.h) --
+ * PERMISSIONS and DATE are already naturally this width on every run
+ * (mode_string()/format_datetime_local() never produce anything
+ * else), so "fixing" them just documents that; LINES/CHARS/SIZE/HASH
+ * are the ones that actually vary and need a real constant. */
+static size_t fixed_colwidth_for(ModuleId m) {
+    switch (m) {
+        case MOD_LINES: return 13; /* "[L: 99999999]"        -- 8-digit lines  */
+        case MOD_CHARS: return 15; /* "[C: 9999999999]"      -- 10-digit chars */
+        case MOD_PERM:  return 15; /* "[P: -rwxr-xr-x]"      -- always this    */
+        case MOD_SIZE:  return 11; /* "[S: 999.9G]"          -- human_size max */
+        case MOD_DATE:  return 24; /* "[D: dd-mm-yyyy hh:mm:ss]" -- always this */
+        case MOD_HASH:  return 21; /* "[H: xxxxxxxxxxxxxxxx]" -- 16 hex chars  */
+        default:        return 0;
+    }
+}
+
+void columns_measure_fixed(const LineBuf *lb, const Config *cfg, MeasuredColumns *mc) {
+    mc->any_module = false;
+    resolve_column_order(cfg, mc->order);
+    for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
+        ModuleId m = mc->order[mi];
+        mc->active[mi] = cfg->modules[m];
+        mc->colwidth[mi] = fixed_colwidth_for(m);
+        mc->rendered[mi] = NULL;
+        if (!mc->active[mi]) continue;
+        mc->any_module = true;
+        mc->rendered[mi] = (char **)malloc(sizeof(char *) * (lb->n ? lb->n : 1));
+        for (size_t i = 0; i < lb->n; i++) {
+            mc->rendered[mi][i] = render_module_text(m, &lb->items[i]);
+        }
+    }
+}
+
 void columns_free(const LineBuf *lb, MeasuredColumns *mc) {
     for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
         if (!mc->active[mi]) continue;
@@ -222,7 +256,16 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
         first = false;
         const char *text = mc->rendered[mi][i];
         printf("%s%s%s", module_color(cfg, mc->order[mi]), text, RST(cfg));
-        size_t pad2 = mc->colwidth[mi] - strlen(text);
+        /* Clamped, not a bare subtraction: with columns_measure_fixed()
+         * (--live), colwidth is a constant that a genuinely long value
+         * (an 8-figure line count, say) can exceed -- an unguarded
+         * `colwidth - strlen(text)` would underflow (both size_t) into
+         * a huge padding count instead of just leaving that one row
+         * unaligned. Never triggers under plain columns_measure(),
+         * where colwidth is always >= every individual width by
+         * construction. */
+        size_t tlen = strlen(text);
+        size_t pad2 = (mc->colwidth[mi] > tlen) ? (mc->colwidth[mi] - tlen) : 0;
         for (size_t s = 0; s < pad2; s++) putchar(' ');
     }
     if (is_mod) {

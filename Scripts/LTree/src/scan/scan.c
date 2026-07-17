@@ -1,4 +1,4 @@
-/* &desc: "Implements build_tree, the one recursive filesystem walk (exclude/gitignore/-o HIDDEN filtering, per-file mmap+memchr line/char/hash scanning, statx birth-time fetch) with three streaming hooks interleaved into the recursion so -o TREE can print top-down as it goes." */
+/* &desc: "Implements build_tree, the one recursive filesystem walk (exclude/gitignore/-o HIDDEN filtering, per-file mmap+memchr line/char/hash scanning, statx birth-time fetch) with three streaming hooks interleaved into the recursion, wired up only when --live is passed, so -o TREE can print top-down as it goes." */
 #define _GNU_SOURCE
 #include "scan/scan.h"
 #include "util/util.h"

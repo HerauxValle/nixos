@@ -1,4 +1,4 @@
-/* &desc: "CLI entry point: parses every flag into a Config, resolves which hash algorithm the run needs, runs the one filesystem walk (streaming -o TREE's connector-tree output top-down as it goes), then dispatches to JSON, the already-streamed tree tail, or the default non-recursive ls view." */
+/* &desc: "CLI entry point: parses every flag into a Config, resolves which hash algorithm the run needs, runs the one filesystem walk (--live wires up streaming hooks; default doesn't), then dispatches to JSON, the buffered or already-streamed tree view, or the default non-recursive ls view." */
 /*
  * main.c -- ltree: blazing-fast recursive directory tree, line/char
  * counter, and JSON tree exporter. Zero external dependencies --
@@ -8,13 +8,15 @@
  * See docs/architecture.md for the module map. In one paragraph: we
  * walk the filesystem exactly once (scan.c), building an in-memory
  * Node tree with every stat/line/char/hash field already filled in.
- * -o TREE is the one exception -- it streams via three hooks fired
- * during the walk itself (render_tree.c), printing top-down as it
- * goes instead of waiting. Everything else downstream -- the default
- * ls-mode listing (render_ls.c), the FILES-by-extension summary
- * (render_files.c), JSON export (json.c), --save-output (save.c), and
- * -o DIFF (diff.c) -- is just a different way of reading the
- * complete, already-built tree once the walk finishes.
+ * By default, everything downstream -- the recursive tree view
+ * (render_tree.c), the default ls-mode listing (render_ls.c), the
+ * FILES-by-extension summary (render_files.c), JSON export (json.c),
+ * --save-output (save.c), and -o DIFF (diff.c) -- is just a different
+ * way of reading the complete, already-built tree once the walk
+ * finishes. --live is the one exception: it streams -o TREE's output
+ * via three hooks fired during the walk itself (render_tree.c),
+ * printing top-down with fixed-width columns instead of waiting for
+ * (and whole-tree-aligning against) the complete tree.
  *
  * Build: see flake.nix, or README.md for the plain-gcc one-liner
  * (every .c file under src/, compiled together -- no per-file build).
@@ -74,6 +76,10 @@ static void print_usage(const char *prog) {
         "  --no-colour           disable ANSI colour (also --no-color)\n"
         "  --condense            one [L:x C:y ...] bracket per entry instead of\n"
         "                        one bracket per active column\n"
+        "  --live                 -o TREE only: stream top-down as the walk\n"
+        "                        happens instead of waiting for it to finish;\n"
+        "                        fixed-width columns instead of whole-tree-\n"
+        "                        measured ones. No effect with -j.\n"
         "  --sort <MODES>        ls-mode only (no effect with -o TREE). One base:\n"
         "                          abc (default), birth, modified, lines, chars,\n"
         "                          types -- plus modifiers: combined, reversed\n"
@@ -93,8 +99,8 @@ static void print_usage(const char *prog) {
         "  arena breakdown, page faults, throughput, ...) appended after TOTAL.\n"
         "  Without -o TREE, ltree lists only `path`'s direct children, grouped\n"
         "  into [Folders]/[Files] (like plain ls). -o TREE brings back the\n"
-        "  recursive connector tree (respecting -L) instead, printed top-down\n"
-        "  as each directory is scanned rather than after the whole walk.\n"
+        "  recursive connector tree (respecting -L) instead, whole-tree column\n"
+        "  aligned, printed once the walk finishes (see --live to stream it).\n"
         "  HIDDEN shows dotfiles/dot-dirs (hidden by default, like ls -a).\n",
         prog);
 }
@@ -118,6 +124,8 @@ int main(int argc, char **argv) {
             cfg.no_colour = true;
         } else if (strcmp(a, "--condense") == 0) {
             cfg.condense = true;
+        } else if (strcmp(a, "--live") == 0) {
+            cfg.live = true;
         } else if (strcmp(a, "--sort") == 0) {
             if (i + 1 < argc) {
                 if (!sort_parse(argv[++i], &cfg.sort)) { print_usage(argv[0]); return 1; }
@@ -318,6 +326,20 @@ int main(int argc, char **argv) {
         cfg.sort.set = false;
     }
 
+    /* --live only means anything for -o TREE (ls-mode is already one
+     * non-recursive directory -- nothing to stream) and is meaningless
+     * with -j, which needs the complete tree before it can emit one
+     * JSON value. Warn and ignore rather than error, same leniency
+     * class as --sort + -o TREE above. */
+    if (cfg.live && !cfg.modules[MOD_TREE]) {
+        fprintf(stderr, "warning: --live has no effect without -o TREE, ignoring\n");
+        cfg.live = false;
+    }
+    if (cfg.live && cfg.json) {
+        fprintf(stderr, "warning: --live has no effect with -j, ignoring\n");
+        cfg.live = false;
+    }
+
     struct stat st;
     if (stat(cfg.path, &st) != 0 || !S_ISDIR(st.st_mode)) {
         fprintf(stderr, "invalid path: %s\n", cfg.path);
@@ -366,23 +388,20 @@ int main(int argc, char **argv) {
      * predates -o TREE and isn't a "view" this flag is meant to change. */
     if (!cfg.json && !cfg.modules[MOD_TREE]) cfg.max_depth = 0;
 
-    /* -o TREE always streams top-down as the walk happens -- no flag
-     * to opt into it, the same way plain `tree`/`find` don't need one
-     * (see docs/plan-ls-rework.md, Category 7). Meaningless with -j,
-     * which needs the complete tree before it can emit one JSON
-     * value, so -j always wins and gets the fully recursive, fully
-     * buffered walk it always has. */
-    bool stream_tree = !cfg.json && cfg.modules[MOD_TREE];
-    if (stream_tree) tree_stream_start(cfg.path, &cfg);
+    /* --live is the only case that streams -o TREE's output during
+     * the walk (see render/render_tree.h) -- the default is fully
+     * buffered, whole-tree-aligned, same as every other view. */
+    bool stream_tree = cfg.live;
+    if (stream_tree) tree_live_start(cfg.path, &cfg);
 
     debug_timer_mark_scan_start(&dtimer);
     build_tree(root, cfg.path, "", 0, &cfg, cfg.use_gitignore ? &gt : NULL, &totals, &ext,
-               stream_tree ? tree_stream_on_dir_measure : NULL,
-               stream_tree ? tree_stream_on_entry_ready : NULL,
-               stream_tree ? tree_stream_on_dir_done : NULL,
+               stream_tree ? tree_live_on_dir_measure : NULL,
+               stream_tree ? tree_live_on_entry_ready : NULL,
+               stream_tree ? tree_live_on_dir_done : NULL,
                NULL);
     debug_timer_mark_scan_end(&dtimer);
-    if (stream_tree) tree_stream_end();
+    if (stream_tree) tree_live_end();
     for (size_t i = 0; i < root->nchildren; i++) {
         root->lines += root->children[i]->lines;
         root->chars += root->children[i]->chars;
@@ -424,12 +443,15 @@ int main(int argc, char **argv) {
         print_json(root, cfg.path, &totals, &ext, &cfg, dbg);
     } else if (stream_tree) {
         /* Every directory's block already printed during the scan
-         * (tree_stream_on_dir_measure/on_entry_ready, wired up as
+         * (tree_live_on_dir_measure/on_entry_ready, wired up as
          * build_tree's hooks above) -- only the FILES:/TOTAL:/DEBUG:/
          * DIFF-note tail, which needs the complete tree, is still
          * outstanding. */
         if (cfg.modules[MOD_FILES]) print_files_summary(&ext, &cfg);
         print_summary_tail(&cfg, &totals, diff_available, dbg);
+    } else if (cfg.modules[MOD_TREE]) {
+        print_tree_view(root, cfg.path, &cfg, &totals, diff_available, dbg);
+        if (cfg.modules[MOD_FILES]) print_files_summary(&ext, &cfg);
     } else {
         print_ls_view(root, cfg.path, &cfg, &totals, diff_available, dbg);
         if (cfg.modules[MOD_FILES]) print_files_summary(&ext, &cfg);

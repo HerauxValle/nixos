@@ -12,9 +12,11 @@ No-args `ltree` behaves like plain `ls` -- one directory, grouped into
 `[Folders]`/`[Files]`, packed into a real multi-column grid when
 writing to a terminal (piped output, or any `-o` data column, stays
 one entry per line). `-o TREE` brings back the classic recursive
-connector-tree view instead, printed top-down as it scans rather than
-after the whole walk finishes -- no flag needed for that, it's just
-how `-o TREE` works, the same way plain `tree`/`find` don't need one.
+connector-tree view instead, whole-tree column aligned, printed once
+the walk finishes. `--live` streams it top-down as the walk happens
+instead of waiting -- fixed-width columns rather than whole-tree
+measured ones, since nothing beyond the current directory is known
+yet while it's still scanning.
 
 Zero external dependencies -- straight libc + POSIX (`dirent`,
 `mmap`, `fnmatch`, `statx`). Builds the same everywhere with just a C
@@ -106,6 +108,9 @@ ltree [path] [options]
   --no-colour           disable ANSI colour (also --no-color)
   --condense            one [L:x C:y ...] bracket per entry instead of
                         one bracket per active column
+  --live                 -o TREE only: stream top-down as the walk happens
+                        instead of waiting for it to finish; fixed-width
+                        columns instead of whole-tree-measured ones
   --sort <MODES>        ls-mode only (no effect with -o TREE). One base:
                           abc (default), birth, modified, lines, chars,
                           types -- plus modifiers: combined, reversed
@@ -126,12 +131,9 @@ active, each block packs into a real multi-column grid the way `ls`
 does (piped output, or any active `-o` column, stays one entry per
 line). `-o TREE` brings back the full recursive connector-tree view
 (respecting `-L`) instead -- everything below about depth/recursion
-only applies in that mode, and it always prints top-down as the walk
-happens rather than after the whole tree is known, the same way plain
-`tree`/`find` don't need a flag for that. `HIDDEN` shows
-dotfiles/dot-dirs, hidden by default like `ls` without `-a`; in
-ls-mode they're appended after the visible entries within their own
-`[Folders]`/`[Files]` block.
+only applies in that mode. `HIDDEN` shows dotfiles/dot-dirs, hidden by
+default like `ls` without `-a`; in ls-mode they're appended after the
+visible entries within their own `[Folders]`/`[Files]` block.
 
 `LINES`/`CHARS`/`PERMISSIONS`/`SIZE`/`DATE`/`HASH` each print as their
 own aligned `[X: ...]` column per entry, in a fixed order regardless
@@ -162,17 +164,20 @@ printed and it's ignored under `-o TREE`, which keeps plain
 alphabetical order). `--sort types` buckets the `[Files]` block into
 per-extension `[ext]` sub-headers instead of one flat list.
 
-`-o TREE` streams by design, not as an opt-in mode: each directory's
-connector-tree lines print the instant that directory is scanned,
-top-down, depth-first -- the same order the walk itself explores the
-tree -- instead of buffering the whole thing and printing once at the
-end. Column alignment is per-directory-block rather than whole-tree
-(the rest of the tree's shape isn't known yet when a block prints),
-and `-o DIFF` can't mark anything on a streamed line -- diffing needs
-the complete tree, which only exists after the whole walk finishes.
-`TOTAL`/`FILES`/`DEBUG`/the DIFF note still print once at the end.
-This only applies to the terminal view -- `-j` stays fully buffered,
-since JSON needs the complete tree before it can emit one value.
+`-o TREE` is buffered and whole-tree column aligned by default -- the
+same "flatten the complete tree, measure every column against the
+whole thing, then print" pass every other view uses. `--live` (only
+meaningful with `-o TREE`, no effect with `-j`) switches to streaming
+instead: each directory's connector-tree lines print the instant that
+directory is scanned, top-down, depth-first, instead of waiting for
+the whole walk. Since the rest of the tree's shape isn't known yet
+while a block is printing, whole-tree alignment isn't possible in
+`--live` -- columns use a fixed width and a fixed start position
+instead, so output still lines up predictably rather than jaggedly
+(an unusually long value just won't line up with what follows it on
+that one row). `-o DIFF` can't mark anything on a `--live`-streamed
+line either -- diffing needs the complete tree. `TOTAL`/`FILES`/
+`DEBUG`/the DIFF note always print once at the end, in either mode.
 
 `--stdout exclusive <MODULES>` / `--stdout inclusive <MODULES>` forces
 JSON output filtered to exclude (or keep only) the listed modules'
@@ -225,7 +230,7 @@ ltree -oE,HASH,DEBUG
 ltree --sort lines,types -o LINES
 
 # watch a big recursive scan stream in top-down as it happens
-ltree -o TREE
+ltree -o TREE --live
 
 # dotfiles included, one compact bracket per entry
 ltree -o HIDDEN,LINES,CHARS --condense
@@ -292,12 +297,16 @@ Full design reasoning in [`docs/plan-ls-rework.md`](docs/plan-ls-rework.md).
   -- ls-mode only. `types` buckets `[Files]` into per-extension
   `[ext]` sub-headers; `combined` drops the `[Folders]`/`[Files]`
   split entirely.
-- **New:** `-o TREE` always streams top-down as the walk happens
-  instead of buffering the whole tree first -- no flag to opt into it
-  (an earlier `--live` flag draft was scrapped in favor of just always
-  streaming, the same way plain `tree`/`find` don't need one either).
-  Per-directory-block column alignment instead of whole-tree, and
-  `-o DIFF` can't mark streamed lines, are the trade-offs.
+- **New:** `--live` -- streams `-o TREE`'s output top-down as the walk
+  happens instead of buffering the whole tree first, using fixed-width
+  columns (a predictable position, not jagged per-block widths) since
+  the rest of the tree's shape isn't known yet. Went through two
+  earlier drafts first: always-on streaming with no flag at all (too
+  aggressive -- lost whole-tree alignment unconditionally), then
+  always-on streaming with per-directory-measured alignment (looked
+  jagged in practice once actually used) -- fixed-width `--live` as an
+  explicit opt-in is what stuck. `-o DIFF` can't mark `--live`-streamed
+  lines either way, since diffing needs the complete tree.
 - **New:** the default ls-mode listing packs into a real `ls -C`-style
   multi-column grid when writing to a terminal with no `-o` data
   column active (piped output, or any active column, stays
