@@ -90,8 +90,8 @@ ltree [path] [options]
                           LINES, CHARS, TOTAL, FILES,
                           PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,
                           TREE, HIDDEN
-  -oA                   every module at once, always alone
-  -oE <MODULES>         every module EXCEPT the ones named
+  -oA <MODULES>         every module at once (MODULES optional -- if given,
+                        every module EXCEPT the ones named)
   -oO <MODULES>         render columns in the order you typed them in -o
                         (MODULES optional -- also just enables them)
   --exclude <list>      comma-separated names/globs to skip, quote
@@ -159,7 +159,7 @@ faults, throughput -- right after `TOTAL` (and, in `-j` output, as a
 `"debug"` object); it's never written into `--save-output` snapshots,
 since it's ephemeral run-to-run noise that would only pollute
 diffing. `-oA` turns on every module at once;
-`-oE <list>` turns on every module *except* the ones named.
+`-oA <list>` turns on every module *except* the ones named.
 
 `--simple-hash` hashes a bounded sample -- the file's size plus its
 first and last 64KiB -- instead of every byte, for anything over
@@ -261,7 +261,7 @@ ltree -o DEBUG
 ltree -oA
 
 # everything except HASH and DEBUG
-ltree -oE HASH,DEBUG
+ltree -oA HASH,DEBUG
 
 # largest files last, files bucketed by extension
 ltree --sort lines,types -o LINES
@@ -333,8 +333,8 @@ Full design reasoning in [`docs/plan-ls-rework.md`](docs/plan-ls-rework.md).
 - **New:** `-o HIDDEN` -- shows dotfiles/dot-dirs, hidden by default
   now (previously always shown); appended after visible entries within
   each ls-mode block.
-- **New:** `-oE <MODULES>` -- every module
-  *except* the ones named, the inverse of `-oA`.
+- **New:** `-oA <MODULES>` -- every module *except* the ones named
+  (later merged into `-oA` itself as its optional exclude argument).
 - **New:** `-oO [MODULES]` -- render `-o` columns in the order you
   typed them instead of the fixed `L`/`C`/`P`/`S`/`D`/`H` order; the
   module list is optional, since `-oO` on its own already means
@@ -402,10 +402,12 @@ Full design reasoning in
   that takes long enough to notice, so it's clear `ltree` is working
   rather than stuck -- the only thing on screen without `--live`,
   always redrawn as the bottom-most line with `--live`.
-- **Changed:** `-oE`/`-oO` now take their module list as a normal
-  space-separated argument (`-oE DESC`, `-oO HASH`), the same way `-L`
-  or `--desc` take theirs -- comma-gluing it directly onto the flag
-  (`-oE,DESC`) is no longer special-cased. `-oO`'s module list is
-  optional (`-oO` alone still just sets typed-order rendering). `-oA`
-  never takes any module list, ever. Plain `-o LINES,CHARS` (an
-  ordinary module list) is unaffected.
+- **Changed:** `-oA`/`-oO` take an optional module list as a normal
+  space-separated argument (`-oA DESC`, `-oO HASH`), the same way `-L`
+  or `--desc` take theirs -- comma-gluing it directly onto the flag is
+  no longer special-cased. `-oA` alone means every module; `-oA
+  <MODULES>` means every module *except* the ones named (`-oE` was a
+  separate flag for this at first, then merged into `-oA` itself since
+  a standalone exclude-only flag had no reason to exist). `-oO` alone
+  just sets typed-order rendering; `-oO <MODULES>` also enables those.
+  Plain `-o LINES,CHARS` (an ordinary module list) is unaffected.

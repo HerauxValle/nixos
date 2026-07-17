@@ -1,4 +1,4 @@
-<!-- &desc: "The category-by-category implementation plan and flagged design-decision ASSUMPTIONs for --stdout-aware lazy hash computation, --simple-hash, the lt binary alias, -o DESC/--desc/-D, and the loading spinner, all 6 categories shipped, plus an addendum settling -oA/-oE <MODULES>/-oO [MODULES] as four plain, ordinary flags after a few false-start revisions; original raw prompt appended verbatim at the bottom." -->
+<!-- &desc: "The category-by-category implementation plan and flagged design-decision ASSUMPTIONs for --stdout-aware lazy hash computation, --simple-hash, the lt binary alias, -o DESC/--desc/-D, and the loading spinner, all 6 categories shipped, plus an addendum settling -oA [MODULES]/-oO [MODULES] as two plain, ordinary flags (with -oE eventually folded into -oA's optional exclude argument) after a few false-start revisions; original raw prompt appended verbatim at the bottom." -->
 
 # Plan: --stdout-aware lazy compute, --simple-hash, lt alias, -o DESC/--desc/-D, loading spinner
 
@@ -168,7 +168,7 @@ inclusive HASH` actually computing a hash without `-o HASH`,
 custom `--desc`/`-D` format, and a malformed `--desc` being cleanly
 rejected.
 
-## Addendum: `-oA`/`-oE <MODULES>`/`-oO [MODULES]` final syntax
+## Addendum: `-oA [MODULES]`/`-oO [MODULES]` final syntax
 
 Follow-up feedback after Category 18 shipped (`ltree-v19.tar.gz` ..
 `ltree-v21.tar.gz`), several rounds converging on the final shape:
@@ -201,21 +201,31 @@ Follow-up feedback after Category 18 shipped (`ltree-v19.tar.gz` ..
    switches to `-o TREE`'s recursive view and shows hidden entries, and
    `-oE`'s baseline (before subtracting the named exclusions) is the
    same full set `-oA` enables.
+5. Final simplification: `-oE` was folded into `-oA` itself, as its
+   optional argument -- `-oA` alone means every module, `-oA <MODULES>`
+   means every module *except* the ones named. A separate flag whose
+   only job was "everything except X" had no reason to exist once `-oA`
+   could just take that same list as an optional exclude argument --
+   one flag, one concept ("every module, optionally minus some"),
+   instead of two flags for what's really the same idea from opposite
+   ends.
 
-Implementation: `-o`/`-oA`/`-oE`/`-oO` are four separate, unambiguous
-`argv[i]` string matches in `main.c` (no shared "parse a value, then
-classify it" step) -- `-oA` never even looks at a following argv;
-`-oE`/`-oO` each consume exactly the one immediately-following argv
-(when present and not itself a flag) the same way `-L`/`--desc` do.
+Final shape: `-o`/`-oA`/`-oO` are three separate, unambiguous `argv[i]`
+string matches in `main.c` (no shared "parse a value, then classify it"
+step). `-oA`/`-oO` each optionally consume exactly the one immediately-
+following argv (when present and not itself a flag) the same way
+`-L`/`--desc` do -- `-oA` with nothing following enables everything,
+`-oO` with nothing following just sets typed-order rendering.
 `enable_modules_from_list()`/`enable_all_except()` are the two small
-shared helpers the plain-list, `-oE`, and `-oO` cases all call into, so
+shared helpers the plain-list, `-oA`, and `-oO` cases all call into, so
 there's exactly one implementation of "turn a comma list into
 `cfg.modules[...]`" and one of "turn a comma list into an exclusion
 set", not three.
 
-`docs/plan-ls-rework.md`'s Category 5 (`-o O`) and Category 1 (`-oE`)
-are the original design record for these features -- left as-is
-(historical), superseded by this addendum for the actual final syntax.
+`docs/plan-ls-rework.md`'s Category 5 (`-o O`) and Category 1 (`-oE`,
+now folded into `-oA`) are the original design record for these
+features -- left as-is (historical), superseded by this addendum for
+the actual final syntax.
 
 ---
 

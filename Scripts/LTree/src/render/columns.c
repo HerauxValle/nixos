@@ -123,7 +123,7 @@ static char *render_module_text(ModuleId m, const PrintLine *pl) {
 /* Fills mc->order[]: the fixed L/C/P/S/D/H order, unless -oO asked
  * to respect -o argument order instead (see docs/plan-ls-rework.md,
  * Category 5, and docs/plan-hash-desc-spinner.md's addendum on -oA/
- * -oE/-oO's final syntax). cfg->order_seen may also contain TOTAL/
+ * -oO's final syntax). cfg->order_seen may also contain TOTAL/
  * DEBUG/etc from the same -o list (anything MODCAT_COLUMN or not) --
  * this filters down to just the six column modules, in the order they
  * were typed, then appends whichever column modules weren't typed at

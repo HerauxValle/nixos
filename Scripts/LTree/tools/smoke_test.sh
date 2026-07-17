@@ -231,15 +231,14 @@ run_ok "tree view HASH (crypto)"       "$BIN" "$PG" -o HASH --cryptographic
 run_ok "tree view DEBUG"               "$BIN" "$PG" -o DEBUG
 run_ok "tree view DEBUG,DIFF ordering" "$BIN" "$PG" -o DEBUG,DIFF
 run_ok "tree view ALL modules at once" "$BIN" "$PG" -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DEBUG
-run_ok "-oA (all modules at once, always alone)" "$BIN" "$PG" -oA
+run_ok "-oA alone (all modules at once)" "$BIN" "$PG" -oA
 assert_json "-oA enables every module (TOTAL/by_extension/debug all present)" \
     "d['hash_algo'] != 'none' and 'debug' in d and len(d['by_extension']) > 0" \
     "$BIN" "$PG" -j -oA
-run_ok "-oE <MODULE> excludes just that module" "$BIN" "$PG" -oE DEBUG
-assert_json "-oE DEBUG excludes only DEBUG, everything else stays on" \
+run_ok "-oA <MODULE> excludes just that module" "$BIN" "$PG" -oA DEBUG
+assert_json "-oA DEBUG excludes only DEBUG, everything else stays on" \
     "d['hash_algo'] != 'none' and len(d['by_extension']) > 0 and 'debug' not in d" \
-    "$BIN" "$PG" -j -oE DEBUG
-run_expect_fail "-oE with nothing after it errors cleanly" "$BIN" "$PG" -oE
+    "$BIN" "$PG" -j -oA DEBUG
 
 header "-oO (typed column order)"
 run_ok "-oO alone (just sets order, no extra module)" "$BIN" "$PG/basic" -oO
