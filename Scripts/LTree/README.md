@@ -90,8 +90,8 @@ ltree [path] [options]
                           LINES, CHARS, TOTAL, FILES,
                           PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,
                           TREE, HIDDEN
-  -oA                   every display module at once, always alone
-  -oE <MODULES>         every display module EXCEPT the ones named
+  -oA                   every module at once, always alone
+  -oE <MODULES>         every module EXCEPT the ones named
   -oO <MODULES>         render columns in the order you typed them in -o
                         (MODULES optional -- also just enables them)
   --exclude <list>      comma-separated names/globs to skip, quote
@@ -158,10 +158,8 @@ hyper-detailed run report -- timing, peak RSS, heap stats, page
 faults, throughput -- right after `TOTAL` (and, in `-j` output, as a
 `"debug"` object); it's never written into `--save-output` snapshots,
 since it's ephemeral run-to-run noise that would only pollute
-diffing. `-oA` turns on every display module at once;
-`-oE <list>` turns on every display module *except*
-the ones named. Neither counts `TREE`/`HIDDEN` as part of "every
-module" -- those change behavior, not what's displayed.
+diffing. `-oA` turns on every module at once;
+`-oE <list>` turns on every module *except* the ones named.
 
 `--simple-hash` hashes a bounded sample -- the file's size plus its
 first and last 64KiB -- instead of every byte, for anything over
@@ -335,7 +333,7 @@ Full design reasoning in [`docs/plan-ls-rework.md`](docs/plan-ls-rework.md).
 - **New:** `-o HIDDEN` -- shows dotfiles/dot-dirs, hidden by default
   now (previously always shown); appended after visible entries within
   each ls-mode block.
-- **New:** `-oE <MODULES>` -- every display module
+- **New:** `-oE <MODULES>` -- every module
   *except* the ones named, the inverse of `-oA`.
 - **New:** `-oO [MODULES]` -- render `-o` columns in the order you
   typed them instead of the fixed `L`/`C`/`P`/`S`/`D`/`H` order; the

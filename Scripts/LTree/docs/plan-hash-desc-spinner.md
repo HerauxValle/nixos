@@ -187,14 +187,20 @@ Follow-up feedback after Category 18 shipped (`ltree-v19.tar.gz` ..
    glued-with-commas, no exclusivity errors beyond the minimum needed
    for the flag to mean anything at all:
    - `-o <MODULES>` -- plain module list, unchanged.
-   - `-oA` -- every display module, always alone, no argument.
-   - `-oE <MODULES>` -- every display module except the ones named;
-     the module list is mandatory (there's nothing to exclude
-     otherwise).
+   - `-oA` -- every module, always alone, no argument.
+   - `-oE <MODULES>` -- every module except the ones named; the module
+     list is mandatory (there's nothing to exclude otherwise).
    - `-oO [MODULES]` -- render columns in typed order; the module list
      is optional, since `-oO` alone already means something (apply
      typed order to whatever's already enabled elsewhere on the same
      command line).
+4. One more correction: `-oA`/`-oE` originally excluded `TREE`/`HIDDEN`
+   from "every module" (the ls-mode rework's Category 1 design, since
+   those two change *what's walked*, not a displayed column). Rejected
+   too -- "every" means every module, no exceptions, so `-oA` now also
+   switches to `-o TREE`'s recursive view and shows hidden entries, and
+   `-oE`'s baseline (before subtracting the named exclusions) is the
+   same full set `-oA` enables.
 
 Implementation: `-o`/`-oA`/`-oE`/`-oO` are four separate, unambiguous
 `argv[i]` string matches in `main.c` (no shared "parse a value, then

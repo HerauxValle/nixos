@@ -44,8 +44,8 @@ mode they just sort into their normal alphabetical position.
 | `-d` | List directories only. |
 | `-L <n>` (also `-L<n>`) | Max depth to descend, like `tree -L`. Only meaningful with `-o TREE` -- ls-mode is always exactly one level deep. Directories at the cutoff are still shown, marked `(...)`, just not expanded. |
 | `-o <MODULES>` | Comma-separated, any order: `LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DESC,DIFF,DEBUG,TREE,HIDDEN`. See below. |
-| `-oA` | Every *display* module at once (`TREE`/`HIDDEN` excluded -- see below). Always alone, no module list. |
-| `-oE <MODULES>` | Every display module **except** the ones named (`ltree -oE DESC,HASH`). Needs at least one module named -- bare `-oE` alone is a usage error. |
+| `-oA` | Every module at once. Always alone, no module list. |
+| `-oE <MODULES>` | Every module **except** the ones named (`ltree -oE DESC,HASH`). Needs at least one module named -- bare `-oE` alone is a usage error. |
 | `-oO [MODULES]` | Renders `-o` columns in the order they were actually typed across the run, instead of the fixed `L`/`C`/`P`/`S`/`D`/`H`/`DESC` order. `MODULES` is optional -- `ltree -oO HASH` both sets typed-order rendering and enables `HASH` in one go; `ltree -oO` alone just sets typed-order rendering. |
 | `--exclude <list>` | Comma-separated names/globs to skip. Quote entries containing spaces: `--exclude "build,*.pyc,some dir"`. |
 | `--gitignore` | Also exclude whatever the scan root's `.gitignore` would. Composes with `--exclude` -- either list can exclude a path. |

@@ -102,9 +102,8 @@ static void enable_modules_from_list(Config *cfg, char *val) {
     }
 }
 
-/* -oE's complement: enables every display module (TREE/HIDDEN excluded,
- * see docs/plan-ls-rework.md, Category 1) EXCEPT the ones named in
- * `val`. */
+/* -oE's complement: enables every module (including TREE/HIDDEN --
+ * "every" means every one) EXCEPT the ones named in `val`. */
 static void enable_all_except(Config *cfg, char *val) {
     bool excluded[MOD_COUNT] = {0};
     char *tok = strtok(val, ",");
@@ -118,7 +117,6 @@ static void enable_all_except(Config *cfg, char *val) {
         tok = strtok(NULL, ",");
     }
     for (int m = 0; m < MOD_COUNT; m++) {
-        if (MODULE_TABLE[m].cat == MODCAT_TOGGLE) continue;
         if (excluded[m]) continue;
         cfg->modules[m] = true;
     }
@@ -302,13 +300,9 @@ int main(int argc, char **argv) {
                 free(val);
             }
         } else if (strncmp(a, "-o", 2) == 0 && strcasecmp(a + 2, "A") == 0) {
-            /* Every display module at once. Always alone -- no argument,
-             * ever (TREE/HIDDEN excluded, see docs/plan-ls-rework.md,
-             * Category 1). */
-            for (int m = 0; m < MOD_COUNT; m++) {
-                if (MODULE_TABLE[m].cat == MODCAT_TOGGLE) continue;
-                cfg.modules[m] = true;
-            }
+            /* Every module at once, including TREE/HIDDEN -- "every"
+             * means every one. Always alone -- no argument, ever. */
+            for (int m = 0; m < MOD_COUNT; m++) cfg.modules[m] = true;
         } else if (strncmp(a, "-o", 2) == 0 && strcasecmp(a + 2, "E") == 0) {
             /* Every display module EXCEPT the ones named in the next
              * argv -- "-oE DESC" or "-oE DESC,TREE". */
