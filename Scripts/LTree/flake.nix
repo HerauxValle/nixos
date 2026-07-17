@@ -70,7 +70,7 @@
           # directory.
           buildPhase = ''
             runHook preBuild
-            $CC -O3 -std=c11 -Wall -Wextra -o ltree src/*.c
+            $CC -O3 -std=c11 -Wall -Wextra -Iinclude -o ltree src/*.c src/*/*.c
             runHook postBuild
           '';
 

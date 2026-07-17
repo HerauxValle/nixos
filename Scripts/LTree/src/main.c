@@ -21,19 +21,26 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <limits.h>
 
-#include "config.h"
-#include "node.h"
-#include "scan.h"
-#include "exttable.h"
-#include "gitignore.h"
-#include "hash.h"
-#include "json.h"
-#include "diff.h"
-#include "save.h"
-#include "render_tree.h"
-#include "render_files.h"
-#include "debug.h"
+#include "core/config.h"
+#include "core/modules.h"
+#include "core/node.h"
+#include "sort/sortmodes.h"
+#include "scan/scan.h"
+#include "scan/exttable.h"
+#include "scan/gitignore.h"
+#include "hash/hash.h"
+#include "io/json.h"
+#include "io/diff.h"
+#include "io/save.h"
+#include "render/render_tree.h"
+#include "render/render_ls.h"
+#include "render/render_live.h"
+#include "render/render_files.h"
+#include "render/columns.h"
+#include "debug/debug.h"
 
 static void print_usage(const char *prog) {
     printf(
@@ -44,9 +51,14 @@ static void print_usage(const char *prog) {
         "  -L <n>                max depth to descend (like tree -L), also -L<n>\n"
         "  -o <MODULES>          comma-separated, any order:\n"
         "                          LINES, CHARS, TOTAL, FILES,\n"
-        "                          PERMISSIONS, SIZE, DATE, EXT, HASH, DIFF, DEBUG\n"
+        "                          PERMISSIONS, SIZE, DATE, EXT, HASH, DIFF, DEBUG,\n"
+        "                          TREE, HIDDEN\n"
         "  -o A                  every module at once (also -oA). Can't be combined\n"
         "                        with other module names -- it's already all of them.\n"
+        "  -o E,<MODULES>        every module EXCEPT the ones listed (also -oE,...).\n"
+        "                        E must come first; needs at least one module after it.\n"
+        "  -o ...,O               (combinable) render columns in the order you typed\n"
+        "                        them in -o instead of the fixed L/C/P/S/D/H order.\n"
         "  --exclude <list>      comma-separated names/globs to skip, quote\n"
         "                        entries with spaces: --exclude \"build,*.pyc\"\n"
         "  --gitignore           also exclude what the scan root's .gitignore\n"
@@ -57,6 +69,17 @@ static void print_usage(const char *prog) {
         "                        <path>/.ltree/); filename is a local\n"
         "                        dd-mm-yyyy_hh:mm:ss timestamp\n"
         "  --no-colour           disable ANSI colour (also --no-color)\n"
+        "  --condense            one [L:x C:y ...] bracket per entry instead of\n"
+        "                        one bracket per active column\n"
+        "  --sort <MODES>        ls-mode only (no effect with -o TREE). One base:\n"
+        "                          abc (default), birth, modified, lines, chars,\n"
+        "                          types -- plus modifiers: combined, reversed\n"
+        "  --live                 print each directory's listing as soon as it's\n"
+        "                        scanned instead of waiting for the whole walk\n"
+        "                        (no effect with -j)\n"
+        "  --stdout <exclusive|inclusive> <MODULES>\n"
+        "                        forces JSON output (like -j) filtered to exclude\n"
+        "                        or keep only the named modules' JSON fields\n"
         "  -h, --help            this help\n"
         "\n"
         "  LINES/CHARS/PERMISSIONS/SIZE/DATE/HASH each print as their own\n"
@@ -67,7 +90,11 @@ static void print_usage(const char *prog) {
         "  entries red with a trailing [m]. TOTAL and FILES are summary\n"
         "  sections appended at the end.\n"
         "  DEBUG prints a hyper-detailed run report (timing, peak RSS, heap\n"
-        "  arena breakdown, page faults, throughput, ...) appended after TOTAL.\n",
+        "  arena breakdown, page faults, throughput, ...) appended after TOTAL.\n"
+        "  Without -o TREE, ltree lists only `path`'s direct children, grouped\n"
+        "  into [Folders]/[Files] (like plain ls). -o TREE brings back the\n"
+        "  recursive connector tree (respecting -L) instead.\n"
+        "  HIDDEN shows dotfiles/dot-dirs (hidden by default, like ls -a).\n",
         prog);
 }
 
@@ -88,6 +115,43 @@ int main(int argc, char **argv) {
             cfg.dirs_only = true;
         } else if (strcmp(a, "--no-colour") == 0 || strcmp(a, "--no-color") == 0) {
             cfg.no_colour = true;
+        } else if (strcmp(a, "--condense") == 0) {
+            cfg.condense = true;
+        } else if (strcmp(a, "--sort") == 0) {
+            if (i + 1 < argc) {
+                if (!sort_parse(argv[++i], &cfg.sort)) { print_usage(argv[0]); return 1; }
+            }
+        } else if (strncmp(a, "--sort=", 7) == 0) {
+            if (!sort_parse(a + 7, &cfg.sort)) { print_usage(argv[0]); return 1; }
+        } else if (strcmp(a, "--live") == 0) {
+            cfg.live = true;
+        } else if (strcmp(a, "--stdout") == 0) {
+            if (i + 2 >= argc) {
+                fprintf(stderr, "error: --stdout needs 'exclusive'/'inclusive' and a "
+                                 "module list (--stdout exclusive TREE,LINES)\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+            const char *mode = argv[++i];
+            const char *list = argv[++i];
+            if (strcasecmp(mode, "exclusive") == 0) cfg.stdout_filter = STDOUT_FILTER_EXCLUSIVE;
+            else if (strcasecmp(mode, "inclusive") == 0) cfg.stdout_filter = STDOUT_FILTER_INCLUSIVE;
+            else {
+                fprintf(stderr, "error: --stdout mode must be 'exclusive' or 'inclusive', "
+                                 "got '%s'\n", mode);
+                print_usage(argv[0]);
+                return 1;
+            }
+            char *copy = strdup(list);
+            char *tok = strtok(copy, ",");
+            while (tok) {
+                const ModuleDef *def = module_lookup(tok);
+                if (def) cfg.stdout_filter_keys[def->id] = true;
+                else fprintf(stderr, "warning: unknown --stdout module '%s'\n", tok);
+                tok = strtok(NULL, ",");
+            }
+            free(copy);
+            cfg.json = true;
         } else if (strcmp(a, "--gitignore") == 0) {
             cfg.use_gitignore = true;
         } else if (strcmp(a, "--cryptographic") == 0) {
@@ -108,47 +172,104 @@ int main(int argc, char **argv) {
             char *val = (strcmp(a, "-o") == 0) ? (i + 1 < argc ? strdup(argv[++i]) : NULL)
                                                 : strdup(a + 2);
             if (val) {
-                /* -oA / -o A means "every module" and must stand alone --
-                 * it's already everything, so "-oA,DEBUG" either means
-                 * nothing extra or is a typo for a specific subset the
-                 * caller actually wanted. Reject it instead of silently
-                 * doing something the flags don't literally say. */
+                /* -oA / -o A means "every display module" and must stand
+                 * alone -- it's already everything, so "-oA,DEBUG" either
+                 * means nothing extra or is a typo for a specific subset
+                 * the caller actually wanted. -oE / -o E is the mirror
+                 * image: "every display module EXCEPT the ones listed
+                 * after it", where "E" must be the FIRST token (unlike
+                 * "A", which is rejected wherever it appears alongside
+                 * other tokens, "E" is expected to have tokens after it
+                 * -- that's the whole point). Reject either shorthand
+                 * instead of silently doing something the flags don't
+                 * literally say. TREE/HIDDEN (MODCAT_TOGGLE) are
+                 * deliberately excluded from what "every module" means
+                 * for both A and E -- they change what's walked/how it's
+                 * laid out, not what's displayed (see
+                 * docs/plan-ls-rework.md, Category 1). */
                 char *scan = strdup(val);
-                int ntok = 0, has_all = 0;
+                int ntok = 0, has_all = 0, has_exclude = 0, has_order = 0;
+                bool first_tok = true;
                 char *stok = strtok(scan, ",");
                 while (stok) {
                     ntok++;
                     if (strcasecmp(stok, "A") == 0) has_all = 1;
+                    if (first_tok && strcasecmp(stok, "E") == 0) has_exclude = 1;
+                    if (strcasecmp(stok, "O") == 0) has_order = 1;
+                    first_tok = false;
                     stok = strtok(NULL, ",");
                 }
                 free(scan);
+                /* -o ...,O (can combine with a plain module list or with
+                 * E) means "respect the order these were typed in"
+                 * instead of MODULE_TABLE's fixed L/C/P/S/D/H order --
+                 * see docs/plan-ls-rework.md, Category 5. Doesn't
+                 * combine with A: "every module, in the order I typed
+                 * them" is incoherent once A already means all of them
+                 * -- that case falls through to the existing
+                 * has_all-can't-combine error below. With E, there's no
+                 * "typed order" for the modules E actually *enables*
+                 * (only the excluded ones were named), so O has nothing
+                 * to apply there; cfg.o_order still gets set but
+                 * n_order_seen stays 0, and the renderer falls back to
+                 * the fixed order whenever n_order_seen is 0. */
+                cfg.o_order = has_order;
 
                 if (has_all && ntok > 1) {
                     fprintf(stderr,
-                            "error: -o A selects every module by itself and can't be "
-                            "combined with other module names (got '-o %s')\n", val);
+                            "error: -o A selects every display module by itself and can't "
+                            "be combined with other module names (got '-o %s')\n", val);
+                    free(val);
+                    print_usage(argv[0]);
+                    return 1;
+                } else if (has_exclude && ntok == 1) {
+                    fprintf(stderr,
+                            "error: -o E excludes modules but none were named after it "
+                            "(got '-o %s')\n", val);
                     free(val);
                     print_usage(argv[0]);
                     return 1;
                 } else if (has_all) {
-                    cfg.o_lines = cfg.o_chars = cfg.o_total = cfg.o_files = true;
-                    cfg.o_perm  = cfg.o_size  = cfg.o_date  = cfg.o_ext   = true;
-                    cfg.o_hash  = cfg.o_diff  = cfg.o_debug = true;
+                    for (int m = 0; m < MOD_COUNT; m++) {
+                        if (MODULE_TABLE[m].cat == MODCAT_TOGGLE) continue;
+                        cfg.modules[m] = true;
+                    }
+                } else if (has_exclude) {
+                    bool excluded[MOD_COUNT] = {0};
+                    char *tok = strtok(val, ",");
+                    tok = strtok(NULL, ",");  /* skip the leading "E" token */
+                    while (tok) {
+                        if (strcasecmp(tok, "O") == 0) {
+                            tok = strtok(NULL, ",");
+                            continue;
+                        }
+                        const ModuleDef *def = module_lookup(tok);
+                        if (def) {
+                            excluded[def->id] = true;
+                        } else {
+                            fprintf(stderr, "warning: unknown -o module '%s'\n", tok);
+                        }
+                        tok = strtok(NULL, ",");
+                    }
+                    for (int m = 0; m < MOD_COUNT; m++) {
+                        if (MODULE_TABLE[m].cat == MODCAT_TOGGLE) continue;
+                        if (excluded[m]) continue;
+                        cfg.modules[m] = true;
+                    }
                 } else {
                     char *tok = strtok(val, ",");
                     while (tok) {
-                        if      (strcasecmp(tok, "LINES") == 0)       cfg.o_lines = true;
-                        else if (strcasecmp(tok, "CHARS") == 0)       cfg.o_chars = true;
-                        else if (strcasecmp(tok, "TOTAL") == 0)       cfg.o_total = true;
-                        else if (strcasecmp(tok, "FILES") == 0)       cfg.o_files = true;
-                        else if (strcasecmp(tok, "PERMISSIONS") == 0) cfg.o_perm = true;
-                        else if (strcasecmp(tok, "SIZE") == 0)        cfg.o_size = true;
-                        else if (strcasecmp(tok, "DATE") == 0)        cfg.o_date = true;
-                        else if (strcasecmp(tok, "EXT") == 0)         cfg.o_ext = true;
-                        else if (strcasecmp(tok, "HASH") == 0)        cfg.o_hash = true;
-                        else if (strcasecmp(tok, "DIFF") == 0)        cfg.o_diff = true;
-                        else if (strcasecmp(tok, "DEBUG") == 0)       cfg.o_debug = true;
-                        else fprintf(stderr, "warning: unknown -o module '%s'\n", tok);
+                        if (strcasecmp(tok, "O") == 0) {
+                            tok = strtok(NULL, ",");
+                            continue;
+                        }
+                        const ModuleDef *def = module_lookup(tok);
+                        if (def) {
+                            cfg.modules[def->id] = true;
+                            cfg.order_seen[cfg.n_order_seen++] = def->id;
+                        } else {
+                            fprintf(stderr, "warning: unknown -o module '%s'\n", tok);
+                        }
                         tok = strtok(NULL, ",");
                     }
                 }
@@ -175,7 +296,38 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* No positional path and stdin is piped (not a terminal) -- read
+     * one line from it and use that as the path, so `find . -type d |
+     * head -1 | ltree` style pipelines work. A TTY stdin with no path
+     * arg keeps today's "." default; fgets() failing (empty pipe)
+     * falls back to "." the same way. */
+    if (!cfg.path && !isatty(fileno(stdin))) {
+        char buf[PATH_MAX];
+        if (fgets(buf, sizeof(buf), stdin)) {
+            buf[strcspn(buf, "\r\n")] = '\0';
+            if (buf[0] != '\0') cfg.path = strdup(buf);
+        }
+    }
     if (!cfg.path) cfg.path = strdup(".");
+
+    /* --sort only means anything in the ls-mode view -- tree mode
+     * (-o TREE) keeps node_cmp's plain alphabetical order (see
+     * docs/plan-ls-rework.md, Category 6). Warn and ignore rather than
+     * error, same leniency class as an unknown -o module. */
+    if (cfg.sort.set && cfg.modules[MOD_TREE]) {
+        fprintf(stderr, "warning: --sort has no effect with -o TREE, ignoring\n");
+        cfg.sort.set = false;
+    }
+
+    /* --live streams plain-text directory blocks as the walk
+     * progresses -- meaningless combined with -j, which needs the
+     * complete tree before it can emit one JSON value. Warn and
+     * ignore rather than error, same leniency class as --sort +
+     * -o TREE above. */
+    if (cfg.live && cfg.json) {
+        fprintf(stderr, "warning: --live has no effect with -j, ignoring\n");
+        cfg.live = false;
+    }
 
     struct stat st;
     if (stat(cfg.path, &st) != 0 || !S_ISDIR(st.st_mode)) {
@@ -189,7 +341,7 @@ int main(int argc, char **argv) {
     char *snapshot_path = NULL;
     bool diff_available = false;
 
-    if (cfg.o_diff) {
+    if (cfg.modules[MOD_DIFF]) {
         char *snapdir = ltree_snapshot_dir(&cfg);
         snapshot_path = find_latest_snapshot(snapdir);
         free(snapdir);
@@ -200,7 +352,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    bool need_hash = cfg.o_hash || cfg.save_output || cfg.o_diff;
+    bool need_hash = cfg.modules[MOD_HASH] || cfg.save_output || cfg.modules[MOD_DIFF];
     cfg.hash_algo = need_hash ? desired_algo : HASH_ALGO_NONE;
 
     /* ---- optional .gitignore, composed with --exclude ---- */
@@ -211,13 +363,23 @@ int main(int argc, char **argv) {
     /* ---- the one filesystem walk ---- */
     Node *root = node_new(cfg.path, true);
     root->mtime = st.st_mtime;
+    root->btime = fetch_btime(cfg.path, st.st_mtime);
     root->mode = st.st_mode;
     Totals totals = {0, 0, 0, 0};
     ExtTable ext;
     exttable_init(&ext);
 
+    /* Without -o TREE, the terminal view is the new non-recursive
+     * [Folders]/[Files] listing (see docs/plan-ls-rework.md, Category 2)
+     * -- one level is all it'll ever show, so don't walk deeper than
+     * that. -j stays fully recursive regardless of -o TREE: JSON is a
+     * data export whose existing contract (full tree, -L-limited)
+     * predates -o TREE and isn't a "view" this flag is meant to change. */
+    if (!cfg.json && !cfg.modules[MOD_TREE]) cfg.max_depth = 0;
+
     debug_timer_mark_scan_start(&dtimer);
-    build_tree(root, cfg.path, "", 0, &cfg, cfg.use_gitignore ? &gt : NULL, &totals, &ext);
+    build_tree(root, cfg.path, "", 0, &cfg, cfg.use_gitignore ? &gt : NULL, &totals, &ext,
+               cfg.live ? render_live_dir_block : NULL, NULL);
     debug_timer_mark_scan_end(&dtimer);
     for (size_t i = 0; i < root->nchildren; i++) {
         root->lines += root->children[i]->lines;
@@ -246,11 +408,11 @@ int main(int argc, char **argv) {
         free(names); free(hashes); free(lens);
     }
 
-    if (cfg.o_diff && snapshot_path) diff_apply(snapshot_path, root);
+    if (cfg.modules[MOD_DIFF] && snapshot_path) diff_apply(snapshot_path, root);
 
     DebugStats dbg_stats;
     const DebugStats *dbg = NULL;
-    if (cfg.o_debug) {
+    if (cfg.modules[MOD_DEBUG]) {
         debug_collect(&dbg_stats, &dtimer, root, &totals, &cfg);
         dbg = &dbg_stats;
     }
@@ -258,9 +420,20 @@ int main(int argc, char **argv) {
     /* ---- output ---- */
     if (cfg.json) {
         print_json(root, cfg.path, &totals, &ext, &cfg, dbg);
-    } else {
+    } else if (cfg.live) {
+        /* Every directory's block already printed live, during the
+         * scan (render_live_dir_block, wired up as build_tree's
+         * on_dir_ready callback above) -- only the FILES:/TOTAL:/
+         * DEBUG:/DIFF-note tail, which needs the complete tree, is
+         * still outstanding. */
+        if (cfg.modules[MOD_FILES]) print_files_summary(&ext, &cfg);
+        print_summary_tail(&cfg, &totals, diff_available, dbg);
+    } else if (cfg.modules[MOD_TREE]) {
         print_tree_view(root, cfg.path, &cfg, &totals, diff_available, dbg);
-        if (cfg.o_files) print_files_summary(&ext, &cfg);
+        if (cfg.modules[MOD_FILES]) print_files_summary(&ext, &cfg);
+    } else {
+        print_ls_view(root, cfg.path, &cfg, &totals, diff_available, dbg);
+        if (cfg.modules[MOD_FILES]) print_files_summary(&ext, &cfg);
     }
 
     if (cfg.save_output) save_output(root, cfg.path, &totals, &ext, &cfg);

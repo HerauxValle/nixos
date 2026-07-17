@@ -4,24 +4,49 @@
 ltree [path] [options]
 ```
 
-`path` defaults to `.`. Flags can appear in any order, including
-before the path -- `ltree -j /some/path` and `ltree /some/path -j`
-are the same call.
+`path` defaults to `.`; if no positional path is given and stdin isn't
+a terminal, `ltree` reads one line from stdin and uses that as the
+path instead (so `find . -maxdepth 1 -type d | head -1 | ltree` style
+pipelines work). Flags can appear in any order, including before the
+path -- `ltree -j /some/path` and `ltree /some/path -j` are the same
+call.
+
+## Two views: ls-mode (default) and tree mode (`-o TREE`)
+
+Without `-o TREE`, `ltree` lists only `path`'s **direct children**
+(non-recursive, like plain `ls`), grouped into a `[Folders]` block
+then a `[Files]` block, each case-insensitive alphabetical by default.
+`-o TREE` switches to the classic recursive connector-tree view
+instead -- everything about depth/recursion (`-L`), `--sort`, and
+`--live`'s streaming granularity differs between the two, noted at
+each relevant section below.
+
+`-o HIDDEN` shows dotfiles/dot-dirs -- hidden from the walk entirely
+by default, in *either* view (this is a scan-level exclusion, not just
+a display filter). In ls-mode, hidden entries are appended after the
+visible ones within their own `[Folders]`/`[Files]` block; in tree
+mode they just sort into their normal alphabetical position.
 
 ## Flags
 
 | Flag | Effect |
 |---|---|
-| `-j` | Output JSON instead of a tree view. |
+| `-j` | Output JSON instead of a directory listing. |
 | `-d` | List directories only. |
-| `-L <n>` (also `-L<n>`) | Max depth to descend, like `tree -L`. Directories at the cutoff are still shown, marked `(...)`, just not expanded. |
-| `-o <MODULES>` | Comma-separated, any order: `LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DIFF,DEBUG`. See below. |
-| `-o A` (also `-oA`) | Every module at once. Can't be combined with any other module name in the same list -- `ltree` rejects `-o A,DEBUG` rather than silently ignoring the redundant token. |
+| `-L <n>` (also `-L<n>`) | Max depth to descend, like `tree -L`. Only meaningful with `-o TREE` -- ls-mode is always exactly one level deep. Directories at the cutoff are still shown, marked `(...)`, just not expanded. |
+| `-o <MODULES>` | Comma-separated, any order: `LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DIFF,DEBUG,TREE,HIDDEN`. See below. |
+| `-o A` (also `-oA`) | Every *display* module at once (`TREE`/`HIDDEN` excluded -- see below). Can't be combined with any other module name in the same list -- `ltree` rejects `-o A,DEBUG` rather than silently ignoring the redundant token. |
+| `-o E,<MODULES>` (also `-oE,<MODULES>`) | Every display module **except** the ones listed. `E` must be the first token in the list; needs at least one module named after it (`-oE` alone is a usage error). |
+| `-o ...,O` | Combinable modifier: render `-o` columns in the order you actually typed them, instead of the fixed `L`/`C`/`P`/`S`/`D`/`H` order. Doesn't combine with `A`. Combined with `E`, has nothing to apply to (there's no "typed order" for modules `E` *enables*, only the ones it excludes) and is silently a no-op. |
 | `--exclude <list>` | Comma-separated names/globs to skip. Quote entries containing spaces: `--exclude "build,*.pyc,some dir"`. |
 | `--gitignore` | Also exclude whatever the scan root's `.gitignore` would. Composes with `--exclude` -- either list can exclude a path. |
 | `--cryptographic` | `-o HASH` / `-o DIFF` use SHA-256 instead of the default xxHash64. |
-| `--save-output[=DIR]` | Write a JSON snapshot to `DIR/.ltree/` (default: `<path>/.ltree/`). Filename is a local-time `dd-mm-yyyy_hh:mm:ss.json` timestamp. |
+| `--save-output[=DIR]` | Write a JSON snapshot to `DIR/.ltree/` (default: `<path>/.ltree/`). Filename is a local-time `dd-mm-yyyy_hh:mm:ss.json` timestamp. Always complete regardless of `--stdout` filtering on the same run. |
 | `--no-colour` (also `--no-color`) | Disable ANSI colour. |
+| `--condense` | One `[L:x C:y ...]` bracket per entry instead of one bracket per active column. See [Condensed columns](#condensed-columns). |
+| `--sort <MODES>` | ls-mode only (warns and is ignored with `-o TREE`). See [Sorting](#sorting-ls-mode-only). |
+| `--live` | Print each directory's listing as soon as it's scanned instead of waiting for the whole walk. See [Live streaming](#live-streaming). No effect with `-j`. |
+| `--stdout <exclusive\|inclusive> <MODULES>` | Forces JSON output (implies `-j`) filtered to a subset of fields. See [Filtered JSON output](#filtered-json-output---stdout). |
 | `-h`, `--help` | Show help and exit. |
 
 ## The `-o` modules
@@ -29,11 +54,12 @@ are the same call.
 Each of `LINES` / `CHARS` / `PERMISSIONS` / `SIZE` / `DATE` / `HASH`
 prints as its **own** aligned `[X: ...]` bracket per entry, in a fixed
 order (`L`, `C`, `P`, `S`, `D`, `H`) regardless of what order you list
-them in `-o` -- so output is stable across runs even if you type the
-list differently. Directories aggregate `LINES`/`CHARS`/`SIZE` over
-their **direct** children only (not the whole subtree at once --
-totals accumulate naturally as you walk up); `PERMISSIONS`/`DATE` are
-always the entry's own, never aggregated.
+them in `-o` -- unless `-o ...,O` is also present, which switches to
+the order you actually typed (see the flags table above). Directories
+aggregate `LINES`/`CHARS`/`SIZE` over their **direct** children only
+(not the whole subtree at once -- totals accumulate naturally as you
+walk up); `PERMISSIONS`/`DATE` are always the entry's own, never
+aggregated.
 
 - **`LINES`** -- line count (`memchr`-counted newlines).
 - **`CHARS`** -- *visible* character count, not raw UTF-8 codepoint
@@ -56,39 +82,182 @@ always the entry's own, never aggregated.
   hh:mm:ss`.
 - **`EXT`** -- toggles showing file extensions in the tree. **Hidden
   by default** -- `report.md` displays as `report`. This only affects
-  the tree/JSON *display name*; extension-keyed data (`FILES:`
-  summary, the JSON `by_extension` block) is unaffected either way.
+  the tree/ls/JSON *display name*; extension-keyed data (`FILES:`
+  summary, the JSON `by_extension` block, `--sort types`) is
+  unaffected either way.
 - **`HASH`** -- see [Hashing](#hashing) below.
-- **`TOTAL`** -- appends a summary block (dirs/files/lines/chars)
-  after the tree. Not a per-entry column.
-- **`FILES`** -- appends a by-extension breakdown (files/lines/chars
-  per extension) after the tree. Not a per-entry column.
+- **`TOTAL`** -- appends a `[dirs: n]   [files: n]   [lines: n]
+  [chars: n]` summary line after the listing. Not a per-entry column.
+- **`FILES`** -- appends a by-extension `[TYPE: x]   [FILES: n]
+  [LINES: n]   [CHARS: n]` breakdown after the listing, one row per
+  extension, column-aligned the same way per-entry columns are. Not a
+  per-entry column.
 - **`DIFF`** -- see [Diffing](#diffing) below.
 - **`DEBUG`** -- see [Debug report](#debug-report) below.
+- **`TREE`** -- switches from the default ls-mode view to the
+  recursive connector-tree view. See
+  [Two views](#two-views-ls-mode-default-and-tree-mode--o-tree) above.
+- **`HIDDEN`** -- shows dotfiles/dot-dirs, hidden by default. See
+  [Two views](#two-views-ls-mode-default-and-tree-mode--o-tree) above.
 
 Unknown `-o` tokens print a warning to stderr and are otherwise
 ignored; they don't abort the run.
 
+## Condensed columns
+
+By default every active `-o` column gets its own `[X: ...]` bracket,
+padded to that column's own widest value, with a fixed 3-space gap
+before the next one:
+
+```
+report.md   [L: 26]   [C: 1174]   [P: -rw-r--r--]
+```
+
+`--condense` collapses that into a single bracket, still colour-coded
+per field, with the space after each field's colon dropped and no
+per-field width padding inside the bracket (that's the point -- tight,
+not columnar):
+
+```
+report.md   [L:26 C:1174 P:-rw-r--r--]
+```
+
+The trailing `[m]` `DIFF` modified-flag is unaffected either way --
+it's a modification flag, not one of the data columns `--condense`
+folds together.
+
+## Sorting (ls-mode only)
+
+`--sort <mode>[,<mode>...]` reorders the ls-mode view. Has no effect
+under `-o TREE` (warned and ignored) -- tree mode always keeps plain
+case-insensitive alphabetical order.
+
+One **base** mode (mutually exclusive -- passing two is a usage error):
+
+| Mode | Order |
+|---|---|
+| `abc` (default) | Case-insensitive alphabetical. |
+| `birth` | Creation time, oldest first. Via `statx()`'s `STATX_BTIME`; falls back to last-modified time when the filesystem/kernel doesn't report a birth time. |
+| `modified` | Last-modified time, oldest first (newest at the bottom). |
+| `lines` | Line count, fewest first (most at the bottom). |
+| `chars` | Char count, fewest first (most at the bottom). |
+| `types` | Buckets the `[Files]` block into per-extension `[ext]` sub-headers, alphabetical by extension, alphabetical within a bucket. `[Folders]` is unaffected -- directories don't have an extension in this project's model. |
+
+Plus two **modifiers**, combinable with any one base mode and with
+each other:
+
+- **`combined`** -- don't split into `[Folders]`/`[Files]` at all, one
+  flat list sorted by the base mode. Dropped (with a warning) when
+  paired with `types`, since `types` already has its own grouping.
+- **`reversed`** -- flips whatever ordering the base mode produces.
+
+`--sort` takes over ordering entirely for a group -- the default
+"hidden entries appended after visible ones" placement (see
+[Two views](#two-views-ls-mode-default-and-tree-mode--o-tree) above)
+does **not** layer on top of a `--sort` order; hidden entries sort in
+wherever the chosen mode puts them.
+
+## Live streaming
+
+`--live` prints each directory's listing to the terminal as soon as
+its own direct children are known, flushing after each one, instead
+of waiting for the entire walk to finish before printing anything --
+most useful on a large or deeply nested tree with `-o TREE`, where the
+default (buffer everything, print once) can leave the terminal blank
+for a while.
+
+It streams **top-down**: the root directory's own listing prints
+first, then each subdirectory's as `ltree` enters it (depth-first
+after that, following the same order the walk itself descends in) --
+not bottom-up, which is what a naïve print-after-recursing
+implementation would give you.
+
+`--live` uses its own, simpler rendering -- a plain `path/:` header
+followed by that directory's indented entries, column-aligned to just
+that one directory's own rows (not the whole tree the way non-live
+output is). This is a real, deliberate difference from both the
+tree/ls views: columns won't line up *across* different directories'
+blocks the way they do in buffered output, and (in `-o TREE` mode) you
+don't get the connector-glyph tree art, since that requires knowing
+the whole tree's shape up front. `TOTAL`/`FILES`/`DEBUG`/the DIFF note
+still print once, at the very end, since those need the complete
+walk regardless of `--live`.
+
+Diff marking (`-o DIFF`'s red name + trailing `[m]`) never appears in
+live-streamed rows, even if `-o DIFF` is also passed -- diffing
+compares against the finished tree, which isn't available until after
+everything has already streamed.
+
+`--live` has no effect combined with `-j`: JSON needs the complete
+tree before it can emit one value, so `-j` silently wins (a warning is
+printed) and normal `-j` output happens instead.
+
+## Filtered JSON output (`--stdout`)
+
+`--stdout <exclusive|inclusive> <MODULES>` forces JSON output (as if
+`-j` were also passed) filtered to a subset of keys/fields. `MODULES`
+uses the same names as `-o`, mapped onto JSON keys:
+
+| Module | JSON key/field | Scope |
+|---|---|---|
+| `TREE` | `"tree"` | top-level -- the whole entry structure |
+| `TOTAL` | `"total"` | top-level |
+| `FILES` | `"by_extension"` | top-level |
+| `DEBUG` | `"debug"` | top-level (only ever present when `-o DEBUG` was also passed) |
+| `LINES` | `"lines"` | per-entry |
+| `CHARS` | `"chars"` | per-entry |
+| `PERMISSIONS` | `"mode"` | per-entry |
+| `SIZE` | `"size"` | per-entry |
+| `DATE` | `"mtime"` | per-entry |
+| `HASH` | `"hash"` | per-entry |
+| `DIFF` | `"modified"` | per-entry (only present when `-o DIFF` was also passed) |
+
+`"name"`/`"type"`/`"symlink"` per entry and `"path"`/`"generated_at"`/
+`"hash_algo"` at the top level are structurally required and never
+filterable. `EXT`/`HIDDEN` have no JSON field of their own (`EXT` only
+ever affects the tree/ls *display name*, never the JSON, which always
+carries full names) -- accepted as `--stdout` module names, just a
+no-op.
+
+- **`exclusive <list>`** -- emit everything `-j` normally would,
+  except the listed keys/fields.
+- **`inclusive <list>`** -- emit **only** the listed keys/fields (plus
+  the always-present structural ones). Note per-entry fields need
+  `TREE` also listed to have anywhere to appear -- `--stdout inclusive
+  LINES` without `TREE` produces a `"tree"`-less document, since
+  `LINES` alone never turns the tree structure itself back on.
+
+`--stdout` never affects `--save-output` snapshots on the same run --
+a snapshot always writes the complete JSON regardless of what the
+terminal output was filtered to, since a filtered snapshot missing
+(say) `HASH` would silently break `-o DIFF` on every future run
+against it.
+
 ## Column alignment
 
 `ltree` does two passes before printing anything: first it flattens
-the whole tree into lines and renders every active module's text
+the whole listing into lines and renders every active module's text
 (plain, no colour) to measure that module's own max width, *then* it
 prints. Two effects fall out of that:
 
 - Every entry's brackets start at the same column, `8` characters past
-  the widest name+prefix in the whole tree (not just the current
+  the widest name+prefix in the whole listing (not just the current
   line) -- so nothing shifts around based on how deep an entry is
-  nested.
+  nested (tree mode) or how it's indented (ls-mode, `--sort types`'s
+  extra nesting under an `[ext]` header).
 - Each module column is padded to its own widest value across the
-  whole tree, then followed by a fixed 3-space gap before the next
-  module's bracket. A short `[L: 1]` and a long `[L: 128]` line up
-  their *closing* brackets, and the next module (say `[C: ...]`)
-  starts in the same column on every line.
+  whole listing, then followed by a fixed 3-space gap before the next
+  module's bracket (unless `--condense` is active -- see
+  [Condensed columns](#condensed-columns)). A short `[L: 1]` and a
+  long `[L: 128]` line up their *closing* brackets, and the next
+  module (say `[C: ...]`) starts in the same column on every line.
 
 This is why enabling more modules costs a wider terminal, not a
-messier one -- see the example in the main README for what the full
-`-o LINES,CHARS,PERMISSIONS,SIZE,DATE` output looks like in practice.
+messier one -- see the example in the main README for what a
+multi-column `-o` output looks like in practice. `--live` is the one
+exception -- it aligns each directory's block to itself, not the
+whole tree, since the whole tree isn't known yet when a block prints
+(see [Live streaming](#live-streaming) above).
 
 ## Exclude / gitignore matching
 
@@ -117,7 +286,8 @@ path, and enabling one doesn't disable the other.
 [Diffing](#diffing)) is **always** hidden from the walk, the same way
 most tools hide `.git` -- there's no flag to turn this off, since
 scanning your own past snapshots as if they were project content
-would make totals and `DIFF` drift on every run.
+would make totals and `DIFF` drift on every run. This is unconditional,
+separate from (and unaffected by) `-o HIDDEN`.
 
 ## Hashing
 
@@ -166,8 +336,9 @@ current run -- see [`docs/plan.md`](plan.md) for the reasoning. This
 means the current scan is hashed with the *snapshot's* algorithm
 whenever `-o DIFF` finds one, not necessarily the one you asked for.
 
-If no previous snapshot exists, the tree prints normally and a
-non-blocking note appears at the end:
+If no previous snapshot exists, the listing prints normally and a
+non-blocking note appears at the end, after `TOTAL`/`DEBUG` -- always
+last:
 
 ```
 note: no previous .ltree snapshot found, run again after --save-output to enable DIFF
@@ -178,6 +349,9 @@ normally, not flagged -- `DIFF` only marks entries it found *and*
 determined differ; it doesn't currently distinguish "new" from
 "unchanged, no comparable snapshot entry".
 
+Diff marking never appears in `--live`-streamed rows -- see
+[Live streaming](#live-streaming) above.
+
 ## Debug report
 
 `-o DEBUG` appends a hyper-detailed "how did this run go" report,
@@ -185,7 +359,7 @@ computed once into a plain struct and rendered either as text or as
 JSON, following the same "compute once, format twice" convention as
 every other module (see [`docs/json-schema.md`](json-schema.md)).
 
-In the tree view it prints as a `DEBUG:` block, positioned right
+In the listing view it prints as a `DEBUG:` block, positioned right
 after `TOTAL:` (if both are requested) and before the trailing "no
 previous snapshot" `DIFF` note, if that also applies:
 
@@ -246,10 +420,10 @@ directly after `"total"`:
 
 The `debug` key is only present at all when `-o DEBUG` was actually
 requested -- unlike `total`/`by_extension`, which are always in the
-JSON regardless of `-o` flags, `debug` follows the same opt-in
-gating as the tree view's `DEBUG:` block, since collecting and
-printing this much detail by default would just be noise for anyone
-not asking for it.
+JSON regardless of `-o` flags (both still subject to `--stdout`
+filtering), `debug` follows the same opt-in gating as the listing
+view's `DEBUG:` block, since collecting and printing this much detail
+by default would just be noise for anyone not asking for it.
 
 `--save-output` snapshots **never** include a `debug` block, even if
 `-o DEBUG` was passed on that run -- the numbers are ephemeral
@@ -259,9 +433,11 @@ snapshot meant to represent the tree's own content.
 
 ## Saving snapshots
 
-`--save-output[=DIR]` writes the same JSON that `-j` would print to
-`<DIR or path>/.ltree/dd-mm-yyyy_hh:mm:ss.json` (local time),
-creating the `.ltree` directory if needed. This is what `-o DIFF`
-compares against on a later run. Saving is non-fatal on failure (a
-warning goes to stderr; the rest of the run still completes and still
-exits `0`).
+`--save-output[=DIR]` writes the same JSON that `-j` would print,
+**always complete regardless of any `--stdout` filtering on the same
+run** (see [Filtered JSON output](#filtered-json-output---stdout)
+above), to `<DIR or path>/.ltree/dd-mm-yyyy_hh:mm:ss.json` (local
+time), creating the `.ltree` directory if needed. This is what
+`-o DIFF` compares against on a later run. Saving is non-fatal on
+failure (a warning goes to stderr; the rest of the run still completes
+and still exits `0`).
