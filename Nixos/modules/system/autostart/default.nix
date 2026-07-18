@@ -1,3 +1,4 @@
+
 { lib, ... }:
 
 # &desc: "Declares config.vars.system.autostart (global enable + per-job jobs schema), no logic."

@@ -1,3 +1,5 @@
+# &desc: "Provides structural type signatures and static dictionary interface schemas for runtime namespace declarations."
+
 # Editor/type-checker only -- never read by Nix or executed at runtime.
 # ./default.nix concatenates ./preamble.nix's Nix-generated constants and
 # every fragment in this directory into one script; each fragment below

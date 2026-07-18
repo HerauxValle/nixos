@@ -1,3 +1,7 @@
+# &desc: "POSIX-compliant shell function shim using variable loop capture to modify environmental variables without subshell side-effects."
+
+# &desc: "POSIX-compliant shell function shim using variable loop capture to modify environmental variables without subshell side-effects."
+
 # Source this from .profile (or wherever your dash init lives). Same
 # merged-command-surface design as the other shims: this shadows the
 # real `venvctl` binary on PATH with a shell function of the same name.

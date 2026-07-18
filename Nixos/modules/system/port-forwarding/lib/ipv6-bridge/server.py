@@ -1,3 +1,5 @@
+# &desc: "Initializes a dedicated IPv6 socket listener that gracefully exits if the target backend already binds dual-stack interfaces."
+
 import errno
 import socket
 import sys

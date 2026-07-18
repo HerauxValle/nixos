@@ -1,3 +1,6 @@
+
+# &desc: "Generates a supervised systemd service to manage an SSH reverse tunnel via a specified public provider with localized key validation."
+
 { lib, pkgs }:
 
 # SSH reverse tunnel via config.vars.system.ports.tunnelHost (default

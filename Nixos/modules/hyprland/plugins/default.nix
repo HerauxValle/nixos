@@ -1,3 +1,4 @@
+
 { pkgs, lib, ... }:
 
 # Which Hyprland plugins to build, raw specs (name/url/rev/hash/...) --

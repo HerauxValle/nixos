@@ -1,3 +1,5 @@
+# &desc: "Venv creation utility that boots environments, handles floating versus explicit package specifications, and triggers downstream lock writes."
+
 #!/usr/bin/env bash
 # Usage: build.sh <name> <resolvedPath> <pythonBin> <packagesJson> <lockfile:true|false>
 # <pythonBin> is a resolved store path (e.g. /nix/store/.../bin/python3),

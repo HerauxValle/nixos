@@ -1,3 +1,5 @@
+# &desc: "Handles persistent full-duplex byte stream transfers between local client interfaces and background destination ports."
+
 import socket
 
 

@@ -1,3 +1,5 @@
+# &desc: "Generates an operational server-side SSLContext sequence enforcing localized certificate pairs and HTTP/1.1 ALPN."
+
 import ssl
 from typing import TYPE_CHECKING
 

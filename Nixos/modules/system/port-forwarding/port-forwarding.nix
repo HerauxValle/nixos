@@ -1,3 +1,4 @@
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- resolves config.vars.system.ports.entries into real NixOS

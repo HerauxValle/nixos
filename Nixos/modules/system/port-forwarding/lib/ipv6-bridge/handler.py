@@ -1,3 +1,5 @@
+# &desc: "Negotiates optional TLS handshakes, performs path redirects, and coordinates low-level HTTP header transformations."
+
 import socket
 import ssl
 import sys

@@ -1,3 +1,7 @@
+# &desc: "Zsh environment mutation function that mimics the bash implementation to intercept environment variable configuration calls."
+
+# &desc: "Zsh environment mutation function that mimics the bash implementation to intercept environment variable configuration calls."
+
 # Source this from .zshrc. Functionally identical to the bash shim --
 # zsh supports [[ ]], <<<, and local the same way bash does, so this is
 # effectively the same code, not a rewrite. Same merged-command-surface

@@ -1,3 +1,5 @@
+# &desc: "Parses incoming HTTP raw headers to extract host fields and performs either 301 redirects or socket connection relaying."
+
 import socket
 import threading
 from typing import TYPE_CHECKING

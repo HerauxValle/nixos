@@ -1,3 +1,5 @@
+# &desc: "Encodes and decodes binary mDNS question and answer packets, supporting cache-flush bits and direct unicast request flags."
+
 import socket
 import struct
 from typing import TYPE_CHECKING

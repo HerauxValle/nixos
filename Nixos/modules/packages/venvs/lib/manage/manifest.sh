@@ -1,3 +1,5 @@
+# &desc: "State tracking library managing read, write, and exclusion diff computations against a local manifest database file."
+
 #!/usr/bin/env bash
 # Sourced by sync.sh, build.sh, remove.sh. The manifest is the only way
 # we know what we installed last time -- home-manager's own generation

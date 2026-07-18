@@ -1,3 +1,5 @@
+# &desc: "Targeted venv uninstallation engine that safely tears down old runtime environments matching untracked manifest keys."
+
 #!/usr/bin/env bash
 # Usage: remove.sh <name>
 # Called by sync.sh for manifest entries with no matching declared venv.

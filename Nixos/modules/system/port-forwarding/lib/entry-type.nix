@@ -1,3 +1,6 @@
+
+# &desc: "Defines the submodule options schema representing a single network port exposure configuration and its available exposure modes."
+
 { lib }:
 
 # The submodule type behind config.vars.system.ports.entries.<key> -- mirrors

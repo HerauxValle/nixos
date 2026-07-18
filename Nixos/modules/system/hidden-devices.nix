@@ -1,3 +1,4 @@
+
 { config, lib, pkgs, ... }:
 
 # &desc: "Declares + wires config.vars.system.hiddenDevices (UUIDs to hide from udisks2), and warns if a reboot is needed."

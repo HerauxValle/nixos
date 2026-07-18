@@ -1,3 +1,5 @@
+# &desc: "Leverages Netlink multicast process connector events to blocks execution until target backend sockets enter an active listen state."
+
 import errno
 import os
 import socket

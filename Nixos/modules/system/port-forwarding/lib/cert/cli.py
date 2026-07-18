@@ -1,3 +1,5 @@
+# &desc: "Implements the command-line interface entry points to ensure, display, regenerate, or serve the system certificates."
+
 import subprocess
 import sys
 from typing import TYPE_CHECKING

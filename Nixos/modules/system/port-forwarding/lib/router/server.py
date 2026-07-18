@@ -1,3 +1,5 @@
+# &desc: "Initializes a high-concurrency TCP listener socket supporting TLS wrap context or plaintext byte-forwarding."
+
 import socket
 import ssl
 import sys

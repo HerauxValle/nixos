@@ -1,3 +1,7 @@
+# &desc: "PowerShell wrapper function for venvctl that captures environment updates to shadow the binary for active session manipulation."
+
+# &desc: "PowerShell wrapper function for venvctl that captures environment updates to shadow the binary for active session manipulation."
+
 # Source this from your PowerShell profile (once). The real `venvctl`
 # binary (on PATH) can only print VAR=value lines for
 # activate/deactivate -- a child process cannot mutate its parent

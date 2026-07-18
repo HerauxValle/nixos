@@ -1,3 +1,5 @@
+# &desc: "Dedicated upgrade controller that pulls down the latest updates for floating PyPI strings and rewrites respective project lock targets."
+
 #!/usr/bin/env bash
 # Usage: update.sh <name|all>
 # The counterpart to build.sh's deliberate refusal to touch "latest"

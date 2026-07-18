@@ -1,3 +1,5 @@
+# &desc: "Top-level coordinator executed via home-manager activation lifecycle hooks to build active configurations and purge decommissioned paths."
+
 #!/usr/bin/env bash
 # Entry point invoked directly by venv.nix's home.activation block.
 # Expects VENVCTL_LIBROOT, VENVCTL_DATA, VENVCTL_MANIFEST, VENVCTL_LOGLEVEL

@@ -1,3 +1,5 @@
+# &desc: "Rewrites outbound HTTP response headers to adapt location targets, cookies, and security policies away from localhost rules."
+
 import re
 from typing import TYPE_CHECKING
 

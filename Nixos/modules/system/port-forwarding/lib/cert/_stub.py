@@ -1,3 +1,5 @@
+# &desc: "Provides structural type signatures and namespace definitions for standalone python type checkers and editors."
+
 # Editor/type-checker only -- never read by Nix or executed at runtime.
 # ./default.nix concatenates ./preamble.nix's Nix-generated constants and
 # every fragment in this directory into one script; each fragment below

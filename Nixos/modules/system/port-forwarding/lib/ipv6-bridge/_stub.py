@@ -1,3 +1,5 @@
+# &desc: "Declares mock parameter schemas and method signatures for structural compilation validation across build boundaries."
+
 # Editor/type-checker only -- never read by Nix or executed at runtime.
 # ./default.nix concatenates ./preamble.nix's Nix-generated constants and
 # every fragment in this directory into one script; each fragment below

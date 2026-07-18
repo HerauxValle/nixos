@@ -1,3 +1,7 @@
+# &desc: "Fish shell command wrapper managing in-shell activation state transitions and path additions while passing through other requests."
+
+# &desc: "Fish shell command wrapper managing in-shell activation state transitions and path additions while passing through other requests."
+
 # Source this from config.fish (once). The real `venvctl` binary (from
 # nix, on PATH) can only print VAR=value lines for activate/deactivate --
 # a subprocess cannot mutate its parent shell's env. This function

@@ -1,3 +1,5 @@
+# &desc: "Generates a self-signed root Certificate Authority (CA) private key and certificate if missing from the system state."
+
 import subprocess
 import sys
 from typing import TYPE_CHECKING

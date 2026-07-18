@@ -1,3 +1,4 @@
+
 { ... }:
 
 # &desc: "Enables a system secret-service keyring so apps like Claude Desktop can persist logins instead of re-prompting every restart."

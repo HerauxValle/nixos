@@ -1,6 +1,5 @@
-{ ... }:
 
-# &desc: "The actual autostart jobs for this machine -- data only, no logic."
+{ ... }:
 
 # Real values -- schema + the actual unit-building logic live in
 # ../../modules/system/autostart/. Data only, same reasoning as every

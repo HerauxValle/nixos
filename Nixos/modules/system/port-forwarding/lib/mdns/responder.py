@@ -1,3 +1,5 @@
+# &desc: "Listens for multicast DNS queries and transmits unicast or multicast A record name advertisements on local networks."
+
 import socket
 import struct
 import sys

@@ -1,3 +1,5 @@
+# &desc: "Generates and validates the TLS leaf certificate and key populated with configured Subject Alternative Names (SAN)."
+
 import subprocess
 import sys
 from typing import TYPE_CHECKING

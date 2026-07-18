@@ -1,3 +1,4 @@
+
 { lib, mountBin, mountpointBin, mkdir, chown, globalBlocking }:
 
 # One mountpoint entry's activation-time bash. `enabled = false` or

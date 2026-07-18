@@ -1,3 +1,7 @@
+# &desc: "Bash environment wrapper script shadowing the main binary to apply session mutations via in-shell environment expansion."
+
+# &desc: "Bash environment wrapper script shadowing the main binary to apply session mutations via in-shell environment expansion."
+
 # Source this from .bashrc / .zshrc. Not currently used (fish is the
 # daily driver -- see lib/shims/activate.fish), shipped for parity since
 # venvctl's protocol is shell-agnostic by design and this costs nothing

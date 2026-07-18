@@ -1,3 +1,5 @@
+# &desc: "Launches a temporary dual-stack HTTP server to host the root CA certificate for local network device installation."
+
 import subprocess
 from typing import TYPE_CHECKING
 

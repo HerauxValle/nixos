@@ -1,3 +1,7 @@
+# &desc: "Nushell wrapper definition opting into environment mutation via def --env to intercept and update active environment variables."
+
+# &desc: "Nushell wrapper definition opting into environment mutation via def --env to intercept and update active environment variables."
+
 # Source this from config.nu (once). Nu doesn't let a plain `def` leak
 # $env changes back to the caller -- `def --env` opts in, which is nu's
 # version of the same subprocess-can't-mutate-parent problem every

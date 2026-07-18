@@ -1,3 +1,4 @@
+
 { lib, ... }:
 
 # Schema (empty default -- an always-valid, always-safe fallback) plus the
