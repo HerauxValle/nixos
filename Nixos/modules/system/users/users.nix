@@ -50,6 +50,7 @@ HASHEOF
       "networkmanager"
       "immich"
       "qbittorrent"
+      "kvm" # Claude Desktop's Cowork feature spins up a local KVM sandbox
     ];
 
     # initialPassword = "changeme";  # one-time bootstrap only, from before

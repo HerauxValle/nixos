@@ -15,10 +15,11 @@
     # Complex custom sources
     custom = {
       claudeCode = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
-      # with-fhs (not the plain "claude-desktop" output) -- MCP servers
+      # -fhs (not the plain "claude-desktop" output) -- MCP servers
       # (npm/uvx-installed, dynamically linked against system libs) need
-      # an FHS environment on NixOS to run at all.
-      claudeDesktop = inputs.claude-desktop.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop-with-fhs;
+      # an FHS environment on NixOS to run at all. Also this flake's own
+      # "default".
+      claudeDesktop = inputs.claude-desktop.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop-fhs;
       mybarBackend = pkgs.callPackage ../../../../Quickshell/MyBar/backend.nix { };
       crun = inputs.crun.packages.${pkgs.stdenv.hostPlatform.system}.default;
       ltree = inputs.ltree.packages.${pkgs.stdenv.hostPlatform.system}.default;

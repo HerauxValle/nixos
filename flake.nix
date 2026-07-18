@@ -8,7 +8,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     claude-code-nix.url = "github:sadjow/claude-code-nix";
-    claude-desktop.url = "github:k3d3/claude-desktop-linux-flake";
+    # aaddrick's flake (not k3d3's) -- it repackages Anthropic's official
+    # first-party Linux .deb, which is what actually has the Cowork tab;
+    # k3d3's is an older, separately-patched build with no Cowork support.
+    claude-desktop.url = "github:aaddrick/claude-desktop-debian";
     silent-sddm = {
       url = "github:uiriansan/SilentSDDM";
       inputs.nixpkgs.follows = "nixpkgs";
