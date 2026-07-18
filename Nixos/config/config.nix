@@ -17,18 +17,30 @@
       gitCommitEmail = "maxmustermann@example.com";
     };
 
-    boot.luks2.usbKeyLabel = "VirtualKeys";
+    boot = {
+      luks2.usbKeyLabel = "VirtualKeys";
+      usbRequired.enable = false;
+      usbRequired.usbKeyLabel = "VirtualKeys";
+    };
 
-    boot.usbRequired.enable = false;
-    boot.usbRequired.usbKeyLabel = "VirtualKeys";
+    security = {
+      sudoKeyfile.enable = false;
+      usbKillswitch.killMode = "disabled";
+      usbKillswitch.usbSerialShort = "0000000000000000000";
+    };
 
-    security.sudoKeyfile.enable = false;
+***REMOVED***
+      enable = false;
+      remoteUrl = "git@github.com:HerauxValle/nixos.git";
+      useRepoCache = true;
+    };
+  };
 
-    security.usbKillswitch.killMode = "disabled";
-    security.usbKillswitch.usbSerialShort = "0000000000000000000";
-
-    backup.dotfilesBackup.enable = false;
-    backup.dotfilesBackup.remoteUrl = "git@github.com:HerauxValle/nixos.git";
-    backup.dotfilesBackup.useRepoCache = true;
+  # Real values for vars.alias -- schema lives in
+  # ../modules/alias.nix. Empty by default; add an entry here to shorten
+  # a deeply-nested vars.* path you reference often.
+  config.vars.alias = {
+    # Example (uncomment to try it):
+    # testUsername = config.vars.identity.username;
   };
 }

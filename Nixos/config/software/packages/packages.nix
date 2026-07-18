@@ -10,6 +10,8 @@
       # Development
       git = { };
       neovim = { };
+      kopia = { };
+      kopia-ui = { };
 
       # Languages & SDKs
       python3 = { };

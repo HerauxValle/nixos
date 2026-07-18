@@ -39,7 +39,7 @@
       { file = "Nixos/config/config.nix"; find = ''username = "maxmustermann";''; replaceWith = ''username = "maxmustermann";''; }
       { file = "Nixos/config/config.nix"; find = ''hostName = "nixos";''; replaceWith = ''hostName = "nixos";''; }
       { file = "flake.nix"; find = ''description = "maxmustermann's NixOS config";''; replaceWith = ''description = "maxmustermann's NixOS config";''; }
-      { file = "flake.nix"; find = "nixosConfigurations.herauxvalle = nixpkgs.lib.nixosSystem"; replaceWith = "nixosConfigurations.maxmustermann = nixpkgs.lib.nixosSystem"; }
+      { file = "flake.nix"; find = "nixosConfigurations.maxmustermann = inputs.nixpkgs.lib.nixosSystem"; replaceWith = "nixosConfigurations.maxmustermann = inputs.nixpkgs.lib.nixosSystem"; }
       { file = "flake.nix"; find = "home-manager.users.maxmustermann = import ./Nixos/home.nix;"; replaceWith = "home-manager.users.maxmustermann = import ./Nixos/home.nix;"; }
 
       { file = "Nixos/modules/system/networking.nix"; find = ''networking.interfaces.''${config.vars.identity.networkInterface}.macAddress = "A8:E6:21:92:2C:E1";''; replaceWith = ''networking.interfaces.''${config.vars.identity.networkInterface}.macAddress = null;''; }
