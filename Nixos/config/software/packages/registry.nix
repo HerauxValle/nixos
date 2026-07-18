@@ -18,7 +18,12 @@
       mybarBackend = pkgs.callPackage ../../../../Quickshell/MyBar/backend.nix { };
       crun = inputs.crun.packages.${pkgs.stdenv.hostPlatform.system}.default;
       ltree = inputs.ltree.packages.${pkgs.stdenv.hostPlatform.system}.default;
-      casket = inputs.casket.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      # Keyed "cas" (not "casket") because the alias mechanism in
+      # packages.nix (the "@obi" on this package's version key) matches
+      # a bin/ file literally named after this attribute -- see
+      # lib/wrap-aliased.nix. The flake/project itself is still called
+      # Casket; only the binary and this key are "cas".
+      cas = inputs.casket.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
       # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups
       # (shifted symbol keybinds like ctrl+dollar/asterisk/exclam).
