@@ -147,7 +147,7 @@
 
       # `cas` was named `obi` (ObiLock) before the Casket rename --
       # "obi" is kept as a muscle-memory alias via the versions/"@alias"
-      # mechanism (see packages/docs/README.txt), not a second build.
+      # mechanism (see packages/docs/README.txt) -- not a second build.
       cas = {
         versions = {
           "2.0.0@obi" = "";
