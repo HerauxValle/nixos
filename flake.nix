@@ -8,6 +8,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     claude-code-nix.url = "github:sadjow/claude-code-nix";
+    claude-desktop.url = "github:k3d3/claude-desktop-linux-flake";
     silent-sddm = {
       url = "github:uiriansan/SilentSDDM";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -26,6 +27,7 @@
       crun,
       ltree,
       casket,
+      claude-desktop,
       ...
     }@inputs:
     {

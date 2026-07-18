@@ -119,6 +119,7 @@
 
     custom = {
       claudeCode = { };
+      claudeDesktop = { };
       mybarBackend = { };
       kittyWrapped = { };
       crun = { };
