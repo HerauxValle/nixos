@@ -10,18 +10,35 @@
 # substitution, not sed -- same reasoning as redact.py.
 #
 # <dir> <data-file> -- data-file is the JSON array of {file, find,
-# replaceWith} entries (resolvedReplaceValues) written by ../default.nix,
-# one process for the whole list instead of one per entry.
+# replaceWith, line} entries (resolvedReplaceValues) written by
+# ../default.nix, one process for the whole list instead of one per
+# entry. `line` (see lines.py) is optional: null keeps the prior
+# whole-file-content behavior (every occurrence of `find` replaced); a
+# line number or list of them restricts replacement to just those lines,
+# for a `find` that also appears, unrelated, elsewhere in the file.
 import json
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from lines import line_set
 
-def apply(path, find, replace_with):
+
+def apply(path, find, replace_with, line=None):
+    lines_wanted = line_set(line)
     with open(path, "r", encoding="utf-8", errors="surrogateescape") as fh:
         content = fh.read()
+    if lines_wanted is None:
+        content = content.replace(find, replace_with)
+    else:
+        file_lines = content.splitlines(keepends=True)
+        for lineno in lines_wanted:
+            idx = lineno - 1
+            if 0 <= idx < len(file_lines):
+                file_lines[idx] = file_lines[idx].replace(find, replace_with)
+        content = "".join(file_lines)
     with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
-        fh.write(content.replace(find, replace_with))
+        fh.write(content)
 
 
 def main():
@@ -31,7 +48,7 @@ def main():
     for entry in entries:
         path = os.path.join(dir_, entry["file"])
         if os.path.isfile(path):
-            apply(path, entry["find"], entry["replaceWith"])
+            apply(path, entry["find"], entry["replaceWith"], entry.get("line"))
 
 
 if __name__ == "__main__":

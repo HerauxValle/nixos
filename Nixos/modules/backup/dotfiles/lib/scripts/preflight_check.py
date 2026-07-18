@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from exclude import find_matches
+from lines import line_set
 
 YELLOW = os.environ.get("dotfilesBackupColorYellow", "").encode().decode("unicode_escape")
 RED = os.environ.get("dotfilesBackupColorRed", "").encode().decode("unicode_escape")
@@ -35,9 +36,29 @@ def warn(message):
     )
 
 
-def line_contains(path, value):
+def line_contains(path, value, line=None):
+    lines_wanted = line_set(line)
     with open(path, encoding="utf-8", errors="surrogateescape") as fh:
-        return any(value in line for line in fh)
+        if lines_wanted is None:
+            return any(value in text for text in fh)
+        file_lines = fh.readlines()
+    # Scoped entries apply to EVERY listed line (redact.py/replace.py
+    # both do the same for a multi-line `line`) -- so all of them, not
+    # just one, must still contain the text for the entry to be
+    # considered live rather than stale.
+    return all(
+        0 <= lineno - 1 < len(file_lines) and value in file_lines[lineno - 1]
+        for lineno in lines_wanted
+    )
+
+
+def line_suffix(line):
+    if line is None:
+        return ""
+    lines = sorted(line_set(line))
+    if len(lines) == 1:
+        return f" on line {lines[0]}"
+    return f" on lines {', '.join(str(n) for n in lines)}"
 
 
 def check_excludes(dotfiles_path, patterns_file):
@@ -82,10 +103,10 @@ def check_redact(dotfiles_path, checks_file):
                 f"redactValues key '{r['key']}' -- file '{r['file']}' does not exist -- "
                 "renamed, typo'd, or never created? Nothing is being redacted there right now."
             )
-        elif not line_contains(path, r["value"]):
+        elif not line_contains(path, r["value"], r.get("line")):
             warn(
                 f"redactValues key '{r['key']}' resolved to '{r['value']}', but that text does not currently "
-                f"appear in '{r['file']}' -- stale entry (file changed, or this value was already "
+                f"appear{line_suffix(r.get('line'))} in '{r['file']}' -- stale entry (file changed, or this value was already "
                 "redacted/commented out there)? It is not redacting anything there right now."
             )
 
@@ -112,16 +133,16 @@ def check_replace(dotfiles_path, checks_file):
                 f"replaceValues {kind} -- file '{r['file']}' does not exist -- "
                 "renamed, typo'd, or never created? Nothing is being replaced there right now."
             )
-        elif not line_contains(path, r["value"]):
+        elif not line_contains(path, r["value"], r.get("line")):
             if by_key:
                 warn(
                     f"replaceValues {kind} resolved to '{r['value']}', but that text does not currently "
-                    f"appear in '{r['file']}' -- stale entry (file changed, or already replaced there)? "
+                    f"appear{line_suffix(r.get('line'))} in '{r['file']}' -- stale entry (file changed, or already replaced there)? "
                     "It is not replacing anything there right now."
                 )
             else:
                 warn(
-                    f"replaceValues {kind} does not currently appear in '{r['file']}' -- "
+                    f"replaceValues {kind} does not currently appear{line_suffix(r.get('line'))} in '{r['file']}' -- "
                     "stale entry (file content changed)? It is not replacing anything there right now."
                 )
 

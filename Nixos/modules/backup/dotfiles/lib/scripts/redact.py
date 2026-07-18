@@ -10,26 +10,33 @@
 # literal substitution, not sed -- avoids regex-escaping a MAC/email that
 # may contain characters sed's search side treats specially.
 #
-# <dir> <data-file> -- data-file is the JSON array of {file, value}
+# <dir> <data-file> -- data-file is the JSON array of {file, value, line}
 # entries (resolvedRedactValues) written by ../default.nix, one process
-# for the whole list instead of one per entry.
+# for the whole list instead of one per entry. `line` (see lines.py) is
+# optional: null keeps the prior behavior of redacting every line that
+# contains `value`; a line number or list of them restricts it to just
+# those, for a value that also appears, unrelated, elsewhere in the file.
 import json
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from lines import line_set
 
-def apply(path, value):
+
+def apply(path, value, line=None):
+    lines_wanted = line_set(line)
     masked = "*" * len(value)
     with open(path, "r", encoding="utf-8", errors="surrogateescape") as fh:
-        lines = fh.readlines()
+        file_lines = fh.readlines()
     out = []
-    for line in lines:
-        if value in line:
-            line = line.replace(value, masked)
-            stripped = line.lstrip()
-            indent = line[:len(line) - len(stripped)]
-            line = indent + "# " + stripped
-        out.append(line)
+    for lineno, text in enumerate(file_lines, start=1):
+        if value in text and (lines_wanted is None or lineno in lines_wanted):
+            text = text.replace(value, masked)
+            stripped = text.lstrip()
+            indent = text[:len(text) - len(stripped)]
+            text = indent + "# " + stripped
+        out.append(text)
     with open(path, "w", encoding="utf-8", errors="surrogateescape") as fh:
         fh.writelines(out)
 
@@ -41,7 +48,7 @@ def main():
     for entry in entries:
         path = os.path.join(dir_, entry["file"])
         if os.path.isfile(path):
-            apply(path, entry["value"])
+            apply(path, entry["value"], entry.get("line"))
 
 
 if __name__ == "__main__":

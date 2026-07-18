@@ -19,11 +19,11 @@ let
   # down with it.
   redactValueResolutions = map
     (r: {
-      inherit (r) file key;
+      inherit (r) file key line;
       result = builtins.tryEval (toString (lib.attrByPath (lib.splitString "." r.key) (throw "unresolved") config));
     })
     cfg.redactValues;
-  resolvedRedactValues = map (r: { inherit (r) file; value = r.result.value; })
+  resolvedRedactValues = map (r: { inherit (r) file line; value = r.result.value; })
     (builtins.filter (r: r.result.success) redactValueResolutions);
 
   # Same idea for replaceValues' `key` variant -- `find` is either typed
@@ -36,25 +36,34 @@ let
     (r:
       if r.key != null then
         {
-          inherit (r) file replaceWith key;
+          inherit (r) file replaceWith key line;
           result = builtins.tryEval (toString (lib.attrByPath (lib.splitString "." r.key) (throw "unresolved") config));
         }
       else
-        { inherit (r) file replaceWith; key = null; result = { success = true; value = r.find; }; }
+        { inherit (r) file replaceWith line; key = null; result = { success = true; value = r.find; }; }
     )
     cfg.replaceValues;
-  resolvedReplaceValues = map (r: { inherit (r) file replaceWith; find = r.result.value; })
+  resolvedReplaceValues = map (r: { inherit (r) file replaceWith line; find = r.result.value; })
     (builtins.filter (r: r.result.success) replaceValueResolutions);
+
+  # Stringifies an entry's optional `line` (null | int | [int...]) for the
+  # hash below -- sorted first so [12 33] and [33 12] hash identically,
+  # same reasoning as sorting each list itself.
+  lineToStr = l:
+    if l == null then ""
+    else if builtins.isList l then lib.concatMapStringsSep "," toString (lib.sort (a: b: a < b) l)
+    else toString l;
 
   # Pure function of excludeFiles + redactValues + replaceValues' own
   # content (values included, not just which keys/pairs are listed --
-  # rotating a redacted value or editing a replaceValues entry must also
-  # trigger a rescrub even though the file didn't change). Sorted first so
-  # reordering any list alone doesn't trigger a scrub for nothing.
+  # rotating a redacted value, editing a replaceValues entry, or
+  # scoping/unscoping either one with `line` must also trigger a rescrub
+  # even though the file didn't change). Sorted first so reordering any
+  # list alone doesn't trigger a scrub for nothing.
   excludeHash = builtins.hashString "sha256" (lib.concatStringsSep "\n" (
     (lib.sort (a: b: a < b) cfg.excludeFiles)
-    ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.value}") resolvedRedactValues))
-    ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.find}\t${r.replaceWith}") resolvedReplaceValues))
+    ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.value}\t${lineToStr r.line}") resolvedRedactValues))
+    ++ (lib.sort (a: b: a < b) (map (r: "${r.file}\t${r.find}\t${r.replaceWith}\t${lineToStr r.line}") resolvedReplaceValues))
   ));
 in
 {

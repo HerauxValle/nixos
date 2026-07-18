@@ -104,15 +104,14 @@
       }
       {
         file = "Nixos/config/config.nix";
-        # Whole-block find, not a bare "enable = false;" line -- that bare
-        # form is also a substring of usbRequired.enable/sudoKeyfile.enable's
-        # lines above, which str.replace() would corrupt (or desync from
-        # their own dedicated entries below) since it isn't confined to a
-        # single match. config.nix reformatted this onto two lines (opening
-        # brace, then enable on its own indented line) after this entry was
-        # first written, which is what went stale here.
-        find = "    backup.dotfilesBackup = {\n      enable = false; \n";
-        replaceWith = "    backup.dotfilesBackup = {\n      enable = false;\n";
+        # Bare "enable = false;" is also a substring of
+        # usbRequired.enable/sudoKeyfile.enable's lines above -- `line`
+        # confines the swap to this one, so it can't corrupt (or, applied
+        # after them, silently miss) those. Update this number if
+        # config.nix's dotfilesBackup block ever moves.
+        find = "enable = false;";
+        replaceWith = "enable = false;";
+        line = 33;
       }
     ];
   };

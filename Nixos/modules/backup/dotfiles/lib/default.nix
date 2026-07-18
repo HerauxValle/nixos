@@ -101,14 +101,14 @@ let
   replaceApplyJson = builtins.toJSON resolvedReplaceValues;
   redactChecksJson = builtins.toJSON (
     map (r: {
-      inherit (r) file key;
+      inherit (r) file key line;
       success = r.result.success;
       value = if r.result.success then r.result.value else null;
     }) redactValueResolutions
   );
   replaceChecksJson = builtins.toJSON (
     map (r: {
-      inherit (r) file key;
+      inherit (r) file key line;
       success = r.result.success;
       value = if r.result.success then r.result.value else null;
     }) replaceValueResolutions

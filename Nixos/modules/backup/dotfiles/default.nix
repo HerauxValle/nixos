@@ -305,6 +305,21 @@
             type = lib.types.str;
             description = "Dotted path into config (e.g. \"vars.identity.gitCommitEmail\") whose value gets redacted in `file`.";
           };
+          # Optional scope-down for a value that appears on more than one
+          # line of `file` when only a specific occurrence is meant --
+          # same idea and same type as replaceValues' own `line` below,
+          # see that option's description for the full reasoning. Only
+          # scopes the live per-activation redaction/preflight check;
+          # the history scrub's --replace-text still matches this value
+          # anywhere in any blob across all of history, same as an
+          # unscoped entry always did (git-filter-repo has no concept of
+          # "this file's line N" for a rewrite spanning every past
+          # commit).
+          line = lib.mkOption {
+            type = lib.types.nullOr (lib.types.either lib.types.int (lib.types.listOf lib.types.int));
+            default = null;
+            description = "Restrict redaction to one specific 1-indexed line number in `file` (or a list of them), instead of every line that contains the value. null (default) keeps the prior unscoped behavior.";
+          };
         };
       });
       description = "Files kept in the backup, with one config-derived value inside them replaced by asterisks.";
@@ -328,10 +343,12 @@
     #
     # Give exactly one of `find` (a literal you type out by hand -- the
     # whole construct you mean to touch, e.g. the entire `username = "...";`
-    # line, not just the bare value: a bare value has no line/key scoping,
-    # so it'd also match any unrelated occurrence of that same string
-    # elsewhere in the file, or anywhere else in the repo during the
-    # history scrub) or `key` (a dotted path into config, e.g.
+    # line, not just the bare value: an unscoped bare value would also
+    # match any unrelated occurrence of that same string elsewhere in the
+    # file -- pin it to one exact spot with `line` below instead of typing
+    # out the whole surrounding construct by hand, or anywhere else in the
+    # repo during the history scrub, which `line` does NOT reach, see that
+    # option's own description) or `key` (a dotted path into config, e.g.
     # "vars.identity.gitCommitEmail" -- resolved to its CURRENT value at eval time
     # instead of typed out by hand, so it can't drift out of sync with the
     # real value the way a hand-copied `find` could). Unlike redactValues'
@@ -360,6 +377,24 @@
           replaceWith = lib.mkOption {
             type = lib.types.str;
             description = "Literal text substituted in place of whatever `find`/`key` resolves to.";
+          };
+          # A single int or a list of ints, both accepted by the same
+          # option -- `enable = false;` is a legitimate example: it's a
+          # substring of `usbRequired.enable = false;`/`sudoKeyfile.enable
+          # = true;` elsewhere in the same config.nix, so an unscoped
+          # `find` there would also corrupt those, or (if applied after
+          # them) find nothing left to match and misreport itself as
+          # stale. Pointing `line` at the one real line sidesteps that
+          # without having to hand-write the whole surrounding block as
+          # `find` (which breaks the moment the file's formatting/
+          # indentation shifts, the actual failure mode that motivated
+          # this option). Only scopes the live per-activation replace/
+          # preflight check, not the history scrub -- see redactValues'
+          # own `line` option above for why.
+          line = lib.mkOption {
+            type = lib.types.nullOr (lib.types.either lib.types.int (lib.types.listOf lib.types.int));
+            default = null;
+            description = "Restrict replacement to one specific 1-indexed line number in `file` (or a list of them), instead of every occurrence in the whole file. null (default) keeps the prior unscoped behavior.";
           };
         };
       });
