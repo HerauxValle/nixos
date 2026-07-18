@@ -29,8 +29,8 @@
       usbKillswitch.usbSerialShort = "0000000000000000000";
     };
 
-***REMOVED***
-***REMOVED***
+    backup.dotfilesBackup = {
+      enable = false;
       remoteUrl = "git@github.com:HerauxValle/nixos.git";
       useRepoCache = true;
     };

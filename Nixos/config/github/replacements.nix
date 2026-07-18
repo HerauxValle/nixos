@@ -104,8 +104,15 @@
       }
       {
         file = "Nixos/config/config.nix";
-        find = "backup.dotfilesBackup = { enable = false;";
-        replaceWith = "backup.dotfilesBackup = { enable = false;";
+        # Whole-block find, not a bare "enable = false;" line -- that bare
+        # form is also a substring of usbRequired.enable/sudoKeyfile.enable's
+        # lines above, which str.replace() would corrupt (or desync from
+        # their own dedicated entries below) since it isn't confined to a
+        # single match. config.nix reformatted this onto two lines (opening
+        # brace, then enable on its own indented line) after this entry was
+        # first written, which is what went stale here.
+        find = "    backup.dotfilesBackup = {\n      enable = false; \n";
+        replaceWith = "    backup.dotfilesBackup = {\n      enable = false;\n";
       }
     ];
   };
