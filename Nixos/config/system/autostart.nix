@@ -31,49 +31,43 @@
     jobs = {
       vaults = {
         execStart.cmd = ''
-          cas="/home/herauxvalle/Projects/Casket/main.py"
           cd /home/herauxvalle/Images || exit 1
-          printf %s "314159265" | "$cas" Vaults open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/vaults.key --no-log
+          printf %s "314159265" | cas Vaults open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/vaults.key --no-log
         '';
       };
 
       davinci = {
         execStart.cmd = ''
-          cas="/home/herauxvalle/Projects/Casket/main.py"
           cd /home/herauxvalle/Images || exit 1
-          printf %s "314159265" | "$cas" Davinci open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Davinci.key --no-log
+          printf %s "314159265" | cas Davinci open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Davinci.key --no-log
         '';
       };
 
       media = {
         execStart.cmd = ''
-          cas="/home/herauxvalle/Projects/Casket/main.py"
           cd /home/herauxvalle/Images || exit 1
-          printf %s "314159265" | "$cas" Media open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Media.key --no-log
+          printf %s "314159265" | cas Media open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Media.key --no-log
         '';
       };
 
       modrinth = {
         execStart.cmd = ''
-          cas="/home/herauxvalle/Projects/Casket/main.py"
           cd /home/herauxvalle/Images || exit 1
-          printf %s "314159265" | "$cas" Modrinth open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Modrinth.key --no-log
+          printf %s "314159265" | cas Modrinth open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Modrinth.key --no-log
         '';
       };
 
       tor = {
         execStart.cmd = ''
-          cas="/home/herauxvalle/Projects/Casket/main.py"
           cd /home/herauxvalle/Images || exit 1
-          printf %s "314159265" | "$cas" Tor open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Tor.key --no-log
+          printf %s "314159265" | cas Tor open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Tor.key --no-log
         '';
       };
 
       selfHosted = {
         execStart.cmd = ''
-          cas="/home/herauxvalle/Projects/Casket/main.py"
           cd /home/herauxvalle/Images || exit 1
-          printf %s "314159265" | "$cas" SelfHosted open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/SelfHosted.key --no-log
+          printf %s "314159265" | cas SelfHosted open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/SelfHosted.key --no-log
         '';
       };
     };
