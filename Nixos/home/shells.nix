@@ -1,3 +1,4 @@
+# &desc: "Symlinks shell config files from Dotfiles (Fish, Nu, Pwsh, Bash)."
 
 { ... }:
 

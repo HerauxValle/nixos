@@ -1,3 +1,4 @@
+# &desc: "Desktop default applications schema -- terminal/fileManager/menu/browser/editor option definitions, imports sessionVariables.nix."
 
 { lib, ... }:
 

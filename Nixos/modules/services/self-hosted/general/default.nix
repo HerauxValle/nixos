@@ -1,3 +1,5 @@
+# &desc: "Machine-level shared service concerns schema (ACL traversal only) -- flat array by design, system-wide fact not service-specific."
+
 { lib, ... }:
 
 # Schema only -- logic lives in ./general.nix. Not one service's own

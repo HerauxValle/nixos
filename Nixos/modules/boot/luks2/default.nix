@@ -1,3 +1,5 @@
+# &desc: "LUKS2 schema on VirtualKeys USB -- independent copy of USB label/keyfile path, matches hardware-configuration.nix device name."
+
 { lib, ... }:
 
 # File-owned, intentionally independent of boot/usb-required and

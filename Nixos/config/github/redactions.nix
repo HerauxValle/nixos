@@ -1,3 +1,4 @@
+# &desc: "Empty placeholder for optional values that could be blanked in published copies -- superseded by replacements.nix for all current use cases."
 
 { ... }:
 

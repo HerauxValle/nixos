@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# &desc: "Activation-time staleness checker for dotfiles backup config -- warns about unused excludeFiles, missing redactValues, stale replaceValues entries."
 # Stale-config-entry warnings, checked at activation runtime instead of
 # config.warnings/eval-time builtins.pathExists -- `nixos-rebuild switch`
 # (as pacnix calls it) runs WITHOUT --impure, so builtins.pathExists/

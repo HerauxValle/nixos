@@ -1,3 +1,4 @@
+# &desc: "Plain package resolver -- returns unsuffixed derivation for packages without version declarations."
 
 { }:
 

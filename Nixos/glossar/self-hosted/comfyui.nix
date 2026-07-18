@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.services.selfHosted.comfyui -- copy/paste into config/self-hosted/comfyui/*.nix, companion to info.md."
+
 { ... }:
 
 # =========================================================================

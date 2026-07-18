@@ -1,3 +1,4 @@
+# &desc: "Port forwarding schema (declarative PMG reimplementation) -- LAN DNAT, IPv6 bridge, Tor onion, mDNS, SSH tunnel, UPnP, cert/router/IP-history."
 
 { lib, ... }:
 

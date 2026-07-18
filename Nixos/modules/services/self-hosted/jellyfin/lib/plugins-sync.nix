@@ -1,3 +1,5 @@
+# &desc: "Jellyfin plugin installer -- postStart install via REST API, no automatic removal (safety limitation)."
+
 { lib, cfg, jellyfinDataDir, waitForApi }:
 
 # postStart step -- installs any declared-but-not-yet-installed plugin

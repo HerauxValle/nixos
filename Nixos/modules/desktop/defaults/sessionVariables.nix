@@ -1,3 +1,4 @@
+# &desc: "Session variables from default apps -- EDITOR, VISUAL, BROWSER from config.vars.desktop.default.apps."
 
 {
   config,

@@ -1,3 +1,5 @@
+# &desc: "LUKS2 unlock logic -- adds usb_storage/uas/ext4 to initrd, mounts VirtualKeys USB read-only before cryptsetup-pre.target."
+
 { config, pkgs, ... }:
 
 let

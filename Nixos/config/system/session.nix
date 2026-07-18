@@ -1,3 +1,5 @@
+# &desc: "Session default applications -- editor (fresh), browser (vivaldi), terminal (kitty), file manager (dolphin), menu (wofi)."
+
 { ... }:
 
 {

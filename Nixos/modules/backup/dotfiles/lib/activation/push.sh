@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Dotfiles backup push activation script -- runs only if snapshot changed, detects network failures early to skip doomed recovery."
 # shellcheck disable=SC1091
 # shellcheck source=./_stub.sh
 if false; then

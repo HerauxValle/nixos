@@ -1,3 +1,4 @@
+# &desc: "Immich service config -- enabled/autoStart=false, existing 43GB data in Media vault (not Applications/Networking)."
 
 { config, ... }:
 

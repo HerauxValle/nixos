@@ -1,3 +1,5 @@
+# &desc: "OpenWebUI FHS sandbox builder -- python312 (>=3.11,<3.13 requirement), pillow/libjpeg + lxml/libxml2/libxslt for image/HTML parsing."
+
 { pkgs }:
 
 # The FHS sandbox open-webui's venv gets created and installed inside --

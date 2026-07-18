@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# &desc: "Exclude files from dotfiles backup snapshot -- gitignore-pattern matching via fnmatch, replaces old rm -rf loop, imported by preflight_check.py."
 # Applies excludeFiles entries to a synced snapshot dir -- replaces what
 # used to be a per-entry `rm -rf "$dir/$f"` loop, now gitignore-pattern-
 # aware. See preflight_check.py, which imports find_matches from here

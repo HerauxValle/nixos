@@ -1,3 +1,4 @@
+# &desc: "Suffix wrapper builder -- symlinks all bin/ files with version suffix to enable multiple versions on PATH."
 
 { pkgs }:
 

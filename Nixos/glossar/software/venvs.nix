@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.packages.venvs -- venv registry/builder with path resolution, activation, lockfile options, companion to venv.nix."
+
 { ... }:
 
 # ==========================================================================

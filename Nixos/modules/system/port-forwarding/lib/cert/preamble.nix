@@ -1,3 +1,4 @@
+# &desc: "Port-forwarding cert preamble -- first Python fragment with imports/constants, dnsNames (SAN list) computed from localName entries, iptables PATH."
 
 { dnsNames, iptables }:
 

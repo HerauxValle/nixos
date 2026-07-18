@@ -1,3 +1,4 @@
+# &desc: "ComfyUI service config -- enabled/autoStart=false, coreRev/coreHash pinning, storage in SelfHosted vault, node/model lists separate."
 
 { config, ... }:
 

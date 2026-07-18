@@ -1,3 +1,5 @@
+# &desc: "ComfyUI update actions -- core/nodes/deps checks with diff-only and :apply variants, git ls-remote + nix-prefetch-git."
+
 { lib, selfHosted, cfg, activeNodes, comfyRequirementsIn, requirementsLock, requirementsLockPath, configFile, nodesFile }:
 
 # Returns an attrset merged straight into comfyui.nix's `actions` --

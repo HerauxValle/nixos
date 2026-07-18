@@ -1,3 +1,4 @@
+# &desc: "Python venv schema (no defaults) -- logLevel, basePath, venvs registry; generation/manifest/direnv logic in ./venv.nix."
 
 { lib, ... }:
 

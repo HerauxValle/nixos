@@ -1,3 +1,5 @@
+# &desc: "Jellyfin API readiness helper -- polls until API available, resolves admin key from env or sqlite, shared by sync scripts."
+
 { jellyfinDataDir }:
 
 # Shared by theme-sync.nix, plugins-sync.nix, and network-sync.nix --

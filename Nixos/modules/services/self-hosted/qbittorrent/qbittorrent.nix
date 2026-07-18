@@ -1,3 +1,5 @@
+# &desc: "qBittorrent service wiring -- mkFromNativeService, serverConfig paths (save/temp/export/finished), WebUI settings capture/restore, requireMounts binding."
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- same shape as immich.nix: no package.nix (pkgs.

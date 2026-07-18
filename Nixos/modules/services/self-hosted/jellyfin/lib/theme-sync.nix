@@ -1,3 +1,5 @@
+# &desc: "Jellyfin theme CSS sync -- embeds theme.css into CustomCss via API, marker-delimited to preserve manual changes."
+
 { cfg, jellyfinDataDir, waitForApi }:
 
 # postStart step -- pushes theme.css's real content directly into

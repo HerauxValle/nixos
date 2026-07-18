@@ -1,3 +1,4 @@
+# &desc: "Router preamble -- first Python fragment with imports/ROUTES dict (local entries, Nix-computed), one script for both :80/:443 (argv flag selects mode)."
 
 { routes, redirectMode }:
 

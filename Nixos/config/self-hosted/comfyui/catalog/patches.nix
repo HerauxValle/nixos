@@ -1,3 +1,4 @@
+# &desc: "Per-node source patches that redirect hardcoded read-only write locations to writable node_data/<repo> subdirs under dataDir."
 
 { config, pkgs, ... }:
 

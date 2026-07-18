@@ -1,3 +1,5 @@
+# &desc: "Odysseus FHS sandbox builder -- python314 (matching vault venv), lxml/libxml2/libxslt (for XML parsing), pillow/libjpeg (qrcode[pil])."
+
 { pkgs }:
 
 # The FHS sandbox Odysseus's venv gets created and installed inside --

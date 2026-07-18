@@ -1,3 +1,5 @@
+# &desc: "USB presence enforcement at boot -- poweroff if VirtualKeys not detected instead of falling through to passphrase prompt; opt-in."
+
 { lib, ... }:
 
 # Same physical USB stick as boot/luks2 and security/usb-killswitch --

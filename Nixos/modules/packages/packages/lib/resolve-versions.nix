@@ -1,3 +1,4 @@
+# &desc: "Full version resolver -- suffixed/aliased wrappers per key, default/latest automatic names, manifest entries for hash discovery."
 
 {
   lib,

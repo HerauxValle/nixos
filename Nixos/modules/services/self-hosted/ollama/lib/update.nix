@@ -1,3 +1,5 @@
+# &desc: "Ollama update script builder -- GitHub releases API, fetches/hashes new tarball, diff-only or sed-apply to config file."
+
 { cfg, configFile, apply ? false }:
 
 # Checks ollama's own GitHub releases for something newer than cfg.version.

@@ -1,3 +1,5 @@
+# &desc: "Service teardown activation builder -- removes dataDir/storage/venvDir on enabled=false, scoped via teardownPaths option."
+
 { lib }:
 
 # Runs the "flip to disabled -> tear down what's reconcilable" half of

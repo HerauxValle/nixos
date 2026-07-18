@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Dotfiles backup snapshot activation script -- checks deploy key, auto-heals missing .git, creates/updates snapshot tag."
 # shellcheck disable=SC1091
 # shellcheck source=./_stub.sh
 if false; then

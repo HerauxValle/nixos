@@ -1,3 +1,5 @@
+# &desc: "qBittorrent service schema -- wraps nixpkgs services.qbittorrent, torrent paths (Library/Incomplete/Database/Deprecated on Storage), webuiPort/torrentingPort."
+
 { lib, config, ... }:
 
 # Schema only -- logic lives in ./qbittorrent.nix. Wraps nixpkgs' own

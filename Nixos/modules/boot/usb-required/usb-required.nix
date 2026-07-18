@@ -1,3 +1,5 @@
+# &desc: "USB enforcement logic -- if enabled, poweroff at boot if VirtualKeys absent via require-usb-key systemd service."
+
 { config, pkgs, lib, ... }:
 
 let

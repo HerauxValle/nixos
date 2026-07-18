@@ -1,3 +1,4 @@
+# &desc: "Software packages config imports -- personal selections and package source registry."
 
 { ... }:
 

@@ -1,3 +1,5 @@
+# &desc: "Jellyfin network config sync -- pushes port to InternalHttpPort/PublicHttpPort via REST API, needs admin key."
+
 { cfg, jellyfinDataDir, waitForApi }:
 
 # postStart step -- pushes cfg.port into Jellyfin's own network config via

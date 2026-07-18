@@ -1,3 +1,4 @@
+# &desc: "Ollama service config -- enabled/dataDir/autoStart=false, storage symlinks for model relocation."
 
 { config, ... }:
 

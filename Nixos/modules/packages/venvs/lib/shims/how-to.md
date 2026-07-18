@@ -1,3 +1,5 @@
+<!-- &desc: "Shell integration guide -- instructions for sourcing venvctl shim in fish/bash/zsh/posix/nushell/powershell." -->
+
 # Shell Integration
 
 `venvctl` needs to modify the current shell environment when activating or

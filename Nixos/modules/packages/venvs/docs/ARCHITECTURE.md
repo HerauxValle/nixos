@@ -1,3 +1,5 @@
+<!-- &desc: "Venv module architecture documentation -- directory layout, data flow, mutable state handling, direnv/venvctl mechanisms." -->
+
 # Architecture
 
 ## Layout

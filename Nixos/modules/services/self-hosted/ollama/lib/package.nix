@@ -1,3 +1,5 @@
+# &desc: "Ollama binary package builder -- fetchurl GitHub release tarball (zstd), bundles libcublas/libcudart/libggml-cuda, addDriverRunpath for host libcuda."
+
 { pkgs }:
 
 # Pinned straight from ollama's own GitHub releases -- not "whatever

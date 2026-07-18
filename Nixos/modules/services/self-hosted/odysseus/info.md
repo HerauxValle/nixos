@@ -1,3 +1,5 @@
+<!-- &desc: "Odysseus service reference -- uvicorn AI workspace app (chat, agents, research, docs, memory), git-cloned+pinned to coreRev, data symlinked into srcDir." -->
+
 # Odysseus -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./odysseus.nix`. Implementation detail

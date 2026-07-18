@@ -1,3 +1,5 @@
+# &desc: "Jellyfin schema -- enabled/dataDir/autoStart/port/version/hash/storage/requireMounts/fdLimit/ffmpeg/theme/plugins options, imports jellyfin.nix."
+
 { lib, config, ... }:
 
 # Schema only -- logic lives in ./jellyfin.nix (wiring) and ./lib/

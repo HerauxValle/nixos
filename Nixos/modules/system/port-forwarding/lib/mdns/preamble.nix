@@ -1,3 +1,4 @@
+# &desc: "mDNS preamble -- first Python fragment with imports/constants, per-entry name (Nix-interpolated), runtime IP auto-detect (DHCP-robust)."
 
 { name }:
 

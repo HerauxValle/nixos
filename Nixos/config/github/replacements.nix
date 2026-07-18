@@ -1,3 +1,4 @@
+# &desc: "Maps sensitive local config values to placeholders for published snapshot -- username/hostname become maxmustermann/nixos, MAC nulled, email/serial replaced."
 
 { ... }:
 

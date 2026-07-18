@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Shellcheck stub declarations for activation fragments -- sourced only by linter, never at runtime, defines all dotfilesBackup* variables and functions."
 # Editor/shellcheck only -- never read by Nix, never actually sourced.
 # ../default.nix concatenates a generated preamble (every dotfilesBackup*
 # var export and function definition below) and every fragment in this

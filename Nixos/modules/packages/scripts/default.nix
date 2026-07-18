@@ -1,3 +1,4 @@
+# &desc: "Script PATH exposure schema -- generic default is pacnix (manages repo), personal picks merged from config/scripts.nix via Nix option merge."
 
 { lib, ... }:
 

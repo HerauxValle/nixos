@@ -1,3 +1,5 @@
+# &desc: "ACL grant builder -- execute-only entries via systemd-tmpfiles or setfacl, idempotent or revocable, currently dormant."
+
 { lib, pkgs }:
 
 # STATUS: dormant, not dead. Originally written ahead of a confirmed

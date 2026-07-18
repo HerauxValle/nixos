@@ -1,3 +1,4 @@
+# &desc: "Desktop setup -- Dolphin menu (garcon xfce-applications.menu), udisks2, polkit, gvfs services."
 
 { config, pkgs, ... }:
 

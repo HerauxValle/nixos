@@ -1,3 +1,5 @@
+# &desc: "Manual-only service action builder -- systemd template unit per service (self-hosted-<name>@<action>), never pulled in by activation."
+
 { lib, pkgs }:
 
 # Manual-only maintenance actions (sync, cleanup, whatever a service

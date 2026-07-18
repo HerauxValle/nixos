@@ -1,3 +1,5 @@
+# &desc: "Self-hosted services module imports -- one per service (ollama/stash/openwebui/comfyui/filebrowser/immich/jellyfin/odysseus/qbittorrent/searxng), plus lib."
+
 { ... }:
 
 # One subfolder per self-hosted service, each a real module declaring its

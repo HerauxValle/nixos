@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Venv listing tool -- shows all declared venvs, path, python version, package count, activation status, build state."
 set -euo pipefail
 
 source "$VENVCTL_LIBROOT/manage/manifest.sh"

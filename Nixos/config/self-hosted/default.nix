@@ -1,3 +1,4 @@
+# &desc: "Self-hosted services config imports -- one file per service plus ComfyUI subfolder, includes acl-traversal."
 
 { ... }:
 

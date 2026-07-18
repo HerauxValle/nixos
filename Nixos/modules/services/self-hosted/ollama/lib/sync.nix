@@ -1,3 +1,5 @@
+# &desc: "Ollama model reconciliation script -- postStart polling, pulls missing from OLLAMA_MODELS_DECLARED, removes undeclared installed models."
+
 { package }:
 
 # What to do with a declared model list: pull anything missing, remove

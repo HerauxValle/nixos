@@ -1,3 +1,5 @@
+# &desc: "Idempotent venv preStart wrapper -- hash-checks requirementsLock marker, skips reinstall if unchanged."
+
 { lib, mkVenvInstallScript }:
 
 # preStart wrapper -- idempotent, skips the real install unless

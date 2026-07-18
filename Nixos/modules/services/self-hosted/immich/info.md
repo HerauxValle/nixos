@@ -1,3 +1,5 @@
+<!-- &desc: "Immich wrapper reference -- wraps nixpkgs services.immich (postgres+redis+ml sidecar fully upstream), enabled/autoStart only." -->
+
 # Immich -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./immich.nix`. Implementation detail

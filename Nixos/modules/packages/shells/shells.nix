@@ -1,3 +1,4 @@
+# &desc: "Direnv generation logic for per-directory shells -- reverses PATH order, generates colorized package lists, handles recursive inheritance."
 
 {
   config,

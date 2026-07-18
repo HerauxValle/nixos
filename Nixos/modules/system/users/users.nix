@@ -1,3 +1,4 @@
+# &desc: "User account wiring -- mutableUsers=false for declarative passwords, safety net prepends hashFile check to prevent account lock."
 
 { config, pkgs, lib, ... }:
 

@@ -1,3 +1,4 @@
+# &desc: "Port-forwarding mDNS concatenator -- one systemd service per local=true entry, .local DNS advertising via UDP 5353 multicast, no elevated caps needed."
 
 { lib, pkgs }:
 

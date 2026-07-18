@@ -1,3 +1,5 @@
+# &desc: "FileBrowser service wiring -- package build, systemd unit with BoltDB init, update check actions."
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- the package build is ./lib/package.nix, the generic

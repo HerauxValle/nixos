@@ -1,3 +1,4 @@
+# &desc: "Test Python venv (python311 with six and tabulate) -- exercises venv builder before real use, pinning vs floating, manual and direnv activation."
 
 { ... }:
 

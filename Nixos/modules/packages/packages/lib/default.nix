@@ -1,3 +1,4 @@
+# &desc: "Package helper functions aggregator -- wires up resolve/validate/wrap utilities for main.nix package resolution."
 
 {
   lib,

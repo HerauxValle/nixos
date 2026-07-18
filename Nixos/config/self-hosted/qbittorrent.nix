@@ -1,3 +1,4 @@
+# &desc: "QBittorrent service config -- enabled/autoStart=false, values pinned against real prior install from Media vault."
 
 { config, ... }:
 

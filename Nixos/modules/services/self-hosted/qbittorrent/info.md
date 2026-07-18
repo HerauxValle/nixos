@@ -1,3 +1,5 @@
+<!-- &desc: "qBittorrent service reference -- nixpkgs services.qbittorrent wrapper, torrent manager, Library/Incomplete/Database/Deprecated on Storage drive, @update action." -->
+
 # QBitTorrent -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./qbittorrent.nix`. Implementation

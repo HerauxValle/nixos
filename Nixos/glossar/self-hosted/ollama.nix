@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.services.selfHosted.ollama -- copy/paste into config/self-hosted/ollama.nix, companion to info.md."
+
 { ... }:
 
 # =========================================================================

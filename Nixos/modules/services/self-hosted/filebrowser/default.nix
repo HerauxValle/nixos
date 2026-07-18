@@ -1,3 +1,5 @@
+# &desc: "FileBrowser schema -- enabled/dataDir/autoStart/host/port/version/hash/storage/requireMounts options, imports filebrowser.nix."
+
 { lib, config, ... }:
 
 # Schema only -- logic lives in ./filebrowser.nix, imported below, same

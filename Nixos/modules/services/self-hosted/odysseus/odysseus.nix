@@ -1,3 +1,5 @@
+# &desc: "Odysseus service wiring -- venvEnsureScript, srcEnsureScript (git clone+checkout coreRev), dataLinkScript (storage to srcDir), FHS sandbox execStart."
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- the FHS sandbox is ./lib/fhs.nix, the generic

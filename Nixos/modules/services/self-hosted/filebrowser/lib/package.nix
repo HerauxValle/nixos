@@ -1,3 +1,5 @@
+# &desc: "FileBrowser release binary pinning -- fetches linux-amd64 tarball, extracts static binary."
+
 { pkgs }:
 
 # Pinned straight from filebrowser/filebrowser's own GitHub releases --

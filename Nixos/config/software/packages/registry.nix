@@ -1,3 +1,4 @@
+# &desc: "Package sources registry -- kde/qt5/qt6/python from nixpkgs, custom sources from flakes (claude-code/desktop-fhs, casket, ltree, crun, kitty with libxkbcommon wrapper)."
 
 {
   pkgs,

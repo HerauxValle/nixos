@@ -1,3 +1,4 @@
+# &desc: "OpenWebUI service config -- enabled/venvDir/dataDir/autoStart=false, chat/user data in SelfHosted vault."
 
 { config, ... }:
 

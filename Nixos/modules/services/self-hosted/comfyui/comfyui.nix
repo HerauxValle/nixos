@@ -1,3 +1,5 @@
+# &desc: "ComfyUI service wiring -- ties together FHS venv, nodes/models, core pinning, preStart reconciliation, update actions."
+
 { config, lib, pkgs, ... }:
 
 # Wiring -- the FHS sandbox is ./lib/fhs.nix, the generic systemd/venv

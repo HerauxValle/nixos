@@ -1,3 +1,4 @@
+# &desc: "Mount activation script (real bash, not fileSystems) -- live disk queries, LABEL/NAME resolution, blocking exit-code abort."
 
 { config, lib, pkgs, ... }:
 

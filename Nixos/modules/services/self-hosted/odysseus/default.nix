@@ -1,3 +1,5 @@
+# &desc: "Odysseus service schema -- uvicorn git-cloned Python app, no dataDir (symlinks into srcDir instead), venv+git sources under ~/.impure/."
+
 { lib, config, ... }:
 
 # Schema only -- logic lives in ./odysseus.nix (wiring) and ./lib/

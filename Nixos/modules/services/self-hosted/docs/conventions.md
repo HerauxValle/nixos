@@ -1,3 +1,5 @@
+<!-- &desc: "Self-hosted services design conventions -- data/logic split, one generalization per real need, action vocabulary rules." -->
+
 # Staying generalized
 
 Rules distilled from actual decisions/mistakes made while building this

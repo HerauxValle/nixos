@@ -1,3 +1,5 @@
+# &desc: "Ollama service wiring -- package builder, syncScript postStart, OLLAMA_MODELS/OLLAMA_HOST environment construction, update actions."
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- the package build is ./package.nix, the reconciliation

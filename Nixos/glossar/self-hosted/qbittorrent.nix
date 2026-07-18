@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.services.selfHosted.qbittorrent -- wraps nixpkgs services.qbittorrent, companion to info.md."
+
 { ... }:
 
 # =========================================================================

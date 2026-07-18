@@ -1,6 +1,6 @@
-# autostart -- how it all works
-
 <!-- &desc: "Explains why one root systemd unit per job replaces the old manifest/run.py/sudoers engine." -->
+
+# autostart -- how it all works
 
 Replaces `~/Projects/Autostart` (`smg`): a JSON manifest, a threaded
 Python runner (`run.py`), a hand-generated `startup-manifest.service`,

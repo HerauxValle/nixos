@@ -1,5 +1,6 @@
+# &desc: "Network config -- hostname, NetworkManager, pinned MAC address, timezone, en_US locale, French keyboard layout."
 
-{ config, pkgs, ... }:
+{ config, ... }:
 
 {
   networking.hostName = config.vars.identity.hostName;

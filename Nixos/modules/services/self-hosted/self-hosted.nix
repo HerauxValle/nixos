@@ -1,3 +1,5 @@
+# &desc: "Shared service builder function library (plain functions, not module) -- systemd units, Python FHS/pip lifecycle, mk-from-native wrappers, ACL traversal."
+
 { lib, pkgs }:
 
 # Shared builder every per-service module (./ollama, ./comfyui, ...) calls

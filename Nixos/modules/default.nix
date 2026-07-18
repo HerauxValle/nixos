@@ -1,3 +1,5 @@
+# &desc: "Module directory root -- imports all schema submodules and defines vars.alias shortcut mechanism."
+
 { lib, ... }:
 
 {

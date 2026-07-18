@@ -1,3 +1,4 @@
+# &desc: "Port-forwarding DNAT builder -- loopback entries (ipv4+loopbackOnly) get forwardPorts + route_localnet sysctl, external -> 127.0.0.1:port NAT."
 
 { lib }:
 

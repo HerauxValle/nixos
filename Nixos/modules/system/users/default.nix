@@ -1,3 +1,4 @@
+# &desc: "User account schema -- fallbackHash ('changeme') for missing password file, hashFile at /etc/nixos-secrets/, logic in ./users.nix."
 
 { config, lib, ... }:
 

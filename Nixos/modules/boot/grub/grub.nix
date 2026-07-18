@@ -1,3 +1,5 @@
+# &desc: "GRUB implementation -- quiet boot suppresses kernel/systemd/udev console output, applies theme path and resolution."
+
 { config, pkgs, ... }:
 
 let

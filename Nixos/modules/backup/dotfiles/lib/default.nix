@@ -1,3 +1,5 @@
+# &desc: "Dotfiles backup activation script logic -- splices Nix preamble into bash, ./activation/ static .sh files for linting, resolve.nix for value resolution."
+
 {
   config,
   lib,

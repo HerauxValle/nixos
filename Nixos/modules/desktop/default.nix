@@ -1,3 +1,4 @@
+# &desc: "Desktop module root -- imports display server setup, graphics, theming, and default application configuration."
 
 { ... }:
 

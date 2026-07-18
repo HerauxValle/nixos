@@ -1,3 +1,4 @@
+# &desc: "Package resolution driver -- flattens sources + version specs into environment.systemPackages, supports multi-version coexistence via helpers in ./lib."
 
 {
   config,

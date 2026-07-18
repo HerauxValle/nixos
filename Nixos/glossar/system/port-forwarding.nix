@@ -1,3 +1,5 @@
+# &desc: "Port-forwarding example config with all options grouped by concern -- net/tls/mode independent, combinable mechanisms (local+onion+router together)."
+
 { ... }:
 
 # =========================================================================

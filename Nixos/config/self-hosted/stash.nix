@@ -1,3 +1,4 @@
+# &desc: "Stash service config -- enabled/dataDir/autoStart=false, storage symlink to vault, version/hash pinning."
 
 { config, ... }:
 

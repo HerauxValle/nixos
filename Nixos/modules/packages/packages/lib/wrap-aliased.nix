@@ -1,3 +1,4 @@
+# &desc: "Alias wrapper builder -- symlinks packageName binary to custom alias name on PATH."
 
 { pkgs }:
 

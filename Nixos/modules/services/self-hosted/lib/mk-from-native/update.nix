@@ -1,3 +1,5 @@
+# &desc: "mk-from-native update script builder -- shared by Immich/qBittorrent, GitHub releases API, diff-only/report approach."
+
 { pkgs }:
 
 # Shared print-only update.nix body for every mk-from-native service --

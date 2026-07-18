@@ -1,3 +1,5 @@
+<!-- &desc: "Venv module design decisions -- path collision assertions, direnv source_env wiring, manifest path, shim protocol rationale." -->
+
 # Decisions
 
 ## Assert vs. merge for shell/venv path collisions

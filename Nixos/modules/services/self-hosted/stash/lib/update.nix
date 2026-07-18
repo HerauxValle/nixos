@@ -1,3 +1,5 @@
+# &desc: "Stash update script builder -- GitHub releases API, fetches/hashes stash-linux binary, diff-only or sed-apply to config file."
+
 { cfg, configFile, apply ? false }:
 
 # Checks stashapp/stash's own GitHub releases for something newer than

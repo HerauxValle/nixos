@@ -1,3 +1,4 @@
+# &desc: "Passwordless sudo via keyfile on VirtualKeys USB -- opt-in, checks SHA-256 hash on every sudo call via PAM rule."
 
 { config, lib, ... }:
 

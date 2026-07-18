@@ -1,3 +1,4 @@
+# &desc: "Package version validator -- asserts default version exists in versions attrset, throws descriptive error if not."
 
 { lib }:
 

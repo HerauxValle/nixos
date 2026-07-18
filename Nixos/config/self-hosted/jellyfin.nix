@@ -1,3 +1,4 @@
+# &desc: "Jellyfin service config -- enabled/dataDir with cache/transcode/log, config/data/libraries symlinks, version/hash pinning."
 
 { config, ... }:
 

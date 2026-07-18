@@ -1,3 +1,4 @@
+# &desc: "Boot-time systemd jobs from old smg manifest -- 6 Casket vault unlocks with PIN, clean LUKS close on shutdown via execStop."
 
 { ... }:
 

@@ -1,3 +1,4 @@
+# &desc: "Package declaration framework schema -- sources registry and per-package versions/default options, imports main.nix resolution logic."
 
 { lib, pkgs, ... }:
 

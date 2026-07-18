@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.services.selfHosted.openwebui -- copy/paste into config/self-hosted/openwebui.nix, companion to info.md."
+
 { ... }:
 
 # =========================================================================

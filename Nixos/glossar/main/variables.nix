@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for all custom config.vars.* options this repo defines, grouped by module -- copy/paste into config/config.nix to enable."
+
 { ... }:
 
 # =========================================================================

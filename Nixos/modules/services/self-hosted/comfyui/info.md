@@ -1,3 +1,5 @@
+<!-- &desc: "ComfyUI service reference documentation -- schema options, workflows, node source patches, model store/installed split." -->
+
 # ComfyUI -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./comfyui.nix`. Implementation detail

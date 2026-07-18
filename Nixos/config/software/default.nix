@@ -1,3 +1,4 @@
+# &desc: "Software config imports -- programs (VSCode), services (Polkit), scripts, shells, venvs, and packages submodules."
 
 { ... }:
 

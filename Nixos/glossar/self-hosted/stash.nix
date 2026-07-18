@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.services.selfHosted.stash -- copy/paste into config/self-hosted/stash.nix, companion to info.md."
+
 { ... }:
 
 # =========================================================================

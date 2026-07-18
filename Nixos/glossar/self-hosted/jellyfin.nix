@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.services.selfHosted.jellyfin -- copy/paste into config/self-hosted/jellyfin.nix, companion to info.md."
+
 { ... }:
 
 # =========================================================================

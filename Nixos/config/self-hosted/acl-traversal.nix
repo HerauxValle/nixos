@@ -1,3 +1,4 @@
+# &desc: "ACL grants for self-hosted service system users to traverse specific mounted paths -- currently empty (qbittorrent moved to Storage mount)."
 
 { config, ... }:
 

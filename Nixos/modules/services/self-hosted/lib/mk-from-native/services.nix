@@ -1,3 +1,5 @@
+# &desc: "mkFromNativeService builder -- wraps nixpkgs services.* modules, adds enabled gate + requireMounts checks, no unit rebuild."
+
 { lib, pkgs }:
 
 # The one real "wrap something nixpkgs already provides maturely, apply

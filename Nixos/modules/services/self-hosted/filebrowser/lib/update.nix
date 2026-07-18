@@ -1,3 +1,5 @@
+# &desc: "FileBrowser update checker -- GitHub releases API, prints new version/hash, :apply variant edits config file."
+
 { cfg, configFile, apply ? false }:
 
 # Checks filebrowser/filebrowser's own GitHub releases for something newer

@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.services.selfHosted.searxng -- copy/paste into config/self-hosted/searxng.nix, companion to info.md."
+
 { ... }:
 
 # =========================================================================

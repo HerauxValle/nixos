@@ -1,3 +1,4 @@
+# &desc: "External drive mounts (Backup, Storage, Media) under ~/Drives/ via UUID; Storage/Media blocking because services depend on them."
 
 { config, ... }:
 

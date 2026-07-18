@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Dotfiles backup preflight activation script -- runtime checks for excludeFiles/redactValues/replaceValues, calls Python stale-entry checker."
 # shellcheck disable=SC1091
 # shellcheck source=./_stub.sh
 if false; then

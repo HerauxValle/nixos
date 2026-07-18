@@ -1,3 +1,5 @@
+<!-- &desc: "Port-forwarding PMG migration mapping -- old pmg.py CLI imperative commands -> new declarative port-forwarding module, feature-by-feature correspondence." -->
+
 # pmg -> port-forwarding, feature by feature
 
 `~/Projects/PMG/pmg.py` is an imperative CLI (`pmg open <port> [--onion|

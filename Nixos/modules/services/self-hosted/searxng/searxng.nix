@@ -1,3 +1,5 @@
+# &desc: "SearXNG service wiring -- venvEnsureScript (pthExtraStep for no-pip-package), srcEnsureScript (git checkout coreRev), themeLinkScript (store symlinks with sed workaround)."
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- the FHS sandbox is ./lib/fhs.nix, the generic

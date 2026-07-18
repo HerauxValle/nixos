@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.services.selfHosted.odysseus (no dataDir, storage symlinked to srcDir) -- companion to info.md."
+
 { ... }:
 
 # =========================================================================

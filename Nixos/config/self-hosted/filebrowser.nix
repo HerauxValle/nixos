@@ -1,3 +1,4 @@
+# &desc: "FileBrowser service config -- enabled/dataDir/autoStart=false, browses whole home, BoltDB in vault storage."
 
 { config, ... }:
 

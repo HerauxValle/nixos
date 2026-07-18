@@ -1,3 +1,5 @@
+# &desc: "Package versioning system documentation -- basic use, spec types (latest/flake-input/commit), pinning, hash discovery, aliases, configuration."
+
 packages/ — declarative package installation with optional
 per-package version coexistence.
 

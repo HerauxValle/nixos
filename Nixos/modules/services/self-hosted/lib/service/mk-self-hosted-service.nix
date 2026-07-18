@@ -1,3 +1,5 @@
+# &desc: "Self-hosted service builder function -- enabled flag drives lifecycle (live or teardown), preStart/postStart reconciliation, storage mounts, dataDir handling."
+
 { lib, pkgs, mkTeardownActivationScript }:
 
 # The live process. Restart=on-failure replaces the old bash framework's

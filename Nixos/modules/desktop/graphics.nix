@@ -1,3 +1,4 @@
+# &desc: "NVIDIA graphics configuration -- open=false, modesetting=true, 32-bit support enabled."
 
 { config, pkgs, ... }:
 

@@ -1,3 +1,5 @@
+# &desc: "Config directory imports -- personal values, self-hosted services, software, github publishing, and system settings."
+
 { ... }:
 
 {

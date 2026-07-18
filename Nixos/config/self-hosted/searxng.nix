@@ -1,3 +1,4 @@
+# &desc: "SearXNG service config -- enabled/autoStart=true, dataDir holds settings.yml symlink, venv/src reconciliation on preStart."
 
 { config, ... }:
 

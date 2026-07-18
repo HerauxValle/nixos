@@ -1,3 +1,4 @@
+# &desc: "Port-forwarding UPnP builder -- runtime activation-time bash, detects local IP (UDP to 8.8.8.8), calls upnpc per entry, lease self-healing on every activation."
 
 { lib, pkgs, globalBlocking }:
 

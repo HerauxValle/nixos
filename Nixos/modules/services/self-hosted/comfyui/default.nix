@@ -1,3 +1,5 @@
+# &desc: "ComfyUI schema -- enabled toggle auto-teardown, dataDir for venv/models/nodes, venvDir under ~/.impure/, logic in ./comfyui.nix and ./lib/."
+
 { lib, config, ... }:
 
 # Schema only -- logic lives in ./comfyui.nix (wiring) and ./lib/ (the

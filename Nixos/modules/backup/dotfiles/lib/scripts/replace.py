@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# &desc: "Replace sensitive values with placeholders in dotfiles snapshot -- exact literal substitution, published result is valid stand-in, per-line scoping."
 # Swaps one exact literal string for another exact literal string, in a
 # file already synced into the snapshot -- runs on every activation, on
 # the CURRENT copy, same as redact.py above but without the masking/

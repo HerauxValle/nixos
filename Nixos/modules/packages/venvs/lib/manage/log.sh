@@ -1,6 +1,5 @@
-# &desc: "Internal logging library providing color-coded print utilities conditioned on specific script verbosity levels."
-
 #!/usr/bin/env bash
+# &desc: "Logging helper -- logLevel-aware print functions (debug/info/error), color-coded dot messages."
 # Sourced, not executed -- guards below assume $VENVCTL_LOGLEVEL is set
 # by whoever called us (venvctl or the home-manager activation script).
 # debug: everything. error: only failures. silent: nothing but the final

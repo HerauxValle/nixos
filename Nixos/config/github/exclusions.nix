@@ -1,3 +1,4 @@
+# &desc: "Paths excluded from dotfiles-backup snapshots -- secrets (secrets.fish, .envrc), build caches (__pycache__, target dirs), and machine-specific state."
 
 { ... }:
 

@@ -1,3 +1,4 @@
+# &desc: "Port forwarding wiring -- maps PMG features to NixOS constructs (firewall, DNAT, sysctl) and custom implementations (IPv6 bridge, mDNS, tunnel, UPnP, cert)."
 
 { config, lib, pkgs, ... }:
 

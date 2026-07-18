@@ -1,3 +1,5 @@
+# &desc: "SearXNG FHS sandbox builder -- python312 (>=3.10, <3.13), lxml/libxml2/libxslt for XML/HTML parsing, git for srcEnsureScript."
+
 { pkgs }:
 
 # The FHS sandbox SearXNG's venv gets created and installed inside --

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Venv activation protocol printer -- resolves by name/path, prints VIRTUAL_ENV/PATH_PREPEND for shim sourcing."
 # Usage: activate.sh <name|path>
 # Prints, on success, exactly:
 #   VIRTUAL_ENV=<resolved path>

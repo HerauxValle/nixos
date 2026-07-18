@@ -1,3 +1,4 @@
+# &desc: "Packages module schema -- imports programs, scripts, shells, venvs, and packages submodules."
 
 { ... }:
 

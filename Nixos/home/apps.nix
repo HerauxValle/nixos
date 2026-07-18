@@ -1,3 +1,4 @@
+# &desc: "Symlinks home-manager XDG config directories to Dotfiles subdirs (Hyprland, Kitty, Mpv, Neovim, Scripts, Fastfetch, etc)."
 
 { pkgs, ... }:
 

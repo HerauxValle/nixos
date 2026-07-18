@@ -1,3 +1,4 @@
+# &desc: "Polkit privilege escalation with GNOME auth agent (dark-themed) as systemd user service for graphical sudo prompts."
 
 { pkgs, ... }:
 

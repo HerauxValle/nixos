@@ -1,3 +1,4 @@
+# &desc: "Single version spec resolver -- latest/flake-input/commit with optional hash pinning or bare '#' for hash discovery."
 
 { inputs, system, lib }:
 

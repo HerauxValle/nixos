@@ -1,3 +1,5 @@
+<!-- &desc: "mk-from-native documentation -- wrapping nixpkgs-provided services/programs/packages, five categories (one implemented: services.nix)." -->
+
 # `lib/mk-from-native/` -- wrapping something nixpkgs already provides
 
 Sibling to `lib/service/` (`mkSelfHostedService`/`mkActionService` -- build

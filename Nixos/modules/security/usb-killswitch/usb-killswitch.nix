@@ -1,3 +1,4 @@
+# &desc: "USB killswitch udev rule -- triggers poweroff when USB key removed, soft/hard/disabled modes."
 
 { config, pkgs, lib, ... }:
 

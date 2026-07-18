@@ -1,3 +1,5 @@
+# &desc: "SearXNG service schema -- git-cloned Python search engine, no pip package, srcDir checked out to coreRev, theme symlinks in dataDir, venv+settings.yml storage."
+
 { lib, config, ... }:
 
 # Schema only -- logic lives in ./searxng.nix (wiring) and ./lib/

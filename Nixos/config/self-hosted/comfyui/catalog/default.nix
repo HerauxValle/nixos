@@ -1,3 +1,4 @@
+# &desc: "Catalog data imports for ComfyUI -- nodes, models, and node patches, grouped since they're all the same shape of inventory data."
 
 { ... }:
 

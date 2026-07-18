@@ -1,3 +1,4 @@
+# &desc: "System config imports -- autostart jobs, hidden devices, keyring setup, mountpoints, and port forwarding."
 
 { ... }:
 

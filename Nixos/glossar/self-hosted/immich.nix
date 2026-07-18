@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.services.selfHosted.immich -- copy/paste into config/self-hosted/immich.nix, wraps nixpkgs services.immich, companion to info.md."
+
 { ... }:
 
 # =========================================================================

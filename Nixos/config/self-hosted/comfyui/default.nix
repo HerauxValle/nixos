@@ -1,3 +1,4 @@
+# &desc: "ComfyUI config imports -- catalog folder (nodes/models/patches) and service config, split to avoid burying config under hundreds of list entries."
 
 { ... }:
 

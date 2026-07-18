@@ -1,3 +1,4 @@
+# &desc: "Full catalog of 69 ComfyUI custom nodes ever pinned, keyed by repo, nix-prefetch-git via default-branch HEAD at generation time."
 
 { ... }:
 

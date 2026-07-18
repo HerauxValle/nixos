@@ -1,3 +1,5 @@
+# &desc: "Stash service wiring -- package builder, execStart binary+host/port, preStart mkdir subdirs (plugins/scrapers/metadata/cache/generated/blobs), ffmpeg on PATH, update actions."
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- the package build is ./package.nix, the generic systemd

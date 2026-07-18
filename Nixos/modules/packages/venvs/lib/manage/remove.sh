@@ -1,6 +1,5 @@
-# &desc: "Targeted venv uninstallation engine that safely tears down old runtime environments matching untracked manifest keys."
-
 #!/usr/bin/env bash
+# &desc: "Venv remover -- deletes venv directory, removes manifest entry, trusts manifest path over assumptions."
 # Usage: remove.sh <name>
 # Called by sync.sh for manifest entries with no matching declared venv.
 # Deliberately trusts the manifest's recorded path over anything else --

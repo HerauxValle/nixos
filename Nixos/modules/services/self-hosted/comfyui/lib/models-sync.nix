@@ -1,3 +1,5 @@
+# &desc: "ComfyUI model sync script -- fetches missing models, removes stale, validates file sizes to catch truncated downloads."
+
 { lib, dataDir, activeModels }:
 
 # Model fetch/reconciliation, run every service start via preStart. Split

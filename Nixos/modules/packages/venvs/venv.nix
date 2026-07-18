@@ -1,3 +1,4 @@
+# &desc: "Python venv builder companion to shells.nix -- path resolution, ~ expansion, eval-time python bin selection, manifest handling."
 
 {
   config,

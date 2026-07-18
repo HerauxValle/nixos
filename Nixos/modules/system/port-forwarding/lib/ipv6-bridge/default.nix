@@ -1,3 +1,4 @@
+# &desc: "Port-forwarding IPv6 bridge concatenator -- one systemd service per ipv6 entry, TLS/HTTP features, bindsTo entry.service (with autoCert fallback for null tls.*)."
 
 { lib, pkgs, httpRedirect, autoCert }:
 

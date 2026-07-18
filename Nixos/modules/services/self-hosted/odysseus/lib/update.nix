@@ -1,3 +1,5 @@
+# &desc: "Odysseus update actions builder -- update/core/deps (and :apply variants), independent control of coreRev + requirements.lock."
+
 { lib, selfHosted, cfg, requirementsIn, requirementsLock, requirementsLockPath, configFile }:
 
 # Returns an attrset merged straight into odysseus.nix's `actions` --

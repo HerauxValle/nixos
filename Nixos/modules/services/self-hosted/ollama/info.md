@@ -1,3 +1,5 @@
+<!-- &desc: "Ollama service reference -- LLM inference engine, pinned binary fetchurl (no venv/FHS), models auto-reconciled postStart, sync+update actions." -->
+
 # Ollama -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./ollama.nix`. Implementation detail

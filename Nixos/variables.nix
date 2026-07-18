@@ -1,3 +1,4 @@
+# &desc: "Schema-only file defining all custom config.vars options -- identity, boot, security, services, packages, system settings."
 
 { config, lib, ... }:
 

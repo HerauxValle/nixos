@@ -1,3 +1,4 @@
+# &desc: "Hyprland plugin builder (mkPlugin) -- builds from git against pinned pkgs.hyprland for ABI match, CMake/Meson configurable."
 
 { config, pkgs, ... }:
 

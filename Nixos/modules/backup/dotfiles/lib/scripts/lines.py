@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# &desc: "JSON line field resolver for redact/replace/preflight scripts -- normalizes nullOr(int|listOf int) to None or set of 1-indexed line numbers."
 # Shared by redact.py/replace.py (the entries actually applied) and
 # preflight_check.py (the "does this still match" check) so both sides
 # resolve an entry's optional `line` field identically -- same reasoning

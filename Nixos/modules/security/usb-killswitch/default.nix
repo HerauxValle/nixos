@@ -1,3 +1,4 @@
+# &desc: "USB removal trigger for poweroff -- soft (clean shutdown), hard (force kill), or disabled; udev rule keyed to USB serial."
 
 { lib, ... }:
 

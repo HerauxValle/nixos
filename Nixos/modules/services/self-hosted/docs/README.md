@@ -1,3 +1,5 @@
+<!-- &desc: "Self-hosted services documentation index -- links to architecture, adding-a-service, conventions guides." -->
+
 # self-hosted docs
 
 - [`architecture.md`](./architecture.md) -- how everything works: the

@@ -1,3 +1,4 @@
+# &desc: "Core nix settings -- allow unfree packages, enable experimental features (flakes, nix-command)."
 
 { config, pkgs, ... }:
 

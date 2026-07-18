@@ -1,3 +1,4 @@
+# &desc: "Per-directory shells with context-sensitive $PATH -- Dotfiles/ gets tmux only when inside that directory via direnv."
 
 { config, pkgs, ... }:
 

@@ -1,3 +1,5 @@
+# &desc: "Mountpoints example config -- disk registry/manager (uuid-only required), LABEL/NAME resolution needs live disk access at activation time."
+
 { ... }:
 
 # =========================================================================

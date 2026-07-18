@@ -1,3 +1,4 @@
+# &desc: "Mountpoint entry bash builder -- UUID check, leaf resolution (literal/LABEL/NAME), mkdir/mount/chown, blocking vs warn on failure, self-healing on each activation."
 
 { lib, mountBin, mountpointBin, mkdir, chown, globalBlocking }:
 

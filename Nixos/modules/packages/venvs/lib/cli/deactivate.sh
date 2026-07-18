@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Venv deactivation protocol printer -- prints VIRTUAL_ENV= sentinel, optional current path for named unload banner."
 # Usage: deactivate.sh [<currently active resolvedPath>]
 # venvctl has no notion of "the active venv" on its own -- that state
 # only ever exists as a shell variable inside whichever shell ran

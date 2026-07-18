@@ -1,3 +1,5 @@
+<!-- &desc: "Self-hosted services architecture documentation -- two-tree split (modules vs config), shared functions, systemd unit building patterns." -->
+
 # self-hosted -- how it all works
 
 Four services live under this framework today: Ollama, Stash, OpenWebUI,

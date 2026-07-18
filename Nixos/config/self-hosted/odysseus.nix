@@ -1,3 +1,4 @@
+# &desc: "Odysseus service config -- enabled/autoStart=false, host/port from old main.sh and upstream defaults."
 
 { config, ... }:
 

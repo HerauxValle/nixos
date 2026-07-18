@@ -1,3 +1,4 @@
+# &desc: "Program toggle schema -- generic defaults for fish/hyprland/direnv/nix-ld (repo assumes them), personal picks in config/programs.nix."
 
 { lib, ... }:
 

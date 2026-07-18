@@ -1,3 +1,4 @@
+# &desc: "Theming setup -- QT_QPA_PLATFORMTHEME=qt6ct, Nerd Fonts Symbols Only for MyBar icon glyphs."
 
 { config, pkgs, ... }:
 

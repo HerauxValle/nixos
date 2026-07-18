@@ -1,3 +1,5 @@
+# &desc: "OpenWebUI update script builder -- thin wrapper around mkDepsUpdateScript, pip-compile diff/apply only (no separate nodes/models/core)."
+
 { selfHosted, requirementsIn, requirementsLock, requirementsLockPath, apply ? false }:
 
 # Thin wrapper around ../../self-hosted.nix's mkDepsUpdateScript --

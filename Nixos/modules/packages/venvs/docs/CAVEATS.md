@@ -1,3 +1,5 @@
+<!-- &desc: "Venv module caveats -- shells.nix/venv.nix coupling and shim differences for direnv wiring." -->
+
 # Caveats
 
 Cross-cutting notes on the shells.nix/venv.nix coupling and the

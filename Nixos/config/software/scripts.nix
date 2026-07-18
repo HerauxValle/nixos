@@ -1,3 +1,4 @@
+# &desc: "Scripts exposed as PATH commands -- qsr (reload), wallpaper, hyprfloat (window manager), run (launcher), secrets (vault dispatcher)."
 
 { ... }:
 

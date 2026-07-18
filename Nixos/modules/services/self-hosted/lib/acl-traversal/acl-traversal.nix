@@ -1,3 +1,5 @@
+# &desc: "ACL traversal grant wiring -- separate oneshot units per target, strict Before ordering, fixes PrivateUsers namespace issue."
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- for every real grant declared in

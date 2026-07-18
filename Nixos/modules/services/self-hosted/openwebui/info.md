@@ -1,3 +1,5 @@
+<!-- &desc: "OpenWebUI service reference -- Python venv (FHS), pip-installed frontend for Ollama/local LLMs, WebSocket UI, @update rebuilds lock." -->
+
 # OpenWebUI -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./openwebui.nix`. Implementation detail

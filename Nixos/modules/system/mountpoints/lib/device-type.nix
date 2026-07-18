@@ -1,3 +1,4 @@
+# &desc: "Mountpoint device submodule type -- UUID registry with optional mountpoint (at/as), enabled toggle, owner/blocking, resolves to path derived field."
 
 { lib }:
 

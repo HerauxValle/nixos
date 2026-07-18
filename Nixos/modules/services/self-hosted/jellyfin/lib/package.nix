@@ -1,3 +1,5 @@
+# &desc: "Jellyfin .NET binary packaging -- fetches release tarball, patches native libs (fontconfig/libstdc++), autoPatchelfHook."
+
 { pkgs }:
 
 # Pinned straight from jellyfin's own repo.jellyfin.org release tarballs --

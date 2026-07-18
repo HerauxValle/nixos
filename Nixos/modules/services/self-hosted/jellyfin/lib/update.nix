@@ -1,3 +1,5 @@
+# &desc: "Jellyfin update checker -- repo.jellyfin.org latest-stable scrape, prints version/hash, :apply variant edits config."
+
 { cfg, configFile, apply ? false }:
 
 # Checks repo.jellyfin.org's latest-stable listing for something newer

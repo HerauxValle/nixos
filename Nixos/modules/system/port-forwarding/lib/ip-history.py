@@ -1,6 +1,5 @@
-# &desc: "Monitors and logs historical changes to local IPv4 network interfaces and global public IPv6 addresses into a structured JSON file."
-
 #!/usr/bin/env python3
+# &desc: "Monitors and logs historical changes to local IPv4 network interfaces and global public IPv6 addresses into a structured JSON file."
 import ipaddress
 import json
 import socket

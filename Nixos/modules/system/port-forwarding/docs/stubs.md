@@ -1,3 +1,5 @@
+<!-- &desc: "Port-forwarding Python fragments _stub.py guide -- type stubs for linter (concatenated .py fragments reference undefined names), test-harness module interface." -->
+
 # Why every fragment directory has a `_stub.py`
 
 `lib/cert/`, `lib/ipv6-bridge/`, `lib/mdns/`, and `lib/router/` each

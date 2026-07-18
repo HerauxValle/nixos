@@ -1,3 +1,4 @@
+# &desc: "Per-directory shell schema (empty default) -- path, packages on $PATH there, recursive flag; direnv generation in ./shells.nix."
 
 { lib, ... }:
 

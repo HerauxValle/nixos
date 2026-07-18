@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Venvctl command dispatcher -- routes activate/deactivate/list/update to subscripts, sets LIBROOT/DATA environment."
 # This is what `venvctl` execs into (see venv.nix). Kept intentionally
 # dumb -- all it does is route to a microscript per subcommand. Each
 # subcommand script is independently sourceable/testable.

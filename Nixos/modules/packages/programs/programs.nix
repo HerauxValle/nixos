@@ -1,3 +1,4 @@
+# &desc: "Programs wiring -- assembles NixOS programs.* options from config.vars.packages.programs schema (fish, hyprland, steam, gamemode, silentSDDM)."
 
 { config, ... }:
 

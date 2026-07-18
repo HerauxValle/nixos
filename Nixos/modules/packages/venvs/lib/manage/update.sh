@@ -1,6 +1,5 @@
-# &desc: "Dedicated upgrade controller that pulls down the latest updates for floating PyPI strings and rewrites respective project lock targets."
-
 #!/usr/bin/env bash
+# &desc: "Floating package updater -- bumps 'latest'-pinned packages per venv or all, triggered via venvctl update."
 # Usage: update.sh <name|all>
 # The counterpart to build.sh's deliberate refusal to touch "latest"
 # packages -- this is the only place they actually get bumped.

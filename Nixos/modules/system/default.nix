@@ -1,3 +1,4 @@
+# &desc: "System module schema -- imports autostart, storage mounts, networking, port forwarding, device hiding, and users submodules."
 
 { config, pkgs, ... }:
 

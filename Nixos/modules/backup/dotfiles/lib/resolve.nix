@@ -1,3 +1,5 @@
+# &desc: "Dotfiles backup value resolution logic (pure Nix) -- tolerant tryEval for redact/replace keys, filters failures to avoid stale-key crashes."
+
 { config, lib, cfg }:
 
 # redactValues'/replaceValues' own key/find/replaceWith resolution, plus

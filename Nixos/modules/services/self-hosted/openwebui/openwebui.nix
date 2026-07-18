@@ -1,3 +1,5 @@
+# &desc: "OpenWebUI service wiring -- FHS sandbox execStart, venvEnsureScript preStart, secretKeyFile generation, update actions, DATA_DIR environment."
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- the FHS sandbox is ./fhs.nix, the generic systemd/venv

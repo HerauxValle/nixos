@@ -1,3 +1,4 @@
+# &desc: "Script wrapping logic -- copies folder to store, symlinks file on PATH, filters nulls from skipped entries."
 
 { config, pkgs, lib, ... }:
 

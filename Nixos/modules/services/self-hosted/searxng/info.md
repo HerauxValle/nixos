@@ -1,3 +1,5 @@
+<!-- &desc: "SearXNG service reference -- git-cloned Python metasearch engine, venv (FHS), themes symlinked to Dotfiles/Themes/Searxng, settings.yml from vault." -->
+
 # SearXNG -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./searxng.nix`. Implementation detail

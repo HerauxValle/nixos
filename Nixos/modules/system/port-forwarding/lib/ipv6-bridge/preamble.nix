@@ -1,3 +1,4 @@
+# &desc: "IPv6 bridge preamble -- first Python fragment with imports/constants, per-port globals (PORT/MODE/TLS_CTX) Nix-interpolated, no CLI parsing."
 
 { port, mode, certfile, keyfile, httpRedirect }:
 

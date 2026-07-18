@@ -1,3 +1,5 @@
+<!-- &desc: "Port-forwarding docs index -- links to mapping (pmg->module migration), architecture, decisions, stubs (test-harness module specs)." -->
+
 # port-forwarding docs
 
 - [`mapping.md`](./mapping.md) -- every pmg feature and exactly what it

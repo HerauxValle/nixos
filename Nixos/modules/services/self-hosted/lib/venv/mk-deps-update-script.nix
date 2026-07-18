@@ -1,5 +1,4 @@
-# Shared by every service with a hash-locked venv (OpenWebUI, ComfyUI):
-# re-run pip-compile against the existing requirementsIn, diff the
+# &desc: "Venv dependencies update builder -- pip-compile diff vs requirementsLock, diff-only or :apply atomic move."
 # result against the checked-in requirementsLock. Two modes:
 #
 # apply = false (the "@update:deps"-style action): print/diff only,

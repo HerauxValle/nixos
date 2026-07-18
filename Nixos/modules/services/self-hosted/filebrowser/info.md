@@ -1,3 +1,5 @@
+<!-- &desc: "FileBrowser service reference -- schema options table, systemd units (service + @update), BoltDB workflows." -->
+
 # FileBrowser -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./filebrowser.nix`. Implementation

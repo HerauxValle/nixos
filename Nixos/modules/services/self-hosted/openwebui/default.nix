@@ -1,3 +1,5 @@
+# &desc: "OpenWebUI service schema -- Python venv (FHS sandbox), dataDir, Ollama/local LLM frontend, storage symlink to SelfHosted vault."
+
 { lib, config, ... }:
 
 # Schema only -- logic lives in ./fhs.nix (the sandbox + venv install) and

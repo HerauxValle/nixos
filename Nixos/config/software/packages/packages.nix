@@ -1,3 +1,4 @@
+# &desc: "Personal system packages by source -- pkgs/custom/kde/qt5/qt6/python, version pinning for swift, lists ~100 tools across dev/languages/build/shell/cli/media/security."
 
 { ... }:
 

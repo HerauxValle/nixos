@@ -1,3 +1,5 @@
+<!-- &desc: "Guide to porting new self-hosted services -- decision tree for binary/python/reconciliation, files needed, wiring checklist." -->
+
 # Adding a new self-hosted service
 
 Read `docs/architecture.md` first if you haven't -- this assumes you

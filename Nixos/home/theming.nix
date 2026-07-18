@@ -1,3 +1,4 @@
+# &desc: "Symlinks theme/style files (Kvantum, Qt5ct, Qt6ct, Dolphin) and configures Qt6 appearance and fonts."
 
 { config, pkgs, ... }:
 

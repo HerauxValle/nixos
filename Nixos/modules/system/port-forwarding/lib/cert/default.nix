@@ -1,3 +1,4 @@
+# &desc: "Port-forwarding cert fragment concatenator -- CA/leaf cert/key generation, systemd oneshot (port-forwarding-cert-ensure.service), auto-cert for null certFile/keyFile entries."
 
 { lib, pkgs, dnsNames }:
 

@@ -1,3 +1,5 @@
+<!-- &desc: "Port-forwarding design decisions -- rationale for concrete choices made during development (not abstract advice), one decision per problem." -->
+
 # Specific decisions, and what justified each
 
 Distilled from actual back-and-forth building this module, not

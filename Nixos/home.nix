@@ -1,3 +1,4 @@
+# &desc: "Home Manager configuration root -- sets identity from NixOS config and imports home/ subdirectories."
 
 { osConfig, ... }:
 

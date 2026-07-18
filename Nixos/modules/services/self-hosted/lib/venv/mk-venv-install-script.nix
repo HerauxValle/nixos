@@ -1,3 +1,5 @@
+# &desc: "Venv installation script builder -- FHS sandbox, pip install with hash locks, records marker hash for idempotency."
+
 { lib }:
 
 # The one deliberately-impure step in the whole system, confined to

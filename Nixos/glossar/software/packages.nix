@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.packages.environment (sources + packages) -- version pinning, flake inputs, pure/impure options, copy/paste into config/software/packages/*.nix."
+
 { ... }:
 
 # =========================================================================

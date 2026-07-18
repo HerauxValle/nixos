@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# &desc: "Redact sensitive values in dotfiles snapshot -- replaces with asterisks, comments out line, per-line scoping via optional line field."
 # Replaces one exact literal value with same-length asterisks AND
 # comments out the whole line it's on, in a file already synced into the
 # snapshot -- runs on every activation, on the CURRENT copy (separate

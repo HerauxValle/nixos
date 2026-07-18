@@ -1,3 +1,5 @@
+# &desc: "Passwordless sudo via keyfile logic -- setuid-root PAM checker runs on every sudo, checks keyfile hash, fast-fails to passphrase on error."
+
 { config, pkgs, lib, ... }:
 
 let

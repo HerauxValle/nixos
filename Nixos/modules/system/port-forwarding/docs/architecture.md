@@ -1,3 +1,5 @@
+<!-- &desc: "Port-forwarding architecture documentation -- entry schema (submodule not loose list), layer design (cert/mdns/ipv6-bridge/router/handler), test harness." -->
+
 # How it fits together
 
 ## The entry schema

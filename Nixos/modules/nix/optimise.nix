@@ -1,3 +1,4 @@
+# &desc: "Daily automatic nix-store hardlink dedup with before/after store size/path count/savings stats in journal."
 
 { config, pkgs, lib, ... }:
 

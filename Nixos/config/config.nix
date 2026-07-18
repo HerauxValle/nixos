@@ -1,3 +1,4 @@
+# &desc: "Personal machine configuration values -- identity, boot, security, services, packages, and system settings."
 
 { ... }:
 

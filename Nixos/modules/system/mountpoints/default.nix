@@ -1,3 +1,4 @@
+# &desc: "Mountpoints module schema -- disk registry/manager (UUID+addresses), activation-time bash mount resolver, wiring in ./mountpoints.nix."
 
 { lib, ... }:
 

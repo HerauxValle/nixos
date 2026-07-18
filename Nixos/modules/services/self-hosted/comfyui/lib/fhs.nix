@@ -1,3 +1,5 @@
+# &desc: "ComfyUI CUDA FHS environment -- FHS sandbox with torch, CUDA libs, toolchain for native-extension nodes."
+
 { pkgs, extraBwrapArgs ? [ ] }:
 
 # extraBwrapArgs -- computed in ../comfyui.nix from the currently

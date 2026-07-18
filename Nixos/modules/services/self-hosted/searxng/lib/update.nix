@@ -1,3 +1,5 @@
+# &desc: "SearXNG update actions builder -- update/core/deps (and :apply variants), independent control of coreRev + requirements.lock (no nodes like ComfyUI)."
+
 { lib, selfHosted, cfg, requirementsIn, requirementsLock, requirementsLockPath, configFile }:
 
 # Returns an attrset merged straight into searxng.nix's `actions` --

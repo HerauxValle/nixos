@@ -1,3 +1,5 @@
+# &desc: "ComfyUI node mounting -- fetches/patches nodes, bind-mounts custom_nodes/<repo> with per-node patch support."
+
 { lib, pkgs, dataDir, activeNodes, nodePatches }:
 
 # Node source fetch + per-node patches (see nodePatches -- a real Nix

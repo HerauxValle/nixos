@@ -1,3 +1,5 @@
+# &desc: "Ollama service schema -- pinned release version/hash, models list (auto-reconciled postStart), OLLAMA_HOST host/port overrides, dataDir storage."
+
 { lib, config, ... }:
 
 # Schema only -- logic lives in ./ollama.nix, imported below, same split

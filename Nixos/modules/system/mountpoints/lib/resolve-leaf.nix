@@ -1,3 +1,4 @@
+# &desc: "Mountpoint LABEL/NAME resolver bash function -- lsblk live queries (label/name/auto modes), shared by all mount-entry snippets, called per-entry."
 
 { lsblk }:
 

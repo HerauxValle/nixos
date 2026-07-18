@@ -1,3 +1,5 @@
+# &desc: "Self-hosted service library imports -- plain function imports (service/, venv/, mk-from-native/), acl-traversal/ with real options."
+
 { ... }:
 
 # lib/ itself is mostly plain functions (./service/, ./venv/,

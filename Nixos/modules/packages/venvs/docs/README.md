@@ -1,3 +1,5 @@
+<!-- &desc: "Venv module user guide -- quick config, rebuild flow, venvctl commands (list/update/activate), direnv integration, path collision rules." -->
+
 # venvs/
 
 Declarative Python virtualenvs, sibling module to `../shells/`. Declare

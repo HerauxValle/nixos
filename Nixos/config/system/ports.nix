@@ -1,3 +1,4 @@
+# &desc: "Port forwarding config with mDNS resolution -- bare http://name.local reaches services without port via resolver on 80/443, ported from old pmg setup."
 
 { ... }:
 

@@ -1,3 +1,5 @@
+# &desc: "ComfyUI venv requirements builder -- hash-locked requirements.in from node+core pins, CUDA/torch header, preStart install script."
+
 { lib, pkgs, selfHosted, cfg, comfyCore, activeNodes, mkNodeSrc, fhsEnv }:
 
 # The hash-locked venv's requirements.in generation, plus the preStart

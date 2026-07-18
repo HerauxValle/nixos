@@ -1,3 +1,5 @@
+# &desc: "Stash service schema -- Go binary video library manager, dataDir holds config.yml/database/thumbnails/previews/cache/blobs, pinned version/hash from nixpkgs."
+
 { lib, config, ... }:
 
 # Schema only -- logic lives in ./stash.nix, imported below, same split as

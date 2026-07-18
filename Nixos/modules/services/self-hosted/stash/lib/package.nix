@@ -1,3 +1,5 @@
+# &desc: "Stash binary package builder -- fetchurl GitHub release (static Go binary, no dynamic deps), simpler than ollama (no autoPatchelf needed)."
+
 { pkgs }:
 
 # Pinned straight from stashapp/stash's own GitHub releases -- same

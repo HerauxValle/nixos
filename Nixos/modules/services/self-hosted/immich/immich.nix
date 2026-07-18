@@ -1,3 +1,5 @@
+# &desc: "Immich service wrapper wiring -- mkFromNativeService binding, Postgres/Redis/ML config, shared update script."
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- but unlike every other service, there's no package.nix

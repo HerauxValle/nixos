@@ -1,3 +1,5 @@
+<!-- &desc: "Stash service reference -- Go binary video/media library manager with GraphQL API, cleanest service (just binary + dataDir), simplest setup + @update action." -->
+
 # Stash -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./stash.nix`. Implementation detail

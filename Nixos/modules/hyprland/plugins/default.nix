@@ -1,3 +1,4 @@
+# &desc: "Hyprland plugins schema with building docs -- raw specs (name/url/rev/hash), personal picks, build logic in ./plugins.nix."
 
 { pkgs, lib, ... }:
 

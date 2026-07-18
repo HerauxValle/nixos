@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# &desc: "Pip freeze lockfile writer -- executes pip freeze atomically with .lock.new staging for safety."
 # Sourced by build.sh / update.sh, never run standalone -- expects
 # log_debug/log_error already in scope and VENVCTL_LOCKROOT exported.
 # Staged as *.lock.new first so a failed/partial pip freeze never

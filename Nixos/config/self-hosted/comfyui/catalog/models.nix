@@ -1,3 +1,4 @@
+# &desc: "Full catalog of every ComfyUI model ever pinned, keyed by name, auto-fetched on preStart, some split across multiple files."
 
 { ... }:
 

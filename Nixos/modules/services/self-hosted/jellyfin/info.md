@@ -1,3 +1,5 @@
+<!-- &desc: "Jellyfin service reference -- .NET binary with plugin/theme/network/rescan actions, postStart API orchestration, fdLimit support." -->
+
 # Jellyfin -- self-hosted module reference
 
 Schema: `./default.nix`. Wiring: `./jellyfin.nix`. Implementation detail

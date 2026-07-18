@@ -1,3 +1,5 @@
+# &desc: "Jellyfin service wiring -- .NET binary package, theme/plugins/network sync postStart scripts, update actions."
+
 { config, lib, pkgs, ... }:
 
 # Wiring only -- the package build is ./lib/package.nix, the generic

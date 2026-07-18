@@ -1,3 +1,5 @@
+# &desc: "Jellyfin database rescan action -- manual maintenance for stale Folder/Movie entries, stops/edits DB/restarts/triggers scan."
+
 { jellyfinDataDir }:
 
 # @rescan action -- ported from the old rescan.sh, a real (if surgical)

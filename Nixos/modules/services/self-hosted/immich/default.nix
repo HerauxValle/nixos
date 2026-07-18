@@ -1,3 +1,5 @@
+# &desc: "Immich schema wrapper -- wraps nixpkgs services.immich (postgres+redis+ml sidecar), enabled/autoStart only, no custom options."
+
 { lib, ... }:
 
 # Schema only -- logic lives in ./immich.nix, imported below. Unlike

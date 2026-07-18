@@ -1,3 +1,5 @@
+# &desc: "FHS venv builder -- buildFHSEnv wrapper, pure+reproducible (symlinks not copies), extraBwrapArgs for bind-mount overrides."
+
 { pkgs }:
 
 # A pure, reproducible sandbox for services whose dependencies need a

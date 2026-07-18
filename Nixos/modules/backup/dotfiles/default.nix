@@ -1,3 +1,5 @@
+# &desc: "Dotfiles GitHub backup schema -- opt-in master switch, skipOnTest to avoid pushing on test runs, remote URL and branch config."
+
 { config, lib, ... }:
 
 # Logic that reads these lives in ./lib/, imported below.

@@ -1,3 +1,5 @@
+# &desc: "Commented example reference for config.vars.services.selfHosted.filebrowser -- copy/paste into config/self-hosted/filebrowser.nix, companion to info.md."
+
 { ... }:
 
 # =========================================================================

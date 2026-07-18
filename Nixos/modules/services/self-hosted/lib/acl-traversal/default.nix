@@ -1,3 +1,5 @@
+# &desc: "ACL traversal schema -- grants for dedicated-user services to traverse restricted ancestor paths, shared machine-level option."
+
 { lib, ... }:
 
 # Schema only -- logic lives in ./acl-traversal.nix, the mechanism

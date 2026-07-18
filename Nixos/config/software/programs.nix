@@ -1,3 +1,4 @@
+# &desc: "VSCode configuration -- extensions, keybindings, and settings from Dotfiles/VSCode; personal setup with Nix, Python, Rust, C++ tooling."
 
 { config, pkgs, ... }:
 

@@ -1,3 +1,5 @@
+# &desc: "GRUB boot configuration schema -- theme directory, resolution, hidden/graphical toggles, imports grub.nix implementation."
+
 { lib, ... }:
 
 {
