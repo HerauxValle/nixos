@@ -115,6 +115,11 @@
       unzip = { };
       zip = { };
       wget = { };
+
+      # Fonts
+      noto-fonts-color-emoji = { };
+      noto-fonts = { };
+      noto-fonts-cjk-sans = { };
     };
 
     custom = {

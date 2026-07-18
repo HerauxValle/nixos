@@ -1,0 +1,918 @@
+{
+  "path": "Dotfiles/Scripts/LTree",
+  "generated_at": "18-07-2026 17:28:35",
+  "hash_algo": "xxhash64",
+  "hash_sampled": false,
+  "total": {
+    "dirs": 21,
+    "files": 49,
+    "lines": 7849,
+    "chars": 411623
+  },
+  "by_extension": [
+    {"ext": "c", "files": 18, "lines": 3609, "chars": 147662},
+    {"ext": "md", "files": 7, "lines": 2174, "chars": 119822},
+    {"ext": "h", "files": 19, "lines": 976, "chars": 46128},
+    {"ext": "sh", "files": 2, "lines": 641, "chars": 29291},
+    {"ext": "(no ext)", "files": 1, "lines": 285, "chars": 62975},
+    {"ext": "nix", "files": 1, "lines": 103, "chars": 4266},
+    {"ext": "lock", "files": 1, "lines": 61, "chars": 1479}
+  ],
+  "tree": 
+  {
+    "name": "Dotfiles/Scripts/LTree",
+    "type": "dir",
+    "symlink": false,
+    "lines": 7849,
+    "chars": 411623,
+    "mode": "drwxr-xr-x",
+    "size": 435494,
+    "mtime": 1784331326,
+    "hash": "f89873faff91ad37",
+    "desc": null,
+    "children": [
+      {
+        "name": "build",
+        "type": "dir",
+        "symlink": false,
+        "lines": 285,
+        "chars": 62975,
+        "mode": "drwxr-xr-x",
+        "size": 86704,
+        "mtime": 1784331753,
+        "hash": "ac20306297fd5f79",
+        "desc": null,
+        "children": [
+          {
+            "name": "ltree",
+            "type": "file",
+            "symlink": false,
+            "lines": 285,
+            "chars": 62975,
+            "mode": "-rwxr-xr-x",
+            "size": 86704,
+            "mtime": 1784331753,
+            "hash": "b5b086b01080a9c6",
+            "desc": ""
+          }
+        ]
+      },
+      {
+        "name": "docs",
+        "type": "dir",
+        "symlink": false,
+        "lines": 1761,
+        "chars": 98663,
+        "mode": "drwxr-xr-x",
+        "size": 98690,
+        "mtime": 1784331381,
+        "hash": "38e6a0325765d8d1",
+        "desc": null,
+        "children": [
+          {
+            "name": "architecture.md",
+            "type": "file",
+            "symlink": false,
+            "lines": 132,
+            "chars": 15029,
+            "mode": "-rw-r--r--",
+            "size": 15029,
+            "mtime": 1784327801,
+            "hash": "f661e4b0c092bd80",
+            "desc": "Explains how ltree's C source is organized into seven subsystem subdirectories (core/scan/hash/render/io/debug/sort/util) plus main.c, with a per-file responsibility table and a data-flow diagram from the single filesystem walk to every output path."
+          },
+          {
+            "name": "json-schema.md",
+            "type": "file",
+            "symlink": false,
+            "lines": 145,
+            "chars": 6574,
+            "mode": "-rw-r--r--",
+            "size": 6574,
+            "mtime": 1784327746,
+            "hash": "e877ee9632068663",
+            "desc": "Documents the exact JSON object shape shared by -j and --save-output (top-level path/total/by_extension/debug/tree keys and the recursive per-entry node shape), including which fields are always present versus gated by -o DEBUG or -o DIFF."
+          },
+          {
+            "name": "plan-hash-desc-spinner.md",
+            "type": "file",
+            "symlink": false,
+            "lines": 258,
+            "chars": 13598,
+            "mode": "-rw-r--r--",
+            "size": 13598,
+            "mtime": 1784331381,
+            "hash": "ce1f332282d1fa11",
+            "desc": "The category-by-category implementation plan and flagged design-decision ASSUMPTIONs for --stdout-aware lazy hash computation, --simple-hash, the lt binary alias, -o DESC/--desc/-D, and the loading spinner, all 6 categories shipped, plus an addendum settling -oA [MODULES]/-oO [MODULES] as two plain, ordinary flags (with -oE eventually folded into -oA's optional exclude argument) after a few false-start revisions; original raw prompt appended verbatim at the bottom."
+          },
+          {
+            "name": "plan-ls-rework.md",
+            "type": "file",
+            "symlink": false,
+            "lines": 563,
+            "chars": 30550,
+            "mode": "-rw-r--r--",
+            "size": 30576,
+            "mtime": 1784317741,
+            "hash": "b6b4b64ff8c4e086",
+            "desc": "The full spec, category-by-category implementation plan, and flagged design-decision ASSUMPTIONs for the ls-mode default flip and everything built on top of it (-oE, -o O, HIDDEN, --condense, --sort, --live streaming, stdin, --stdout), all 12 categories shipped, plus two addenda on later revisions: always-on streaming (tried, reverted -- jagged per-block alignment) and the final shape (buffered -o TREE default, --live opt-in with fixed-width columns), plus the ls-style grid; original raw prompt appended verbatim at the bottom."
+          },
+          {
+            "name": "plan.md",
+            "type": "file",
+            "symlink": false,
+            "lines": 86,
+            "chars": 4478,
+            "mode": "-rw-r--r--",
+            "size": 4478,
+            "mtime": 1784314128,
+            "hash": "33c394364df6c277",
+            "desc": "Design-decision record (hashing algorithm choice, DATE timezone, monolith-vs-modules split, column-alignment layout) from when PERMISSIONS/SIZE/DATE/HASH/--gitignore/--save-output/-o DIFF were first added, predating the later ls-mode rework."
+          },
+          {
+            "name": "usage.md",
+            "type": "file",
+            "symlink": false,
+            "lines": 577,
+            "chars": 28434,
+            "mode": "-rw-r--r--",
+            "size": 28435,
+            "mtime": 1784331339,
+            "hash": "c4fffad4fcd04089",
+            "desc": "The complete flag-by-flag reference: the ls-mode-vs-tree-mode split (including -o TREE's default whole-tree-aligned buffering, --live's fixed-width streaming, and ls-mode's ls -C grid), every -o module, --condense, --sort, --stdout JSON filtering, exclude/gitignore matching, hashing, diffing, and the debug report."
+          }
+        ]
+      },
+      {
+        "name": "flake.lock",
+        "type": "file",
+        "symlink": false,
+        "lines": 61,
+        "chars": 1479,
+        "mode": "-rw-r--r--",
+        "size": 1479,
+        "mtime": 1784310519,
+        "hash": "786b14b907ad563d",
+        "desc": null
+      },
+      {
+        "name": "flake.nix",
+        "type": "file",
+        "symlink": false,
+        "lines": 103,
+        "chars": 4266,
+        "mode": "-rw-r--r--",
+        "size": 4266,
+        "mtime": 1784327052,
+        "hash": "9db49dee263deabc",
+        "desc": "Nix flake packaging ltree as a stdenv derivation (plain gcc build, no per-file compilation) plus a devShell with gcc/gdb/valgrind for local hacking."
+      },
+      {
+        "name": "include",
+        "type": "dir",
+        "symlink": false,
+        "lines": 976,
+        "chars": 46128,
+        "mode": "drwxr-xr-x",
+        "size": 46128,
+        "mtime": 1784312265,
+        "hash": "3f8673d36d086a90",
+        "desc": null,
+        "children": [
+          {
+            "name": "core",
+            "type": "dir",
+            "symlink": false,
+            "lines": 188,
+            "chars": 9013,
+            "mode": "drwxr-xr-x",
+            "size": 9013,
+            "mtime": 1784329492,
+            "hash": "94f9401861699f71",
+            "desc": null,
+            "children": [
+              {
+                "name": "config.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 92,
+                "chars": 4943,
+                "mode": "-rw-r--r--",
+                "size": 4943,
+                "mtime": 1784329492,
+                "hash": "7e4e299e826bdc55",
+                "desc": "Defines the Config struct -- the fully-parsed command line (modules[] array, sort spec, --stdout filter, every other flag) passed by const pointer to every module that needs to read a flag, and the HashAlgo enum."
+              },
+              {
+                "name": "modules.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 39,
+                "chars": 1565,
+                "mode": "-rw-r--r--",
+                "size": 1565,
+                "mtime": 1784327089,
+                "hash": "19f6c8b00227adc0",
+                "desc": "Declares the shared ModuleId/ModuleCat/ModuleDef/MODULE_TABLE that both main.c's -o parser and every renderer read from, replacing what used to be a hand-duplicated module list in each."
+              },
+              {
+                "name": "node.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 57,
+                "chars": 2505,
+                "mode": "-rw-r--r--",
+                "size": 2505,
+                "mtime": 1784327099,
+                "hash": "2ed1826b4bb8a917",
+                "desc": "Defines the in-memory Node tree struct (fixed-size stat/line/char/hash/btime fields filled once by scan.c, formatted to text only at print time) and declares node_cmp, the case-insensitive alphabetical ordering used by default everywhere."
+              }
+            ]
+          },
+          {
+            "name": "debug",
+            "type": "dir",
+            "symlink": false,
+            "lines": 90,
+            "chars": 4165,
+            "mode": "drwxr-xr-x",
+            "size": 4165,
+            "mtime": 1784314186,
+            "hash": "00e1d45c28dd246a",
+            "desc": null,
+            "children": [
+              {
+                "name": "debug.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 90,
+                "chars": 4165,
+                "mode": "-rw-r--r--",
+                "size": 4165,
+                "mtime": 1784314186,
+                "hash": "e470b427493b1b29",
+                "desc": "Declares DebugStats and the DebugTimer/debug_collect/debug_print_text/debug_json_append API behind -o DEBUG's hyper-detailed timing/memory/IO run report, computed once and rendered two ways from the same struct."
+              }
+            ]
+          },
+          {
+            "name": "hash",
+            "type": "dir",
+            "symlink": false,
+            "lines": 54,
+            "chars": 2588,
+            "mode": "drwxr-xr-x",
+            "size": 2588,
+            "mtime": 1784314191,
+            "hash": "600b9219a1a429e4",
+            "desc": null,
+            "children": [
+              {
+                "name": "hash.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 54,
+                "chars": 2588,
+                "mode": "-rw-r--r--",
+                "size": 2588,
+                "mtime": 1784314191,
+                "hash": "296d0a87f753f20b",
+                "desc": "Declares the unified hashing API (hash_compute, hash_combine_children, HASH_MAX_BYTES) behind -o HASH/-o DIFF/--save-output, dispatching between the from-scratch xxHash64 (default) and SHA-256 (--cryptographic) implementations."
+              }
+            ]
+          },
+          {
+            "name": "io",
+            "type": "dir",
+            "symlink": false,
+            "lines": 127,
+            "chars": 6057,
+            "mode": "drwxr-xr-x",
+            "size": 6057,
+            "mtime": 1784326975,
+            "hash": "f2f2be413e2779d8",
+            "desc": null,
+            "children": [
+              {
+                "name": "diff.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 52,
+                "chars": 2675,
+                "mode": "-rw-r--r--",
+                "size": 2675,
+                "mtime": 1784326975,
+                "hash": "ee95388aa3f81ceb",
+                "desc": "Declares diff_apply/find_latest_snapshot/diff_peek_algo, the -o DIFF API that loads the newest .ltree JSON snapshot and marks which Node entries changed since it was taken."
+              },
+              {
+                "name": "json.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 59,
+                "chars": 2729,
+                "mode": "-rw-r--r--",
+                "size": 2729,
+                "mtime": 1784324711,
+                "hash": "99fa5a6f5f93d878",
+                "desc": "Declares json_render/print_json (the JSON writer shared by -j and --save-output) plus a minimal recursive-descent JSON reader (json_parse and friends) just capable enough to round-trip ltree's own snapshot files for -o DIFF."
+              },
+              {
+                "name": "save.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 16,
+                "chars": 653,
+                "mode": "-rw-r--r--",
+                "size": 653,
+                "mtime": 1784314209,
+                "hash": "f22a1ddcd849a0b1",
+                "desc": "Declares save_output, the --save-output entry point that writes a timestamped JSON snapshot into <path>/.ltree/ for later -o DIFF comparisons."
+              }
+            ]
+          },
+          {
+            "name": "render",
+            "type": "dir",
+            "symlink": false,
+            "lines": 210,
+            "chars": 10426,
+            "mode": "drwxr-xr-x",
+            "size": 10426,
+            "mtime": 1784329788,
+            "hash": "9e06c18a8dd0edcc",
+            "desc": null,
+            "children": [
+              {
+                "name": "colors.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 32,
+                "chars": 1900,
+                "mode": "-rw-r--r--",
+                "size": 1900,
+                "mtime": 1784327307,
+                "hash": "1352595708c8be2a",
+                "desc": "Defines the shared ANSI colour palette and the COL()/RST() macros that collapse to empty strings under --no-colour, so no print site has to branch on that flag itself."
+              },
+              {
+                "name": "columns.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 105,
+                "chars": 4818,
+                "mode": "-rw-r--r--",
+                "size": 4818,
+                "mtime": 1784329788,
+                "hash": "4bd47a75c011e7a6",
+                "desc": "Declares the PrintLine/LineBuf row types and the shared column-rendering pipeline (columns_measure for whole-tree/whole-listing width, columns_measure_fixed for --live's fixed widths, columns_print_line, --condense- and -o O-aware) that render_tree.c and render_ls.c both build on, plus print_summary_tail for the shared TOTAL:/DEBUG:/DIFF-note tail."
+              },
+              {
+                "name": "render_files.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 11,
+                "chars": 334,
+                "mode": "-rw-r--r--",
+                "size": 334,
+                "mtime": 1784314224,
+                "hash": "d29d5b7588fda374",
+                "desc": "Declares print_files_summary, the FILES: by-extension breakdown table renderer."
+              },
+              {
+                "name": "render_ls.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 23,
+                "chars": 1186,
+                "mode": "-rw-r--r--",
+                "size": 1186,
+                "mtime": 1784316027,
+                "hash": "ddd148023a3f3b3a",
+                "desc": "Declares print_ls_view, the default (no -o TREE) non-recursive [Folders]/[Files] listing renderer -- packs into a real ls-style multi-column grid on a tty, --sort- and -o HIDDEN-aware."
+              },
+              {
+                "name": "render_tree.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 39,
+                "chars": 2188,
+                "mode": "-rw-r--r--",
+                "size": 2188,
+                "mtime": 1784317099,
+                "hash": "0bac64b8f4d78653",
+                "desc": "Declares print_tree_view (the default, buffered, whole-tree-aligned -o TREE renderer) and the tree_live_* streaming hooks (--live, fixed-width columns instead of measured) that print top-down as scan.c's build_tree walks."
+              }
+            ]
+          },
+          {
+            "name": "scan",
+            "type": "dir",
+            "symlink": false,
+            "lines": 145,
+            "chars": 6246,
+            "mode": "drwxr-xr-x",
+            "size": 6246,
+            "mtime": 1784317764,
+            "hash": "18396598ed161e19",
+            "desc": null,
+            "children": [
+              {
+                "name": "exttable.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 34,
+                "chars": 1210,
+                "mode": "-rw-r--r--",
+                "size": 1210,
+                "mtime": 1784314248,
+                "hash": "7539c4930a695cdb",
+                "desc": "Declares the per-extension files/lines/chars accumulator (ExtTable) shared by the FILES: summary, the JSON by_extension block, and --sort types' bucketing, plus file_ext()/strip_ext_for_display()."
+              },
+              {
+                "name": "gitignore.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 45,
+                "chars": 1727,
+                "mode": "-rw-r--r--",
+                "size": 1727,
+                "mtime": 1784314253,
+                "hash": "22c004e7c3ee8939",
+                "desc": "Declares the GitTable type and gitignore_load/gitignore_is_excluded, --gitignore's single-root-.gitignore matcher (a documented subset of real gitignore semantics)."
+              },
+              {
+                "name": "scan.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 66,
+                "chars": 3309,
+                "mode": "-rw-r--r--",
+                "size": 3309,
+                "mtime": 1784317764,
+                "hash": "8c3716155be18a4b",
+                "desc": "Declares build_tree (the one recursive filesystem walk, with three optional streaming hooks -- measure/entry/done -- that let --live print -o TREE top-down as it walks), fetch_btime (creation time via statx for --sort birth), and the Totals struct."
+              }
+            ]
+          },
+          {
+            "name": "sort",
+            "type": "dir",
+            "symlink": false,
+            "lines": 48,
+            "chars": 2313,
+            "mode": "drwxr-xr-x",
+            "size": 2313,
+            "mtime": 1784314265,
+            "hash": "01bbc2555ec5753d",
+            "desc": null,
+            "children": [
+              {
+                "name": "sortmodes.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 48,
+                "chars": 2313,
+                "mode": "-rw-r--r--",
+                "size": 2313,
+                "mtime": 1784314265,
+                "hash": "71797da29731cdac",
+                "desc": "Declares SortSpec/sort_parse/sort_nodes, --sort's ls-mode-only mode parsing (abc/birth/modified/lines/chars/types plus combined/reversed modifiers) and qsort comparator."
+              }
+            ]
+          },
+          {
+            "name": "util",
+            "type": "dir",
+            "symlink": false,
+            "lines": 114,
+            "chars": 5320,
+            "mode": "drwxr-xr-x",
+            "size": 5320,
+            "mtime": 1784327422,
+            "hash": "da9d75171bc04c7b",
+            "desc": null,
+            "children": [
+              {
+                "name": "spinner.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 45,
+                "chars": 2302,
+                "mode": "-rw-r--r--",
+                "size": 2302,
+                "mtime": 1784327422,
+                "hash": "baff3aa46a8d1a46",
+                "desc": "Declares the stderr-only, tty-gated loading spinner: spinner_start/spinner_tick/spinner_erase/spinner_stop, used so a scan that takes more than a fraction of a second doesn't look stuck, whether buffered (no --live) or streaming top-down (--live)."
+              },
+              {
+                "name": "util.h",
+                "type": "file",
+                "symlink": false,
+                "lines": 69,
+                "chars": 3018,
+                "mode": "-rw-r--r--",
+                "size": 3018,
+                "mtime": 1784314271,
+                "hash": "7c5f26b82d445868",
+                "desc": "Declares dependency-free shared helpers used everywhere: the growable SBuf string builder, UTF-8 display-width and visible-character counting, and the PERMISSIONS/SIZE/DATE/hash-hex formatting functions."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "README.md",
+        "type": "file",
+        "symlink": false,
+        "lines": 413,
+        "chars": 21159,
+        "mode": "-rw-r--r--",
+        "size": 21225,
+        "mtime": 1784331326,
+        "hash": "ae689ee63c2af3a6",
+        "desc": "Project pitch, build instructions (plain gcc or Nix), full usage summary with examples, and two changelog sections covering the original feature build-out and the later ls-mode rework."
+      },
+      {
+        "name": "src",
+        "type": "dir",
+        "symlink": false,
+        "lines": 3609,
+        "chars": 147662,
+        "mode": "drwxr-xr-x",
+        "size": 147702,
+        "mtime": 1784331743,
+        "hash": "df6dc4be13a6591d",
+        "desc": null,
+        "children": [
+          {
+            "name": "core",
+            "type": "dir",
+            "symlink": false,
+            "lines": 68,
+            "chars": 2734,
+            "mode": "drwxr-xr-x",
+            "size": 2734,
+            "mtime": 1784327108,
+            "hash": "4df64a51e5c4bd0f",
+            "desc": null,
+            "children": [
+              {
+                "name": "modules.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 28,
+                "chars": 1415,
+                "mode": "-rw-r--r--",
+                "size": 1415,
+                "mtime": 1784327094,
+                "hash": "878d89bf6bb51c41",
+                "desc": "Defines MODULE_TABLE (every -o token's name/id/category) and module_lookup(), the case-insensitive lookup every -o/-oE/--stdout parser and every renderer uses."
+              },
+              {
+                "name": "node.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 40,
+                "chars": 1319,
+                "mode": "-rw-r--r--",
+                "size": 1319,
+                "mtime": 1784327108,
+                "hash": "9fe98f77d2a93737",
+                "desc": "Implements node_new/node_add_child/node_free and node_cmp, the case-insensitive alphabetical qsort comparator used as the default ordering throughout."
+              }
+            ]
+          },
+          {
+            "name": "debug",
+            "type": "dir",
+            "symlink": false,
+            "lines": 170,
+            "chars": 9413,
+            "mode": "drwxr-xr-x",
+            "size": 9413,
+            "mtime": 1784314287,
+            "hash": "d7ba827b53d03e57",
+            "desc": null,
+            "children": [
+              {
+                "name": "debug.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 170,
+                "chars": 9413,
+                "mode": "-rw-r--r--",
+                "size": 9413,
+                "mtime": 1784314287,
+                "hash": "fd34ede3957abcbc",
+                "desc": "Implements -o DEBUG's DebugTimer checkpoints and debug_collect (getrusage/mallinfo2/clock_gettime-based DebugStats collection), plus its two renderers, debug_print_text and debug_json_append."
+              }
+            ]
+          },
+          {
+            "name": "hash",
+            "type": "dir",
+            "symlink": false,
+            "lines": 268,
+            "chars": 9654,
+            "mode": "drwxr-xr-x",
+            "size": 9654,
+            "mtime": 1784314291,
+            "hash": "d33671ff57e318d4",
+            "desc": null,
+            "children": [
+              {
+                "name": "hash.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 268,
+                "chars": 9654,
+                "mode": "-rw-r--r--",
+                "size": 9654,
+                "mtime": 1784314291,
+                "hash": "fdd3d4ff987dabc3",
+                "desc": "Implements xxHash64 and SHA-256 from the published reference constants (no external hashing library) behind one hash_compute dispatch function, plus hash_combine_children for directory digests."
+              }
+            ]
+          },
+          {
+            "name": "io",
+            "type": "dir",
+            "symlink": false,
+            "lines": 652,
+            "chars": 23782,
+            "mode": "drwxr-xr-x",
+            "size": 23782,
+            "mtime": 1784327336,
+            "hash": "bdf0cdae5982449e",
+            "desc": null,
+            "children": [
+              {
+                "name": "diff.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 225,
+                "chars": 7881,
+                "mode": "-rw-r--r--",
+                "size": 7881,
+                "mtime": 1784326982,
+                "hash": "3509b3b4bd384f1d",
+                "desc": "Implements -o DIFF: finds the newest JSON snapshot under .ltree/, flattens it into a sorted-by-path table for bsearch comparison, and marks Node.modified on anything that changed by type/hash/size/mtime."
+              },
+              {
+                "name": "json.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 370,
+                "chars": 13873,
+                "mode": "-rw-r--r--",
+                "size": 13873,
+                "mtime": 1784327336,
+                "hash": "92a711410ee409a3",
+                "desc": "Implements json_render/print_json (the JSON writer, with json_key_allowed() gating every optional field through --stdout's exclusive/inclusive filter) and the minimal recursive-descent JSON reader used to load snapshots back in for -o DIFF."
+              },
+              {
+                "name": "save.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 57,
+                "chars": 2028,
+                "mode": "-rw-r--r--",
+                "size": 2028,
+                "mtime": 1784314311,
+                "hash": "639604bac3ca0e4f",
+                "desc": "Implements save_output: creates .ltree/ if needed and writes a timestamped, --stdout-filter-immune JSON snapshot via the same json_render() the -j path uses."
+              }
+            ]
+          },
+          {
+            "name": "main.c",
+            "type": "file",
+            "symlink": false,
+            "lines": 554,
+            "chars": 26140,
+            "mode": "-rw-r--r--",
+            "size": 26140,
+            "mtime": 1784331743,
+            "hash": "b4c50f8ffdbda6d9",
+            "desc": "CLI entry point: parses every flag into a Config, resolves which hash algorithm the run needs, runs the one filesystem walk (--live wires up streaming hooks; default doesn't), then dispatches to JSON, the buffered or already-streamed tree view, or the default non-recursive ls view."
+          },
+          {
+            "name": "render",
+            "type": "dir",
+            "symlink": false,
+            "lines": 913,
+            "chars": 36949,
+            "mode": "drwxr-xr-x",
+            "size": 36989,
+            "mtime": 1784331398,
+            "hash": "5f14d32b45666d0c",
+            "desc": null,
+            "children": [
+              {
+                "name": "columns.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 311,
+                "chars": 12521,
+                "mode": "-rw-r--r--",
+                "size": 12521,
+                "mtime": 1784331398,
+                "hash": "d37ca652dbd3e36b",
+                "desc": "Implements the shared PrintLine/LineBuf plumbing and the column-measure-then-print pipeline (columns_measure for actual widest value, columns_measure_fixed for --live's fixed widths, columns_print_line with underflow-clamped padding, condense- and -o O-order-aware) every terminal renderer builds on, plus print_summary_tail."
+              },
+              {
+                "name": "render_files.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 56,
+                "chars": 2515,
+                "mode": "-rw-r--r--",
+                "size": 2515,
+                "mtime": 1784314332,
+                "hash": "01b5829effc83d08",
+                "desc": "Implements print_files_summary, the FILES: by-extension table using the same [X: value] bracket-and-column-alignment convention as per-entry columns."
+              },
+              {
+                "name": "render_ls.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 311,
+                "chars": 12385,
+                "mode": "-rw-r--r--",
+                "size": 12385,
+                "mtime": 1784316014,
+                "hash": "11dbe686af6254b4",
+                "desc": "Implements print_ls_view, the default [Folders]/[Files] listing: packs entries into an ls -C style multi-column grid on a tty when no -o data columns are active, falls back to one-per-line otherwise (piped output, or with columns), full --sort integration including the types extension-bucket sub-headers."
+              },
+              {
+                "name": "render_tree.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 235,
+                "chars": 9528,
+                "mode": "-rw-r--r--",
+                "size": 9568,
+                "mtime": 1784327490,
+                "hash": "57ff65b494124c29",
+                "desc": "Implements print_tree_view (buffered, flattens the complete tree then measures/prints whole-tree-aligned) and the tree_live_* streaming hooks (--live, fixed-width columns, per-depth prefix queue-free since recursion is interleaved) for -o TREE."
+              }
+            ]
+          },
+          {
+            "name": "scan",
+            "type": "dir",
+            "symlink": false,
+            "lines": 588,
+            "chars": 24554,
+            "mode": "drwxr-xr-x",
+            "size": 24554,
+            "mtime": 1784327472,
+            "hash": "963c0c97c7ee85db",
+            "desc": null,
+            "children": [
+              {
+                "name": "exttable.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 57,
+                "chars": 1744,
+                "mode": "-rw-r--r--",
+                "size": 1744,
+                "mtime": 1784314350,
+                "hash": "5e64842f13fb8dd4",
+                "desc": "Implements the ExtTable per-extension accumulator, its descending-by-lines qsort comparator, and file_ext()/strip_ext_for_display()."
+              },
+              {
+                "name": "gitignore.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 75,
+                "chars": 2625,
+                "mode": "-rw-r--r--",
+                "size": 2625,
+                "mtime": 1784314354,
+                "hash": "ae0570383ac3ec48",
+                "desc": "Implements --gitignore's single-root .gitignore loader and matcher (comments, trailing-slash dir-only, leading-slash anchoring, ! re-inclusion with last-match-wins)."
+              },
+              {
+                "name": "scan.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 456,
+                "chars": 20185,
+                "mode": "-rw-r--r--",
+                "size": 20185,
+                "mtime": 1784327472,
+                "hash": "ddcfd462934f3070",
+                "desc": "Implements build_tree, the one recursive filesystem walk (exclude/gitignore/-o HIDDEN filtering, per-file mmap+memchr line/char/hash/DESC-marker scanning, --simple-hash sampling, statx birth-time fetch) with three streaming hooks interleaved into the recursion, wired up only when --live is passed, so -o TREE can print top-down as it goes."
+              }
+            ]
+          },
+          {
+            "name": "sort",
+            "type": "dir",
+            "symlink": false,
+            "lines": 89,
+            "chars": 3465,
+            "mode": "drwxr-xr-x",
+            "size": 3465,
+            "mtime": 1784314365,
+            "hash": "c0caf7121b62d621",
+            "desc": null,
+            "children": [
+              {
+                "name": "sortmodes.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 89,
+                "chars": 3465,
+                "mode": "-rw-r--r--",
+                "size": 3465,
+                "mtime": 1784314365,
+                "hash": "9ab6c0113f2c08c4",
+                "desc": "Implements sort_parse (--sort's comma-separated mode/modifier parsing) and sort_nodes (the qsort comparator for abc/birth/modified/lines/chars/types with combined/reversed)."
+              }
+            ]
+          },
+          {
+            "name": "util",
+            "type": "dir",
+            "symlink": false,
+            "lines": 307,
+            "chars": 10971,
+            "mode": "drwxr-xr-x",
+            "size": 10971,
+            "mtime": 1784327432,
+            "hash": "a4aea8ddd967cbb8",
+            "desc": null,
+            "children": [
+              {
+                "name": "spinner.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 67,
+                "chars": 2112,
+                "mode": "-rw-r--r--",
+                "size": 2112,
+                "mtime": 1784327432,
+                "hash": "ae20a1c8dfc40ad1",
+                "desc": "Implements the stderr-only, tty-gated, rate-limited loading spinner (spinner_start/spinner_tick/spinner_erase/spinner_stop) -- a 10-frame braille glyph redrawn in place via \\\\r + clear-line, active only when stderr is a terminal."
+              },
+              {
+                "name": "util.c",
+                "type": "file",
+                "symlink": false,
+                "lines": 240,
+                "chars": 8859,
+                "mode": "-rw-r--r--",
+                "size": 8859,
+                "mtime": 1784314373,
+                "hash": "9ce288b5af9f0b45",
+                "desc": "Implements the dependency-free SBuf string builder, UTF-8 display-width and visible-character counting, and the PERMISSIONS/SIZE/DATE/hash-hex formatting helpers."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "tools",
+        "type": "dir",
+        "symlink": false,
+        "lines": 641,
+        "chars": 29291,
+        "mode": "drwxr-xr-x",
+        "size": 29300,
+        "mtime": 1784331268,
+        "hash": "259cf4284258868e",
+        "desc": null,
+        "children": [
+          {
+            "name": "mem_profile.sh",
+            "type": "file",
+            "symlink": false,
+            "lines": 184,
+            "chars": 7572,
+            "mode": "-rwxr-xr-x",
+            "size": 7572,
+            "mtime": 1784314168,
+            "hash": "149983e87afa876a",
+            "desc": "Measures ltree's real memory footprint (peak RSS via GNU time -v, optional valgrind massif/memcheck passes) across several synthetic directory shapes (wide, deep, many-small-files, few-big-files) and every hashing mode."
+          },
+          {
+            "name": "smoke_test.sh",
+            "type": "file",
+            "symlink": false,
+            "lines": 457,
+            "chars": 21719,
+            "mode": "-rwxr-xr-x",
+            "size": 21728,
+            "mtime": 1784331268,
+            "hash": "341b6f3804d9e8cd",
+            "desc": "Self-contained black-box smoke test that builds a throwaway playground covering every edge case (symlinks, permissions, unicode, gitignore, deep nesting) and exercises every CLI flag/-o module combination against it, checking exit codes and JSON validity."
+          }
+        ]
+      }
+    ]
+  }
+}
