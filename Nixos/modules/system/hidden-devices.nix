@@ -50,7 +50,13 @@
 
     system.activationScripts.udevRebootNotice = {
       text = ''
-        if ! diff -rq "${config.system.build.etc}/etc/udev/rules.d" /run/booted-system/etc/udev/rules.d >/dev/null 2>&1; then
+        bootedRules=/run/booted-system/etc/udev/rules.d
+        # diff -rq exits non-zero both when content genuinely differs and when
+        # $bootedRules isn't there/readable yet (e.g. still settling right
+        # after a fresh boot) -- only the former means a reboot is actually
+        # needed, so require the path to exist first instead of treating a
+        # failed comparison as a positive.
+        if [ -d "$bootedRules" ] && ! diff -rq "${config.system.build.etc}/etc/udev/rules.d" "$bootedRules" >/dev/null 2>&1; then
           echo -e "\033[0;31m[udev] Some settings require a reboot to take effect.\033[0m"
         fi
       '';
