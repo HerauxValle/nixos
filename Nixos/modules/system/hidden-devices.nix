@@ -22,9 +22,15 @@
 # Nothing running can fix that from here, so instead of pretending
 # otherwise, the activation script below just tells you plainly when a
 # reboot is actually needed -- by diffing the new generation's udev
-# rules against the currently running one. Generic to any udev rule
-# change, not specific to this list, and cheap (one `diff -rq` over a
-# handful of small rule files, not a full system diff).
+# rules against /run/booted-system (what was actually booted, frozen
+# until a real reboot), not /run/current-system (which switch-to-
+# configuration updates on every switch, reboot or not -- confirmed
+# live this produces a false positive on every single rebuild
+# afterward, since it's always comparing a generation against itself).
+# Generic to any udev rule change, not specific to this list, and cheap
+# (one `diff -rq` over a handful of small rule files, not a full
+# system diff) -- and correctly keeps warning on every rebuild until
+# you actually reboot, not just once.
 {
   options.vars.hiddenDevices = lib.mkOption {
     type = lib.types.listOf lib.types.str;
@@ -44,7 +50,7 @@
 
     system.activationScripts.udevRebootNotice = {
       text = ''
-        if ! diff -rq "${config.system.build.etc}/etc/udev/rules.d" /run/current-system/etc/udev/rules.d >/dev/null 2>&1; then
+        if ! diff -rq "${config.system.build.etc}/etc/udev/rules.d" /run/booted-system/etc/udev/rules.d >/dev/null 2>&1; then
           echo -e "\033[0;31m[udev] Some settings require a reboot to take effect.\033[0m"
         fi
       '';
