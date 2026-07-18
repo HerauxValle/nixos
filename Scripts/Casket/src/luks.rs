@@ -1,54 +1,13 @@
 // &desc: "cryptsetup wrappers: open/close a vault, enumerate/add/remove LUKS key slots, and the safe two-phase slot_cycle passphrase rotation."
 use std::collections::HashSet;
-use std::os::unix::fs::OpenOptionsExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::config::Strength;
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::{CasError, Result};
 use crate::logf;
-use crate::proc;
-
-/// A secret written to a uniquely-named, mode-0600, exclusively-created
-/// temp file and deleted on drop (even on an early `?` return) — used
-/// only where cryptsetup genuinely needs two distinct secrets in one
-/// invocation (`luksAddKey`'s auth key + new key), since a single stdin
-/// stream can't carry both. Every other cryptsetup call pipes its secret
-/// over stdin instead and never touches disk at all.
-struct TempKeyfile {
-    path: PathBuf,
-}
-
-impl TempKeyfile {
-    fn write(secret: &[u8]) -> Result<Self> {
-        use std::io::Write;
-        let dir = std::env::temp_dir();
-        for _ in 0..8 {
-            let path = dir.join(format!(".cas-key-{:016x}", rand::random::<u64>()));
-            match std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .mode(0o600)
-                .open(&path)
-            {
-                Ok(mut f) => {
-                    f.write_all(secret)?;
-                    return Ok(TempKeyfile { path });
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
-                Err(e) => return Err(e.into()),
-            }
-        }
-        Err(CasError::new("could not create a temporary keyfile"))
-    }
-}
-
-impl Drop for TempKeyfile {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
-    }
-}
+use crate::proc::{self, TempKeyfile};
 
 /// Format a freshly truncated image file as LUKS2 with the given KDF
 /// cost preset. The secret goes over stdin, same as every other
@@ -148,8 +107,8 @@ pub fn add_key(img: &Path, auth_secret: &[u8], new_secret: &[u8], strength: Opti
     let tf_auth = TempKeyfile::write(auth_secret)?;
     let tf_new = TempKeyfile::write(new_secret)?;
     let img_str = img.to_string_lossy().into_owned();
-    let auth_str = tf_auth.path.to_string_lossy().into_owned();
-    let new_str = tf_new.path.to_string_lossy().into_owned();
+    let auth_str = tf_auth.path().to_string_lossy().into_owned();
+    let new_str = tf_new.path().to_string_lossy().into_owned();
     let slot_str = slot.map(|s| s.to_string());
 
     let mut args: Vec<&str> = vec!["luksAddKey", "--batch-mode", "--key-file", &auth_str];

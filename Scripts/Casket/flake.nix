@@ -39,6 +39,7 @@
                 pkgs.udisks2
                 pkgs.util-linux # mount/umount/losetup/blkid
                 pkgs.systemd # udevadm
+                pkgs.e2fsprogs # debugfs -- raw keyfile reads off a removable drive, no mount needed
               ]
             }
           '';
@@ -57,6 +58,7 @@
             cryptsetup
             btrfs-progs
             udisks2
+            e2fsprogs
           ];
         };
       }
