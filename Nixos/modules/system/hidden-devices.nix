@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 
 # &desc: "Declares + wires config.vars.hiddenDevices (UUIDs to hide from udisks2), and warns if a reboot is needed."
 
@@ -51,12 +51,18 @@
     system.activationScripts.udevRebootNotice = {
       text = ''
         bootedRules=/run/booted-system/etc/udev/rules.d
-        # diff -rq exits non-zero both when content genuinely differs and when
-        # $bootedRules isn't there/readable yet (e.g. still settling right
-        # after a fresh boot) -- only the former means a reboot is actually
-        # needed, so require the path to exist first instead of treating a
-        # failed comparison as a positive.
-        if [ -d "$bootedRules" ] && ! diff -rq "${config.system.build.etc}/etc/udev/rules.d" "$bootedRules" >/dev/null 2>&1; then
+        # Activation scripts run with a minimal PATH (coreutils/gnugrep/
+        # findutils/etc -- see the generated activate script's own PATH
+        # loop) that does NOT include diffutils, so a bare `diff` call
+        # here always fails with "command not found" (exit 127) and gets
+        # masked by the redirect below, making this fire on every single
+        # rebuild regardless of real content. Must reference it by store
+        # path like every other command in that script does.
+        # diff -rq also exits non-zero when $bootedRules isn't there/
+        # readable yet (e.g. still settling right after a fresh boot) --
+        # only a genuine content difference means a reboot is actually
+        # needed, so require the path to exist first too.
+        if [ -d "$bootedRules" ] && ! ${pkgs.diffutils}/bin/diff -rq "${config.system.build.etc}/etc/udev/rules.d" "$bootedRules" >/dev/null 2>&1; then
           echo -e "\033[0;31m[udev] Some settings require a reboot to take effect.\033[0m"
         fi
       '';
