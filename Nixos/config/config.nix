@@ -30,7 +30,7 @@
     };
 
 ***REMOVED***
-      enable = false;
+***REMOVED***
       remoteUrl = "git@github.com:HerauxValle/nixos.git";
       useRepoCache = true;
     };
