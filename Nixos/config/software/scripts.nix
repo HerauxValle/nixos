@@ -56,17 +56,6 @@
       };
     }
 
-    {
-      # Casket LUKS vault manager (~/Projects/Casket, upstream/AUR source of
-      # truth). Self-elevates via sudo and shells out to cryptsetup/btrfs/
-      # blkid/losetup/lsblk/udevadm/udisksctl/mount/umount, all already on
-      # PATH via systemPackages -- no wrapProgram needed.
-      dir = ../../../Scripts/Casket;
-      include = {
-        "main.py" = "cas";
-      };
-    }
-
     # {
     #   dir = ../../../Projects/Path;
     #   include = { "bin" = "path"; };

@@ -123,6 +123,7 @@
       kittyWrapped = { };
       crun = { };
       ltree = { };
+      casket = { };
     };
 
     kde = {

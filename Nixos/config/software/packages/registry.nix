@@ -18,6 +18,7 @@
       mybarBackend = pkgs.callPackage ../../../../Quickshell/MyBar/backend.nix { };
       crun = inputs.crun.packages.${pkgs.stdenv.hostPlatform.system}.default;
       ltree = inputs.ltree.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      casket = inputs.casket.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
       # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups
       # (shifted symbol keybinds like ctrl+dollar/asterisk/exclam).

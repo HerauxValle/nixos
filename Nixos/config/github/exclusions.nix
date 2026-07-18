@@ -29,6 +29,12 @@
       "venv"
       ".direnv"
       ".DS_Store"
+
+      # Rust build output for the standalone projects under Scripts/
+      # (Casket, CRun, ...) -- large, machine-specific, and reproducible
+      # from Cargo.lock + flake.lock, so it has no business in the
+      # published snapshot.
+      "**/target"
     ];
   };
 }

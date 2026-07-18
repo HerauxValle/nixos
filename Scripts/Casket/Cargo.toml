@@ -1,0 +1,62 @@
+# &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
+[package]
+name = "cas"
+version = "2.0.0"
+edition = "2021"
+description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
+
+[[bin]]
+name = "cas"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[dependencies]
+# No CLI-parsing crate on purpose: `cas <vault> <action> [flags...]` puts
+# the subject before the verb and lets flags land anywhere in argv,
+# which doesn't fit clap's positional/subcommand model without either
+# fighting `trailing_var_arg` (flags after the positional words get
+# swallowed as literal strings) or changing the argument order — and the
+# whole point here is that `cas myvault open --pass ...` keeps working
+# exactly as before. cli.rs mirrors the original's own pop_opt() scanner
+# instead, which is a dozen lines and has no such edge cases.
+
+# serde/serde_json: the vault's trailing metadata block is JSON on disk
+# (shared with the Python tool and any future reader) — hand-rolling a
+# JSON encoder/decoder for a format other tools also write to is exactly
+# the kind of "clever" byte-shaving that risks silently corrupting a real
+# vault's header on some escaped-character edge case. Not worth it for a
+# block that's under 200 bytes and read/written once per invocation.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# sha2: SHA-256 for the 2FA combined secret (passphrase + keyfile bytes).
+# RustCrypto's implementation auto-selects hardware SHA extensions/AVX2
+# where available — real byte-level optimization via a vetted primitive
+# instead of a hand-rolled compression function.
+sha2 = "0.10"
+
+# rand: CSPRNG for generated passphrases and 2FA keyfile bytes.
+rand = "0.8"
+
+# base64: encodes/decodes the "_autokey" field (the stored secret for
+# encryption=off vaults). Hand-rolling base64 in the one spot that holds
+# the actual key material is not where "fewer dependencies" is worth it.
+base64 = "0.22"
+
+# rpassword: hidden (no-echo) stdin reads for passphrase prompts —
+# the direct equivalent of Python's getpass.getpass().
+rpassword = "7"
+
+# libc: raw getuid()/getgid() for the (rare) fallback path where this
+# runs as root without going through sudo, so SUDO_UID/SUDO_GID aren't
+# set. Everything else privilege-related uses std's own uid()/gid() on
+# Command, which sets the child's ids directly via posix_spawn instead of
+# Python's preexec_fn fork-time callback (which upstream's own docs flag
+# as not signal-safe).
+libc = "0.2"

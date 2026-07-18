@@ -1,0 +1,19 @@
+# Build artifacts from the various standalone projects under Scripts/
+# and elsewhere (Casket, CRun, LTree, ...). The dotfiles-backup module's
+# own exclusion list (Nixos/config/github/exclusions.nix) is what
+# actually controls what reaches the published GitHub copy -- this file
+# is for local git hygiene / editor tooling that reads .gitignore
+# directly, and should stay in sync with that list.
+**/target
+
+**/__pycache__
+*.pyc
+*.pyo
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.venv
+venv
+.direnv
+
+.DS_Store

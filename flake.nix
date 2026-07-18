@@ -14,6 +14,7 @@
     };
     crun.url = "path:./Scripts/CRun";
     ltree.url = "path:./Scripts/LTree";
+    casket.url = "path:./Scripts/Casket";
   };
 
   outputs =
@@ -24,6 +25,7 @@
       silent-sddm,
       crun,
       ltree,
+      casket,
       ...
     }@inputs:
     {
