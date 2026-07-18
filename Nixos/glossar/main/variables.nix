@@ -11,11 +11,8 @@
 # itself invented.
 #
 # NOT imported anywhere -- never evaluated, purely a copy-paste reference.
-# Copy a block (or a line out of one) into Nixos/config/customized.nix (or
-# the relevant sibling file, see index.md) and uncomment it there to
-# actually set it. Terse, ini-style companion to Nixos/index.md --
-# regenerate by hand alongside it, nothing keeps either in sync
-# automatically.
+# Copy a block (or a line out of one) into Nixos/config/config.nix (or the
+# relevant sibling file) and uncomment it there to actually set it.
 # =========================================================================
 
 {

@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 # Personal picks -- which per-directory shells YOU want. No options.vars
-# declaration needed here, same as config/customized.nix -- that lives in
+# declaration needed here, same as config/config.nix -- that lives in
 # modules/packages/shells/default.nix instead.
 #
 # Each entry: a path, the packages that should be on $PATH while inside

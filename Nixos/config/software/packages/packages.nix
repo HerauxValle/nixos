@@ -129,6 +129,7 @@
       unzip = { };
       zip = { };
       wget = { };
+      xclip = { };
 
       # Fonts
       noto-fonts-color-emoji = { };

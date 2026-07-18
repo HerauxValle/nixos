@@ -23,6 +23,8 @@ This is documentation for humans. Keep headers concise and factual.
 # PURPOSE
 #   ...
 #
+# &desc: "..."
+#
 # INPUT
 #   ...
 #
@@ -43,7 +45,8 @@ This is documentation for humans. Keep headers concise and factual.
 # ============================================================================
 ```
 
-Sections that don't apply may simply be omitted.
+Sections that don't apply may simply be omitted, except `&desc:` -- see
+that section below.
 
 ---
 
@@ -120,6 +123,29 @@ Avoid:
 PURPOSE
   Contains code.
 ```
+
+---
+
+## &desc:
+
+The one-line project-wide file description -- what `lt -o DESC` (this
+repo's own `ltree`, `Scripts/LTree`) prints as its DESC column. Not a
+section like the others above: `lt`'s default `--desc` format searches
+file content for the literal marker `&desc: "..."`, so this has to be
+that exact string, on one line, quotes included -- not a `KEY\n  value`
+block.
+
+A condensed, single-line restatement of PURPOSE, not a new thought. If
+PURPOSE changes meaning, update this line too.
+
+Example:
+
+```text
+&desc: "Entry point for the package module."
+```
+
+Required on every file, same as everywhere else in the repo -- this is
+the one section in this guide that isn't optional.
 
 ---
 
@@ -257,6 +283,8 @@ NOTES
 #   Entry point for the package module. Imports all package-related
 #   submodules.
 #
+# &desc: "Entry point for the package module."
+#
 # PROVIDES
 #   config.vars.packages
 #
@@ -283,6 +311,8 @@ NOTES
 # PURPOSE
 #   Helper functions for constructing package definitions.
 #
+# &desc: "Helper functions for constructing package definitions."
+#
 # EXPORTS
 #   mkPackage
 #   mkOptionalPackage
@@ -307,6 +337,8 @@ NOTES
 # PURPOSE
 #   Defines the option schema for config.vars.packages.
 #
+# &desc: "Defines the option schema for config.vars.packages."
+#
 # OUTPUT
 #   config.vars.packages
 #
@@ -329,6 +361,8 @@ NOTES
 #
 # PURPOSE
 #   Declares the packages enabled on this machine.
+#
+# &desc: "Declares the packages enabled on this machine."
 #
 # OUTPUT
 #   config.vars.packages
@@ -353,6 +387,8 @@ NOTES
 # PURPOSE
 #   Documents every available config.vars.packages option with
 #   commented examples.
+#
+# &desc: "Documents every available config.vars.packages option."
 #
 # NOTES
 #   Never imported.
@@ -435,11 +471,12 @@ Always use the same order:
 1. TYPE
 2. PATH
 3. PURPOSE
-4. INPUT
-5. OUTPUT
-6. EXPORTS
-7. USED BY
-8. SEE ALSO
-9. NOTES
+4. &desc:
+5. INPUT
+6. OUTPUT
+7. EXPORTS
+8. USED BY
+9. SEE ALSO
+10. NOTES
 
 Using the same structure everywhere makes large repositories much easier to navigate because readers immediately know where to look for specific information.

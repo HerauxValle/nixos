@@ -4,7 +4,7 @@
 # Concatenated with modules/packages/scripts/default.nix's own entry
 # (pacnix, the one generic default) via Nix's normal listOf-option merge
 # behavior, not a custom mechanism. No options.vars declaration needed
-# here, same as config/customized.nix -- that lives in modules/ instead.
+# here, same as config/config.nix -- that lives in modules/ instead.
 {
   config.vars.packages.scripts = [
 
