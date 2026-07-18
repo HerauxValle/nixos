@@ -13,10 +13,19 @@
 
       # Languages & SDKs
       python3 = { };
+      ruff = { };
+      mypy = { };
       go = { };
+      golangci-lint = { };
+      delve = { };
       rustc = { };
       cargo = { };
+      rustfmt = { };
+      clippy = { };
       zig = { };
+      typescript = { };
+      prettier = { };
+      eslint = { };
 
       swift = {
         versions = {
@@ -44,6 +53,8 @@
       cmake = { };
       meson = { };
       pkg-config = { };
+      gdb = { };
+      valgrind = { };
 
       # Nix
       nil = { };
