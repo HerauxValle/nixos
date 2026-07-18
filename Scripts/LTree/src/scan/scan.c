@@ -290,6 +290,21 @@ static void scan_file_content(const char *path, HashAlgo algo, bool need_hash, b
     *out_desc = ctx.desc;
 }
 
+/* Public wrapper around the static scan_file_content() above -- see
+ * scan.h. Pulls need_hash/simple_hash/need_desc/desc_prefix/desc_suffix
+ * straight off `cfg`, same source build_tree() itself reads them from,
+ * so a single-file target scans under exactly the same rules a file
+ * found during a normal directory walk would. */
+void scan_single_file(const char *path, const Config *cfg,
+                       long *out_lines, long *out_chars,
+                       uint8_t out_hash[HASH_MAX_BYTES], uint8_t *out_hash_len,
+                       char **out_desc) {
+    bool need_hash = (cfg->hash_algo != HASH_ALGO_NONE);
+    scan_file_content(path, cfg->hash_algo, need_hash, cfg->simple_hash,
+                       cfg->need_desc, cfg->desc_prefix, cfg->desc_suffix,
+                       out_lines, out_chars, out_hash, out_hash_len, out_desc);
+}
+
 /* ===================== birth time (--sort birth) =========================
  * st_mtime is the only timestamp `struct stat` gives us; creation time
  * needs the newer statx() syscall with STATX_BTIME. Not every

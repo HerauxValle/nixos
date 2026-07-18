@@ -74,6 +74,7 @@
       zoxide = { };
       ripgrep = { };
       cloc = { };
+      jq = { };
 
       # Desktop
       grim = { };

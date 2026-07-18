@@ -32,6 +32,16 @@ bool json_key_allowed(const Config *cfg, ModuleId id);
 void print_json(Node *root, const char *display_path, const Totals *tot,
                  const ExtTable *ext, const Config *cfg, const DebugStats *dbg);
 
+/* -jL: the same fields as print_json's "tree", flattened to one compact
+ * JSON object per line (NDJSON) instead of one nested structure --
+ * streamable line-by-line (grep/jq -c/wc -l/...) without holding the
+ * whole tree in memory to parse it. Shares json_key_allowed() with
+ * json_render, so --stdout filters both writers identically. total/
+ * by_extension/debug print as their own single "_type"-tagged lines
+ * after every entry, gated by the same modules as print_json's. */
+void print_json_lines(Node *root, const char *display_path, const Totals *tot,
+                       const ExtTable *ext, const Config *cfg, const DebugStats *dbg);
+
 /* ===================== minimal generic JSON reader =====================
  * Just enough to parse our own JSON output back in (for -o DIFF). Not a
  * general-purpose validator -- assumes well-formed input, which is all

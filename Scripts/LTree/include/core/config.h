@@ -16,15 +16,25 @@ typedef enum {
     HASH_ALGO_CRYPTO    /* SHA-256  -- via --cryptographic               */
 } HashAlgo;
 
+typedef enum {
+    CONDENSE_OFF = 0,   /* one [L:x] [C:y] ... bracket per active column */
+    CONDENSE_BRACKET,   /* --condense -- one [L:x C:y ...] bracket       */
+    CONDENSE_WRAP       /* --condense wrap -- one bracket per LINE,
+                          * stacked under the entry instead of beside it */
+} CondenseMode;
+
 typedef struct {
     char   *path;             /* positional arg, defaults to "."         */
 
-    bool    json;             /* -j                                      */
+    bool    json;             /* -j / -jL                                */
+    bool    json_lines;       /* -jL -- NDJSON (one flat object per entry,
+                                * plus tagged total/by_extension/debug
+                                * lines) instead of -j's one nested tree   */
     bool    dirs_only;        /* -d                                      */
     int     max_depth;        /* -L <n>, -1 = unlimited                  */
     bool    no_colour;        /* --no-colour / --no-color                */
-    bool    condense;         /* --condense -- one [L:x C:y ...] bracket
-                                * instead of one bracket per column       */
+    CondenseMode condense;    /* --condense / --condense wrap -- see
+                                * CondenseMode above                      */
     SortSpec sort;            /* --sort, ls-mode only (see sort/sortmodes.h) */
     bool    live;             /* --live -- -o TREE only. Streams top-down as
                                 * the walk happens, fixed-width columns instead

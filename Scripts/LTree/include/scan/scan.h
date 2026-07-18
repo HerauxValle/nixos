@@ -26,6 +26,17 @@ void parse_exclude_list(const char *arg, char ***out, size_t *out_n);
  * build_tree() fills in every other node's. */
 time_t fetch_btime(const char *path, time_t mtime_fallback);
 
+/* Scans one regular file's content -- exactly what build_tree() does for
+ * each file it walks (mmap + line/char count + hash + --desc search),
+ * exposed standalone for main.c's single-file target support (`ltree
+ * somefile.txt` instead of a directory: same fields, same rules, just
+ * one entry instead of a walk). Reads need_hash/simple_hash/need_desc/
+ * desc_prefix/desc_suffix straight off `cfg`, same as build_tree does. */
+void scan_single_file(const char *path, const Config *cfg,
+                       long *out_lines, long *out_chars,
+                       uint8_t out_hash[HASH_MAX_BYTES], uint8_t *out_hash_len,
+                       char **out_desc);
+
 /* Streaming support (what lets -o TREE print top-down as the walk
  * happens instead of buffering the whole tree first -- see
  * render/render_tree.h for the implementation main.c wires up here,

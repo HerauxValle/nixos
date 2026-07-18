@@ -239,6 +239,23 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
 
     if (!mc->any_module && !is_mod) return;
 
+    /* --condense wrap: every active column gets its own line, indented
+     * to col_start from column 0 -- nothing shares the entry's name
+     * line at all (unlike CONDENSE_BRACKET/off, which print the first
+     * column right after the name). The caller's own trailing newline
+     * (after this function returns) closes out the last column's line,
+     * same as it closes out the single line in every other mode. */
+    if (cfg->condense == CONDENSE_WRAP && mc->any_module) {
+        for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
+            if (!mc->active[mi]) continue;
+            putchar('\n');
+            for (size_t s = 0; s < col_start; s++) putchar(' ');
+            printf("%s%s%s", module_color(cfg, mc->order[mi]), mc->rendered[mi][i], RST(cfg));
+        }
+        if (is_mod) printf("   [m]");
+        return;
+    }
+
     size_t pad = (col_start > pl->width) ? (col_start - pl->width) : 1;
     for (size_t s = 0; s < pad; s++) putchar(' ');
 
@@ -248,7 +265,7 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
      * columnar). The [m] DIFF flag stays a separate trailing marker,
      * same as uncondensed -- it's a modification flag, not one of the
      * data columns condense is folding together. */
-    if (cfg->condense && mc->any_module) {
+    if (cfg->condense == CONDENSE_BRACKET && mc->any_module) {
         putchar('[');
         bool first = true;
         for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {

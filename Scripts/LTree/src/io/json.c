@@ -185,6 +185,97 @@ void print_json(Node *root, const char *display_path, const Totals *tot,
     sbuf_free(&sb);
 }
 
+/* ===================== -jL: NDJSON, one object per entry ================
+ * Same per-entry fields as json_node() above, flattened: no "children"
+ * array, a "path" (relative to the scan root, "." for the root entry
+ * itself) stands in for the nesting instead. Reuses json_key_allowed()
+ * so --stdout filters this exactly like the nested writer. ============= */
+static void jsonl_entry(Node *n, const char *relpath, const Config *cfg) {
+    SBuf sb;
+    sbuf_init(&sb);
+    sbuf_append(&sb, "{\"path\": ");
+    sbuf_append_json_string(&sb, relpath);
+    sbuf_append(&sb, ", \"name\": ");
+    sbuf_append_json_string(&sb, n->name);
+    sbuf_appendf(&sb, ", \"type\": \"%s\"", n->is_dir ? "dir" : "file");
+    sbuf_appendf(&sb, ", \"symlink\": %s", n->is_symlink ? "true" : "false");
+
+    if (json_key_allowed(cfg, MOD_LINES)) sbuf_appendf(&sb, ", \"lines\": %ld", n->lines);
+    if (json_key_allowed(cfg, MOD_CHARS)) sbuf_appendf(&sb, ", \"chars\": %ld", n->chars);
+    if (json_key_allowed(cfg, MOD_PERM)) {
+        char modebuf[11];
+        mode_string(n->mode, n->is_dir, n->is_symlink, modebuf);
+        sbuf_append(&sb, ", \"mode\": ");
+        sbuf_append_json_string(&sb, modebuf);
+    }
+    if (json_key_allowed(cfg, MOD_SIZE)) sbuf_appendf(&sb, ", \"size\": %lld", (long long)n->size_bytes);
+    if (json_key_allowed(cfg, MOD_DATE)) sbuf_appendf(&sb, ", \"mtime\": %lld", (long long)n->mtime);
+    if (json_key_allowed(cfg, MOD_HASH)) {
+        if (n->hash_len > 0) {
+            char hex[HASH_MAX_BYTES * 2 + 1];
+            hex_encode(n->hash, n->hash_len, hex);
+            sbuf_append(&sb, ", \"hash\": ");
+            sbuf_append_json_string(&sb, hex);
+        } else {
+            sbuf_append(&sb, ", \"hash\": null");
+        }
+    }
+    if (json_key_allowed(cfg, MOD_DESC)) {
+        if (n->desc) { sbuf_append(&sb, ", \"desc\": "); sbuf_append_json_string(&sb, n->desc); }
+        else sbuf_append(&sb, ", \"desc\": null");
+    }
+    if (n->diff_checked && json_key_allowed(cfg, MOD_DIFF))
+        sbuf_appendf(&sb, ", \"modified\": %s", n->modified ? "true" : "false");
+    if (n->is_dir && n->truncated) sbuf_append(&sb, ", \"truncated\": true");
+
+    sbuf_append(&sb, "}\n");
+    fwrite(sb.data, 1, sb.len, stdout);
+    sbuf_free(&sb);
+}
+
+static void jsonl_walk(Node *n, const char *relpath, const Config *cfg) {
+    jsonl_entry(n, relpath, cfg);
+    for (size_t i = 0; i < n->nchildren; i++) {
+        char childrel[4096];
+        if (strcmp(relpath, ".") == 0) snprintf(childrel, sizeof(childrel), "%s", n->children[i]->name);
+        else snprintf(childrel, sizeof(childrel), "%s/%s", relpath, n->children[i]->name);
+        jsonl_walk(n->children[i], childrel, cfg);
+    }
+}
+
+void print_json_lines(Node *root, const char *display_path, const Totals *tot,
+                       const ExtTable *ext, const Config *cfg, const DebugStats *dbg) {
+    (void)display_path; /* NDJSON has no top-level wrapper to put it in --
+                          * each entry already carries its own "path" */
+    jsonl_walk(root, ".", cfg);
+
+    if (json_key_allowed(cfg, MOD_TOTAL)) {
+        printf("{\"_type\": \"total\", \"dirs\": %ld, \"files\": %ld, \"lines\": %ld, \"chars\": %ld}\n",
+               tot->dirs, tot->files, tot->lines, tot->chars);
+    }
+
+    if (json_key_allowed(cfg, MOD_FILES) && ext->n) {
+        ExtStat *sorted = (ExtStat *)malloc(sizeof(ExtStat) * ext->n);
+        memcpy(sorted, ext->items, sizeof(ExtStat) * ext->n);
+        qsort(sorted, ext->n, sizeof(ExtStat), extstat_cmp_desc_lines);
+        for (size_t i = 0; i < ext->n; i++) {
+            printf("{\"_type\": \"by_extension\", \"ext\": \"%s\", \"files\": %ld, \"lines\": %ld, \"chars\": %ld}\n",
+                   sorted[i].ext, sorted[i].files, sorted[i].lines, sorted[i].chars);
+        }
+        free(sorted);
+    }
+
+    if (dbg && json_key_allowed(cfg, MOD_DEBUG)) {
+        SBuf sb;
+        sbuf_init(&sb);
+        sbuf_append(&sb, "{\"_type\": \"debug\", ");
+        debug_json_append(&sb, dbg); /* appends `"debug": { ... }` */
+        sbuf_append(&sb, "}\n");
+        fwrite(sb.data, 1, sb.len, stdout);
+        sbuf_free(&sb);
+    }
+}
+
 /* ===================== minimal generic JSON reader ======================
  * Recursive-descent parser for exactly the JSON we ourselves emit
  * above: objects, arrays, strings (with the handful of escapes

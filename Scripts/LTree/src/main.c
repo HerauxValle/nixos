@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <limits.h>
+#include <libgen.h>
 
 #include "core/config.h"
 #include "core/modules.h"
@@ -132,8 +133,11 @@ static void print_usage(const char *prog, bool no_colour) {
 
 #define H(name, desc) help_entry(no_colour, name, "\x1b[1;36m", desc)
     H("-j", "output JSON instead of a tree view");
+    H("-jL", "output NDJSON (one flat object per entry, path-tagged) instead\n"
+             "  of -j's one nested tree -- streamable line-by-line, same --stdout\n"
+             "  filtering applies");
     H("-d", "list directories only");
-    H("-L <n>", "max depth to descend (like tree -L), also -L<n>");
+    H("-L <n>", "max depth to descend (like tree -L), also -L<n> -- implies -o TREE");
     H("-o <MODULES>", "comma-separated, any order: LINES, CHARS, TOTAL, FILES, PERMISSIONS,\n"
                        "  SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG, TREE, HIDDEN");
     H("-oA <MODULES>", "every module at once (MODULES optional -- if given, every module\n"
@@ -153,7 +157,8 @@ static void print_usage(const char *prog, bool no_colour) {
                               "  filename is a local dd-mm-yyyy_hh:mm:ss timestamp");
     H("--no-colour", "disable ANSI colour (also --no-color)");
     H("--condense", "one [L:x C:y ...] bracket per entry instead of one bracket per active\n"
-                     "  column");
+                     "  column. --condense wrap: one bracket per LINE instead, stacked\n"
+                     "  under the entry (pushes the next entry down)");
     H("--live", "-o TREE only: stream top-down as the walk happens instead of waiting for\n"
                 "  it to finish; fixed-width columns instead of whole-tree-measured ones.\n"
                 "  No effect with -j");
@@ -218,12 +223,24 @@ int main(int argc, char **argv) {
         const char *a = argv[i];
         if (strcmp(a, "-j") == 0) {
             cfg.json = true;
+        } else if (strcmp(a, "-jL") == 0) {
+            cfg.json = true;
+            cfg.json_lines = true;
         } else if (strcmp(a, "-d") == 0) {
             cfg.dirs_only = true;
         } else if (strcmp(a, "--no-colour") == 0 || strcmp(a, "--no-color") == 0) {
             cfg.no_colour = true;
         } else if (strcmp(a, "--condense") == 0) {
-            cfg.condense = true;
+            /* Bare --condense: the existing single-bracket-per-entry form.
+             * "--condense wrap": one bracket per LINE instead (see
+             * columns.c). Any other/no next token just leaves it bracket
+             * mode, same leniency as -oA/-oO's optional trailing arg. */
+            if (i + 1 < argc && strcasecmp(argv[i + 1], "wrap") == 0) {
+                cfg.condense = CONDENSE_WRAP;
+                i++;
+            } else {
+                cfg.condense = CONDENSE_BRACKET;
+            }
         } else if (strcmp(a, "--live") == 0) {
             cfg.live = true;
         } else if (strcmp(a, "--sort") == 0) {
@@ -299,9 +316,19 @@ int main(int argc, char **argv) {
             print_usage(argv[0], cfg.no_colour);
             return 0;
         } else if (strncmp(a, "-L", 2) == 0 && strlen(a) > 2) {
+            /* Depth only means anything with -o TREE's recursive walk --
+             * without it, ltree lists one non-recursive level regardless
+             * (see the max_depth=0 override below), silently making -L a
+             * no-op. Passing -L at all means you want depth-limited
+             * recursion, so it implies -o TREE rather than requiring it
+             * spelled out separately too. */
             cfg.max_depth = atoi(a + 2);
+            cfg.modules[MOD_TREE] = true;
         } else if (strcmp(a, "-L") == 0) {
-            if (i + 1 < argc) cfg.max_depth = atoi(argv[++i]);
+            if (i + 1 < argc) {
+                cfg.max_depth = atoi(argv[++i]);
+                cfg.modules[MOD_TREE] = true;
+            }
         } else if (strcmp(a, "-o") == 0) {
             /* Plain module list: "-o LINES,CHARS". Always literal -- "A"/
              * "O" here are just (unknown) module names, not shorthand;
@@ -406,10 +433,17 @@ int main(int argc, char **argv) {
     }
 
     struct stat st;
-    if (stat(cfg.path, &st) != 0 || !S_ISDIR(st.st_mode)) {
+    if (stat(cfg.path, &st) != 0 || !(S_ISDIR(st.st_mode) || S_ISREG(st.st_mode))) {
         fprintf(stderr, "invalid path: %s\n", cfg.path);
         return 1;
     }
+    /* `path` naming a regular file instead of a directory: same rendering,
+     * same rules, just one entry -- root becomes a synthetic single-child
+     * container instead of a real directory (see the path_is_file branch
+     * of the walk below), same shape print_json/print_tree_view/
+     * print_ls_view already expect for a directory that happens to hold
+     * exactly one file. */
+    bool path_is_file = S_ISREG(st.st_mode);
 
     /* ---- resolve hashing: DIFF forces the snapshot's own algorithm AND
      * --simple-hash setting, regardless of --cryptographic/--simple-hash
@@ -437,16 +471,23 @@ int main(int argc, char **argv) {
     bool need_hash = field_wanted(&cfg, MOD_HASH) || cfg.modules[MOD_DIFF];
     cfg.hash_algo = need_hash ? desired_algo : HASH_ALGO_NONE;
 
-    /* ---- optional .gitignore, composed with --exclude ---- */
+    /* ---- optional .gitignore, composed with --exclude (meaningless for
+     * a single named file -- you already named exactly what you want) ---- */
     GitTable gt;
     memset(&gt, 0, sizeof(gt));
-    if (cfg.use_gitignore) gitignore_load(cfg.path, &gt);
+    if (cfg.use_gitignore && !path_is_file) gitignore_load(cfg.path, &gt);
 
     /* ---- the one filesystem walk ---- */
-    Node *root = node_new(cfg.path, true);
+    Node *root = node_new(path_is_file ? "." : cfg.path, true);
     root->mtime = st.st_mtime;
     root->btime = fetch_btime(cfg.path, st.st_mtime);
-    root->mode = st.st_mode;
+    /* path_is_file: root is a synthetic wrapper, not a real directory --
+     * `st` is the FILE's own stat, so reusing its raw mode bits here would
+     * mislabel them as a directory's ("drw-r--r--"). A plain, conventional
+     * dir mode reads correctly instead; nothing real depends on this
+     * value (root's own row never prints in ls/tree views, only as
+     * JSON's wrapper "tree" object). */
+    root->mode = path_is_file ? (S_IFDIR | 0755) : st.st_mode;
     Totals totals = {0, 0, 0, 0};
     ExtTable ext;
     exttable_init(&ext);
@@ -461,8 +502,9 @@ int main(int argc, char **argv) {
 
     /* --live is the only case that streams -o TREE's output during
      * the walk (see render/render_tree.h) -- the default is fully
-     * buffered, whole-tree-aligned, same as every other view. */
-    bool stream_tree = cfg.live;
+     * buffered, whole-tree-aligned, same as every other view. Nothing to
+     * stream for a single already-known file either. */
+    bool stream_tree = cfg.live && !path_is_file;
 
     /* Animated "still working" indicator (see util/spinner.h) -- a no-op
      * unless stderr is a tty. Started before tree_live_start() so --live's
@@ -475,11 +517,38 @@ int main(int argc, char **argv) {
     if (stream_tree) tree_live_start(cfg.path, &cfg);
 
     debug_timer_mark_scan_start(&dtimer);
-    build_tree(root, cfg.path, "", 0, &cfg, cfg.use_gitignore ? &gt : NULL, &totals, &ext,
-               stream_tree ? tree_live_on_dir_measure : NULL,
-               stream_tree ? tree_live_on_entry_ready : NULL,
-               stream_tree ? tree_live_on_dir_done : NULL,
-               NULL);
+    if (path_is_file) {
+        char pathcopy[4096];
+        snprintf(pathcopy, sizeof(pathcopy), "%s", cfg.path);
+        Node *filenode = node_new(basename(pathcopy), false);
+        filenode->mode = st.st_mode;
+        filenode->mtime = st.st_mtime;
+        filenode->btime = fetch_btime(cfg.path, st.st_mtime);
+
+        long lines = 0, chars = 0;
+        uint8_t hbuf[HASH_MAX_BYTES] = {0}; uint8_t hlen = 0;
+        char *desc = NULL;
+        scan_single_file(cfg.path, &cfg, &lines, &chars, hbuf, &hlen, &desc);
+        filenode->lines = lines;
+        filenode->chars = chars;
+        filenode->size_bytes = st.st_size;
+        memcpy(filenode->hash, hbuf, HASH_MAX_BYTES);
+        filenode->hash_len = hlen;
+        filenode->desc = desc;
+
+        totals.files = 1;
+        totals.lines = lines;
+        totals.chars = chars;
+        exttable_add(&ext, file_ext(filenode->name), lines, chars);
+
+        node_add_child(root, filenode);
+    } else {
+        build_tree(root, cfg.path, "", 0, &cfg, cfg.use_gitignore ? &gt : NULL, &totals, &ext,
+                   stream_tree ? tree_live_on_dir_measure : NULL,
+                   stream_tree ? tree_live_on_entry_ready : NULL,
+                   stream_tree ? tree_live_on_dir_done : NULL,
+                   NULL);
+    }
     debug_timer_mark_scan_end(&dtimer);
     if (stream_tree) tree_live_end();
     spinner_stop();
@@ -521,7 +590,8 @@ int main(int argc, char **argv) {
 
     /* ---- output ---- */
     if (cfg.json) {
-        print_json(root, cfg.path, &totals, &ext, &cfg, dbg);
+        if (cfg.json_lines) print_json_lines(root, cfg.path, &totals, &ext, &cfg, dbg);
+        else print_json(root, cfg.path, &totals, &ext, &cfg, dbg);
     } else if (stream_tree) {
         /* Every directory's block already printed during the scan
          * (tree_live_on_dir_measure/on_entry_ready, wired up as

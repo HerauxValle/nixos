@@ -83,9 +83,13 @@ nix develop                 # gcc + gdb + valgrind for hacking on it
 ltree [path] [options]
 
   -j                    output JSON instead of a directory listing
+  -jL                   output NDJSON (one flat object per entry,
+                        path-tagged) instead of -j's one nested tree --
+                        streamable line-by-line, same --stdout filtering
+                        applies
   -d                    list directories only
-  -L <n>                max depth to descend (like tree -L, -o TREE
-                        only), also -L<n>
+  -L <n>                max depth to descend (like tree -L), also
+                        -L<n> -- implies -o TREE
   -o <MODULES>          comma-separated, any order:
                           LINES, CHARS, TOTAL, FILES,
                           PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,
@@ -108,7 +112,9 @@ ltree [path] [options]
                         dd-mm-yyyy_hh:mm:ss timestamp
   --no-colour           disable ANSI colour (also --no-color)
   --condense            one [L:x C:y ...] bracket per entry instead of
-                        one bracket per active column
+                        one bracket per active column. --condense wrap:
+                        one bracket per LINE instead, stacked under the
+                        entry (pushes the next entry down)
   --live                 -o TREE only: stream top-down as the walk happens
                         instead of waiting for it to finish; fixed-width
                         columns instead of whole-tree-measured ones
@@ -411,3 +417,28 @@ Full design reasoning in
   a standalone exclude-only flag had no reason to exist). `-oO` alone
   just sets typed-order rendering; `-oO <MODULES>` also enables those.
   Plain `-o LINES,CHARS` (an ordinary module list) is unaffected.
+
+## What changed in the file-target/jsonl/wrap batch
+
+- **Fixed:** `-L <n>`/`-L<n>` implies `-o TREE` now, instead of silently
+  doing nothing -- depth only ever meant anything with the recursive
+  walk, so passing it at all means you wanted that.
+- **New:** `-jL` -- NDJSON, one flat `{"path": ..., ...}` object per
+  entry instead of `-j`'s one nested tree, streamable line-by-line
+  (`grep`/`jq -c`/`wc -l`/...) without holding the whole tree in memory
+  to parse it. Shares `--stdout exclusive|inclusive` filtering with
+  `-j` -- both writers read the same allowed-fields check, so a filter
+  behaves identically regardless of which format you asked for.
+  `total`/`by_extension`/`debug` (when their modules are on) print as
+  their own `"_type"`-tagged lines after every entry.
+- **New:** `--condense wrap` -- one `[X: ...]` bracket per *line*
+  instead of one bracket per column beside the entry, stacked
+  underneath it (pushes the next entry down). Bare `--condense` is
+  unchanged (still the single combined bracket on the entry's own
+  line).
+- **New:** naming a regular file instead of a directory (`ltree
+  some/file.py`) no longer errors with `invalid path` -- prints that
+  one file's row under `[Files]` (or as `-j`/`-jL`'s tree/entries),
+  same rules and formatting as a directory that happened to contain
+  exactly one file, instead of requiring a parent directory + `--exclude`
+  gymnastics to look at a single file's stats.
