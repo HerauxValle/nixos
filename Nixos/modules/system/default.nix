@@ -2,6 +2,7 @@
 
 {
   imports = [
+    ./autostart
     ./mountpoints
     ./networking.nix
     ./port-forwarding
