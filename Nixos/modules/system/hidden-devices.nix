@@ -4,12 +4,14 @@
 
 # Prototype -- one flat file, not yet split into the usual
 # default.nix (schema) + config/ (data) shape everything else here
-# follows. UDISKS_IGNORE only seems to take effect at genuine device
-# creation time (couldn't confirm it live via udevadm trigger/a
-# udisks2 restart against an already-known device) -- once confirmed
-# working after a real reboot, this becomes a proper
-# config.vars.hiddenDevices list + a module that generates
-# services.udev.extraRules from it, same split as everything else.
+# follows. Confirmed working after a real reboot: root ("nixos") and
+# all 6 vaults' raw loop containers no longer show in Dolphin's Devices
+# panel. UDISKS_IGNORE only takes effect at genuine device-creation
+# time -- a udevadm trigger/udisks2 restart against an already-known
+# device does NOT retroactively hide it, only a real reboot (or an
+# actual unplug/replug) does. Next: split into
+# config.vars.hiddenDevices + a module generating
+# services.udev.extraRules from it, same shape as everything else.
 #
 # UDISKS_IGNORE hides a device from udisks2's D-Bus API entirely, not
 # just Dolphin's automount/prompt behavior -- works for any
@@ -24,8 +26,9 @@
     SUBSYSTEM=="block", ENV{ID_FS_UUID}=="16dab0c7-d947-4a28-8db7-de8f2c82fb6f", ENV{UDISKS_IGNORE}="1"
     # root's LUKS container (sda2, locked view)
     SUBSYSTEM=="block", ENV{ID_FS_UUID}=="80b7960d-fb8d-4dc3-8b01-329770c6e027", ENV{UDISKS_IGNORE}="1"
-    # Windows "Basic data partition" (nvme0n1p3, unlabeled NTFS)
-    SUBSYSTEM=="block", ENV{ID_FS_UUID}=="88426a11426a03f2", ENV{UDISKS_IGNORE}="1"
+    # Windows "Basic data partition" (nvme0n1p3, unlabeled NTFS) --
+    # blkid reports NTFS UUIDs uppercase, unlike the others above
+    SUBSYSTEM=="block", ENV{ID_FS_UUID}=="88426A11426A03F2", ENV{UDISKS_IGNORE}="1"
     # Vaults vault -- raw LUKS container (the .img duplicate)
     SUBSYSTEM=="block", ENV{ID_FS_UUID}=="6f57628b-7af9-45f6-bfd4-3b1a32fdd6dd", ENV{UDISKS_IGNORE}="1"
     # Davinci vault -- raw LUKS container
