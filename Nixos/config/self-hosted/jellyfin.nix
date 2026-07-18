@@ -4,7 +4,7 @@
 # ../../modules/services/self-hosted/jellyfin/. Data only, same as
 # ollama.nix/stash.nix.
 {
-  config.vars.selfHosted.jellyfin = {
+  config.vars.services.selfHosted.jellyfin = {
     # true = installed: systemd unit exists. false = torn down on the
     # next rebuild -- cache/transcode/log removed; config/data/
     # libraries/* (all storage-backed) are never touched by that
@@ -14,7 +14,7 @@
     # Plain, always-available -- real writable subdirs Jellyfin itself
     # expects (cache, transcode, log); config/data/libraries/* are
     # symlinks (see storage below).
-    dataDir = "${config.vars.homeDirectory}/Applications/Networking/Jellyfin";
+    dataDir = "${config.vars.identity.homeDirectory}/Applications/Networking/Jellyfin";
 
     # Off for now -- still exists, still systemctl start-able by hand,
     # just not pulled in on boot/rebuild. Same as every other service on
@@ -51,25 +51,25 @@
     # avoid colliding with the config/data entries above, which didn't
     # exist as vault entries in the old setup).
     storage = [
-      { src = "config"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Jellyfin/config"; }
-      { src = "data"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Jellyfin/data"; }
-      { src = "libraries/media-movies"; dest = "${config.vars.mountpoints.device.storage.path}/Movies"; }
-      { src = "libraries/media-shows"; dest = "${config.vars.mountpoints.device.storage.path}/Shows"; }
-      { src = "libraries/media-anime"; dest = "${config.vars.mountpoints.device.storage.path}/Anime"; }
-      { src = "libraries/media-music"; dest = "${config.vars.mountpoints.device.storage.path}/Music"; }
-      { src = "libraries/media-audiobooks"; dest = "${config.vars.mountpoints.device.storage.path}/Audiobooks"; }
-      { src = "libraries/media-books"; dest = "${config.vars.mountpoints.device.storage.path}/Books"; }
-      { src = "libraries/media-photos"; dest = "${config.vars.mountpoints.device.storage.path}/Photos"; }
-      { src = "libraries/media-selfhosted"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Jellyfin/artwork"; }
+      { src = "config"; dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/Jellyfin/config"; }
+      { src = "data"; dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/Jellyfin/data"; }
+      { src = "libraries/media-movies"; dest = "${config.vars.system.mountpoints.device.storage.path}/Movies"; }
+      { src = "libraries/media-shows"; dest = "${config.vars.system.mountpoints.device.storage.path}/Shows"; }
+      { src = "libraries/media-anime"; dest = "${config.vars.system.mountpoints.device.storage.path}/Anime"; }
+      { src = "libraries/media-music"; dest = "${config.vars.system.mountpoints.device.storage.path}/Music"; }
+      { src = "libraries/media-audiobooks"; dest = "${config.vars.system.mountpoints.device.storage.path}/Audiobooks"; }
+      { src = "libraries/media-books"; dest = "${config.vars.system.mountpoints.device.storage.path}/Books"; }
+      { src = "libraries/media-photos"; dest = "${config.vars.system.mountpoints.device.storage.path}/Photos"; }
+      { src = "libraries/media-selfhosted"; dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/Jellyfin/artwork"; }
     ];
 
     # Both real mounts storage above depends on. Storage is
-    # config.vars.mountpoints.device.storage.path now
-    # (/home/${config.vars.username}/Drives/Storage), not the old
+    # config.vars.system.mountpoints.device.storage.path now
+    # (/home/${config.vars.identity.username}/Drives/Storage), not the old
     # udisks2-managed /run/media/<user>/Storage.
     requireMounts = [
-      "${config.vars.homeDirectory}/Images/SelfHosted"
-      config.vars.mountpoints.device.storage.path
+      "${config.vars.identity.homeDirectory}/Images/SelfHosted"
+      config.vars.system.mountpoints.device.storage.path
     ];
 
     # Non-empty -- see default.nix's own comment for why (nested storage

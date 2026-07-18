@@ -33,7 +33,7 @@
 {
   imports = [ ./odysseus.nix ];
 
-  options.vars.selfHosted.odysseus = {
+  options.vars.services.selfHosted.odysseus = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -61,13 +61,13 @@
     # own srcDir/venvDir split).
     venvDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/.impure/python-venvs/self-hosted/odysseus";
+      default = "${config.vars.identity.homeDirectory}/.impure/python-venvs/self-hosted/odysseus";
       description = "Where the Python venv lives -- disposable, regenerated from requirementsLock automatically by preStart's venvEnsureScript whenever the lock's hash changes.";
     };
 
     srcDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/.impure/python-venvs/self-hosted/odysseus-src";
+      default = "${config.vars.identity.homeDirectory}/.impure/python-venvs/self-hosted/odysseus-src";
       description = "Where the pewdiepie-archdaemon/odysseus git checkout lives, pinned to coreRev by preStart every start (a no-op once already at that rev). A fresh clone, deliberately not reusing the real checkout already sitting in the vault (~/Images/SelfHosted/Odysseus) -- that path stays real, vault-backed, storage-only from Nix's perspective (see storage below), matching this repo's own convention that impure git/pip-managed source never lives in the vault alongside real declared data.";
     };
 

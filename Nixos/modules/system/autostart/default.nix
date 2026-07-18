@@ -1,6 +1,6 @@
 { lib, ... }:
 
-# &desc: "Declares config.vars.autostart (global enable + per-job jobs schema), no logic."
+# &desc: "Declares config.vars.system.autostart (global enable + per-job jobs schema), no logic."
 
 # Schema only -- logic lives in ./autostart.nix. A job is always a plain
 # root systemd unit (see ./autostart.nix's own header for why) -- there
@@ -44,7 +44,7 @@ in
 {
   imports = [ ./autostart.nix ];
 
-  options.vars.autostart = {
+  options.vars.system.autostart = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -54,7 +54,7 @@ in
     jobs = lib.mkOption {
       default = { };
       description = ''
-        Boot-time jobs, keyed by id (e.g. config.vars.autostart.jobs.vaults).
+        Boot-time jobs, keyed by id (e.g. config.vars.system.autostart.jobs.vaults).
         Each becomes its own systemd.services."autostart@<id>".
       '';
       type = lib.types.attrsOf (lib.types.submodule {

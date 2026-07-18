@@ -3,7 +3,7 @@
 # Real values -- schema + the actual behavior live in
 # ../../modules/services/self-hosted/stash/. Data only, same as ollama.nix.
 {
-  config.vars.selfHosted.stash = {
+  config.vars.services.selfHosted.stash = {
     # true = installed: systemd units exist. false = torn down on the
     # next rebuild -- dataDir (minus the "data" storage entry) removed
     # automatically; the real database/metadata/blobs inside the vault
@@ -12,7 +12,7 @@
 
     # Plain, always-available -- holds nothing on its own (the binary is
     # Nix-built), it's just where the storage symlink below lands.
-    dataDir = "${config.vars.homeDirectory}/Applications/Networking/Stash";
+    dataDir = "${config.vars.identity.homeDirectory}/Applications/Networking/Stash";
 
     # Off for now -- still exists, still systemctl start-able by hand,
     # just not pulled in on boot/rebuild.
@@ -33,7 +33,7 @@
     # dataDir/data -> this, so Stash's actual config/db/media metadata
     # live vault-protected while dataDir itself stays a plain path.
     storage = [
-      { src = "data"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Stash"; }
+      { src = "data"; dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/Stash"; }
     ];
 
     # Independent fact, not derived from storage above -- they happen to
@@ -43,12 +43,12 @@
     # section, outside Nix's control) point into -- confirmed missing on
     # a real run: scans silently completed against an empty/nonexistent
     # path, with no error, just nothing to show for it. Mounted via
-    # config.vars.mountpoints (modules/system/mountpoints/) at
-    # /home/${config.vars.username}/Drives/Storage now, not the old
+    # config.vars.system.mountpoints (modules/system/mountpoints/) at
+    # /home/${config.vars.identity.username}/Drives/Storage now, not the old
     # udisks2-managed /run/media/<user>/Storage.
     requireMounts = [
-      "${config.vars.homeDirectory}/Images/SelfHosted"
-      config.vars.mountpoints.device.storage.path
+      "${config.vars.identity.homeDirectory}/Images/SelfHosted"
+      config.vars.system.mountpoints.device.storage.path
     ];
 
     # Empty -- dataDir holds nothing but the storage symlink itself, so

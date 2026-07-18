@@ -24,7 +24,7 @@
 {
   imports = [ ./port-forwarding.nix ];
 
-  options.vars.ports = {
+  options.vars.system.ports = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -33,7 +33,7 @@
         no firewall/DNAT rules, no bridge/mdns/tunnel/cert/router
         services, no activation scripts, not even the `port-forwarding`
         CLI installed. Same field/semantics as
-        config.vars.mountpoints.enabled (both added together, for
+        config.vars.system.mountpoints.enabled (both added together, for
         consistency between the two sibling modules).
       '';
     };
@@ -45,7 +45,7 @@
         Global default for whether a failed entry (e.g. the public
         tunnel can't reach localhost.run) blocks activation. Per-entry
         entries.<key>.blocking overrides this. Same pattern as
-        config.vars.mountpoints.blocking.
+        config.vars.system.mountpoints.blocking.
       '';
     };
 
@@ -129,7 +129,7 @@
       default = { };
       description = ''
         Exposed ports, keyed by whatever string you want to address
-        them by (e.g. config.vars.ports.entries.jellyfin) -- the key
+        them by (e.g. config.vars.system.ports.entries.jellyfin) -- the key
         doesn't have to be meaningful. See ./lib/entry-type.nix for the
         field list.
       '';

@@ -2,7 +2,7 @@
 
 let
 
-  scripts = config.vars.scripts;
+  scripts = config.vars.packages.scripts;
 
   # Copies the script's whole containing folder into the store (so any
   # sibling files it sources relative to itself keep resolving) and

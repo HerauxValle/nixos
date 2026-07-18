@@ -7,12 +7,12 @@
 # permission facts (see that module's own default.nix for exactly when
 # to add an entry here).
 {
-  config.vars.selfHosted.aclTraversal = [
+  config.vars.services.selfHosted.aclTraversal = [
     # Example entry, kept as documentation -- no longer live now that
     # qbittorrent's paths.save/temp/export/finished moved off
     # /run/media/<user> (0750 root:root, which is what this grant
-    # existed for) onto config.vars.mountpoints.device.storage.path
-    # instead (/home/${config.vars.username}/Drives/Storage). Real
+    # existed for) onto config.vars.system.mountpoints.device.storage.path
+    # instead (/home/${config.vars.identity.username}/Drives/Storage). Real
     # history: /run/media/<user> blocked the dedicated qbittorrent
     # system user from ever reaching paths underneath it, completely
     # independent of whether Storage itself was mounted. Confirmed via
@@ -23,7 +23,7 @@
     #   unit = "qbittorrent";
     #   user = "qbittorrent";
     #   baseDir = "/run/media";
-    #   path = "/run/media/${config.vars.username}/Storage";
+    #   path = "/run/media/${config.vars.identity.username}/Storage";
     # }
   ];
 }

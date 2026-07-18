@@ -2,11 +2,11 @@
 
 # The dotfiles-backup module's excludeFiles/redactValues -- no sensible
 # generic default (this machine's specific sensitive paths/values), same
-# reasoning as config/customized.nix, just split into its own file since
+# reasoning as config/config.nix, just split into its own file since
 # these two lists are bulkier than a flat scalar. See
 # modules/backup/dotfiles/default.nix for what each option actually does.
 {
-  config.vars.dotfilesBackup = {
+  config.vars.backup.dotfilesBackup = {
     excludeFiles = [
       "Shells/Fish/secrets.fish"
       ".envrc"

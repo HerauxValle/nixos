@@ -2,7 +2,7 @@
 
 # The full catalog -- every model ever pinned here, whether or not it's
 # currently installed. `name` is the addressable key: list it in
-# config.vars.selfHosted.comfyui.installed.models (../comfyui.nix) and
+# config.vars.services.selfHosted.comfyui.installed.models (../comfyui.nix) and
 # preStart fetches it automatically on the next restart, no manual action
 # needed. A handful of entries share a `name` on purpose -- e.g.
 # florence2-base's model/config/tokenizer/tokenizer_config are one logical
@@ -12,7 +12,7 @@
 # readability); the commented-out/disabled entries in that file were left
 # out entirely rather than carried over as dead weight.
 {
-  config.vars.selfHosted.comfyui.modelStore = [
+  config.vars.services.selfHosted.comfyui.modelStore = [
 
     # BASE CHECKPOINTS — SD1.5
     {

@@ -24,7 +24,7 @@ this system was built:
 
 If you're about to write `if`, string interpolation with real
 conditional meaning, or a Nix function call inside a `config/*.nix` file
-(beyond `${config.vars.homeDirectory}`-style path assembly), stop --
+(beyond `${config.vars.identity.homeDirectory}`-style path assembly), stop --
 that belongs in the module.
 
 ## Don't generalize until a second real case exists

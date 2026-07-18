@@ -13,7 +13,7 @@
 {
   imports = [ ./openwebui.nix ];
 
-  options.vars.selfHosted.openwebui = {
+  options.vars.services.selfHosted.openwebui = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -30,7 +30,7 @@
 
     dataDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/Applications/Networking/OpenWebUI";
+      default = "${config.vars.identity.homeDirectory}/Applications/Networking/OpenWebUI";
       description = "Plain, always-available path -- holds nothing on its own except the venv and the storage symlink below.";
     };
 
@@ -44,7 +44,7 @@
     # from dataDir's declared/backed-up data.
     venvDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/.impure/python-venvs/self-hosted/openwebui";
+      default = "${config.vars.identity.homeDirectory}/.impure/python-venvs/self-hosted/openwebui";
       description = "Where the Python venv lives.";
     };
 

@@ -15,7 +15,7 @@ let
 
   selfHosted = import ../self-hosted.nix { inherit lib pkgs; };
 
-  cfg = config.vars.selfHosted.comfyui;
+  cfg = config.vars.services.selfHosted.comfyui;
 
   # The actually-active subsets -- everything below (node mounting,
   # requirements.in generation, model sync) operates on these, never on
@@ -66,9 +66,9 @@ let
     # Plain strings, not Nix paths -- those resolve to read-only
     # /nix/store copies, these are the real writable locations in the
     # actual checkout, needed for the :apply variants to sed-edit.
-    requirementsLockPath = "${config.vars.homeDirectory}/Dotfiles/Python/locks/self-hosted/comfyui/requirements.lock";
-    configFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/comfyui/comfyui.nix";
-    nodesFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/comfyui/catalog/nodes.nix";
+    requirementsLockPath = "${config.vars.identity.homeDirectory}/Dotfiles/Python/locks/self-hosted/comfyui/requirements.lock";
+    configFile = "${config.vars.identity.homeDirectory}/Dotfiles/Nixos/config/self-hosted/comfyui/comfyui.nix";
+    nodesFile = "${config.vars.identity.homeDirectory}/Dotfiles/Nixos/config/self-hosted/comfyui/catalog/nodes.nix";
   };
 
   syncModelsScript = import ./lib/models-sync.nix {
@@ -105,8 +105,8 @@ in
     (selfHosted.mkSelfHostedService {
       name = "comfyui";
       enabled = cfg.enabled;
-      user = config.vars.username;
-      homeDirectory = config.vars.homeDirectory;
+      user = config.vars.identity.username;
+      homeDirectory = config.vars.identity.homeDirectory;
       # --base-directory redirects ComfyUI's models/custom_nodes/input/
       # output/temp/user lookups at the writable dataDir, keeping
       # comfyCore itself (main.py and friends) a plain read-only Nix
@@ -174,7 +174,7 @@ in
     (selfHosted.mkActionService {
       name = "comfyui";
       enabled = cfg.enabled;
-      user = config.vars.username;
+      user = config.vars.identity.username;
       # jq/nix/nix-prefetch-git: @update's core/node commit + hash
       # checks. pip-tools: @update:deps' pip-compile -- doesn't need the
       # FHS sandbox, only the actual venv install (now in preStart

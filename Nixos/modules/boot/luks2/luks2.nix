@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  cfg = config.vars.luks2;
+  cfg = config.vars.boot.luks2;
 in
 
 # Unlock

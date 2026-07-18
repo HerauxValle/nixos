@@ -11,10 +11,10 @@
 # exist on $PATH while cwd matches. See modules/packages/shells/shells.nix
 # for the direnv-generation logic that consumes this.
 {
-  config.vars.shells = [
+  config.vars.packages.shells = [
 
     {
-      path = "${config.vars.homeDirectory}/Dotfiles";
+      path = "${config.vars.identity.homeDirectory}/Dotfiles";
       packages = with pkgs; [ tmux ];
       # recursive = true; # default
     }

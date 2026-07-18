@@ -8,7 +8,7 @@ let
 
   selfHosted = import ../self-hosted.nix { inherit lib pkgs; };
 
-  cfg = config.vars.selfHosted.odysseus;
+  cfg = config.vars.services.selfHosted.odysseus;
 
   fhsEnv = import ./lib/fhs.nix { inherit pkgs; };
 
@@ -79,8 +79,8 @@ let
   # Plain string, not a Nix path -- see update.nix for why (resolves to a
   # read-only /nix/store copy otherwise, this needs to be the real
   # writable location for @update:apply to sed-edit).
-  odysseusConfigFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/odysseus.nix";
-  odysseusRequirementsLockPath = "${config.vars.homeDirectory}/Dotfiles/Python/locks/self-hosted/odysseus/requirements.lock";
+  odysseusConfigFile = "${config.vars.identity.homeDirectory}/Dotfiles/Nixos/config/self-hosted/odysseus.nix";
+  odysseusRequirementsLockPath = "${config.vars.identity.homeDirectory}/Dotfiles/Python/locks/self-hosted/odysseus/requirements.lock";
   updateActions = import ./lib/update.nix {
     inherit lib selfHosted cfg;
     requirementsIn = ../../../../../Python/locks/self-hosted/odysseus/requirements.in;
@@ -96,8 +96,8 @@ in
     (selfHosted.mkSelfHostedService {
       name = "odysseus";
       enabled = cfg.enabled;
-      user = config.vars.username;
-      homeDirectory = config.vars.homeDirectory;
+      user = config.vars.identity.username;
+      homeDirectory = config.vars.identity.homeDirectory;
       # Runs inside the FHS sandbox too, not just preStart -- bcrypt/
       # cryptography/lxml/pillow/onnxruntime need the real /lib,/usr/lib
       # on every import, not just once at install. cd srcDir first,
@@ -137,7 +137,7 @@ in
     (selfHosted.mkActionService {
       name = "odysseus";
       enabled = cfg.enabled;
-      user = config.vars.username;
+      user = config.vars.identity.username;
       # git for update:core's ls-remote, curl+jq/nix for
       # mkDepsUpdateScript's pip-compile-diff -- only @update* needs
       # these.

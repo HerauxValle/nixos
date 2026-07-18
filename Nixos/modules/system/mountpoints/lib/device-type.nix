@@ -1,10 +1,10 @@
 { lib }:
 
-# The submodule type behind config.vars.mountpoints.device.<key> -- a
+# The submodule type behind config.vars.system.mountpoints.device.<key> -- a
 # submodule (not the loose `attrs` this repo otherwise uses for list-of
 # options like vars.scripts) specifically so `path` below can be a real
 # derived field computed from this same entry's own sibling options,
-# giving dot-path access like config.vars.mountpoints.device.storage.path
+# giving dot-path access like config.vars.system.mountpoints.device.storage.path
 # elsewhere in the repo.
 
 lib.types.submodule ({ config, ... }: {
@@ -68,7 +68,7 @@ lib.types.submodule ({ config, ... }: {
         Whether a failure on this entry (UUID absent, unresolvable
         leaf, or the mount itself failing) aborts activation instead of
         just printing a warning. null (default) inherits
-        config.vars.mountpoints.blocking; set true/false to override
+        config.vars.system.mountpoints.blocking; set true/false to override
         per-entry. Ignored entirely if `at` is null.
       '';
     };
@@ -86,11 +86,11 @@ lib.types.submodule ({ config, ... }: {
       '';
       default =
         if !config.enabled then
-          throw "config.vars.mountpoints.device.<key>.path: this entry is disabled (enabled = false) -- nothing is mounted, so there's no path."
+          throw "config.vars.system.mountpoints.device.<key>.path: this entry is disabled (enabled = false) -- nothing is mounted, so there's no path."
         else if config.at == null then
-          throw "config.vars.mountpoints.device.<key>.path: no `at` set on this entry -- nothing is actually mounted, so there's no path."
+          throw "config.vars.system.mountpoints.device.<key>.path: no `at` set on this entry -- nothing is actually mounted, so there's no path."
         else if config.as == null || config.as == "LABEL" || config.as == "NAME" then
-          throw "config.vars.mountpoints.device.<key>.path: `as` must be a literal string or \"UUID\" for a static path -- LABEL/NAME/omitted need a live disk query."
+          throw "config.vars.system.mountpoints.device.<key>.path: `as` must be a literal string or \"UUID\" for a static path -- LABEL/NAME/omitted need a live disk query."
         else if config.as == "UUID" then
           "${config.at}/${config.uuid}"
         else

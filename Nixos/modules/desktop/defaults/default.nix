@@ -7,7 +7,7 @@ with lib;
     ./sessionVariables.nix
   ];
 
-  options.vars.default.apps = {
+  options.vars.desktop.default.apps = {
     terminal = mkOption {
       type = types.str;
       default = "kitty";

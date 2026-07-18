@@ -4,7 +4,7 @@
 # ../../modules/services/self-hosted/odysseus/. Data only, same as every
 # other service's config/self-hosted/<name>.nix.
 {
-  config.vars.selfHosted.odysseus = {
+  config.vars.services.selfHosted.odysseus = {
     enabled = true;
 
     # Off for now -- still exists, still systemctl start-able by hand,
@@ -27,13 +27,13 @@
     # dataDir (this service has none -- see default.nix's own top
     # comment for why).
     storage = [
-      { src = "data"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Odysseus/data"; }
-      { src = "logs"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Odysseus/logs"; }
-      { src = ".env"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/Odysseus/.env"; }
+      { src = "data"; dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/Odysseus/data"; }
+      { src = "logs"; dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/Odysseus/logs"; }
+      { src = ".env"; dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/Odysseus/.env"; }
     ];
 
     requireMounts = [
-      "${config.vars.homeDirectory}/Images/SelfHosted"
+      "${config.vars.identity.homeDirectory}/Images/SelfHosted"
     ];
 
     # The exact commit the vault's already-recovered checkout was

@@ -15,7 +15,7 @@
 {
   imports = [ ./immich.nix ];
 
-  options.vars.selfHosted.immich = {
+  options.vars.services.selfHosted.immich = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = false;

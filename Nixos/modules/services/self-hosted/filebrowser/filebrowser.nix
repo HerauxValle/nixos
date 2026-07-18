@@ -8,7 +8,7 @@ let
 
   selfHosted = import ../self-hosted.nix { inherit lib pkgs; };
 
-  cfg = config.vars.selfHosted.filebrowser;
+  cfg = config.vars.services.selfHosted.filebrowser;
 
   package = import ./lib/package.nix { inherit pkgs; } { inherit (cfg) version hash; };
 
@@ -24,7 +24,7 @@ let
   # Plain string, not a Nix path -- see update.nix for why (resolves to a
   # read-only /nix/store copy otherwise, this needs to be the real
   # writable location for @update:apply to sed-edit).
-  filebrowserConfigFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/filebrowser.nix";
+  filebrowserConfigFile = "${config.vars.identity.homeDirectory}/Dotfiles/Nixos/config/self-hosted/filebrowser.nix";
   updateScript = import ./lib/update.nix { inherit cfg; configFile = filebrowserConfigFile; };
   updateApplyScript = import ./lib/update.nix { inherit cfg; configFile = filebrowserConfigFile; apply = true; };
 
@@ -35,8 +35,8 @@ in
     (selfHosted.mkSelfHostedService {
       name = "filebrowser";
       enabled = cfg.enabled;
-      user = config.vars.username;
-      homeDirectory = config.vars.homeDirectory;
+      user = config.vars.identity.username;
+      homeDirectory = config.vars.identity.homeDirectory;
       execStart = "${pkgs.writeShellScript "self-hosted-filebrowser-start" ''
         cd "${liveDataDir}"
         exec ${package}/bin/filebrowser -d "${dbFile}" -a "${cfg.host}" -p "${toString cfg.port}"
@@ -64,7 +64,7 @@ in
     (selfHosted.mkActionService {
       name = "filebrowser";
       enabled = cfg.enabled;
-      user = config.vars.username;
+      user = config.vars.identity.username;
       # curl+jq for the GitHub releases API, nix for
       # nix-prefetch-url/nix hash convert -- only @update needs these.
       packages = [ pkgs.curl pkgs.jq pkgs.nix ];

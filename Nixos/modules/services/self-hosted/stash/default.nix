@@ -16,7 +16,7 @@
 {
   imports = [ ./stash.nix ];
 
-  options.vars.selfHosted.stash = {
+  options.vars.services.selfHosted.stash = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -32,7 +32,7 @@
 
     dataDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/Images/SelfHosted/Stash";
+      default = "${config.vars.identity.homeDirectory}/Images/SelfHosted/Stash";
       description = "Stash-managed data: config.yml, database, generated thumbnails/previews, cache, blobs. The binary itself comes from the Nix-built package and never touches this directory.";
     };
 

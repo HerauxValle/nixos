@@ -1,7 +1,7 @@
 { ... }:
 
 {
-  config.vars.environment.packages = {
+  config.vars.packages.environment.packages = {
     pkgs = {
 
       # Browsers

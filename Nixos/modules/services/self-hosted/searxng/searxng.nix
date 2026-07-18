@@ -8,7 +8,7 @@ let
 
   selfHosted = import ../self-hosted.nix { inherit lib pkgs; };
 
-  cfg = config.vars.selfHosted.searxng;
+  cfg = config.vars.services.selfHosted.searxng;
 
   fhsEnv = import ./lib/fhs.nix { inherit pkgs; };
 
@@ -114,8 +114,8 @@ let
   # Plain string, not a Nix path -- see update.nix for why (resolves to a
   # read-only /nix/store copy otherwise, this needs to be the real
   # writable location for @update:apply to sed-edit).
-  searxngConfigFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/searxng.nix";
-  searxngRequirementsLockPath = "${config.vars.homeDirectory}/Dotfiles/Python/locks/self-hosted/searxng/requirements.lock";
+  searxngConfigFile = "${config.vars.identity.homeDirectory}/Dotfiles/Nixos/config/self-hosted/searxng.nix";
+  searxngRequirementsLockPath = "${config.vars.identity.homeDirectory}/Dotfiles/Python/locks/self-hosted/searxng/requirements.lock";
   updateActions = import ./lib/update.nix {
     inherit lib selfHosted cfg;
     requirementsIn = ../../../../../Python/locks/self-hosted/searxng/requirements.in;
@@ -131,8 +131,8 @@ in
     (selfHosted.mkSelfHostedService {
       name = "searxng";
       enabled = cfg.enabled;
-      user = config.vars.username;
-      homeDirectory = config.vars.homeDirectory;
+      user = config.vars.identity.username;
+      homeDirectory = config.vars.identity.homeDirectory;
       # Runs inside the FHS sandbox too, not just preStart -- lxml needs
       # the real /lib,/usr/lib on every import, not just once at install.
       execStart = "${pkgs.writeShellScript "self-hosted-searxng-start" ''
@@ -160,7 +160,7 @@ in
     (selfHosted.mkActionService {
       name = "searxng";
       enabled = cfg.enabled;
-      user = config.vars.username;
+      user = config.vars.identity.username;
       # git for update:core's ls-remote, curl+jq/nix for
       # mkDepsUpdateScript's pip-compile-diff -- only @update* needs
       # these.

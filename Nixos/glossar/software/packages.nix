@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.environment option, all commented out.
+# EXAMPLES -- every config.vars.packages.environment option, all commented out.
 # Same shape as glossar/main/variables.nix, scoped to one module. Schema:
 # modules/packages/packages/default.nix. Real values on this machine:
 # config/software/packages/{registry,packages}.nix. Logic that resolves
@@ -35,7 +35,7 @@
 # =========================================================================
 
 {
-  # config.vars.environment = {
+  # config.vars.packages.environment = {
 
   #   # --- package registries --------------------------------------------
 
@@ -188,7 +188,7 @@
 
   # --- package resolution -------------------------------------------------
   # Every packages.<source> entry must have a matching source under
-  # config.vars.environment.sources.<source>. Each package key is then
+  # config.vars.packages.environment.sources.<source>. Each package key is then
   # resolved automatically from that source, e.g.
   #
   #   packages.kde.dolphin

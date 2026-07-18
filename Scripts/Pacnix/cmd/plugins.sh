@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # plugins.sh -- generate a ready-to-paste plugin record ({ name = ...; url =
 # ...; }) for Nixos/modules/hyprland/plugins/default.nix's
-# config.vars.hyprlandPlugins list, from just a git URL. No mkPlugin
+# config.vars.hyprland.hyprlandPlugins list, from just a git URL. No mkPlugin
 # wrapper needed per entry -- that function (in ./plugins.nix) is mapped
 # over the whole list once.
 #

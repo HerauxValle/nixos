@@ -12,10 +12,10 @@
 # cloning it. See that file for the schema this fills in.
 {
   # Home-manager-only programs.* (not NixOS system options, so they can't go
-  # through config.vars.programs -> modules/packages/programs/programs.nix
+  # through config.vars.packages.programs -> modules/packages/programs/programs.nix
   # like the rest of this file) -- grouped under one users.${...}.programs
   # block since vscode won't be the last personal pick to land here.
-  config.home-manager.users.${config.vars.username}.programs = {
+  config.home-manager.users.${config.vars.identity.username}.programs = {
     vscode = {
       enable = false;
       mutableExtensionsDir = false;
@@ -94,7 +94,7 @@
     };
   };
 
-  config.vars.programs = {
+  config.vars.packages.programs = {
     steam = {
       enable = false;
       remotePlayOpenFirewall = true;

@@ -13,7 +13,7 @@
 {
   imports = [ ./venv.nix ];
 
-  options.vars.venvs = lib.mkOption {
+  options.vars.packages.venvs = lib.mkOption {
     type = lib.types.submodule {
       options = {
         logLevel = lib.mkOption {
@@ -31,7 +31,7 @@
           default = "~/.impure/python-venvs/nix-declared";
           description = ''
             Default parent dir for venvs that don't set their own `path`.
-            `~` is expanded against config.vars.homeDirectory, not the
+            `~` is expanded against config.vars.identity.homeDirectory, not the
             shell's HOME, since this gets baked into nix-generated files
             at eval time -- see docs/DECISIONS.md.
           '';
@@ -81,7 +81,7 @@
                       default = { };
                       description = ''
                         Explicit trigger dirs -> recursive/flat, same semantics
-                        as config.vars.shells. If empty and onEntry = true, the
+                        as config.vars.packages.shells. If empty and onEntry = true, the
                         venv's own resolved path is used as a single recursive
                         trigger. Declaring even one explicit path here fully
                         replaces that implicit default -- it does not append.

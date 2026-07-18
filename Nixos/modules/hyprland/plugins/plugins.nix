@@ -34,13 +34,13 @@ let
       };
     };
 
-  plugins = map mkPlugin config.vars.hyprlandPlugins;
+  plugins = map mkPlugin config.vars.hyprland.hyprlandPlugins;
 in
 {
   # Fixed, rebuild-stable paths (unlike each plugin's own /nix/store/<hash>-...
   # output) so Config/Apps/autostart.lua can `hyprctl plugin load` them
   # without needing to know the current store path.
-  home-manager.users.${config.vars.username}.xdg.dataFile = builtins.listToAttrs (map
+  home-manager.users.${config.vars.identity.username}.xdg.dataFile = builtins.listToAttrs (map
     (p: {
       name = "hypr-plugins/${p.name}.so";
       value.source = "${p.drv}/lib/${p.libFile}";

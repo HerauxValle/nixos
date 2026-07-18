@@ -14,7 +14,7 @@
 {
   imports = [ ./programs.nix ];
 
-  options.vars.programs = {
+  options.vars.packages.programs = {
     fish.enable = lib.mkOption {
       type = lib.types.bool;
       default = true;

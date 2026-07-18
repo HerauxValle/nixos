@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.mountpoints option, all commented out.
+# EXAMPLES -- every config.vars.system.mountpoints option, all commented out.
 # Same shape as glossar/main/variables.nix, scoped to one module. Schema:
 # modules/system/mountpoints/default.nix +
 # modules/system/mountpoints/lib/device-type.nix. Real values on this
@@ -10,7 +10,7 @@
 #
 # A disk registry/manager, not just an active-mount list -- uuid is the
 # only required field, so an entry can exist purely to record a UUID
-# (and give it an addressable key, config.vars.mountpoints.device.<key>)
+# (and give it an addressable key, config.vars.system.mountpoints.device.<key>)
 # without `at` ever being set. Real bash at activation time, not the
 # fileSystems option -- `as`'s LABEL/NAME resolution needs live disk
 # access eval time can't reliably get.
@@ -22,7 +22,7 @@
 # =========================================================================
 
 {
-  # config.vars.mountpoints = {
+  # config.vars.system.mountpoints = {
 
   #   # --- globals ------------------------------------------------------------
   #   enabled = true;   # false = the entire module is treated as if it doesn't exist
@@ -43,7 +43,7 @@
 
   #     # --- pure registry record -- no `at`, nothing mounted --------------
   #     # just a UUID + addressable key, e.g. for a drive referenced
-  #     # elsewhere by config.vars.mountpoints.device.backup.uuid without
+  #     # elsewhere by config.vars.system.mountpoints.device.backup.uuid without
   #     # this module ever mounting it itself.
   #     backup = {
   #       uuid = "b07f4a7d-6afe-490c-a039-1da3530b887a";
@@ -53,10 +53,10 @@
 
   # };
 
-  # --- config.vars.mountpoints.device.<key>.path -- derived, not set directly ---
+  # --- config.vars.system.mountpoints.device.<key>.path -- derived, not set directly ---
   # only resolves when enabled = true, at is set, and as is a literal
   # string or "UUID" (LABEL/NAME/omitted need a live disk query, so no
   # static path exists to hand back). Reference it elsewhere instead of
   # hardcoding a path string:
-  #   paths.save = "${config.vars.mountpoints.device.storage.path}/Torrents/Library";
+  #   paths.save = "${config.vars.system.mountpoints.device.storage.path}/Torrents/Library";
 }

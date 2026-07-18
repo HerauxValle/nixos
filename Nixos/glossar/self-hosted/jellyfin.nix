@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.selfHosted.jellyfin option, all commented
+# EXAMPLES -- every config.vars.services.selfHosted.jellyfin option, all commented
 # out. Same shape as glossar/main/variables.nix, scoped to one service.
 # Schema: modules/services/self-hosted/jellyfin/default.nix. Real values
 # on this machine: config/self-hosted/jellyfin.nix. Full reference
@@ -16,7 +16,7 @@
 # =========================================================================
 
 {
-  # config.vars.selfHosted.jellyfin = {
+  # config.vars.services.selfHosted.jellyfin = {
 
   #   # --- master switch --------------------------------------------------
   #   # true = live service + actions exist and run. false = torn down

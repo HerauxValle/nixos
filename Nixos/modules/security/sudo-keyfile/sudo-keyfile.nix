@@ -1,7 +1,7 @@
 { config, pkgs, lib, ... }:
 
 let
-  cfg = config.vars.sudoKeyfile;
+  cfg = config.vars.security.sudoKeyfile;
 
   # The setuid-root wrapper's installed path -- this, not the raw
   # ${checker}/bin path, is what PAM and the self-test must actually

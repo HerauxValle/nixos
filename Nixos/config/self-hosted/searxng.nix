@@ -4,7 +4,7 @@
 # ../../modules/services/self-hosted/searxng/. Data only, same as
 # ollama.nix/stash.nix.
 {
-  config.vars.selfHosted.searxng = {
+  config.vars.services.selfHosted.searxng = {
     # true = installed: systemd unit exists, preStart's src/venv/theme
     # reconciliation runs. false = torn down on the next rebuild --
     # venvDir, srcDir, and dataDir (minus the settings.yml symlink)
@@ -14,7 +14,7 @@
 
     # Plain, always-available -- holds nothing on its own but the
     # settings.yml symlink.
-    dataDir = "${config.vars.homeDirectory}/Applications/Networking/SearXNG";
+    dataDir = "${config.vars.identity.homeDirectory}/Applications/Networking/SearXNG";
 
     # Toggled on for 24/7 availablility -- normally off and systemctl
     # start-able by hand, just not pulled in on boot/rebuild.
@@ -51,11 +51,11 @@
     # vault-backed there) and copied in by hand before the first
     # rebuild. Nix never reads or writes its contents.
     storage = [
-      { src = "settings.yml"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/SearXNG/settings.yml"; }
+      { src = "settings.yml"; dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/SearXNG/settings.yml"; }
     ];
 
     requireMounts = [
-      "${config.vars.homeDirectory}/Images/SelfHosted"
+      "${config.vars.identity.homeDirectory}/Images/SelfHosted"
     ];
 
     # Empty -- dataDir holds nothing but the settings.yml symlink itself,

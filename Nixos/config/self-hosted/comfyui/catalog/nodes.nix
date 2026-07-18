@@ -4,12 +4,12 @@
 # ComfyUI-Manager, not special-cased), whether or not currently installed.
 # Pinned via nix-prefetch-git against each repo's default-branch HEAD at
 # the time this was generated. `repo` is the addressable key -- list it in
-# config.vars.selfHosted.comfyui.installed.nodes (../comfyui.nix) to
+# config.vars.services.selfHosted.comfyui.installed.nodes (../comfyui.nix) to
 # actually have it symlinked into custom_nodes/. Category comments kept
 # from the old nodes.sh for readability -- purely cosmetic, doesn't affect
 # anything.
 {
-  config.vars.selfHosted.comfyui.nodeStore = [
+  config.vars.services.selfHosted.comfyui.nodeStore = [
     { owner = "ltdrdata"; repo = "ComfyUI-Manager"; rev = "351d9c62c419bf49c0fdb6a5a378e94dc3481193"; hash = "sha256-HtIktmm41dLy+qMbRmMmhnWEpU7agin3jAqTLp7pz3w="; }
     { owner = "rgthree"; repo = "rgthree-comfy"; rev = "27b4f4cdcf3b127c29d5d8135ac1536ecbd4c383"; hash = "sha256-qFd0OblE70GBej/4L0m/FZIShihWEllKl7yxNk5NOXg="; }
     { owner = "chrisgoringe"; repo = "cg-use-everywhere"; rev = "632ed7bb51bb18ceb03ccaefe1f34be8bd416500"; hash = "sha256-TWJbdU06FoRFwzxiNcM99muodyISkgvZDlfBR4bMrMc="; }

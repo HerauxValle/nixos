@@ -9,10 +9,10 @@
   # about you specifically. Options WITHOUT a default are required -- pure
   # personal facts (username, hostname, ...) with no sensible generic
   # value to fake. Their one real definition lives in
-  # Nixos/config/customized.nix.
+  # Nixos/config/config.nix.
   # =========================================================================
 
-  options.vars = {
+  options.vars.identity = {
     username = lib.mkOption {
       type = lib.types.str;
       description = "Primary (and only) user account on this machine.";
@@ -20,8 +20,8 @@
 
     homeDirectory = lib.mkOption {
       type = lib.types.str;
-      default = "/home/${config.vars.username}";
-      description = "Home directory of vars.username -- derived; change username, not this.";
+      default = "/home/${config.vars.identity.username}";
+      description = "Home directory of vars.identity.username -- derived; change username, not this.";
     };
 
     hostName = lib.mkOption {

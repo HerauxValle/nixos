@@ -13,7 +13,7 @@
 {
   imports = [ ./mountpoints.nix ];
 
-  options.vars.mountpoints = {
+  options.vars.system.mountpoints = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -21,7 +21,7 @@
         false -- this entire module is treated as if it doesn't exist:
         no activation script contribution at all (not even an empty
         subshell), regardless of what's declared under `device`. Same
-        field/semantics as config.vars.ports.enabled.
+        field/semantics as config.vars.system.ports.enabled.
       '';
     };
 
@@ -40,7 +40,7 @@
       default = { };
       description = ''
         Known disks, keyed by whatever string you want to address them
-        by later (e.g. config.vars.mountpoints.device.storage) -- the
+        by later (e.g. config.vars.system.mountpoints.device.storage) -- the
         key doesn't have to be meaningful, a raw uuid works fine too.
         See ./lib/device-type.nix for the field list.
       '';

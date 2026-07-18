@@ -8,14 +8,14 @@
 # picture is visible in one place instead of split between here and the
 # module's own defaults.
 {
-  config.vars.selfHosted.ollama = {
+  config.vars.services.selfHosted.ollama = {
     # true = installed: systemd units exist, postStart's model sync runs.
     # false = torn down on the next rebuild -- dataDir (pulled model
     # blobs) removed automatically; storage (empty by default here) is
     # never touched by that teardown.
     enabled = true;
 
-    dataDir = "${config.vars.homeDirectory}/Applications/Networking/Ollama";
+    dataDir = "${config.vars.identity.homeDirectory}/Applications/Networking/Ollama";
 
     # Off for now -- still exists, still systemctl start-able by hand,
     # just not pulled in on boot/rebuild.

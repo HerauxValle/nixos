@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.selfHosted.immich option, all commented
+# EXAMPLES -- every config.vars.services.selfHosted.immich option, all commented
 # out. Same shape as glossar/main/variables.nix, scoped to one service.
 # Schema: modules/services/self-hosted/immich/default.nix. Real values on
 # this machine: config/self-hosted/immich.nix. Full reference (systemd
@@ -20,7 +20,7 @@
 # =========================================================================
 
 {
-  # config.vars.selfHosted.immich = {
+  # config.vars.services.selfHosted.immich = {
 
   #   # --- master switch --------------------------------------------------
   #   # true = services.immich.enable (+ .database.enable/.redis.enable)

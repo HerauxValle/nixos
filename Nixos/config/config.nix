@@ -8,25 +8,27 @@
 # instead of bloating it.
 {
   config.vars = {
-    username = "maxmustermann";
-    hostName = "nixos";
-    networkInterface = "enp3s0";
-    timeZone = "Europe/Berlin";
-    stateVersion = "26.05";
-    gitCommitEmail = "maxmustermann@example.com";
+    identity = {
+      username = "maxmustermann";
+      hostName = "nixos";
+      networkInterface = "enp3s0";
+      timeZone = "Europe/Berlin";
+      stateVersion = "26.05";
+      gitCommitEmail = "maxmustermann@example.com";
+    };
 
-    luks2.usbKeyLabel = "VirtualKeys";
+    boot.luks2.usbKeyLabel = "VirtualKeys";
 
-    usbRequired.enable = false;
-    usbRequired.usbKeyLabel = "VirtualKeys";
+    boot.usbRequired.enable = false;
+    boot.usbRequired.usbKeyLabel = "VirtualKeys";
 
-    sudoKeyfile.enable = false;
+    security.sudoKeyfile.enable = false;
 
-    usbKillswitch.killMode = "disabled";
-    usbKillswitch.usbSerialShort = "0000000000000000000";
+    security.usbKillswitch.killMode = "disabled";
+    security.usbKillswitch.usbSerialShort = "0000000000000000000";
 
-    dotfilesBackup.enable = false;
-    dotfilesBackup.remoteUrl = "git@github.com:HerauxValle/nixos.git";
-    dotfilesBackup.useRepoCache = true;
+    backup.dotfilesBackup.enable = false;
+    backup.dotfilesBackup.remoteUrl = "git@github.com:HerauxValle/nixos.git";
+    backup.dotfilesBackup.useRepoCache = true;
   };
 }

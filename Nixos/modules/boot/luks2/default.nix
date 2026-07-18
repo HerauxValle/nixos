@@ -5,11 +5,11 @@
 # physical USB stick -- see boot/usb-required/default.nix's own comment
 # for why. Logic that reads these lives in ./luks2.nix, imported below.
 # usbKeyLabel has no sensible generic default (a specific USB stick's
-# label) -- its one real definition lives in Nixos/config/customized.nix.
+# label) -- its one real definition lives in Nixos/config/config.nix.
 {
   imports = [ ./luks2.nix ];
 
-  options.vars.luks2 = {
+  options.vars.boot.luks2 = {
     # 1. LUKS device name -- must match hardware-configuration.nix's definition.
     #    Used both as the attribute key below and inside the systemd unit name,
     #    since systemd-cryptsetup@<name>.service is generated from it.

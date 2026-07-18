@@ -1,10 +1,10 @@
 { config, ... }:
 
 let
-  cfg = config.vars.programs;
+  cfg = config.vars.packages.programs;
 in
 
-# All NixOS system-level programs.* options, assembled from config.vars.programs
+# All NixOS system-level programs.* options, assembled from config.vars.packages.programs
 # so every entry has an obvious place to go (Nixos/modules/packages/programs/default.nix
 # for the schema, Nixos/config/programs.nix for personal picks) instead of
 # sprouting its own top-level programs.<x> = ...; line.
@@ -51,7 +51,7 @@ in
   # Some programs.* options only exist under home-manager, not as NixOS
   # system options -- reached through home-manager.users.<name>.programs
   # instead, same as packages/shells/shells.nix does elsewhere.
-  home-manager.users.${config.vars.username}.programs = {
+  home-manager.users.${config.vars.identity.username}.programs = {
     fresh-editor = {
       enable = cfg.freshEditor.enable;
       defaultEditor = cfg.freshEditor.defaultEditor;

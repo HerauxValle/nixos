@@ -1,7 +1,7 @@
 { ... }:
 
 # ==========================================================================
-# EXAMPLES -- every config.vars.venvs option, all commented out.
+# EXAMPLES -- every config.vars.packages.venvs option, all commented out.
 # Same shape as glossar/main/variables.nix, scoped to one module. Schema:
 # modules/packages/venvs/default.nix. Logic that turns this into real
 # venvs + direnv wiring: modules/packages/venvs/venv.nix.
@@ -13,7 +13,7 @@
 #
 # `path`, when omitted, resolves to `${basePath}/<name>` -- there is no
 # static string to hand back for that at eval time in this file, since
-# resolution happens against config.vars.homeDirectory in venv.nix, not
+# resolution happens against config.vars.identity.homeDirectory in venv.nix, not
 # here. Same reasoning as mountpoints' device.<key>.path: this file is
 # never imported, so nothing here is live config to reference anyway.
 #
@@ -24,7 +24,7 @@
 # ==========================================================================
 
 {
-  # config.vars.venvs = {
+  # config.vars.packages.venvs = {
 
   #   # --- globals -----------------------------------------------------
   #   logLevel = "error"; # debug/silent/error -- see venv.nix lib/manage/log.sh

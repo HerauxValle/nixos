@@ -5,11 +5,11 @@
 # (options declared here, not shared) so any one can be changed or removed
 # without touching the others. Logic that reads these lives in
 # ./usb-required.nix, imported below. usbKeyLabel has no sensible generic
-# default -- its one real definition lives in Nixos/config/customized.nix.
+# default -- its one real definition lives in Nixos/config/config.nix.
 {
   imports = [ ./usb-required.nix ];
 
-  options.vars.usbRequired = {
+  options.vars.boot.usbRequired = {
     # true  -- if the USB key isn't detected during boot, power off instead
     #          of letting cryptsetup fall through to the normal LUKS
     #          passphrase prompt.

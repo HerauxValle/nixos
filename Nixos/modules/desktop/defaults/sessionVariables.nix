@@ -4,7 +4,7 @@
 }:
 
 let
-  apps = config.vars.default.apps;
+  apps = config.vars.desktop.default.apps;
 in
 {
   environment.sessionVariables = {

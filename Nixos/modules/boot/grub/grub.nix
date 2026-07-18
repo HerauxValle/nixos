@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  cfg = config.vars.grub;
+  cfg = config.vars.boot.grub;
 in
 
 # General

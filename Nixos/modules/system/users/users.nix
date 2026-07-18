@@ -26,16 +26,16 @@
   # defines (system.activationScripts.users), not a separate script -- so
   # ordering relative to it is guaranteed, not left to chance.
   system.activationScripts.users.text = lib.mkBefore ''
-    HASH_FILE="${config.vars.users.hashFile}"
+    HASH_FILE="${config.vars.system.users.hashFile}"
     if [ ! -f "$HASH_FILE" ]; then
       mkdir -p "$(dirname "$HASH_FILE")"
       chmod 700 "$(dirname "$HASH_FILE")"
       # Static string, not computed here, so this has no runtime dependency
       # on mkpasswd existing at activation time. Quoted heredoc (not
       # `echo '...'`) so nothing here needs shell-escaping regardless of
-      # the hash's content. Value itself lives in config.vars.users.fallbackHash.
+      # the hash's content. Value itself lives in config.vars.system.users.fallbackHash.
       cat > "$HASH_FILE" <<'HASHEOF'
-${config.vars.users.fallbackHash}
+${config.vars.system.users.fallbackHash}
 HASHEOF
       chmod 600 "$HASH_FILE"
       chown root:root "$HASH_FILE"
@@ -43,7 +43,7 @@ HASHEOF
     fi
   '';
 
-  users.users.${config.vars.username} = {
+  users.users.${config.vars.identity.username} = {
     isNormalUser = true;
     extraGroups = [
       "wheel"
@@ -71,7 +71,7 @@ HASHEOF
     # there's no separate one. Written by ./install.sh (prompts for a
     # password, hashes it, writes it here as root:root, 600) -- run that
     # first, this path won't exist otherwise.
-    hashedPasswordFile = config.vars.users.hashFile;
+    hashedPasswordFile = config.vars.system.users.hashFile;
 
     # password = "plaintext";  # Also exists, but stores the literal password
     #                          # readably in the Nix store -- no real reason

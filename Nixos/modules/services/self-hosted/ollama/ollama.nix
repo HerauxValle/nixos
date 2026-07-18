@@ -9,7 +9,7 @@ let
 
   selfHosted = import ../self-hosted.nix { inherit lib pkgs; };
 
-  cfg = config.vars.selfHosted.ollama;
+  cfg = config.vars.services.selfHosted.ollama;
 
   package = import ./lib/package.nix { inherit pkgs; } { inherit (cfg) version hash; };
 
@@ -17,7 +17,7 @@ let
   # Plain string, not a Nix path -- see update.nix for why (resolves to a
   # read-only /nix/store copy otherwise, this needs to be the real
   # writable location for @update:apply to sed-edit).
-  ollamaConfigFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/ollama.nix";
+  ollamaConfigFile = "${config.vars.identity.homeDirectory}/Dotfiles/Nixos/config/self-hosted/ollama.nix";
   updateScript = import ./lib/update.nix { inherit cfg; configFile = ollamaConfigFile; };
   updateApplyScript = import ./lib/update.nix { inherit cfg; configFile = ollamaConfigFile; apply = true; };
 
@@ -50,8 +50,8 @@ in
     (selfHosted.mkSelfHostedService {
       name = "ollama";
       enabled = cfg.enabled;
-      user = config.vars.username;
-      homeDirectory = config.vars.homeDirectory;
+      user = config.vars.identity.username;
+      homeDirectory = config.vars.identity.homeDirectory;
       execStart = "${package}/bin/ollama serve";
       # Model reconciliation runs here now, every start, not as a
       # separate manual @sync -- postStart because it goes through
@@ -73,7 +73,7 @@ in
     (selfHosted.mkActionService {
       name = "ollama";
       enabled = cfg.enabled;
-      user = config.vars.username;
+      user = config.vars.identity.username;
       # curl+jq for the GitHub releases API, nix for
       # nix-prefetch-url/nix hash convert -- only @update actually needs
       # these, but packages is shared across the whole action template.

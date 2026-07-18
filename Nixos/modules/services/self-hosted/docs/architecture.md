@@ -80,7 +80,7 @@ Exists because an ancestor directory (e.g. `~/Applications`) can end up
 root-owned from some earlier root-run step, and `systemd-tmpfiles` refuses
 to walk through a root-owned parent to fix a child ("unsafe path
 transition") -- fixing just the leaf `dataDir` silently doesn't work if
-any ancestor above it is wrong. Pass `homeDirectory = config.vars.homeDirectory;`
+any ancestor above it is wrong. Pass `homeDirectory = config.vars.identity.homeDirectory;`
 whenever `dataDir` lives under the home directory.
 
 **The `ensureDataDir` trap**: `true` gets you a tmpfiles `d` rule for

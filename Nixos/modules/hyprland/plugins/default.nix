@@ -18,7 +18,7 @@
 #    need: "rev" -> rev, "hash" -> hash, "date" (first 10 chars) -> the
 #    date part of version.
 #
-# 2. Append one more record to config.vars.hyprlandPlugins below using
+# 2. Append one more record to config.vars.hyprland.hyprlandPlugins below using
 #    those values. `version` isn't required -- mkPlugin defaults it from
 #    rev if you don't want to bother copying the date.
 #
@@ -28,13 +28,13 @@
 {
   imports = [ ./plugins.nix ];
 
-  options.vars.hyprlandPlugins = lib.mkOption {
+  options.vars.hyprland.hyprlandPlugins = lib.mkOption {
     type = lib.types.listOf lib.types.attrs;
     default = [ ];
     description = "Raw Hyprland plugin specs (name/url/rev/hash/...) -- built and loaded by ./plugins.nix.";
   };
 
-  config.vars.hyprlandPlugins = [
+  config.vars.hyprland.hyprlandPlugins = [
 
     # -------------------------------------------------------------------------
     # ---- add more plugin records above this line ----------------------------

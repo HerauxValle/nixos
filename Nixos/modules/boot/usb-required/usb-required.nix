@@ -1,7 +1,7 @@
 { config, pkgs, lib, ... }:
 
 let
-  cfg = config.vars.usbRequired;
+  cfg = config.vars.boot.usbRequired;
 in
 
 # Power off if USB absent at boot

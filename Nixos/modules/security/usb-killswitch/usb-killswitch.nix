@@ -1,7 +1,7 @@
 { config, pkgs, lib, ... }:
 
 let
-  cfg = config.vars.usbKillswitch;
+  cfg = config.vars.security.usbKillswitch;
 
   poweroffCmd =
     if cfg.killMode == "soft" then

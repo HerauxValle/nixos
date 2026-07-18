@@ -3,7 +3,7 @@
 # Everything that isn't the node/model lists -- those live in
 # ./nodes.nix and ./models.nix, split out purely because of their size.
 {
-  config.vars.selfHosted.comfyui = {
+  config.vars.services.selfHosted.comfyui = {
     # true = installed: systemd units exist, preStart/postStart
     # reconciliation runs. false = torn down on the next rebuild --
     # venvDir, custom_nodes/, models/ all removed automatically, but
@@ -11,7 +11,7 @@
     # (output/, temp/, input/) are never touched by that teardown.
     enabled = true;
 
-    dataDir = "${config.vars.homeDirectory}/Applications/Networking/ComfyUI";
+    dataDir = "${config.vars.identity.homeDirectory}/Applications/Networking/ComfyUI";
 
     # Off for now -- still exists, still systemctl start-able by hand,
     # just not pulled in on boot/rebuild.
@@ -31,11 +31,11 @@
     storage = [
       {
         src = "user";
-        dest = "${config.vars.homeDirectory}/Images/SelfHosted/ComfyUI/user";
+        dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/ComfyUI/user";
       }
     ];
 
-    requireMounts = [ "${config.vars.homeDirectory}/Images/SelfHosted" ];
+    requireMounts = [ "${config.vars.identity.homeDirectory}/Images/SelfHosted" ];
 
     # Non-empty, deliberately -- dataDir also holds output/temp/input
     # (real generated/uploaded content, no storage entry covers them), so

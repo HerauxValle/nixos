@@ -1,9 +1,9 @@
 { osConfig, ... }:
 
 {
-  home.stateVersion = osConfig.vars.stateVersion;
-  home.username = osConfig.vars.username;
-  home.homeDirectory = osConfig.vars.homeDirectory;
+  home.stateVersion = osConfig.vars.identity.stateVersion;
+  home.username = osConfig.vars.identity.username;
+  home.homeDirectory = osConfig.vars.identity.homeDirectory;
 
   imports = [
     ./home/apps.nix

@@ -1,6 +1,6 @@
 { config, lib, pkgs, ... }:
 
-# Wiring only -- resolves config.vars.ports.entries into real NixOS
+# Wiring only -- resolves config.vars.system.ports.entries into real NixOS
 # config, one concern per section below. Mapping, from
 # ~/Projects/PMG/pmg.py's own features to what actually gets used
 # here:
@@ -49,7 +49,7 @@
 # built from per-entry mkMerge/mapAttrsToList calls -- confirmed live
 # that shape causes infinite recursion: NixOS has to evaluate every
 # module's config to determine all contributions to
-# config.vars.ports.entries, and a *list* built from
+# config.vars.system.ports.entries, and a *list* built from
 # `mapAttrsToList f entries` can't reveal its own length/contents
 # without forcing `entries` first, which is what's being resolved in
 # the first place. lib.mkIf/lib.mkMerge are still used per-*value*
@@ -61,10 +61,10 @@ let
   # every other computation below -- so "ignore it as if it doesn't
   # exist" holds for literally everything derived from `entries`
   # (firewall/DNAT, services, assertions, the lot), not just some of
-  # it. The global config.vars.ports.enabled gate wraps the whole
+  # it. The global config.vars.system.ports.enabled gate wraps the whole
   # returned config further down instead (see the closing let..in).
-  entries = lib.filterAttrs (_: e: e.enabled) config.vars.ports.entries;
-  globalBlocking = config.vars.ports.blocking;
+  entries = lib.filterAttrs (_: e: e.enabled) config.vars.system.ports.entries;
+  globalBlocking = config.vars.system.ports.blocking;
 
   ipv4Entries = lib.filterAttrs (_: e: e.net.ipv4) entries;
   ipv6Entries = lib.filterAttrs (_: e: e.net.ipv6) entries;
@@ -88,24 +88,24 @@ let
   # below) when something needs it -- resolveUrl's https router, or any
   # ipv6 entry wanting TLS without its own cert.
   needsAutoCert =
-    config.vars.ports.resolveUrl
+    config.vars.system.ports.resolveUrl
     || lib.any (e: e.net.ipv6 && e.tls.certFile == null && e.tls.mode != "http") (lib.attrValues entries);
   cert = import ./lib/cert { inherit lib pkgs; dnsNames = localDnsNames; };
 
   bridgeService = import ./lib/ipv6-bridge {
     inherit lib pkgs;
-    httpRedirect = config.vars.ports.httpRedirect;
+    httpRedirect = config.vars.system.ports.httpRedirect;
     autoCert = cert;
   };
   mdnsService = import ./lib/mdns { inherit lib pkgs; };
   tunnelService = import ./lib/public-tunnel.nix { inherit lib pkgs; };
-  tunnelHost = config.vars.ports.tunnelHost;
+  tunnelHost = config.vars.system.ports.tunnelHost;
   upnpStep = import ./lib/upnp.nix { inherit lib pkgs; inherit globalBlocking; };
 
   routerBuilder = import ./lib/router {
     inherit lib pkgs;
     routes = localRoutes;
-    redirectMode = config.vars.ports.redirect;
+    redirectMode = config.vars.system.ports.redirect;
     certFile = cert.certFile;
     keyFile = cert.keyFile;
     certEnsureService = cert.ensureService;
@@ -115,7 +115,7 @@ let
   # across modules), not a plain attrset you can immediately index
   # into. lib/router/default.nix already internally returns {} when
   # localRoutes is empty; this just adds the resolveUrl gate on top.
-  router = if config.vars.ports.resolveUrl then routerBuilder else { };
+  router = if config.vars.system.ports.resolveUrl then routerBuilder else { };
 
   ipHistoryScriptFile = pkgs.writeText "port-forwarding-ip-history.py" (builtins.readFile ./lib/ip-history.py);
 in
@@ -126,7 +126,7 @@ in
 # (the whole return already stands in for `config`). false here means
 # genuinely nothing below is contributed, not even the always-would-
 # otherwise-be-installed `port-forwarding` CLI.
-lib.mkIf config.vars.ports.enabled {
+lib.mkIf config.vars.system.ports.enabled {
   # Per-entry checks that genuinely belong at this level, not inside
   # lib/entry-type.nix's own submodule -- `assertions` is a top-level
   # NixOS mechanism (collected into config.assertions and checked
@@ -144,7 +144,7 @@ lib.mkIf config.vars.ports.enabled {
   assertions = lib.mapAttrsToList
     (key: e: {
       assertion = (e.tls.certFile == null) == (e.tls.keyFile == null);
-      message = "config.vars.ports.entries.${key}: tls.certFile and tls.keyFile must be set together -- port ${toString e.port} sets only one.";
+      message = "config.vars.system.ports.entries.${key}: tls.certFile and tls.keyFile must be set together -- port ${toString e.port} sets only one.";
     })
     entries;
 
@@ -159,7 +159,7 @@ lib.mkIf config.vars.ports.enabled {
   # to decide whether it builds anything at all -- not tied to any one
   # entry/service.
   networking.firewall.allowedTCPPorts = lib.mapAttrsToList (_: e: e.port) ipv4Entries
-    ++ lib.optionals (config.vars.ports.resolveUrl && localRoutes != { }) [ 80 443 ];
+    ++ lib.optionals (config.vars.system.ports.resolveUrl && localRoutes != { }) [ 80 443 ];
 
   # ./lib/mdns/'s own responder binds :5353 and joins 224.0.0.251 just
   # fine on its own (both unprivileged socket operations, see that
@@ -173,7 +173,7 @@ lib.mkIf config.vars.ports.enabled {
   networking.firewall.allowedUDPPorts = lib.mkIf (localEntries != { }) [ 5353 ];
   networking.nat.enable = lib.mkIf (dnat.forwardPorts != [ ]) true;
   networking.nat.externalInterface =
-    lib.mkIf (dnat.forwardPorts != [ ]) config.vars.networkInterface;
+    lib.mkIf (dnat.forwardPorts != [ ]) config.vars.identity.networkInterface;
   networking.nat.forwardPorts = dnat.forwardPorts;
   boot.kernel.sysctl."net.ipv4.conf.all.route_localnet" = lib.mkIf dnat.needsRouteLocalnet true;
 
@@ -239,7 +239,7 @@ lib.mkIf config.vars.ports.enabled {
   systemd.services = lib.mkMerge (
     (lib.mapAttrsToList (key: e: (mdnsService key e).systemd.services) localEntries)
     ++ (lib.mapAttrsToList (key: e: (bridgeService key e).systemd.services) ipv6Entries)
-    ++ (lib.mapAttrsToList (key: e: (tunnelService key e config.vars.username tunnelHost).systemd.services) publicEntries)
+    ++ (lib.mapAttrsToList (key: e: (tunnelService key e config.vars.identity.username tunnelHost).systemd.services) publicEntries)
     ++ [
       (lib.mkIf needsAutoCert cert.config.systemd.services)
       (router.systemd.services or { })
@@ -302,7 +302,7 @@ lib.mkIf config.vars.ports.enabled {
           ))
         ];
       })
-      (lib.mkIf config.vars.ports.ipHistory.enable {
+      (lib.mkIf config.vars.system.ports.ipHistory.enable {
         port-forwarding-ip-history = {
           description = "port-forwarding IP history snapshot";
           serviceConfig = {
@@ -317,12 +317,12 @@ lib.mkIf config.vars.ports.enabled {
     ]
   );
 
-  systemd.timers.port-forwarding-ip-history = lib.mkIf config.vars.ports.ipHistory.enable {
+  systemd.timers.port-forwarding-ip-history = lib.mkIf config.vars.system.ports.ipHistory.enable {
     description = "port-forwarding IP history snapshot timer";
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "2m";
-      OnUnitActiveSec = config.vars.ports.ipHistory.interval;
+      OnUnitActiveSec = config.vars.system.ports.ipHistory.interval;
     };
   };
 
@@ -349,7 +349,7 @@ lib.mkIf config.vars.ports.enabled {
           # Plain bash, not a Python fragment -- every operation here is a
           # file check/rm and a systemctl call, nothing this small needs
           # its own interpreter. onionKeys is baked in at build time
-          # (config.vars.ports.entries.*.mode.onion.enable, known
+          # (config.vars.system.ports.entries.*.mode.onion.enable, known
           # statically) purely so a typo'd/removed key gets a clear "not
           # a configured entry, known: ..." message instead of a raw
           # "No such file or directory" from a bare rm/cat.
@@ -490,7 +490,7 @@ COMMANDS
       this machine ever issues) over plain HTTP for 3 minutes, with
       step-by-step iOS/Safari install instructions, on the given port
       (default 4321). Opens that one port in the firewall for the
-      duration via a direct iptables rule (not a config.vars.ports
+      duration via a direct iptables rule (not a config.vars.system.ports
       entry -- this is a one-off manual action, not a persistent
       exposure), and closes it again when the 3 minutes are up or you
       Ctrl-C. Point an iPhone's Safari at the printed
@@ -500,9 +500,9 @@ COMMANDS
     Query or record this machine's own public IPv4/IPv6 address
     history (up to the last 10 snapshots of each), stored at
     /var/lib/port-forwarding/ip-history.json. Only populated
-    automatically if config.vars.ports.ipHistory.enable = true (a
+    automatically if config.vars.system.ports.ipHistory.enable = true (a
     systemd timer then runs 'history record' on the interval set by
-    config.vars.ports.ipHistory.interval, default 10m) -- these
+    config.vars.system.ports.ipHistory.interval, default 10m) -- these
     subcommands work standalone either way, there's just nothing to
     show if the timer's never run.
 
@@ -561,7 +561,7 @@ COMMANDS
 
 CONFIGURATION
   Every port this machine exposes is declared in
-  config/system/ports.nix (config.vars.ports.entries.<key> = { ... };)
+  config/system/ports.nix (config.vars.system.ports.entries.<key> = { ... };)
   -- port-forwarding itself has no separate config file; everything
   above is either always-on utility (cert/history) or driven entirely
   by what's declared there. See glossar/system/port-forwarding.nix for
@@ -580,7 +580,7 @@ CHECKING STATUS
     journalctl -u tor                                  # mode.onion (native services.tor.relay.onionServices)
     port-forwarding onion show [key]                   # mode.onion's current address(es), needs sudo
   <key> is whatever attribute name you gave the entry in
-  config.vars.ports.entries (e.g. "jellyfin"), not the port number.
+  config.vars.system.ports.entries (e.g. "jellyfin"), not the port number.
 EOF
           ;;
         *)

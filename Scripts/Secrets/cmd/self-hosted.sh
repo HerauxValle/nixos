@@ -5,7 +5,7 @@
 # Prompts for KEY=VALUE pairs (masked value input, same feedback style as
 # `secrets passwd`), writes them to a root-owned file that systemd's
 # EnvironmentFile= reads directly at service start --
-# config.vars.selfHosted.<name>.environmentFile in
+# config.vars.services.selfHosted.<name>.environmentFile in
 # Nixos/modules/services/self-hosted/self-hosted.nix. Nix only ever knows
 # the *path*, same hashedPasswordFile pattern `secrets passwd` uses for
 # the login password, just for arbitrary tokens instead of one hash, and

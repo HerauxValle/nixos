@@ -2,7 +2,7 @@
 
 ## The entry schema
 
-`config.vars.ports.entries` is `attrsOf (submodule ...)`, not the
+`config.vars.system.ports.entries` is `attrsOf (submodule ...)`, not the
 looser `listOf attrs` this repo uses for simpler things like
 `vars.scripts` (see `packages/scripts/default.nix`). Two reasons:
 
@@ -44,7 +44,7 @@ mapAttrsToList calls ... ]` as the *whole module's* result.
 
 This isn't a style preference -- it was a real infinite-recursion bug,
 confirmed live. NixOS has to evaluate every module's `config` to
-determine all contributions to `config.vars.ports.entries` (checking
+determine all contributions to `config.vars.system.ports.entries` (checking
 for unmatched/free-form definitions). A `lib.mkMerge` whose *list
 itself* is built by `lib.mapAttrsToList f entries` can't reveal its
 own length or contents without forcing `entries` first -- which is
@@ -110,7 +110,7 @@ This is *why* `lib/upnp.nix` is an activation script rather than a
 declared `networking.nat`-style option, why the IPv6 bridge/mDNS
 responder/router all detect their own local IP at their own runtime
 rather than baking one in from Nix, and why `lib/cert/`'s SAN list is
-the one exception -- it's built entirely from `config.vars.ports.
+the one exception -- it's built entirely from `config.vars.system.ports.
 entries` (already known at eval time), not from any live disk/network
 state, so it's computed once in Nix and never re-derived at runtime.
 

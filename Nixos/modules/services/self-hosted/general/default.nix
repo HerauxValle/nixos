@@ -17,7 +17,7 @@
 {
   imports = [ ./general.nix ];
 
-  options.vars.selfHosted.aclTraversal = lib.mkOption {
+  options.vars.services.selfHosted.aclTraversal = lib.mkOption {
     type = lib.types.listOf (lib.types.submodule {
       options = {
         unit = lib.mkOption {
@@ -50,7 +50,7 @@
       per-service, directly on whichever unit needs it) already solves
       this for *anything under /home* -- never add a /home-rooted path
       here, it doesn't need it. Add an entry here only when a real check
-      confirms a dedicated (non-`config.vars.username`) system user
+      confirms a dedicated (non-`config.vars.identity.username`) system user
       genuinely can't reach a *non*-/home path:
 
         sudo systemd-run --property=User=<user> -- mountpoint -q <path>

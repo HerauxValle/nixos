@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.selfHosted.ollama option, all commented
+# EXAMPLES -- every config.vars.services.selfHosted.ollama option, all commented
 # out. Same shape as glossar/main/variables.nix, scoped to one service.
 # Schema: modules/services/self-hosted/ollama/default.nix. Real values on
 # this machine: config/self-hosted/ollama.nix. Full reference (systemd
@@ -16,7 +16,7 @@
 # =========================================================================
 
 {
-  # config.vars.selfHosted.ollama = {
+  # config.vars.services.selfHosted.ollama = {
 
   #   # --- master switch --------------------------------------------------
   #   # true = live service + actions exist and run. false = torn down

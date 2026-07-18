@@ -2,15 +2,15 @@
 
 # Logic that reads these lives in ./lib/, imported below.
 # remoteUrl has no sensible generic default (this specific repo's remote)
-# -- its one real definition lives in Nixos/config/customized.nix.
+# -- its one real definition lives in Nixos/config/config.nix.
 {
   imports = [ ./lib ];
 
-  options.vars.dotfilesBackup = {
+  options.vars.backup.dotfilesBackup = {
     enable = lib.mkOption {
       type = lib.types.bool;
       default = false;
-      description = "Master switch for the dotfiles GitHub backup. Opt-in: a stranger cloning this repo shouldn't silently start generating a deploy key and pushing commits to whatever remoteUrl they configure -- this machine's own real value lives in Nixos/config/customized.nix.";
+      description = "Master switch for the dotfiles GitHub backup. Opt-in: a stranger cloning this repo shouldn't silently start generating a deploy key and pushing commits to whatever remoteUrl they configure -- this machine's own real value lives in Nixos/config/config.nix.";
     };
 
     # `nixos-rebuild test` runs this exact same activation script for real
@@ -26,7 +26,7 @@
 
     dotfilesPath = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/Dotfiles";
+      default = "${config.vars.identity.homeDirectory}/Dotfiles";
       description = "Local path of the dotfiles repo being backed up.";
     };
 
@@ -55,7 +55,7 @@
     # Paths, relative to dotfilesPath, stripped from the snapshot before
     # committing -- never pushed anywhere. No sensible generic default
     # (this machine's specific sensitive paths) -- its one real definition
-    # lives in Nixos/config/excludes.nix.
+    # lives in Nixos/config/github/exclusions.nix.
     #
     # Gitignore-style patterns are supported, not just exact paths: an
     # entry with none of *, ?, [ is a plain literal path (matched exactly
@@ -76,13 +76,13 @@
     # written to root's own global gitconfig).
     commitUserName = lib.mkOption {
       type = lib.types.str;
-      default = config.vars.username;
+      default = config.vars.identity.username;
       description = "Git user.name stamped on the snapshot commit.";
     };
 
     commitUserEmail = lib.mkOption {
       type = lib.types.str;
-      default = config.vars.gitCommitEmail;
+      default = config.vars.identity.gitCommitEmail;
       description = "Git user.email stamped on the snapshot commit.";
     };
 
@@ -181,7 +181,7 @@
     # this doesn't bloat the flat /etc/nixos-secrets/ directory.
     secretsDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.secretsBaseDir}/github";
+      default = "${config.vars.identity.secretsBaseDir}/github";
       description = "Root-owned directory holding this module's deploy key/known_hosts/repo cache.";
     };
 
@@ -189,7 +189,7 @@
     # independent literal) so it always matches reality.
     keyComment = lib.mkOption {
       type = lib.types.str;
-      default = "${baseNameOf config.vars.dotfilesBackup.dotfilesPath}-backup";
+      default = "${baseNameOf config.vars.backup.dotfilesBackup.dotfilesPath}-backup";
       description = "SSH key comment on the generated deploy key.";
     };
 
@@ -231,7 +231,7 @@
     # dotfiles` action.
     keyFile = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.dotfilesBackup.secretsDir}/dotfiles-backup";
+      default = "${config.vars.backup.dotfilesBackup.secretsDir}/dotfiles-backup";
       description = "Deploy key path.";
     };
 
@@ -243,13 +243,13 @@
     # logic detects that specific failure and refreshes it automatically.
     knownHostsFile = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.dotfilesBackup.secretsDir}/known_hosts";
+      default = "${config.vars.backup.dotfilesBackup.secretsDir}/known_hosts";
       description = "known_hosts path used for the push's SSH connection.";
     };
 
     repoCache = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.dotfilesBackup.secretsDir}/repo-cache";
+      default = "${config.vars.backup.dotfilesBackup.secretsDir}/repo-cache";
       description = "Persistent local clone path, used when useRepoCache is true.";
     };
 
@@ -274,7 +274,7 @@
     # activation regardless.
     excludeHashFile = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.dotfilesBackup.secretsDir}/exclude-hash";
+      default = "${config.vars.backup.dotfilesBackup.secretsDir}/exclude-hash";
       description = "Stores a hash of excludeFiles+redactValues from the last scrub, to detect when either changes.";
     };
 
@@ -284,11 +284,11 @@
     # that also happens to contain one sensitive literal (a MAC address, an
     # email) mixed in with everything else. No sensible generic default
     # (this machine's specific sensitive values) -- its one real definition
-    # lives in Nixos/config/excludes.nix.
+    # lives in Nixos/config/github/exclusions.nix.
     #
     # `key` is a dotted path resolved against the top-level `config` (not
     # `config.vars` specifically) -- e.g. "networking.interfaces.enp3s0.macAddress"
-    # or "vars.gitCommitEmail". Deliberately a plain string, not a literal
+    # or "vars.identity.gitCommitEmail". Deliberately a plain string, not a literal
     # Nix expression reaching into another module -- this module never
     # needs to know networking.nix's structure at eval time, and nothing
     # sensitive needs its own dedicated options.vars.* entry just to
@@ -303,7 +303,7 @@
           };
           key = lib.mkOption {
             type = lib.types.str;
-            description = "Dotted path into config (e.g. \"vars.gitCommitEmail\") whose value gets redacted in `file`.";
+            description = "Dotted path into config (e.g. \"vars.identity.gitCommitEmail\") whose value gets redacted in `file`.";
           };
         };
       });
@@ -332,7 +332,7 @@
     # so it'd also match any unrelated occurrence of that same string
     # elsewhere in the file, or anywhere else in the repo during the
     # history scrub) or `key` (a dotted path into config, e.g.
-    # "vars.gitCommitEmail" -- resolved to its CURRENT value at eval time
+    # "vars.identity.gitCommitEmail" -- resolved to its CURRENT value at eval time
     # instead of typed out by hand, so it can't drift out of sync with the
     # real value the way a hand-copied `find` could). Unlike redactValues'
     # same-shaped `key` lookup, a `key` here that fails to resolve is NOT a
@@ -370,7 +370,7 @@
 
   config.assertions = [
     {
-      assertion = builtins.all (r: (r.find == null) != (r.key == null)) config.vars.dotfilesBackup.replaceValues;
+      assertion = builtins.all (r: (r.find == null) != (r.key == null)) config.vars.backup.dotfilesBackup.replaceValues;
       message = "modules/backup/dotfiles: every replaceValues entry needs exactly one of `find`/`key`, not both and not neither.";
     }
   ];

@@ -15,7 +15,7 @@
 # raw commit/channel string -- see ./docs/README.
 
 let
-  inherit (config.vars.environment) sources packages;
+  inherit (config.vars.packages.environment) sources packages;
 
   helpers = import ./lib {
     inherit lib pkgs inputs;
@@ -73,7 +73,7 @@ in
     {
       assertion = duplicateAliasNames == [ ];
       message =
-        "Duplicate package alias(es) declared across config.vars.environment.packages: "
+        "Duplicate package alias(es) declared across config.vars.packages.environment.packages: "
         + lib.concatStringsSep ", " duplicateAliasNames
         + ". Alias names (the \"@<alias>\" part of a versions key) must be globally unique.";
     }

@@ -1,6 +1,6 @@
 { config, lib, pkgs, ... }:
 
-# &desc: "Declares + wires config.vars.hiddenDevices (UUIDs to hide from udisks2), and warns if a reboot is needed."
+# &desc: "Declares + wires config.vars.system.hiddenDevices (UUIDs to hide from udisks2), and warns if a reboot is needed."
 
 # One flat file -- this doesn't grow complex enough to earn the
 # default.nix/lib split the bigger modules here use. Real values live
@@ -32,7 +32,7 @@
 # system diff) -- and correctly keeps warning on every rebuild until
 # you actually reboot, not just once.
 {
-  options.vars.hiddenDevices = lib.mkOption {
+  options.vars.system.hiddenDevices = lib.mkOption {
     type = lib.types.listOf lib.types.str;
     default = [ ];
     description = ''
@@ -43,10 +43,10 @@
     '';
   };
 
-  config = lib.mkIf (config.vars.hiddenDevices != [ ]) {
+  config = lib.mkIf (config.vars.system.hiddenDevices != [ ]) {
     services.udev.extraRules = lib.concatMapStringsSep "\n"
       (uuid: ''SUBSYSTEM=="block", ENV{ID_FS_UUID}=="${uuid}", ENV{UDISKS_IGNORE}="1"'')
-      config.vars.hiddenDevices;
+      config.vars.system.hiddenDevices;
 
     system.activationScripts.udevRebootNotice = {
       text = ''

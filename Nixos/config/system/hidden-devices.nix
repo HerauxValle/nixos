@@ -6,7 +6,7 @@
 # ../../modules/system/hidden-devices.nix. Data only, same reasoning as
 # every config/<category>/<name>.nix file.
 {
-  config.vars.hiddenDevices = [
+  config.vars.system.hiddenDevices = [
     "16dab0c7-d947-4a28-8db7-de8f2c82fb6f" # root filesystem (decrypted, label "nixos")
     "80b7960d-fb8d-4dc3-8b01-329770c6e027" # root's LUKS container (sda2, locked view)
     "88426A11426A03F2" # Windows "Basic data partition" (nvme0n1p3, unlabeled NTFS)

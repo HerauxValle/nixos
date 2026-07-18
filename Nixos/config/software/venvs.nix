@@ -4,7 +4,7 @@
 # trusting it with anything real. debug logLevel so a rebuild actually
 # shows what build.sh is doing instead of staying silent on success.
 {
-  config.vars.venvs = {
+  config.vars.packages.venvs = {
     logLevel = "debug";
     # basePath left at its default (~/.impure/python-venvs/nix-declared)
 

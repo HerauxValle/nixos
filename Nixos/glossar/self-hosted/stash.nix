@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.selfHosted.stash option, all commented
+# EXAMPLES -- every config.vars.services.selfHosted.stash option, all commented
 # out. Same shape as glossar/main/variables.nix, scoped to one service.
 # Schema: modules/services/self-hosted/stash/default.nix. Real values on
 # this machine: config/self-hosted/stash.nix. Full reference (systemd
@@ -16,7 +16,7 @@
 # =========================================================================
 
 {
-  # config.vars.selfHosted.stash = {
+  # config.vars.services.selfHosted.stash = {
 
   #   # --- master switch --------------------------------------------------
   #   # true = live service + actions exist and run. false = torn down

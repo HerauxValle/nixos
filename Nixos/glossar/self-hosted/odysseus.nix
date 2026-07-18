@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.selfHosted.odysseus option, all commented
+# EXAMPLES -- every config.vars.services.selfHosted.odysseus option, all commented
 # out. Same shape as glossar/main/variables.nix, scoped to one service.
 # Schema: modules/services/self-hosted/odysseus/default.nix. Real values
 # on this machine: config/self-hosted/odysseus.nix. Full reference
@@ -20,7 +20,7 @@
 # =========================================================================
 
 {
-  # config.vars.selfHosted.odysseus = {
+  # config.vars.services.selfHosted.odysseus = {
 
   #   # --- master switch --------------------------------------------------
   #   # true = live service + actions exist and run. false = venvDir torn

@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.selfHosted.filebrowser option, all
+# EXAMPLES -- every config.vars.services.selfHosted.filebrowser option, all
 # commented out. Same shape as glossar/main/variables.nix, scoped to one
 # service. Schema: modules/services/self-hosted/filebrowser/default.nix.
 # Real values on this machine: config/self-hosted/filebrowser.nix. Full
@@ -16,7 +16,7 @@
 # =========================================================================
 
 {
-  # config.vars.selfHosted.filebrowser = {
+  # config.vars.services.selfHosted.filebrowser = {
 
   #   # --- master switch --------------------------------------------------
   #   # true = live service + actions exist and run. false = torn down

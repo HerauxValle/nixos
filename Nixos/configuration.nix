@@ -8,5 +8,5 @@
     ./config
   ];
 
-  system.stateVersion = config.vars.stateVersion;
+  system.stateVersion = config.vars.identity.stateVersion;
 }

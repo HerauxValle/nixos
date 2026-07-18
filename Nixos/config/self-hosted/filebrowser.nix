@@ -4,7 +4,7 @@
 # ../../modules/services/self-hosted/filebrowser/. Data only, same as
 # ollama.nix/stash.nix.
 {
-  config.vars.selfHosted.filebrowser = {
+  config.vars.services.selfHosted.filebrowser = {
     # true = installed: systemd unit exists. false = torn down on the
     # next rebuild -- dataDir (minus the "data" storage entry) removed
     # automatically; the real BoltDB inside the vault is never touched
@@ -13,7 +13,7 @@
 
     # Plain, always-available -- holds nothing on its own, it's just
     # where the storage symlink below lands.
-    dataDir = "${config.vars.homeDirectory}/Applications/Networking/FileBrowser";
+    dataDir = "${config.vars.identity.homeDirectory}/Applications/Networking/FileBrowser";
 
     # Off for now -- still exists, still systemctl start-able by hand,
     # just not pulled in on boot/rebuild. Same as every other service on
@@ -29,7 +29,7 @@
     # real, recovered database below already has this baked in from
     # before, so this is effectively documentation of what it already is,
     # not something this rebuild changes.
-    root = config.vars.homeDirectory;
+    root = config.vars.identity.homeDirectory;
 
     # Update together -- see
     # ../../modules/services/self-hosted/filebrowser/default.nix for how
@@ -48,14 +48,14 @@
     # rebuild, so real users/settings from before carry forward instead
     # of a fresh install silently generating a new default admin.
     storage = [
-      { src = "data"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/FileBrowser"; }
+      { src = "data"; dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/FileBrowser"; }
     ];
 
     # Independent fact, not derived from storage above -- they happen to
     # agree because this is the vault storage points into, not because
     # one is computed from the other.
     requireMounts = [
-      "${config.vars.homeDirectory}/Images/SelfHosted"
+      "${config.vars.identity.homeDirectory}/Images/SelfHosted"
     ];
 
     # Empty -- dataDir holds nothing but the storage symlink itself, so

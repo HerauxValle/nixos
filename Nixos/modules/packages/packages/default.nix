@@ -10,7 +10,7 @@
 {
   imports = [ ./main.nix ];
 
-  options.vars.environment = {
+  options.vars.packages.environment = {
     sources = lib.mkOption {
       default = { };
 
@@ -68,5 +68,5 @@
     };
   };
 
-  config.vars.environment.sources.pkgs = lib.mkDefault pkgs;
+  config.vars.packages.environment.sources.pkgs = lib.mkDefault pkgs;
 }

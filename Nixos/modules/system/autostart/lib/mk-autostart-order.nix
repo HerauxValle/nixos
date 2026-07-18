@@ -1,6 +1,6 @@
 { lib }:
 
-# &desc: "Asserts config.vars.autostart.jobs has no dependsOn cycles or unknown job references."
+# &desc: "Asserts config.vars.system.autostart.jobs has no dependsOn cycles or unknown job references."
 
 # Pure validation, no execution -- the actual dispatch scripts (see
 # ./mk-autostart-dispatch.nix) resolve dependencies lazily at runtime
@@ -52,7 +52,7 @@ let
       {
         assertion = cycle == null;
         message =
-          "config.vars.autostart.jobs: ${actionName} dependsOn cycle -- "
+          "config.vars.system.autostart.jobs: ${actionName} dependsOn cycle -- "
           + lib.concatStringsSep " -> " (if cycle == null then [ ] else cycle) + ".";
       })
     actionNames;
@@ -61,7 +61,7 @@ let
     (actionName: map
       (bad: {
         assertion = false;
-        message = "config.vars.autostart.jobs.${bad.id}.${bad.actionName}.dependsOn references unknown/disabled job '${bad.dep}'.";
+        message = "config.vars.system.autostart.jobs.${bad.id}.${bad.actionName}.dependsOn references unknown/disabled job '${bad.dep}'.";
       })
       (unknownRefs actionName))
     actionNames;

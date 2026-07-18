@@ -15,7 +15,7 @@ let
 
   selfHosted = import ../self-hosted.nix { inherit lib pkgs; };
 
-  cfg = config.vars.selfHosted.immich;
+  cfg = config.vars.services.selfHosted.immich;
 
   # Shared with every other mk-from-native service's own update.nix --
   # see ../lib/mk-from-native/update.nix's own top comment (deduped
@@ -129,7 +129,7 @@ in
     (selfHosted.mkActionService {
       name = "immich";
       enabled = cfg.enabled;
-      user = config.vars.username;
+      user = config.vars.identity.username;
       packages = [ pkgs.curl pkgs.jq ];
       actions = {
         update = updateScript;

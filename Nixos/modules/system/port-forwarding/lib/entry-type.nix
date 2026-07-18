@@ -1,6 +1,6 @@
 { lib }:
 
-# The submodule type behind config.vars.ports.entries.<key> -- mirrors
+# The submodule type behind config.vars.system.ports.entries.<key> -- mirrors
 # modules/system/mountpoints/lib/device-type.nix's own reasoning (a
 # submodule, not the loose `attrs` this repo otherwise uses, since
 # fields here interact with each other).
@@ -41,7 +41,7 @@ lib.types.submodule ({ config, ... }: {
         (no firewall/DNAT, no bridge/mdns/tunnel service, no router
         route, no UPnP request), without having to actually remove the
         entry to disable it. Same field/semantics as
-        config.vars.mountpoints.device.<key>.enabled.
+        config.vars.system.mountpoints.device.<key>.enabled.
       '';
     };
 
@@ -65,7 +65,7 @@ lib.types.submodule ({ config, ... }: {
         Whether a failure on this entry (a UPnP request the router
         rejects, a public tunnel that can't reach tunnelHost, ...)
         aborts activation instead of just printing a warning. null
-        (default) inherits config.vars.ports.blocking; set true/false
+        (default) inherits config.vars.system.ports.blocking; set true/false
         to override per-entry. Deliberately stays one flat field
         instead of one per net/tls/mode entry below -- it's a
         blast-radius decision about THIS ENTRY's activation-time
@@ -261,7 +261,7 @@ lib.types.submodule ({ config, ... }: {
             mode.local = { name = "jellyfin"; };  # on, advertised as "jellyfin.local"
           A bare true/false is coerced into the { enable; name; } shape
           shown above (via lib.types.coercedTo) -- reading
-          config.vars.ports.entries.<key>.mode.local elsewhere in this
+          config.vars.system.ports.entries.<key>.mode.local elsewhere in this
           module always sees that same attrset shape either way, never
           a raw bool.
         '';
@@ -271,9 +271,9 @@ lib.types.submodule ({ config, ... }: {
         type = lib.types.bool;
         default = false;
         description = ''
-          SSH reverse tunnel via config.vars.ports.tunnelHost (see
+          SSH reverse tunnel via config.vars.system.ports.tunnelHost (see
           ../lib/public-tunnel.nix). Needs a real SSH key already
-          present for config.vars.username -- same requirement pmg's
+          present for config.vars.identity.username -- same requirement pmg's
           own public_open() has; the tunnel unit checks for one
           upfront and fails fast with an actionable message instead of
           retrying forever if none exists (see that file's own

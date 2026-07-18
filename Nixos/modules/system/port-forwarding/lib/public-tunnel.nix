@@ -1,6 +1,6 @@
 { lib, pkgs }:
 
-# SSH reverse tunnel via config.vars.ports.tunnelHost (default
+# SSH reverse tunnel via config.vars.system.ports.tunnelHost (default
 # "localhost.run", matching pmg's own hardcoded choice -- it doesn't
 # support an alternate provider either -- but a real override point
 # instead of a literal in this file now) -- pmg's own public_open,
@@ -8,7 +8,7 @@
 # systemd's Restart=always supervises the process, and the URL the
 # tunnel host prints on connect just lands in the journal
 # (`journalctl -u port-forwarding-tunnel-<key>`) instead of a separate
-# state file to query. Runs as config.vars.username (not root, no
+# state file to query. Runs as config.vars.identity.username (not root, no
 # sudo -u dance) -- ssh as root ignores $HOME for ~/.ssh/id_* (a
 # deliberate OpenSSH hardening behavior), and localhost.run rejects the
 # username "root" outright regardless of key, same two reasons pmg's

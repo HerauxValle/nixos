@@ -10,7 +10,7 @@ primitive or doesn't need to exist at all.
 
 ## One job, one unit
 
-Each `config.vars.autostart.jobs.<id>` becomes its own
+Each `config.vars.system.autostart.jobs.<id>` becomes its own
 `systemd.services."autostart@<id>"` (see `autostart.nix`). The `@` is
 just a naming convention, borrowed from `self-hosted`'s
 `mkActionService` -- these are NOT instances of a real systemd template.
@@ -71,7 +71,7 @@ everything, the same "one init, one lever" `smg` used to be, while
 
 ## No teardown script
 
-Flipping `config.vars.autostart.enabled` to `false` means no
+Flipping `config.vars.system.autostart.enabled` to `false` means no
 `autostart@*` units are declared in the next generation at all --
 switch-to-configuration already stops and removes units that existed in
 the old generation but vanished from the new one. Nothing here holds any

@@ -3,7 +3,7 @@
 {
   imports = [ ./grub.nix ];
 
-  options.vars.grub = {
+  options.vars.boot.grub = {
     # GRUB theme directory, containing background, selection graphics,
     # terminal box borders, custom fonts, and theme.txt.
     # Points into Dotfiles/Themes/GRUB/BSOL, four levels up from this file's

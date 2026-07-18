@@ -30,7 +30,7 @@
 # instead of embedded `python3 -c '...'` one-liners. See ./resolve.nix for
 # the pure-Nix value resolution this preamble's data files are built from.
 let
-  cfg = config.vars.dotfilesBackup;
+  cfg = config.vars.backup.dotfilesBackup;
   resolved = import ./resolve.nix { inherit config lib cfg; };
   inherit (resolved) redactValueResolutions resolvedRedactValues;
   inherit (resolved) replaceValueResolutions resolvedReplaceValues;

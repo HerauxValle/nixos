@@ -10,7 +10,7 @@
 # system user genuinely had no traversal permission into
 # /run/media/<user> (0750 root:root, confirmed directly -- systemd-run
 # as the qbittorrent user, mountpoint check failed; as root, same check
-# succeeded). Those paths have since moved onto config.vars.mountpoints
+# succeeded). Those paths have since moved onto config.vars.system.mountpoints
 # (a /home-rooted mount), so ProtectHome+BindPaths covers qbittorrent
 # too now and this grant is unused again -- kept for the next
 # dedicated-user service that genuinely needs a non-/home path.

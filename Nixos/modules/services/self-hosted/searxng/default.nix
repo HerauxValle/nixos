@@ -20,7 +20,7 @@
 {
   imports = [ ./searxng.nix ];
 
-  options.vars.selfHosted.searxng = {
+  options.vars.services.selfHosted.searxng = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -36,7 +36,7 @@
 
     dataDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/Applications/Networking/SearXNG";
+      default = "${config.vars.identity.homeDirectory}/Applications/Networking/SearXNG";
       description = "Plain, always-available path -- holds nothing but the settings.yml symlink (see storage below, the one real data location).";
     };
 
@@ -62,13 +62,13 @@
     # git-reclone every time if srcDir lived inside it.
     venvDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/.impure/python-venvs/self-hosted/searxng";
+      default = "${config.vars.identity.homeDirectory}/.impure/python-venvs/self-hosted/searxng";
       description = "Where the Python venv lives -- disposable, regenerated from requirementsLock automatically by preStart's venvEnsureScript whenever the lock's hash changes.";
     };
 
     srcDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/.impure/python-venvs/self-hosted/searxng-src";
+      default = "${config.vars.identity.homeDirectory}/.impure/python-venvs/self-hosted/searxng-src";
       description = "Where the searxng/searxng git checkout lives, pinned to coreRev by preStart every start (a no-op once already at that rev). Kept writable (unlike ComfyUI's core) so theme symlinks can be written directly into searx/templates/, searx/static/themes/.";
     };
 

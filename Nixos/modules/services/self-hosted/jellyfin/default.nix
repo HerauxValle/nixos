@@ -23,7 +23,7 @@
 {
   imports = [ ./jellyfin.nix ];
 
-  options.vars.selfHosted.jellyfin = {
+  options.vars.services.selfHosted.jellyfin = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -39,7 +39,7 @@
 
     dataDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/Applications/Networking/Jellyfin";
+      default = "${config.vars.identity.homeDirectory}/Applications/Networking/Jellyfin";
       description = ''
         Plain, always-available path. Real writable subdirs Jellyfin
         itself expects: cache, transcode, log (plain, never precious --

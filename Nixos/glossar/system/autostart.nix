@@ -1,9 +1,9 @@
 { ... }:
 
-# &desc: "One real example config.vars.autostart.jobs entry for reference."
+# &desc: "One real example config.vars.system.autostart.jobs entry for reference."
 
 # =========================================================================
-# EXAMPLES -- config.vars.autostart, commented out. Same shape as
+# EXAMPLES -- config.vars.system.autostart, commented out. Same shape as
 # glossar/main/variables.nix, scoped to one module. Schema:
 # modules/system/autostart/default.nix. Real values on this machine:
 # config/system/autostart.nix. Full design reference:
@@ -20,7 +20,7 @@
 # =========================================================================
 
 {
-  # config.vars.autostart = {
+  # config.vars.system.autostart = {
   #   enabled = true; # global kill switch -- false disables every job below
 
   #   jobs = {

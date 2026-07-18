@@ -24,7 +24,7 @@
 {
   imports = [ ./qbittorrent.nix ];
 
-  options.vars.selfHosted.qbittorrent = {
+  options.vars.services.selfHosted.qbittorrent = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = false;

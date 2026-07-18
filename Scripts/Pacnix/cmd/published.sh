@@ -11,8 +11,8 @@ source "$DIR/../lib/common.sh"
 # HTTPS (not the root-owned SSH deploy key -- the whole point is proving a
 # stranger without that key can pull and build it too), and dry-run builds
 # it exactly like test-build does locally.
-remoteUrl="$(nix eval --raw "$FLAKE#nixosConfigurations.$HOST.config.vars.dotfilesBackup.remoteUrl")"
-branch="$(nix eval --raw "$FLAKE#nixosConfigurations.$HOST.config.vars.dotfilesBackup.branch")"
+remoteUrl="$(nix eval --raw "$FLAKE#nixosConfigurations.$HOST.config.vars.backup.dotfilesBackup.remoteUrl")"
+branch="$(nix eval --raw "$FLAKE#nixosConfigurations.$HOST.config.vars.backup.dotfilesBackup.branch")"
 httpsUrl="$(printf '%s' "$remoteUrl" | sed -E 's#^git@([^:]+):#https://\1/#')"
 
 tmpdir="$(mktemp -d)"
@@ -24,8 +24,8 @@ cd "$tmpdir/repo"
 
 # The published attribute name isn't necessarily "$HOST" -- replaceValues
 # may have renamed nixosConfigurations.<name> to a placeholder (see
-# Nixos/config/excludes.nix). Read back whatever name is actually there
-# instead of assuming it matches the local one.
+# Nixos/config/github/replacements.nix). Read back whatever name is
+# actually there instead of assuming it matches the local one.
 attr="$(nix eval --json .#nixosConfigurations --apply builtins.attrNames --no-write-lock-file \
     | python3 -c 'import json, sys; print(json.load(sys.stdin)[0])')"
 

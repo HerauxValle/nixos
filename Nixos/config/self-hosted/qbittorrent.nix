@@ -10,7 +10,7 @@
 # (a different mount than the old bash framework ever referenced) --
 # read directly, not guessed or assumed from the old main.sh alone.
 {
-  config.vars.selfHosted.qbittorrent = {
+  config.vars.services.selfHosted.qbittorrent = {
     enabled = true;
 
     # Off for now -- still exists, still systemctl start-able by hand,
@@ -31,7 +31,7 @@
     # (the recovered real install lived under a different mount
     # entirely, ~/.config/qBittorrent on the Media drive, not vault-
     # backed at all there).
-    profileDir = "${config.vars.homeDirectory}/Images/SelfHosted/QBitTorrent";
+    profileDir = "${config.vars.identity.homeDirectory}/Images/SelfHosted/QBitTorrent";
 
     # Real values from the recovered qBittorrent.conf (WebUI\Port=7080,
     # Session\Port=1729) -- not the wrapped module's own defaults
@@ -47,8 +47,8 @@
     # library (confirmed by inspecting the drive directly, and every
     # one of these four paths matches the recovered conf's own
     # BitTorrent.Session.* values exactly). Mounted via
-    # config.vars.mountpoints (modules/system/mountpoints/) at
-    # /home/${config.vars.username}/Drives/Storage now, not the old
+    # config.vars.system.mountpoints (modules/system/mountpoints/) at
+    # /home/${config.vars.identity.username}/Drives/Storage now, not the old
     # udisks2-managed /run/media/<user>/Storage -- ProtectHome="tmpfs"+
     # BindPaths below (reusing requireMounts, same proven mechanism as
     # Immich's own /home-rooted mediaLocation) is what grants the
@@ -56,15 +56,15 @@
     # traversal grant needed (see config/self-hosted/acl-traversal.nix's
     # now-commented-out entry for the old /run/media story).
     paths = {
-      save = "${config.vars.mountpoints.device.storage.path}/Torrents/Library";
-      temp = "${config.vars.mountpoints.device.storage.path}/Torrents/Incomplete";
-      export = "${config.vars.mountpoints.device.storage.path}/Torrents/Database";
-      finished = "${config.vars.mountpoints.device.storage.path}/Torrents/Deprecated";
+      save = "${config.vars.system.mountpoints.device.storage.path}/Torrents/Library";
+      temp = "${config.vars.system.mountpoints.device.storage.path}/Torrents/Incomplete";
+      export = "${config.vars.system.mountpoints.device.storage.path}/Torrents/Database";
+      finished = "${config.vars.system.mountpoints.device.storage.path}/Torrents/Deprecated";
     };
 
     requireMounts = [
-      "${config.vars.homeDirectory}/Images/SelfHosted"
-      config.vars.mountpoints.device.storage.path
+      "${config.vars.identity.homeDirectory}/Images/SelfHosted"
+      config.vars.system.mountpoints.device.storage.path
     ];
 
     # Real, non-secret preferences ported straight from the recovered

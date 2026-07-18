@@ -49,7 +49,7 @@ be **read and written** at runtime by plain bash, which is impossible
 against a read-only store path.
 
 Chosen instead: `manifestPath = "${homeDir}/Dotfiles/.store/venvs.json"`,
-built from `config.vars.homeDirectory` (the same value `shells.nix`
+built from `config.vars.identity.homeDirectory` (the same value `shells.nix`
 already uses for `~` expansion), not from a nix path literal. This is
 the one deliberate exception to "always relative" in the whole module --
 flagged here and inline in `venv.nix` specifically so it isn't mistaken

@@ -8,7 +8,7 @@ let
 
   selfHosted = import ../self-hosted.nix { inherit lib pkgs; };
 
-  cfg = config.vars.selfHosted.openwebui;
+  cfg = config.vars.services.selfHosted.openwebui;
 
   fhsEnv = import ./lib/fhs.nix { inherit pkgs; };
 
@@ -41,7 +41,7 @@ let
   # read-only /nix/store copy, this is the real, writable location in
   # the actual checkout, needed so the ".new" sibling (or the :apply
   # variant's direct write) lands somewhere real.
-  openwebuiRequirementsLockPath = "${config.vars.homeDirectory}/Dotfiles/Python/locks/self-hosted/openwebui/requirements.lock";
+  openwebuiRequirementsLockPath = "${config.vars.identity.homeDirectory}/Dotfiles/Python/locks/self-hosted/openwebui/requirements.lock";
   updateScript = import ./lib/update.nix {
     inherit selfHosted;
     requirementsIn = ../../../../../Python/locks/self-hosted/openwebui/requirements.in;
@@ -70,8 +70,8 @@ in
     (selfHosted.mkSelfHostedService {
       name = "openwebui";
       enabled = cfg.enabled;
-      user = config.vars.username;
-      homeDirectory = config.vars.homeDirectory;
+      user = config.vars.identity.username;
+      homeDirectory = config.vars.identity.homeDirectory;
       # Runs inside the FHS sandbox too, not just the install action --
       # the compiled wheels pip installs (pillow, lxml) need real
       # /lib,/usr/lib every time Python imports them, not just once at
@@ -103,7 +103,7 @@ in
     (selfHosted.mkActionService {
       name = "openwebui";
       enabled = cfg.enabled;
-      user = config.vars.username;
+      user = config.vars.identity.username;
       # pip-tools for @update's pip-compile -- doesn't need the FHS
       # sandbox, compiling/resolving is pure network+pip, only the actual
       # venv install (now in preStart above) needs the real

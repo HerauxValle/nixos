@@ -10,7 +10,7 @@
 {
   imports = [ ./filebrowser.nix ];
 
-  options.vars.selfHosted.filebrowser = {
+  options.vars.services.selfHosted.filebrowser = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -26,7 +26,7 @@
 
     dataDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/Applications/Networking/FileBrowser";
+      default = "${config.vars.identity.homeDirectory}/Applications/Networking/FileBrowser";
       description = "Plain base dir -- holds nothing on its own, it's just where storage's symlink lands. The BoltDB (users, settings) is the one real data location, see storage below. The binary itself comes from the Nix-built package and never touches this directory.";
     };
 
@@ -50,7 +50,7 @@
 
     root = lib.mkOption {
       type = lib.types.str;
-      default = config.vars.homeDirectory;
+      default = config.vars.identity.homeDirectory;
       description = ''
         Filesystem root FileBrowser serves (--root, applied once via
         `config init` when the BoltDB doesn't exist yet -- ported

@@ -14,8 +14,8 @@
 
 let
 
-  homeDir = config.vars.homeDirectory;
-  cfg = config.vars.venvs;
+  homeDir = config.vars.identity.homeDirectory;
+  cfg = config.vars.packages.venvs;
 
   # ---------------------------------------------------------------------
   # Path resolution
@@ -64,7 +64,7 @@ let
   # trigger, never both. See docs/DECISIONS.md "Assert vs. Merge".
   # ---------------------------------------------------------------------
 
-  shellPaths = map (s: expandHome s.path) config.vars.shells;
+  shellPaths = map (s: expandHome s.path) config.vars.packages.shells;
   venvTriggerPaths = lib.unique (
     lib.concatMap (a: lib.attrNames a) (lib.attrValues effectiveActivation)
   );
@@ -264,7 +264,7 @@ in
     }
   ];
 
-  home-manager.users.${config.vars.username} = {
+  home-manager.users.${config.vars.identity.username} = {
     home.packages = [ venvctl ];
 
     # OLD

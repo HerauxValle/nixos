@@ -11,7 +11,7 @@
 # only its 6 Casket vault-unlock jobs, nothing else. Every other old job
 # (every self-hosted service restart, PortManager, QBitTorrentNox,
 # FileBrowser) is already superseded by its own native NixOS module
-# (config.vars.selfHosted.* autoStart, config.vars.ports) -- see this
+# (config.vars.services.selfHosted.* autoStart, config.vars.system.ports) -- see this
 # module's own docs/architecture.md. JellyfinMpvShim/RemoteAccess aren't
 # here either -- both need the real logged-in session, out of scope for
 # this root/boot-time engine by design.
@@ -33,7 +33,7 @@
 # state anyway and never survive any reboot regardless, and `cas open`
 # already tolerates a stale mapper/mountpoint left behind either way.
 {
-  config.vars.autostart = {
+  config.vars.system.autostart = {
     enabled = true;
 
     jobs = {

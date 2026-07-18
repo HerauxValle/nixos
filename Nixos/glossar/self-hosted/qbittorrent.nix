@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.selfHosted.qbittorrent option, all
+# EXAMPLES -- every config.vars.services.selfHosted.qbittorrent option, all
 # commented out. Same shape as glossar/main/variables.nix, scoped to one
 # service. Schema: modules/services/self-hosted/qbittorrent/default.nix.
 # Real values on this machine: config/self-hosted/qbittorrent.nix. Full
@@ -18,7 +18,7 @@
 # =========================================================================
 
 {
-  # config.vars.selfHosted.qbittorrent = {
+  # config.vars.services.selfHosted.qbittorrent = {
 
   #   # --- master switch --------------------------------------------------
   #   enabled = false;

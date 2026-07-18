@@ -3,7 +3,7 @@
 {
   imports = [ ./users.nix ];
 
-  options.vars.users = {
+  options.vars.system.users = {
     fallbackHash = lib.mkOption {
       type = lib.types.str;
       # Default passwd will never be called or added. This is purely for someone
@@ -24,7 +24,7 @@
     # modules/system/users/users.nix.
     hashFile = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.secretsBaseDir}/${config.vars.username}-password.hash";
+      default = "${config.vars.identity.secretsBaseDir}/${config.vars.identity.username}-password.hash";
       description = "Root-owned file holding the account's real password hash.";
     };
   };

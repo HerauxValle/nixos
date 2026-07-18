@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.ports option, all commented out. Same
+# EXAMPLES -- every config.vars.system.ports option, all commented out. Same
 # shape as glossar/main/variables.nix, scoped to one module. Schema:
 # modules/system/port-forwarding/default.nix +
 # modules/system/port-forwarding/lib/entry-type.nix. Real values on this
@@ -34,7 +34,7 @@
 # =========================================================================
 
 {
-  # config.vars.ports = {
+  # config.vars.system.ports = {
 
   #   # --- globals ------------------------------------------------------------
 
@@ -289,7 +289,7 @@
 
   #         public = false;
   #         # optional -- SSH reverse tunnel via tunnelHost above. Needs a
-  #         # real SSH key already present for config.vars.username --
+  #         # real SSH key already present for config.vars.identity.username --
   #         # same requirement pmg's own public_open() has; the tunnel
   #         # unit checks for one upfront and fails fast with a clear
   #         # message (`ssh-keygen -t ed25519`) instead of retrying every

@@ -6,7 +6,7 @@
 # behavior, not a custom mechanism. No options.vars declaration needed
 # here, same as config/customized.nix -- that lives in modules/ instead.
 {
-  config.vars.scripts = [
+  config.vars.packages.scripts = [
 
     {
       dir = ../../../Scripts/Reload;

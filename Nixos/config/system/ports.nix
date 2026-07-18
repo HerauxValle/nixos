@@ -4,7 +4,7 @@
 # ../../modules/system/port-forwarding/. Data only, same reasoning as every
 # config/<category>/<name>.nix file.
 {
-  config.vars.ports = {
+  config.vars.system.ports = {
     enabled = true;
 
     # Global default -- individual entries.<key>.blocking entries below
@@ -110,7 +110,7 @@
 
       # {
       #   uuid-style key -- doesn't have to be meaningful, just how
-      #   you'll address it (config.vars.ports.entries.jellyfin).
+      #   you'll address it (config.vars.system.ports.entries.jellyfin).
       # jellyfin = {
       #   port = 8096;                    # required -- the only field with no default
       #   enabled = true;                 # optional -- false ignores this entry entirely, as if absent

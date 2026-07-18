@@ -5,17 +5,17 @@
 # shared) so it can be changed or removed without touching the others.
 # Logic that reads these lives in ./usb-killswitch.nix, imported below.
 # usbSerialShort has no sensible generic default -- its one real
-# definition lives in Nixos/config/customized.nix.
+# definition lives in Nixos/config/config.nix.
 {
   imports = [ ./usb-killswitch.nix ];
 
-  options.vars.usbKillswitch = {
+  options.vars.security.usbKillswitch = {
     killMode = lib.mkOption {
       type = lib.types.str;
       default = "disabled";
       description = ''
         Opt-in: this machine's own real value ("hard") lives in
-        Nixos/config/customized.nix -- a stranger cloning this repo
+        Nixos/config/config.nix -- a stranger cloning this repo
         shouldn't inherit an active udev rule tied to your specific USB
         stick's serial without realizing it.
 

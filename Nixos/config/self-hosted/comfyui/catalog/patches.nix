@@ -18,11 +18,11 @@ let
   # redirect that one hardcoded base to a real writable location under
   # dataDir instead. `node_data/<repo>` is that convention -- one
   # subdirectory per patched node, created in comfyui.nix's preStart.
-  dataDir = config.vars.selfHosted.comfyui.dataDir;
+  dataDir = config.vars.services.selfHosted.comfyui.dataDir;
   nodeDataDir = repo: "${dataDir}/node_data/${repo}";
 in
 {
-  config.vars.selfHosted.comfyui.nodePatches = [
+  config.vars.services.selfHosted.comfyui.nodePatches = [
     {
       # ComfyUI-post-processing-nodes hardcodes "arial.ttf" as a bare
       # filename (post_processing_nodes.py:108). The old bash resolved

@@ -4,7 +4,7 @@
 # ../../modules/services/self-hosted/immich/. Data only, same as every
 # other service's config/self-hosted/<name>.nix.
 {
-  config.vars.selfHosted.immich = {
+  config.vars.services.selfHosted.immich = {
     enabled = true;
 
     # Off for now -- still exists, still systemctl start-able by hand,
@@ -31,13 +31,13 @@
     # Expect to re-add the actual photos through Immich's own external
     # library / re-upload flow rather than them "just appearing" -- the
     # bytes are real and worth keeping in place, the catalog isn't.
-    mediaLocation = "${config.vars.homeDirectory}/Images/Media/Cloud";
+    mediaLocation = "${config.vars.identity.homeDirectory}/Images/Media/Cloud";
 
     # The "Media" vault's own mountpoint -- immich-server's preStart
     # fails fast if this isn't mounted yet (cas Media open), same
     # mechanism as every other vault-backed service's requireMounts.
     requireMounts = [
-      "${config.vars.homeDirectory}/Images/Media"
+      "${config.vars.identity.homeDirectory}/Images/Media"
     ];
 
     # null = services.immich.host/.port's own defaults (localhost:2283)

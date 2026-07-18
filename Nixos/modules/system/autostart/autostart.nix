@@ -1,6 +1,6 @@
 { config, lib, pkgs, ... }:
 
-# &desc: "Turns config.vars.autostart.jobs into one independent root systemd unit per job."
+# &desc: "Turns config.vars.system.autostart.jobs into one independent root systemd unit per job."
 
 # Every job gets its OWN concrete systemd.services."autostart@<id>" --
 # deliberately not one real systemd template (a single shared
@@ -16,7 +16,7 @@
 # systemd's own default, automatically, on boot. `systemctl restart
 # autostart` restarts every job (PartOf=autostart.target cascades it);
 # `systemctl restart autostart@<id>` restarts just one. No teardown
-# script needed either: flipping config.vars.autostart.enabled to false
+# script needed either: flipping config.vars.system.autostart.enabled to false
 # means no units are declared in the next generation, and NixOS's own
 # switch-to-configuration already stops/removes units that vanished
 # between generations.
@@ -31,7 +31,7 @@
 # login shell would resolve against (everything in
 # environment.systemPackages), not a hand-picked allowlist per job.
 let
-  cfg = config.vars.autostart;
+  cfg = config.vars.system.autostart;
   enabledJobs = lib.filterAttrs (_: job: job.enabled) cfg.jobs;
   order = import ./lib/mk-autostart-order.nix { inherit lib; } { jobs = enabledJobs; };
 

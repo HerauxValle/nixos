@@ -111,7 +111,7 @@ Good:
 
 ```text
 PURPOSE
-  Converts config.vars.mountpoints into runtime mount definitions.
+  Converts config.vars.system.mountpoints into runtime mount definitions.
 ```
 
 Avoid:
@@ -136,7 +136,7 @@ INPUT
 
 ```text
 INPUT
-  config.vars.mountpoints
+  config.vars.system.mountpoints
 ```
 
 ```text

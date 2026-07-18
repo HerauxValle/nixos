@@ -11,13 +11,13 @@
 {
   imports = [ ./scripts.nix ];
 
-  options.vars.scripts = lib.mkOption {
+  options.vars.packages.scripts = lib.mkOption {
     type = lib.types.listOf lib.types.attrs;
     default = [ ];
     description = "Folders to expose specific files from as PATH commands. See modules/packages/scripts/scripts.nix for the wrapping logic.";
   };
 
-  config.vars.scripts = [
+  config.vars.packages.scripts = [
     {
       dir = ../../../../Scripts/Pacnix;
       include = {

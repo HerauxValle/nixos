@@ -3,13 +3,13 @@ per-package version coexistence.
 
 BASIC USE (no versioning)
 
-  config.vars.environment.packages.pkgs.vivaldi = { };
+  config.vars.packages.environment.packages.pkgs.vivaldi = { };
 
 Resolves to `pkgs.vivaldi`, unsuffixed, on PATH. Nothing else needed.
 
 VERSIONED USE
 
-  config.vars.environment.packages.pkgs.swift = {
+  config.vars.packages.environment.packages.pkgs.swift = {
     versions = {
       "latest" = "";
       "5.9.4"  = "nixpkgs-old-swift";

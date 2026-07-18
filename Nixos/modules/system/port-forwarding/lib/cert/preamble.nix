@@ -2,7 +2,7 @@
 
 # First fragment -- imports + constants every other fragment in this
 # directory reads. dnsNames (the cert's SAN list) is computed in Nix
-# from config.vars.ports.entries.*.localName directly (every local =
+# from config.vars.system.ports.entries.*.localName directly (every local =
 # true entry's resolved name) -- better than pmg's own _all_local_names,
 # which has to read a runtime state.json for the same information we
 # already have statically at eval time.

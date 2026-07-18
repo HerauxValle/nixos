@@ -51,7 +51,7 @@
 # (0750 root:root) -- ProtectHome=tmpfs+BindPaths, Immich's own fix for
 # a similar-looking problem, didn't help there since /run/media isn't
 # /home at all. No longer needed now that qbittorrent's own paths moved
-# onto config.vars.mountpoints (a /home-rooted mount), where
+# onto config.vars.system.mountpoints (a /home-rooted mount), where
 # ProtectHome=tmpfs+BindPaths applies directly -- kept here for the next
 # dedicated-user service that genuinely needs a non-/home grant.
 #

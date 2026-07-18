@@ -1,7 +1,7 @@
 { ... }:
 
 # =========================================================================
-# EXAMPLES -- every config.vars.selfHosted.comfyui option, all commented
+# EXAMPLES -- every config.vars.services.selfHosted.comfyui option, all commented
 # out. Same shape as glossar/main/variables.nix, scoped to one service.
 # Schema: modules/services/self-hosted/comfyui/default.nix. Real values on
 # this machine: config/self-hosted/comfyui/{comfyui,catalog/*}.nix. Full
@@ -16,7 +16,7 @@
 # =========================================================================
 
 {
-  # config.vars.selfHosted.comfyui = {
+  # config.vars.services.selfHosted.comfyui = {
 
   #   # --- master switch --------------------------------------------------
   #   # true = live service + actions exist and run. false = torn down

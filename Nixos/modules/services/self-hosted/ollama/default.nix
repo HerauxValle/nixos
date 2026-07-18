@@ -7,7 +7,7 @@
 {
   imports = [ ./ollama.nix ];
 
-  options.vars.selfHosted.ollama = {
+  options.vars.services.selfHosted.ollama = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -23,7 +23,7 @@
 
     dataDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/Applications/Networking/Ollama";
+      default = "${config.vars.identity.homeDirectory}/Applications/Networking/Ollama";
       description = "Where pulled model blobs live. Drives OLLAMA_MODELS and storage -- the ollama binary itself comes from the Nix-built package and never touches this directory.";
     };
 

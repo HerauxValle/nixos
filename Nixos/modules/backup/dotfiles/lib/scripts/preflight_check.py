@@ -12,7 +12,7 @@
 # runs as a child of that same activation script, so they're already
 # inherited, no need to thread them through as extra positional args.
 #
-# Every message names BOTH the config.vars.dotfilesBackup entry that's at
+# Every message names BOTH the config.vars.backup.dotfilesBackup entry that's at
 # fault (key + file, so you can find it in config/github/*.nix without
 # guessing which of possibly several entries triggered) and, for the
 # "not found" case, the exact resolved value it went looking for.

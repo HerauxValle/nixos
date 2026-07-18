@@ -8,8 +8,8 @@
 
 let
 
-  homeDir = config.vars.homeDirectory;
-  shells = config.vars.shells;
+  homeDir = config.vars.identity.homeDirectory;
+  shells = config.vars.packages.shells;
 
   # ---------------------------
   # DO NOT MODIFY
@@ -145,7 +145,7 @@ let
   #   ".envrc".text = "use declarative_shell_anchor\n";
   # };
 
-  anchorEnvrcFile = lib.optionalAttrs (entries != [ ] || config.vars.venvs.venvs != { }) {
+  anchorEnvrcFile = lib.optionalAttrs (entries != [ ] || config.vars.packages.venvs.venvs != { }) {
     ".envrc".text = ''
       use declarative_shell_anchor
       source_env ~/.config/direnv/venvrc
@@ -157,7 +157,7 @@ in
 {
   # programs.direnv.* now lives in config/packages/programs.nix.
 
-  home-manager.users.${config.vars.username} = {
+  home-manager.users.${config.vars.identity.username} = {
     home.file =
       ownEnvrcFiles
       // blockingEnvrcFiles

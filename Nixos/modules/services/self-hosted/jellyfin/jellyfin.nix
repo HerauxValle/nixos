@@ -8,7 +8,7 @@ let
 
   selfHosted = import ../self-hosted.nix { inherit lib pkgs; };
 
-  cfg = config.vars.selfHosted.jellyfin;
+  cfg = config.vars.services.selfHosted.jellyfin;
 
   package = import ./lib/package.nix { inherit pkgs; } { inherit (cfg) version hash; };
 
@@ -47,7 +47,7 @@ let
   # Plain string, not a Nix path -- see update.nix for why (resolves to a
   # read-only /nix/store copy otherwise, this needs to be the real
   # writable location for @update:apply to sed-edit).
-  jellyfinConfigFile = "${config.vars.homeDirectory}/Dotfiles/Nixos/config/self-hosted/jellyfin.nix";
+  jellyfinConfigFile = "${config.vars.identity.homeDirectory}/Dotfiles/Nixos/config/self-hosted/jellyfin.nix";
   updateScript = import ./lib/update.nix { inherit cfg; configFile = jellyfinConfigFile; };
   updateApplyScript = import ./lib/update.nix { inherit cfg; configFile = jellyfinConfigFile; apply = true; };
 
@@ -58,8 +58,8 @@ in
     (selfHosted.mkSelfHostedService {
       name = "jellyfin";
       enabled = cfg.enabled;
-      user = config.vars.username;
-      homeDirectory = config.vars.homeDirectory;
+      user = config.vars.identity.username;
+      homeDirectory = config.vars.identity.homeDirectory;
       execStart = "${package}/bin/jellyfin"
         + " --datadir \"${liveDataDir}/data\""
         + " --configdir \"${liveDataDir}/config\""
@@ -97,7 +97,7 @@ in
     (selfHosted.mkActionService {
       name = "jellyfin";
       enabled = cfg.enabled;
-      user = config.vars.username;
+      user = config.vars.identity.username;
       # curl+jq/nix for update's release-listing scrape + hash prefetch;
       # sqlite+curl+python3 for rescan's DB surgery + API calls.
       packages = [ pkgs.curl pkgs.jq pkgs.nix pkgs.sqlite pkgs.python3 pkgs.gnugrep ];

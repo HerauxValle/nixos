@@ -9,7 +9,7 @@
 {
   imports = [ ./comfyui.nix ];
 
-  options.vars.selfHosted.comfyui = {
+  options.vars.services.selfHosted.comfyui = {
     enabled = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -28,7 +28,7 @@
 
     dataDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/Applications/Networking/ComfyUI";
+      default = "${config.vars.identity.homeDirectory}/Applications/Networking/ComfyUI";
       description = "Plain, always-available path -- holds the venv, model files, and node source symlinks.";
     };
 
@@ -38,7 +38,7 @@
     # declared/backed-up data on purpose.
     venvDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.homeDirectory}/.impure/python-venvs/self-hosted/comfyui";
+      default = "${config.vars.identity.homeDirectory}/.impure/python-venvs/self-hosted/comfyui";
       description = "Where the Python venv lives -- disposable, regenerated from requirementsLock automatically by preStart's venvEnsureScript whenever the lock's hash changes.";
     };
 

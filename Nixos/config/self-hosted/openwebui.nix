@@ -4,14 +4,14 @@
 # ../../modules/services/self-hosted/openwebui/. Data only, same as
 # ollama.nix/stash.nix.
 {
-  config.vars.selfHosted.openwebui = {
+  config.vars.services.selfHosted.openwebui = {
     # true = installed: systemd units exist, preStart's venv install
     # runs. false = torn down on the next rebuild -- venvDir and dataDir
     # (minus the "data" storage entry) removed automatically; the real
     # chat/user data inside the vault is never touched by that teardown.
     enabled = true;
 
-    dataDir = "${config.vars.homeDirectory}/Applications/Networking/OpenWebUI";
+    dataDir = "${config.vars.identity.homeDirectory}/Applications/Networking/OpenWebUI";
 
     # Off for now -- still exists, still systemctl start-able by hand,
     # just not pulled in on boot/rebuild.
@@ -24,11 +24,11 @@
     # same one Stash uses. Confirmed correct (not the "Vaults" vault the
     # old obsidian-unlock.sh hook referenced -- that was stale).
     storage = [
-      { src = "data"; dest = "${config.vars.homeDirectory}/Images/SelfHosted/OpenWebUI"; }
+      { src = "data"; dest = "${config.vars.identity.homeDirectory}/Images/SelfHosted/OpenWebUI"; }
     ];
 
     # Independent fact, not derived from storage above.
-    requireMounts = [ "${config.vars.homeDirectory}/Images/SelfHosted" ];
+    requireMounts = [ "${config.vars.identity.homeDirectory}/Images/SelfHosted" ];
 
     # Empty -- dataDir holds nothing but the storage symlink itself, so
     # the default "everything but storage" teardown (when enabled =

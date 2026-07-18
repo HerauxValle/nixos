@@ -1,8 +1,8 @@
 { config, lib, pkgs, ... }:
 
 let
-  devices = config.vars.mountpoints.device;
-  globalBlocking = config.vars.mountpoints.blocking;
+  devices = config.vars.system.mountpoints.device;
+  globalBlocking = config.vars.system.mountpoints.blocking;
 
   # Absolute paths throughout, not PATH lookups -- matches
   # modules/backup/dotfiles/dotfiles.nix's own convention (activation
@@ -40,9 +40,9 @@ in
   # definition entirely instead of contributing "" (same trap documented
   # in modules/services/self-hosted/dotfiles.nix and
   # modules/system/port-forwarding/port-forwarding.nix's own UPnP step).
-  # config.vars.mountpoints.enabled = false here means genuinely zero
+  # config.vars.system.mountpoints.enabled = false here means genuinely zero
   # activation-script contribution, not even an empty subshell.
-  system.activationScripts.mountpoints.text = lib.optionalString config.vars.mountpoints.enabled ''
+  system.activationScripts.mountpoints.text = lib.optionalString config.vars.system.mountpoints.enabled ''
     (
       mountpointsFailed=0
       ${resolveLeafFn}

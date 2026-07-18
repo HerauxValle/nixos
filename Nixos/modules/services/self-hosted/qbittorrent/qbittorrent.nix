@@ -9,7 +9,7 @@ let
 
   selfHosted = import ../self-hosted.nix { inherit lib pkgs; };
 
-  cfg = config.vars.selfHosted.qbittorrent;
+  cfg = config.vars.services.selfHosted.qbittorrent;
 
   # Shared with every other mk-from-native service's own update.nix --
   # see ../lib/mk-from-native/update.nix's own top comment (deduped once
@@ -128,7 +128,7 @@ in
         # identical way for Immich -- mkForce wins over the unconditioned
         # wantedBy, ProtectHome = "tmpfs" + BindPaths (reusing
         # requireMounts, same as immich.nix) fixes the mount visibility.
-        # savePath/tempPath live on config.vars.mountpoints.device.storage.path
+        # savePath/tempPath live on config.vars.system.mountpoints.device.storage.path
         # now too (a /home-rooted mount, moved off the old external
         # /run/media/<user>/Storage), so the same BindPaths grant covers
         # them alongside profileDir -- requireMounts already lists both.
@@ -180,7 +180,7 @@ in
     (selfHosted.mkActionService {
       name = "qbittorrent";
       enabled = cfg.enabled;
-      user = config.vars.username;
+      user = config.vars.identity.username;
       packages = [ pkgs.curl pkgs.jq ];
       actions = {
         update = updateScript;

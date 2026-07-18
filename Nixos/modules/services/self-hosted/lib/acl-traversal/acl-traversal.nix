@@ -32,7 +32,7 @@
 # was the very first thing tried and caused a real, reproducible
 # infinite recursion: assigning a dynamically-shaped `lib.mkMerge`
 # result (its own length depending on
-# config.vars.selfHosted.aclTraversal) directly as this module's
+# config.vars.services.selfHosted.aclTraversal) directly as this module's
 # top-level `config` forces Nix to resolve that list's length just to
 # determine this module's own config *structure*, before
 # vars.selfHosted.aclTraversal itself can be considered resolved --
@@ -47,7 +47,7 @@
 
 let
   selfHosted = import ../../self-hosted.nix { inherit lib pkgs; };
-  byUnit = lib.groupBy (grant: grant.unit) config.vars.selfHosted.aclTraversal;
+  byUnit = lib.groupBy (grant: grant.unit) config.vars.services.selfHosted.aclTraversal;
 in
 {
   config.systemd.services = lib.mapAttrs'

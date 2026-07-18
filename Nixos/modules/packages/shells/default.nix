@@ -8,7 +8,7 @@
 {
   imports = [ ./shells.nix ];
 
-  options.vars.shells = lib.mkOption {
+  options.vars.packages.shells = lib.mkOption {
     type = lib.types.listOf lib.types.attrs;
     default = [ ];
     description = "Per-directory declarative shells: path, packages on PATH there, and whether that's recursive.";

@@ -5,7 +5,7 @@
 }:
 
 {
-  config.vars.environment.sources = {
+  config.vars.packages.environment.sources = {
     # Standalone sources
     kde = pkgs.kdePackages;
     qt5 = pkgs.libsForQt5;
