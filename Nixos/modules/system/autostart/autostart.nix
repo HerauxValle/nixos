@@ -20,6 +20,16 @@
 # means no units are declared in the next generation, and NixOS's own
 # switch-to-configuration already stops/removes units that vanished
 # between generations.
+#
+# `path = [ config.system.path ]` on every job -- a plain systemd
+# service's default PATH is a small, fixed, build-time set (coreutils/
+# findutils/gnugrep/gnused/systemd), NOT /run/current-system/sw/bin.
+# Confirmed live: a job whose cmd invoked a `#!/usr/bin/env python3`
+# script failed with "env: 'python3': No such file or directory" before
+# this was added -- `cmd` is meant to be an arbitrary command exactly
+# like the old manifest's, so it needs the same PATH an interactive
+# login shell would resolve against (everything in
+# environment.systemPackages), not a hand-picked allowlist per job.
 let
   cfg = config.vars.autostart;
   enabledJobs = lib.filterAttrs (_: job: job.enabled) cfg.jobs;
@@ -36,6 +46,7 @@ let
       wantedBy = [ "multi-user.target" "autostart.target" ];
       partOf = [ "autostart.target" ];
       reloadIfChanged = true;
+      path = [ config.system.path ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
