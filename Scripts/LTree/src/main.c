@@ -159,8 +159,8 @@ static void print_usage(const char *prog, bool no_colour) {
                               "  filename is a local dd-mm-yyyy_hh:mm:ss timestamp");
     H("--no-colour", "disable ANSI colour (also --no-color)");
     H("--condense", "one [L:x C:y ...] bracket per entry instead of one bracket per active\n"
-                     "  column. --condense wrap: one bracket per LINE instead, stacked\n"
-                     "  under the entry (pushes the next entry down)");
+                     "  column. Either way, columns share the entry's own line for as long as\n"
+                     "  they fit, wrapping to guide-indented lines beneath it once they don't");
     H("--live", "-o TREE only: stream top-down as the walk happens instead of waiting for\n"
                 "  it to finish; fixed-width columns instead of whole-tree-measured ones.\n"
                 "  No effect with -j");
@@ -233,16 +233,7 @@ int main(int argc, char **argv) {
         } else if (strcmp(a, "--no-colour") == 0 || strcmp(a, "--no-color") == 0) {
             cfg.no_colour = true;
         } else if (strcmp(a, "--condense") == 0) {
-            /* Bare --condense: the existing single-bracket-per-entry form.
-             * "--condense wrap": one bracket per LINE instead (see
-             * columns.c). Any other/no next token just leaves it bracket
-             * mode, same leniency as -oA/-oO's optional trailing arg. */
-            if (i + 1 < argc && strcasecmp(argv[i + 1], "wrap") == 0) {
-                cfg.condense = CONDENSE_WRAP;
-                i++;
-            } else {
-                cfg.condense = CONDENSE_BRACKET;
-            }
+            cfg.condense = true;
         } else if (strcmp(a, "--live") == 0) {
             cfg.live = true;
         } else if (strcmp(a, "--sort") == 0) {

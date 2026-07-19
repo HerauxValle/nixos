@@ -16,13 +16,6 @@ typedef enum {
     HASH_ALGO_CRYPTO    /* SHA-256  -- via --cryptographic               */
 } HashAlgo;
 
-typedef enum {
-    CONDENSE_OFF = 0,   /* one [L:x] [C:y] ... bracket per active column */
-    CONDENSE_BRACKET,   /* --condense -- one [L:x C:y ...] bracket       */
-    CONDENSE_WRAP       /* --condense wrap -- one bracket per LINE,
-                          * stacked under the entry instead of beside it */
-} CondenseMode;
-
 typedef struct {
     char   *path;             /* positional arg, defaults to "."         */
 
@@ -33,8 +26,15 @@ typedef struct {
     bool    dirs_only;        /* -d                                      */
     int     max_depth;        /* -L <n>, -1 = unlimited                  */
     bool    no_colour;        /* --no-colour / --no-color                */
-    CondenseMode condense;    /* --condense / --condense wrap -- see
-                                * CondenseMode above                      */
+    /* --condense -- one [L:x C:y ...] bracket per entry instead of one
+     * bracket per active column. Without it, columns_print_line() packs
+     * columns onto the entry's own line for as long as they fit, then
+     * wraps to guide-indented continuation lines one column at a time
+     * once something doesn't (see columns.c) -- there used to be a
+     * separate --condense wrap mode for that overflow behavior, folded
+     * into the unconditional default instead since it's what every
+     * mode needs regardless of --condense. */
+    bool    condense;
     SortSpec sort;            /* --sort, ls-mode only (see sort/sortmodes.h) */
     bool    live;             /* --live -- -o TREE only. Streams top-down as
                                 * the walk happens, fixed-width columns instead

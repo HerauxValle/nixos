@@ -256,11 +256,11 @@ typedef struct {
     size_t        term_w;     /* 0 == not a tty / too narrow: never wrap */
     size_t        col;        /* current absolute display column */
     bool          wrapped;    /* has lc_newline() fired at least once yet --
-                                * --condense wrap reads this to switch from
-                                * "pack columns onto the name's line" to
-                                * "one column per line" the moment ANY
+                                * columns_print_line() reads this to switch
+                                * from "pack columns onto the name's line"
+                                * to "one column per line" the moment ANY
                                 * column needed the room, see its own
-                                * comment in columns_print_line(). */
+                                * comment there. */
 } LineCursor;
 
 static void lc_init(LineCursor *lc, const Config *cfg, const char *guide, size_t col_start) {
@@ -454,7 +454,7 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
      * columnar). The [m] DIFF flag stays a separate trailing marker,
      * same as uncondensed -- it's a modification flag, not one of the
      * data columns condense is folding together. */
-    if (cfg->condense == CONDENSE_BRACKET && mc->any_module) {
+    if (cfg->condense && mc->any_module) {
         lc_raw(&lc, "[");
         bool first = true;
         for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
@@ -470,64 +470,32 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
         return;
     }
 
-    /* --condense wrap: columns stay separate (unlike CONDENSE_BRACKET's
-     * single folded-together "[...]"), and share the entry's line just
-     * like default mode for as long as everything actually fits -- a
-     * short "[DESC: -]" has no reason to be pushed onto a line of its
-     * own. "wrap" earns its name once something genuinely doesn't fit:
-     * from the column that first needed the room onward, every
-     * remaining column is forced onto its own fresh line (lc.wrapped,
-     * set by lc_newline() and checked below) instead of default mode's
-     * "pack whatever still fits" -- so once a row starts breaking it
-     * reads as a clean one-bracket-per-line stack, not a ragged mix of
-     * packed and wrapped columns. */
-    if (cfg->condense == CONDENSE_WRAP && mc->any_module) {
-        bool first = true;
-        for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
-            if (!mc->active[mi]) continue;
-            if (lc.wrapped) lc_newline(&lc);
-            else if (!first) lc_raw(&lc, "   ");
-            first = false;
-            lc_print(&lc, mc->rendered[mi][i], module_color(cfg, mc->order[mi]));
-        }
-        if (is_mod) {
-            if (lc.wrapped) lc_newline(&lc);
-            else lc_raw(&lc, "   ");
-            printf("[m]");
-        }
-        return;
-    }
-
+    /* Without --condense: columns stay separate (unlike --condense's
+     * single folded-together "[...]"), and share the entry's own line
+     * for as long as everything actually fits -- a short "[DESC: -]"
+     * has no reason to be pushed onto a line of its own. Wrapping
+     * kicks in once something genuinely doesn't fit: from the column
+     * that first needed the room onward, every remaining column is
+     * forced onto its own fresh guide-indented line (lc.wrapped, set
+     * by lc_newline() and checked below), so once a row starts
+     * breaking it reads as a clean one-bracket-per-line stack instead
+     * of a ragged mix of packed and wrapped columns. This used to be a
+     * separate --condense wrap mode; folded into the unconditional
+     * default since every render needs to handle overflow this way
+     * regardless of --condense, and keeping two separate
+     * pack-and-wrap implementations around was just two places for the
+     * same class of bug to hide in. */
     bool first = true;
     for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
         if (!mc->active[mi]) continue;
-        if (!first) lc_raw(&lc, "   ");
+        if (lc.wrapped) lc_newline(&lc);
+        else if (!first) lc_raw(&lc, "   ");
         first = false;
-        const char *text = mc->rendered[mi][i];
-        lc_print(&lc, text, module_color(cfg, mc->order[mi]));
-        /* Clamped, not a bare subtraction: with columns_measure_fixed()
-         * (--live), colwidth is a constant that a genuinely long value
-         * (an 8-figure line count, say) can exceed -- an unguarded
-         * `colwidth - strlen(text)` would underflow (both size_t) into
-         * a huge padding count instead of just leaving that one row
-         * unaligned. Never triggers under plain columns_measure(),
-         * where colwidth is always >= every individual width by
-         * construction. Printed via lc_raw(), not lc_print() -- this is
-         * pure column-alignment whitespace, not content, and must never
-         * itself trigger a wrap (see lc_raw's own comment). */
-        size_t tlen = strlen(text);
-        size_t pad2 = (mc->colwidth[mi] > tlen) ? (mc->colwidth[mi] - tlen) : 0;
-        while (pad2) {
-            char padbuf[65];
-            size_t chunk = pad2 < sizeof(padbuf) - 1 ? pad2 : sizeof(padbuf) - 1;
-            memset(padbuf, ' ', chunk);
-            padbuf[chunk] = '\0';
-            lc_raw(&lc, padbuf);
-            pad2 -= chunk;
-        }
+        lc_print(&lc, mc->rendered[mi][i], module_color(cfg, mc->order[mi]));
     }
     if (is_mod) {
-        if (!first) lc_raw(&lc, "   ");
+        if (lc.wrapped) lc_newline(&lc);
+        else lc_raw(&lc, "   ");
         printf("[m]");
     }
 }

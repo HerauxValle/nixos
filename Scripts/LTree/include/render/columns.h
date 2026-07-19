@@ -24,12 +24,14 @@
 typedef struct {
     char    *prefix;      /* plain, no colour: tree connector glyphs, or
                             * "" in ls mode, which has no tree to draw   */
-    char    *guide;       /* plain, no colour: prefix's ANCESTOR bars only
-                            * (no trailing connector glyph) -- reprinted on
-                            * every --condense wrap continuation line so the
-                            * tree's vertical bars stay unbroken instead of
-                            * going blank under a wrapped entry; "" in ls
-                            * mode, which has no bars to continue           */
+    char    *guide;       /* plain, no colour: this entry's ancestor bars
+                            * plus its own connecting stem (bar unless it's
+                            * the last sibling with no children to reach
+                            * down into) -- reprinted on every wrapped
+                            * continuation line so the tree's vertical bars
+                            * stay unbroken instead of going blank under a
+                            * wrapped entry; "" in ls mode, which has no
+                            * bars to continue                              */
     char    *name;        /* possibly extension-stripped display name    */
     bool     is_dir;
     bool     is_symlink;

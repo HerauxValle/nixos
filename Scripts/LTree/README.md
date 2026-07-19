@@ -112,9 +112,10 @@ ltree [path] [options]
                         dd-mm-yyyy_hh:mm:ss timestamp
   --no-colour           disable ANSI colour (also --no-color)
   --condense            one [L:x C:y ...] bracket per entry instead of
-                        one bracket per active column. --condense wrap:
-                        one bracket per LINE instead, stacked under the
-                        entry (pushes the next entry down)
+                        one bracket per active column. Either way,
+                        columns share the entry's own line for as long
+                        as they fit, wrapping to guide-indented lines
+                        beneath it once they don't
   --live                 -o TREE only: stream top-down as the walk happens
                         instead of waiting for it to finish; fixed-width
                         columns instead of whole-tree-measured ones
@@ -431,11 +432,18 @@ Full design reasoning in
   behaves identically regardless of which format you asked for.
   `total`/`by_extension`/`debug` (when their modules are on) print as
   their own `"_type"`-tagged lines after every entry.
-- **New:** `--condense wrap` -- one `[X: ...]` bracket per *line*
-  instead of one bracket per column beside the entry, stacked
-  underneath it (pushes the next entry down). Bare `--condense` is
-  unchanged (still the single combined bracket on the entry's own
-  line).
+- **New (later folded into the unconditional default, see below):**
+  `--condense wrap` -- one `[X: ...]` bracket per *line* instead of one
+  bracket per column beside the entry, stacked underneath it (pushes
+  the next entry down). Bare `--condense` is unchanged (still the
+  single combined bracket on the entry's own line).
+- **Changed:** `--condense wrap` removed as a separate mode -- every
+  render (with or without `--condense`) now packs columns onto the
+  entry's own line for as long as they fit, and wraps to
+  guide-indented lines beneath it, one column at a time, once they
+  don't. Keeping two separate pack-and-wrap implementations around
+  (default's cross-row column alignment vs. wrap's stacking) was two
+  places for the same class of bug to hide in.
 - **New:** naming a regular file instead of a directory (`ltree
   some/file.py`) no longer errors with `invalid path` -- prints that
   one file's row under `[Files]` (or as `-j`/`-jL`'s tree/entries),

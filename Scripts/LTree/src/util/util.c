@@ -93,8 +93,8 @@ size_t utf8_width(const char *s) {
     return w;
 }
 
-/* Shared by render_ls.c's packed grid and columns.c's --condense wrap
- * line-wrapping -- both need to know how wide a row can actually get
+/* Shared by render_ls.c's packed grid and columns.c's line-wrapping --
+ * both need to know how wide a row can actually get
  * before something (the terminal's own raw column wrap, or our packed
  * grid) has to break it. $COLUMNS is the ioctl's documented fallback
  * for a non-tty/redirected stdout that still wants a sane width (a

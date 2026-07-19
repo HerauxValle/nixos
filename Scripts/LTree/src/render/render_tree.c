@@ -24,9 +24,9 @@ static void flatten(Node *n, const Config *cfg, const char *prefix,
      * "    " if it's the last sibling (nothing left to connect to).
      * Computed for every non-root entry regardless of is_dir -- a
      * directory recurses into it for real children below, but every
-     * entry (file or dir) also uses it as pl->guide, since a
-     * --condense wrap column block is visually "underneath" the entry
-     * the exact same way real children would be, and needs the same
+     * entry (file or dir) also uses it as pl->guide, since a wrapped
+     * column block is visually "underneath" the entry the exact same
+     * way real children would be, and needs the same
      * stem to keep the tree's vertical line unbroken between this
      * entry and its next sibling (see the "default"/"exclusions" case
      * this fixed -- guide used to stop at the ANCESTOR bars and skip
