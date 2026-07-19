@@ -263,8 +263,7 @@ typedef struct {
                                 * comment in columns_print_line(). */
 } LineCursor;
 
-static void lc_init(LineCursor *lc, const Config *cfg, const char *guide,
-                     size_t col_start, size_t start_col) {
+static void lc_init(LineCursor *lc, const Config *cfg, const char *guide, size_t col_start) {
     lc->cfg = cfg;
     lc->guide = guide;
     size_t term_w = isatty(STDOUT_FILENO) ? terminal_width() : 0;
@@ -291,8 +290,27 @@ static void lc_init(LineCursor *lc, const Config *cfg, const char *guide,
     lc->col_start = eff_col_start;
     lc->guide_pad = (eff_col_start > guide_w) ? (eff_col_start - guide_w) : 0;
     lc->term_w = (term_w > eff_col_start) ? term_w : 0;
-    lc->col = start_col;
+    lc->col = 0; /* set for real by lc_pad_from(), which must run after this */
     lc->wrapped = false;
+}
+
+/* Pads from the cursor's current column (`from` -- pl->width, right
+ * after the caller printed the entry's own name) out to lc->col_start,
+ * and sets lc->col to wherever that actually lands. Must run AFTER
+ * lc_init(), never before it: lc_init() may have already shrunk
+ * col_start to a smaller effective value because the GLOBAL one
+ * (shared by every row in the tree) doesn't fit this terminal -- padding
+ * with the raw, still-too-wide col_start before lc_init() gets a say
+ * walks the cursor out past the terminal edge before any wrap-aware
+ * code runs at all, so even a trivially short "[DESC: -]" looks like it
+ * doesn't fit and gets shoved onto a line of its own. That was the
+ * actual bug behind entries getting pointless extra lines even without
+ * --condense: the old single `pad` loop in columns_print_line() ran
+ * before lc_init() existed to shrink anything. */
+static void lc_pad_from(LineCursor *lc, size_t from) {
+    size_t pad = (lc->col_start > from) ? (lc->col_start - from) : 1;
+    for (size_t s = 0; s < pad; s++) putchar(' ');
+    lc->col = from + pad;
 }
 
 static void lc_newline(LineCursor *lc) {
@@ -426,11 +444,9 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
 
     const char *guide = pl->guide ? pl->guide : "";
 
-    size_t pad = (col_start > pl->width) ? (col_start - pl->width) : 1;
-    for (size_t s = 0; s < pad; s++) putchar(' ');
-
     LineCursor lc;
-    lc_init(&lc, cfg, guide, col_start, col_start);
+    lc_init(&lc, cfg, guide, col_start);
+    lc_pad_from(&lc, pl->width);
 
     /* --condense: one [L:x C:y ...] bracket instead of one bracket per
      * column, still colour-coded per field, no per-column width
