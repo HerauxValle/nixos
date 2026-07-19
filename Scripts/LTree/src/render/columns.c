@@ -235,47 +235,87 @@ static void condense_field(const char *bracketed, char *out, size_t outsz) {
     out[oi] = '\0';
 }
 
-/* Prints `text` (already-rendered plain column text, e.g. "[DESC:
- * ...]") starting at the cursor's current column, breaking it into
- * `avail`-wide chunks when it's longer than that -- reprinting `guide`
- * + `guide_pad` spaces before every continuation chunk, the same
- * indent the caller already put before the first one. Without this, a
- * long -o DESC value (up to 480 raw bytes, see MOD_DESC in
- * render_module_text()) is well past any real terminal width, so the
- * TERMINAL itself would hard-wrap it at whatever column the window
- * happens to be -- with zero indentation on the leftover fragment,
- * which breaks the --condense wrap tree's vertical guide bars right
- * where that fragment lands (see docs -- this is the actual bug behind
- * "tree lines look interrupted under wrap mode", not the guide-bar
- * plumbing above, which was already byte-correct). avail == 0 (no tty,
- * or a terminal narrower than col_start itself) means there's no
- * usable width to wrap into, so text prints unwrapped, same as before
- * this existed. Chunk boundaries fall on whole UTF-8 characters (via
- * utf8_width's own lead-byte rule), never mid-codepoint. */
-static void print_wrapped_field(const char *text, const char *color, const Config *cfg,
-                                 const char *guide, size_t guide_pad, size_t avail) {
-    if (avail == 0 || utf8_width(text) <= avail) {
-        printf("%s%s%s", color, text, RST(cfg));
+/* ===================== terminal-width-aware line wrapping =============
+ * Shared by every --condense mode (off/BRACKET/WRAP alike): a long -o
+ * DESC value (up to 480 raw bytes, see MOD_DESC in
+ * render_module_text()) is routinely well past any real terminal
+ * width. Without this, the TERMINAL itself hard-wraps that one long
+ * printed line wherever the window happens to end -- with zero
+ * indentation on the leftover fragment, which is what actually breaks
+ * a tree's vertical guide bars (the fragment lands with no bars at
+ * all, right before the next entry). This tracks the cursor's real
+ * column position and wraps *itself*, reprinting the entry's ancestor
+ * guide bars + padding on every continuation line, so the fragment
+ * never loses its indentation regardless of which condense mode (or
+ * none) produced it. ===================================================== */
+typedef struct {
+    const Config *cfg;
+    const char   *guide;      /* pl->guide -- ancestor bars, no connector */
+    size_t        guide_pad;  /* spaces after guide to reach col_start */
+    size_t        col_start;
+    size_t        term_w;     /* 0 == not a tty / too narrow: never wrap */
+    size_t        col;        /* current absolute display column */
+} LineCursor;
+
+static void lc_init(LineCursor *lc, const Config *cfg, const char *guide,
+                     size_t col_start, size_t start_col) {
+    lc->cfg = cfg;
+    lc->guide = guide;
+    size_t guide_w = utf8_width(guide);
+    lc->guide_pad = (col_start > guide_w) ? (col_start - guide_w) : 0;
+    lc->col_start = col_start;
+    size_t term_w = isatty(STDOUT_FILENO) ? terminal_width() : 0;
+    /* A terminal narrower than the guide+padding alone has no usable
+     * width to wrap into -- disable wrapping entirely rather than loop
+     * on a zero-width chunk. */
+    lc->term_w = (term_w > col_start) ? term_w : 0;
+    lc->col = start_col;
+}
+
+static void lc_newline(LineCursor *lc) {
+    putchar('\n');
+    printf("%s%s%s", COL(lc->cfg, ANSI_BRANCH), lc->guide, RST(lc->cfg));
+    for (size_t s = 0; s < lc->guide_pad; s++) putchar(' ');
+    lc->col = lc->col_start;
+}
+
+/* Prints `text` in `color` at the cursor's current column, wrapping to
+ * a fresh guide-indented line whenever continuing here would overflow
+ * the terminal. A value that doesn't fit where we are but WOULD fit on
+ * a whole fresh line (typical case: a short column after a long one)
+ * moves there wholesale; a value too wide even for that (DESC
+ * territory) is hard-chunked across as many continuation lines as it
+ * needs, splitting only on whole UTF-8 characters. */
+static void lc_print(LineCursor *lc, const char *text, const char *color) {
+    size_t tw = utf8_width(text);
+    if (lc->term_w == 0 || lc->col + tw <= lc->term_w) {
+        printf("%s%s%s", color, text, RST(lc->cfg));
+        lc->col += tw;
+        return;
+    }
+
+    if (lc->col > lc->col_start) lc_newline(lc);
+    if (lc->col_start + tw <= lc->term_w) {
+        printf("%s%s%s", color, text, RST(lc->cfg));
+        lc->col += tw;
         return;
     }
 
     const unsigned char *p = (const unsigned char *)text;
     bool first_chunk = true;
     while (*p) {
+        if (!first_chunk) lc_newline(lc);
+        first_chunk = false;
+        size_t avail = lc->term_w - lc->col;
         const unsigned char *start = p;
-        size_t chunk_w = 0;
-        while (*p && chunk_w < avail) {
+        size_t w = 0;
+        while (*p && w < avail) {
             p++;
             while ((*p & 0xC0) == 0x80) p++; /* rest of this UTF-8 char */
-            chunk_w++;
+            w++;
         }
-        if (!first_chunk) {
-            putchar('\n');
-            printf("%s%s%s", COL(cfg, ANSI_BRANCH), guide, RST(cfg));
-            for (size_t s = 0; s < guide_pad; s++) putchar(' ');
-        }
-        first_chunk = false;
-        printf("%s%.*s%s", color, (int)(p - start), start, RST(cfg));
+        printf("%s%.*s%s", color, (int)(p - start), start, RST(lc->cfg));
+        lc->col += w;
     }
 }
 
@@ -285,31 +325,23 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
 
     if (!mc->any_module && !is_mod) return;
 
+    const char *guide = pl->guide ? pl->guide : "";
+
     /* --condense wrap: every active column gets its own line, indented
      * to col_start from column 0 -- nothing shares the entry's name
      * line at all (unlike CONDENSE_BRACKET/off, which print the first
      * column right after the name). The caller's own trailing newline
      * (after this function returns) closes out the last column's line,
-     * same as it closes out the single line in every other mode.
-     *
-     * Each wrapped line reprints pl->guide (the entry's ancestor tree
-     * bars, no trailing connector) before padding out to col_start, so
-     * the vertical │ guides stay unbroken running down through the
-     * wrapped block instead of going blank under it -- ls mode's guide
-     * is always "", so this is a no-op there. */
+     * same as it closes out the single line in every other mode. */
     if (cfg->condense == CONDENSE_WRAP && mc->any_module) {
-        const char *guide = pl->guide ? pl->guide : "";
-        size_t guide_w = utf8_width(guide);
-        size_t guide_pad = (col_start > guide_w) ? (col_start - guide_w) : 0;
-        size_t term_w = isatty(STDOUT_FILENO) ? terminal_width() : 0;
-        size_t avail = (term_w > col_start) ? (term_w - col_start) : 0;
+        LineCursor lc;
         for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
             if (!mc->active[mi]) continue;
             putchar('\n');
             printf("%s%s%s", COL(cfg, ANSI_BRANCH), guide, RST(cfg));
-            for (size_t s = 0; s < guide_pad; s++) putchar(' ');
-            print_wrapped_field(mc->rendered[mi][i], module_color(cfg, mc->order[mi]), cfg,
-                                 guide, guide_pad, avail);
+            lc_init(&lc, cfg, guide, col_start, col_start);
+            for (size_t s = 0; s < lc.guide_pad; s++) putchar(' ');
+            lc_print(&lc, mc->rendered[mi][i], module_color(cfg, mc->order[mi]));
         }
         if (is_mod) printf("   [m]");
         return;
@@ -318,6 +350,9 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
     size_t pad = (col_start > pl->width) ? (col_start - pl->width) : 1;
     for (size_t s = 0; s < pad; s++) putchar(' ');
 
+    LineCursor lc;
+    lc_init(&lc, cfg, guide, col_start, col_start);
+
     /* --condense: one [L:x C:y ...] bracket instead of one bracket per
      * column, still colour-coded per field, no per-column width
      * padding inside it (that's the whole point -- tight, not
@@ -325,17 +360,17 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
      * same as uncondensed -- it's a modification flag, not one of the
      * data columns condense is folding together. */
     if (cfg->condense == CONDENSE_BRACKET && mc->any_module) {
-        putchar('[');
+        lc_print(&lc, "[", "");
         bool first = true;
         for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
             if (!mc->active[mi]) continue;
-            if (!first) putchar(' ');
+            if (!first) lc_print(&lc, " ", "");
             first = false;
             char buf[128];
             condense_field(mc->rendered[mi][i], buf, sizeof(buf));
-            printf("%s%s%s", module_color(cfg, mc->order[mi]), buf, RST(cfg));
+            lc_print(&lc, buf, module_color(cfg, mc->order[mi]));
         }
-        putchar(']');
+        lc_print(&lc, "]", "");
         if (is_mod) printf("   [m]");
         return;
     }
@@ -343,10 +378,10 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
     bool first = true;
     for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
         if (!mc->active[mi]) continue;
-        if (!first) printf("   ");
+        if (!first) lc_print(&lc, "   ", "");
         first = false;
         const char *text = mc->rendered[mi][i];
-        printf("%s%s%s", module_color(cfg, mc->order[mi]), text, RST(cfg));
+        lc_print(&lc, text, module_color(cfg, mc->order[mi]));
         /* Clamped, not a bare subtraction: with columns_measure_fixed()
          * (--live), colwidth is a constant that a genuinely long value
          * (an 8-figure line count, say) can exceed -- an unguarded
@@ -357,10 +392,17 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
          * construction. */
         size_t tlen = strlen(text);
         size_t pad2 = (mc->colwidth[mi] > tlen) ? (mc->colwidth[mi] - tlen) : 0;
-        for (size_t s = 0; s < pad2; s++) putchar(' ');
+        while (pad2) {
+            char padbuf[65];
+            size_t chunk = pad2 < sizeof(padbuf) - 1 ? pad2 : sizeof(padbuf) - 1;
+            memset(padbuf, ' ', chunk);
+            padbuf[chunk] = '\0';
+            lc_print(&lc, padbuf, "");
+            pad2 -= chunk;
+        }
     }
     if (is_mod) {
-        if (!first) printf("   ");
+        if (!first) lc_print(&lc, "   ", "");
         printf("[m]");
     }
 }
