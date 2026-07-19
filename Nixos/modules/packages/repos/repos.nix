@@ -85,11 +85,18 @@ in
     # unlike venvs there's no direnv-allow step this needs to happen after.
     # $DRY_RUN_CMD means `pacnix validate`/dry-run activations never clone
     # or touch git config, matching venv.nix's own dry-run handling.
+    # git/jq resolved to absolute store paths, and GIT_SSH_COMMAND likewise
+    # -- activation scripts don't have git (or ssh) on PATH by default,
+    # same caveat as modules/backup/dotfiles/lib/default.nix's
+    # $dotfilesBackupGit; PATH manipulation is deliberately avoided here.
     home.activation.syncDeclarativeRepos =
       inputs.home-manager.lib.hm.dag.entryAfter [ "writeBoundary" ]
         ''
           export REPOCTL_LIBROOT=${libRoot}
           export REPOCTL_DATA=${lib.escapeShellArg reposJson}
+          export REPOCTL_GIT=${pkgs.git}/bin/git
+          export REPOCTL_JQ=${pkgs.jq}/bin/jq
+          export GIT_SSH_COMMAND=${pkgs.openssh}/bin/ssh
           $DRY_RUN_CMD ${pkgs.bash}/bin/bash "${libRoot}/sync.sh"
         '';
   };
