@@ -1,3 +1,5 @@
+# &desc: "Sudo keyfile checker -- no-mount read of the keyfile off the raw block device (ext/FAT/NTFS/btrfs direct, others via mount fallback), SHA-256 compare against the stored hash."
+
 set -euo pipefail
 
 [ -f "@CONF_FILE@" ] || exit 1

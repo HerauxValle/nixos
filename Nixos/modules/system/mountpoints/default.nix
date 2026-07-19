@@ -11,7 +11,11 @@
 # resolves all this into real mounts lives in ./mountpoints.nix, imported
 # below -- as real activation-time bash, not the fileSystems option,
 # since `as`'s LABEL/NAME resolution needs live disk access that eval
-# time can't reliably get (see that file's own comment for why).
+# time can't reliably get (see that file's own comment for why). The
+# actual bash for that lives in real standalone .sh files under
+# ./lib/resolve-leaf/ and ./lib/mount-entry/, each with a small default.nix
+# wiring in the few Nix-computed values -- same split as
+# modules/security/sudo-keyfile's own lib/checker/, lib/checker-stub/.
 {
   imports = [ ./mountpoints.nix ];
 

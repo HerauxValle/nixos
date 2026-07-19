@@ -16,8 +16,17 @@ let
   mkdir = "${pkgs.coreutils}/bin/mkdir";
   chown = "${pkgs.coreutils}/bin/chown";
 
-  resolveLeafFn = import ./lib/resolve-leaf.nix { inherit lsblk; };
-  mountEntry = import ./lib/mount-entry.nix { inherit lib mountBin mountpointBin mkdir chown globalBlocking; };
+  resolveLeafFn = import ./lib/resolve-leaf { inherit lsblk; };
+  mountEntryLib = import ./lib/mount-entry {
+    inherit
+      lib
+      mountBin
+      mountpointBin
+      mkdir
+      chown
+      globalBlocking
+      ;
+  };
 in
 
 {
@@ -48,7 +57,8 @@ in
     (
       mountpointsFailed=0
       ${resolveLeafFn}
-      ${lib.concatStringsSep "\n" (lib.mapAttrsToList mountEntry devices)}
+      ${mountEntryLib.functions}
+      ${lib.concatStringsSep "\n" (lib.mapAttrsToList mountEntryLib.call devices)}
       [ "$mountpointsFailed" -eq 0 ]
     ) || exit 1
   '';
