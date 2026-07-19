@@ -1,4 +1,4 @@
-# &desc: "VS Code one-off settings that don't warrant their own file -- chat MCP gallery, quick-open search history."
+# &desc: "VS Code one-off settings that don't warrant their own file -- chat MCP gallery, quick-open search history, docker-run auto-config prompt."
 
 { config, ... }:
 
@@ -16,5 +16,12 @@
       # Search
       # ============================================================
       "search.quickOpen.includeHistory" = true;
+      # ============================================================
+      # Docker Run (george3447.docker-run)
+      # ============================================================
+      # Suppresses "Do you want to add containers for this workspace?" on
+      # every startup -- that's this extension's own first-run scaffolding
+      # prompt, not the Container Tools extension.
+      "DockerRun.DisableAutoGenerateConfig" = true;
     };
 }
