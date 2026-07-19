@@ -100,6 +100,7 @@
       ntfs3g = { };
       btrfs-progs = { };
       tpm2-tools = { };
+      qemu = { };
 
       # Shell tooling
       shellcheck = { };
