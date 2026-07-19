@@ -1,4 +1,4 @@
-# &desc: "Commented example reference for config.vars.packages.repos -- declarative git repo registry with clone/remote/local-config reconciliation, companion to repos.nix."
+# &desc: "Commented example reference for config.vars.packages.repos -- declarative git push-target registry (existing local dirs -> remotes, squash/history push), companion to repos.nix + gitctl."
 
 { ... }:
 
@@ -6,16 +6,15 @@
 # EXAMPLES -- every config.vars.packages.repos option, all commented out.
 # Same shape as glossar/software/venvs.nix, scoped to one module. Schema:
 # modules/packages/repos/default.nix. Logic that turns this into real
-# clones + enforced git config: modules/packages/repos/repos.nix + lib/.
+# pushes: modules/packages/repos/repos.nix + lib/ (the gitctl CLI,
+# invoked as `pacnix github push`/`release`).
 #
-# `url` is the only required field per repo -- everything else (path,
-# remotes, local git config) either has a sensible default or is left
-# untouched (null) if omitted.
-#
-# `path`, when omitted, resolves to `${basePath}/<name>` -- same
-# resolution-happens-elsewhere caveat as venvs' basePath: this file is
-# never imported, so there's no live config to reference here, only the
-# shape to copy.
+# This is a PUSH registry, not a clone tool -- `path` must already exist
+# on disk. Nothing here ever clones, creates, or initializes a repo for
+# you; `pacnix github push`/`release` fails loudly if `path` is missing
+# instead of silently skipping it. Replaces
+# ~/Scripts/Python/gitpushall.py's hardcoded REMOTES/SUBTREES/
+# GITHUB_REPOS dicts with the same shape, declared here instead.
 #
 # NOT imported anywhere -- never evaluated, purely a copy-paste
 # reference. Copy a block (or a line out of one) into
@@ -26,44 +25,56 @@
 {
   # config.vars.packages.repos = {
 
-  #   # --- globals -----------------------------------------------------
-  #   basePath = "~/Projects"; # default parent for repos w/o their own `path`
+  #   # --- globals -------------------------------------------------------
+  #   commitUserName = "you";                # default: config.vars.identity.username
+  #   commitUserEmail = "you@example.com";   # default: config.vars.identity.gitCommitEmail
+  #   # Stamped via `git -c user.name=... -c user.email=...` on every push
+  #   # commit gitctl makes -- never written to any persistent gitconfig.
 
   #   repos = {
 
-  #     # --- every field, one repo ----------------------------------------
-  #     some-project = {
-  #       url = "git@github.com:someuser/some-project.git"; # origin -- enforced every rebuild, also used for the initial clone
-  #       path = null;          # null = derive as basePath/<name>; or set an override e.g. "~/dev/some-project"
-  #       initialBranch = null; # branch checked out the first time this repo gets content; null = remote's own default branch. Never force-switches an already-existing checkout.
+  #     # --- every field, one repo with both push modes --------------------
+  #     # (mirrors gitpushall.py's actual dual-remote Dotfiles setup: real
+  #     # history to one remote, a squashed snapshot to another)
+  #     dotfiles = {
+  #       path = "~/Dotfiles"; # must already exist -- never cloned/created
+  #       excludeFiles = [ "Claude/Global/config.json" ]; # `git update-index --assume-unchanged`, history-mode remotes only
+  #       excludePaths = [ ]; # stripped from the snapshot before committing, squash-mode remotes only
+  #       githubRepo = null;  # "owner/repo" slug -- only needed for `pacnix github release`; null = release automation unavailable
   #       remotes = {
-  #         upstream = "git@github.com:upstream-owner/some-project.git"; # extra remotes beyond origin, name -> url, enforced every rebuild
-  #       };
-  #       userName = null;    # git config --local user.name override; null = don't touch it
-  #       userEmail = null;   # git config --local user.email override; null = don't touch it
-  #       signingKey = null;  # git config --local user.signingKey override (GPG key ID or SSH key path); null = don't touch it
-  #       gpgSign = null;     # git config --local commit.gpgSign override; null = don't touch it
-  #       hooksPath = null;   # git config --local core.hooksPath override -- point at a Nix-managed hooks dir; null = don't touch it
-  #       excludesFile = null; # git config --local core.excludesFile override; null = don't touch it
-  #       extraConfig = {
-  #         "pull.rebase" = "true"; # escape hatch for any other `git config --local <key> <value>` not covered above
+  #         origin = {
+  #           url = "git@github.com:someuser/Dotfiles.git";
+  #           mode = "squash"; # isolated tmp-repo snapshot, one commit, force-push -- path's own .git/history untouched
+  #         };
+  #         history = {
+  #           url = "git@github.com:someuser/history.git";
+  #           mode = "history"; # pushes path's REAL commits -- path must already be a real git repo; stages+commits, rebases, pushes (no force)
+  #         };
   #       };
   #     };
 
-  #     # --- minimal repo -- clone/keep-in-sync, no local config touched --
+  #     # --- minimal repo -- one remote, squash push, no release ----------
   #     scratch = {
-  #       url = "git@github.com:someuser/scratch.git";
+  #       path = "~/Projects/scratch";
+  #       remotes = {
+  #         origin = {
+  #           url = "git@github.com:someuser/scratch.git";
+  #           mode = "squash";
+  #         };
+  #       };
   #     };
 
   #   };
 
   # };
 
-  # --- existence + local git config are Nix-owned and reconciled every
-  # rebuild (clone if missing, remotes/config enforced). Commit history,
-  # working tree contents, and whichever branch is currently checked out
-  # are never touched -- that's your actual work, not config. See
-  # modules/packages/repos/lib/sync-one.sh for the exact safety model
-  # (no --force/--hard anywhere; a real conflict surfaces as a reported
-  # failure, never silently overridden).
+  # --- `pacnix github push` pushes every declared repo (or just the
+  # names you pass); `pacnix github release <name> <tag> [changelog]`
+  # squash-pushes + tags + optionally creates a GitHub Release (needs
+  # githubRepo here + a token from `secrets github add token`);
+  # `pacnix github release rm <name> <tag>` deletes both. Nothing here
+  # runs on a plain rebuild -- pushing only happens when you run one of
+  # these yourself. See modules/packages/repos/lib/*.sh for the exact
+  # safety model (no --force in history mode; squash mode force-pushes
+  # an isolated snapshot, never path's own .git).
 }

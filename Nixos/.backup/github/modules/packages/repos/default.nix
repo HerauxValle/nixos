@@ -1,6 +1,6 @@
-# &desc: "Declarative git push-target registry schema (no defaults) -- existing local dirs -> named remotes, squash/history push. Logic lives in ./repos.nix + ./lib, driven by the gitctl CLI (pacnix github push/release)."
+# &desc: "Declarative git push-target registry schema (no defaults) -- existing local dirs -> named remotes, squash/history push. Logic lives in ./repos.nix + ./lib, driven by the reposctl CLI (pacnix github push/release)."
 
-{ config, lib, ... }:
+{ lib, ... }:
 
 # Schema only -- mirrors the convention in ../venvs/default.nix. Nothing
 # declared here is ever cloned or created: `path` must already exist on
@@ -17,22 +17,6 @@
   options.vars.packages.repos = lib.mkOption {
     type = lib.types.submodule {
       options = {
-        # Identity stamped on squash-snapshot commits and history-mode
-        # commits, via `git -c user.name=... -c user.email=...` -- never
-        # written to any persistent gitconfig. Same convention as
-        # modules/backup/dotfiles' commitUserName/commitUserEmail.
-        commitUserName = lib.mkOption {
-          type = lib.types.str;
-          default = config.vars.identity.username;
-          description = "Git user.name stamped on push commits made by gitctl.";
-        };
-
-        commitUserEmail = lib.mkOption {
-          type = lib.types.str;
-          default = config.vars.identity.gitCommitEmail;
-          description = "Git user.email stamped on push commits made by gitctl.";
-        };
-
         repos = lib.mkOption {
           default = { };
           description = "Declared push targets, keyed by name. See modules/packages/repos/lib for push logic.";

@@ -11,22 +11,28 @@ usage: secrets <command>
       GitHub, at /etc/nixos-secrets/github/dotfiles-backup. Prints the new
       public key to register on GitHub yourself -- no rebuild needed.
 
-  github add <auth|sign>
-      (Re)generate one of your two personal GitHub SSH keys, at
-      /etc/nixos-secrets/github/<auth|sign> -- independent of each other,
-      generating one never touches the other. auth is used for git
-      clone/push over SSH, sign for commit signing. Prints the new public
-      key to register on GitHub yourself (Settings -> SSH and GPG keys).
-      Run 'pacnix rebuild' after -- Nixos/modules/security/github-keys.nix
-      deploys it into ~/.ssh and wires it up, which needs a rebuild
-      (unlike 'dotfiles' above, this one isn't read straight from
-      /etc/nixos-secrets by anything, so nothing uses it until deployed).
+  github add <auth|sign|token>
+      (Re)generate/(re)set one of your personal GitHub credentials, at
+      /etc/nixos-secrets/github/<auth|sign|api-token> -- independent of
+      each other, setting one never touches the others. auth is used for
+      git clone/push over SSH, sign for commit signing, token is a
+      GitHub personal access token (repo scope) used by `pacnix github
+      release` to create/delete GitHub Releases. auth/sign print the new
+      public key to register on GitHub yourself (Settings -> SSH and GPG
+      keys); token prompts you to paste one generated at Settings ->
+      Developer settings -> Personal access tokens. Run 'pacnix rebuild'
+      after any of these -- Nixos/modules/security/github-keys.nix
+      (auth/sign) and modules/packages/repos/repos.nix (token) deploy
+      them into ~/.ssh / ~/.config/gitctl and wire them up, which needs a
+      rebuild (unlike 'dotfiles' above, none of these are read straight
+      from /etc/nixos-secrets by anything, so nothing uses them until
+      deployed).
 
-  github rem <auth|sign>
-      Deletes that key from /etc/nixos-secrets/github. Run 'pacnix rebuild'
-      after to also remove the deployed ~/.ssh copy and its wiring. Delete
-      the matching public key from GitHub yourself too -- it keeps working
-      there otherwise.
+  github rem <auth|sign|token>
+      Deletes that credential from /etc/nixos-secrets/github. Run 'pacnix
+      rebuild' after to also remove the deployed copy and its wiring.
+      Remove/revoke the matching public key or token on GitHub yourself
+      too -- it keeps working there otherwise.
 
   self-hosted <name>
       (Re)set env-var secrets (API tokens etc) for a self-hosted service

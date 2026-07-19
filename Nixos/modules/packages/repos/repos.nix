@@ -1,16 +1,16 @@
-# &desc: "Git repo reconciler companion to venvs/venv.nix -- path resolution, ~ expansion, JSON handoff to lib/sync.sh."
+# &desc: "Git push-target registry companion to venvs/venv.nix -- builds GITCTL_DATA json, packages the gitctl CLI (pacnix github push/release), deploys the GitHub API token."
 
 {
   config,
   lib,
   pkgs,
-  inputs,
   ...
 }:
 
 let
 
   homeDir = config.vars.identity.homeDirectory;
+  username = config.vars.identity.username;
   cfg = config.vars.packages.repos;
 
   # ---------------------------------------------------------------------
@@ -19,85 +19,80 @@ let
 
   expandHome = p: if lib.hasPrefix "~" p then homeDir + (lib.removePrefix "~" p) else p;
 
-  basePath = expandHome cfg.basePath;
-
-  resolvedRepos = lib.mapAttrs (
-    name: r:
-    r
-    // {
-      resolvedPath = if r.path != null then expandHome r.path else "${basePath}/${name}";
-    }
-  ) cfg.repos;
-
-  # Two different repo names resolving to the same on-disk path would mean
-  # whichever runs second silently reconfigures the first one's checkout
-  # against a different declaration -- catch that at eval time instead.
-  pathCounts = lib.foldl' (
-    acc: p: acc // { ${p} = (acc.${p} or 0) + 1; }
-  ) { } (map (r: r.resolvedPath) (lib.attrValues resolvedRepos));
-  collidingPaths = lib.filterAttrs (_: n: n > 1) pathCounts;
-
-  assertNoPathCollisions =
-    lib.assertMsg (collidingPaths == { })
-      "vars.packages.repos: multiple repos resolve to the same path: ${lib.concatStringsSep ", " (lib.attrNames collidingPaths)}.";
-
   # ---------------------------------------------------------------------
-  # reposync -- one JSON blob per repo rather than N shell args, so
-  # lib/sync-one.sh stays small and doesn't grow a new positional arg
-  # every time a schema field is added. Same trick as venvctl's
-  # VENVCTL_DATA in venvs/venv.nix.
+  # reposJson -- one JSON blob for the whole registry, same trick as
+  # venvctl's VENVCTL_DATA: keeps ./lib/*.sh from growing a new
+  # positional arg every time a schema field is added.
   # ---------------------------------------------------------------------
 
-  reposJson = builtins.toJSON (
-    lib.mapAttrs (_: r: {
-      inherit (r)
-        url
-        initialBranch
-        remotes
-        userName
-        userEmail
-        signingKey
-        gpgSign
-        hooksPath
-        excludesFile
-        extraConfig
-        ;
-      path = r.resolvedPath;
-    }) resolvedRepos
-  );
+  reposJson = builtins.toJSON {
+    repos = lib.mapAttrs (_: r: {
+      path = expandHome r.path;
+      remotes = lib.mapAttrs (_: rem: { inherit (rem) url mode; }) r.remotes;
+      inherit (r) excludePaths excludeFiles githubRepo;
+    }) cfg.repos;
+  };
 
-  # ${./lib} copies the whole subtree as one store path, so sync.sh can
-  # find sync-one.sh at a stable runtime root via $REPOCTL_LIBROOT --
-  # same reasoning as venvs' $VENVCTL_LIBROOT.
+  # A repo declared with zero remotes would mean `push`/`release` have
+  # nothing to actually do for it -- catch that at eval time instead of
+  # a confusing no-op at runtime.
+  assertions = lib.mapAttrsToList (name: r: {
+    assertion = r.remotes != { };
+    message = "vars.packages.repos.repos.${name}: declared with zero remotes.";
+  }) cfg.repos;
+
+  # ${./lib} copies the whole subtree as one store path, so cli.sh can
+  # find push.sh/release.sh/etc at a stable runtime root via
+  # $GITCTL_LIBROOT -- same reasoning as venvs' $VENVCTL_LIBROOT.
   libRoot = ./lib;
+
+  # Root-owned source (`secrets github add token`) -> user-readable copy
+  # -- see deployGithubApiToken below for why this needs its own
+  # activation step rather than being read straight from
+  # /etc/nixos-secrets.
+  tokenFile = "${homeDir}/.config/gitctl/github-token";
+
+  gitctl = pkgs.writeShellApplication {
+    name = "gitctl";
+    runtimeInputs = [
+      pkgs.git
+      pkgs.jq
+      pkgs.curl
+      pkgs.openssh
+    ];
+    text = ''
+      export GITCTL_LIBROOT=${libRoot}
+      export GITCTL_DATA=${lib.escapeShellArg reposJson}
+      export GITCTL_TOKEN_FILE=${lib.escapeShellArg tokenFile}
+      export GITCTL_COMMIT_NAME=${lib.escapeShellArg cfg.commitUserName}
+      export GITCTL_COMMIT_EMAIL=${lib.escapeShellArg cfg.commitUserEmail}
+      exec "${libRoot}/cli.sh" "$@"
+    '';
+  };
 
 in
 {
-  assertions = [
-    {
-      assertion = assertNoPathCollisions;
-      message = "repo path collision";
-    }
-  ];
+  inherit assertions;
 
-  home-manager.users.${config.vars.identity.username} = {
-    # Runs on every rebuild, not gated behind any other activation entry --
-    # unlike venvs there's no direnv-allow step this needs to happen after.
-    # $DRY_RUN_CMD means `pacnix validate`/dry-run activations never clone
-    # or touch git config, matching venv.nix's own dry-run handling.
-    # git/jq resolved to absolute store paths, and GIT_SSH_COMMAND likewise
-    # -- activation scripts don't have git (or ssh) on PATH by default,
-    # same caveat as modules/backup/dotfiles/lib/default.nix's
-    # $dotfilesBackupGit; PATH manipulation is deliberately avoided here.
-    home.activation.syncDeclarativeRepos =
-      inputs.home-manager.lib.hm.dag.entryAfter [ "writeBoundary" ]
-        ''
-          export REPOCTL_LIBROOT=${libRoot}
-          export REPOCTL_DATA=${lib.escapeShellArg reposJson}
-          export REPOCTL_GIT=${pkgs.git}/bin/git
-          export REPOCTL_JQ=${pkgs.jq}/bin/jq
-          export GIT_SSH_COMMAND=${pkgs.openssh}/bin/ssh
-          $DRY_RUN_CMD ${pkgs.bash}/bin/bash "${libRoot}/sync.sh"
-        '';
-  };
+  # Root-owned secret (written by `secrets github add token`) -> a copy
+  # readable by the regular user -- gitctl runs as you, not root, so it
+  # can't read /etc/nixos-secrets directly (600 root:root). Same
+  # copy-if-source-exists/remove-if-not pattern as
+  # modules/security/github-keys.nix's deployKeyScript: presence is a
+  # runtime fact this can't see at eval time, so it just reconciles
+  # every rebuild.
+  system.activationScripts.deployGithubApiToken.text =
+    let
+      src = "${config.vars.identity.secretsBaseDir}/github/api-token";
+    in
+    ''
+      if [ -f "${src}" ]; then
+        install -d -m 700 -o ${username} -g users "${homeDir}/.config/gitctl"
+        install -m 600 -o ${username} -g users "${src}" "${tokenFile}"
+      else
+        rm -f "${tokenFile}"
+      fi
+    '';
+
+  home-manager.users.${username}.home.packages = [ gitctl ];
 }

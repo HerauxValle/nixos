@@ -72,6 +72,29 @@ usage: pacnix <command> [args]
       Opens modules/packages/installed.nix in $EDITOR (falls back to
       nano if unset).
 
+  github push [<name>...]
+      Push declared repo(s) (config.vars.packages.repos) per their
+      configured remotes/modes -- squash (isolated tmp-repo snapshot,
+      force-push) or history (real commits, rebase+push). No names =
+      every declared repo. Never clones or creates anything -- `path`
+      must already exist locally. Replaces ~/Scripts/Python/
+      gitpushall.py's hardcoded REMOTES/SUBTREES dicts with the same
+      idea, declared in Nix instead.
+        e.g. pacnix github push
+             pacnix github push dotfiles test
+
+  github release <name> <tag> [changelog]
+      Squash-push <name>, tag it, push the tag, and (if a githubRepo
+      slug is declared for it + a token exists from 'secrets github add
+      token') create a GitHub Release. changelog: omitted = generic
+      body, "changelog" = opens $EDITOR, a file path = read that file,
+      anything else = used literally.
+        e.g. pacnix github release test v1.0.0
+
+  github release rm <name> <tag>
+      Delete that tag + its GitHub Release (inverse of `release`).
+        e.g. pacnix github release rm test v1.0.0
+
   modules [-q <term>] [-s] [-c] [-h] [-n] [-i] [-r]
       Lists available `programs.*` modules, alphabetically. Queries both
       home-manager and NixOS system modules by default -- -h or -n
