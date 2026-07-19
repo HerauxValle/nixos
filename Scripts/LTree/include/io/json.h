@@ -20,11 +20,12 @@ void json_render(SBuf *sb, Node *root, const char *display_path,
                   const DebugStats *dbg);
 
 /* Whether module `id` is allowed to appear as a JSON key this run --
- * always true without --stdout, otherwise gated by exclusive/inclusive
- * filtering. Exposed (not just json.c-internal) so main.c can reuse the
- * exact same rule to decide whether a --stdout-only-requested field (e.g.
- * `--stdout inclusive HASH` without `-o HASH`) is worth computing at all --
- * see field_wanted() in main.c. */
+ * gated by -jE/-jI exclusive/inclusive filtering if either is active,
+ * otherwise mirrors -o (except TREE, always on -- see json.c). Exposed
+ * (not just json.c-internal) so main.c can reuse the exact same rule to
+ * decide whether a -jE/-jI-only-requested field (e.g. `-jI HASH`
+ * without `-o HASH`) is worth computing at all -- see field_wanted() in
+ * main.c. */
 bool json_key_allowed(const Config *cfg, ModuleId id);
 
 /* Convenience wrapper: renders and writes straight to stdout (the `-j`
@@ -36,7 +37,7 @@ void print_json(Node *root, const char *display_path, const Totals *tot,
  * JSON object per line (NDJSON) instead of one nested structure --
  * streamable line-by-line (grep/jq -c/wc -l/...) without holding the
  * whole tree in memory to parse it. Shares json_key_allowed() with
- * json_render, so --stdout filters both writers identically. total/
+ * json_render, so -jE/-jI filters both writers identically. total/
  * by_extension/debug print as their own single "_type"-tagged lines
  * after every entry, gated by the same modules as print_json's. */
 void print_json_lines(Node *root, const char *display_path, const Totals *tot,

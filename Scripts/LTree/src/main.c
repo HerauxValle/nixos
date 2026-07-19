@@ -22,6 +22,7 @@
  * (every .c file under src/, compiled together -- no per-file build).
  */
 #define _GNU_SOURCE
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,11 +53,11 @@
 
 /* Whether module `id` is worth actually computing this run: named in -o,
  * forced by --save-output (always the full snapshot), or -- the gap this
- * closes -- named in a --stdout exclusive/inclusive filter even without a
+ * closes -- named in a -jE/-jI exclusive/inclusive filter even without a
  * matching -o (see docs/json-schema.md). Deliberately does NOT fire for
- * plain -j with no --stdout filter: that's the pre-existing, documented
- * "only what --stdout/-o/--save-output actually asked for" contract, not a
- * blanket "-j means everything." */
+ * plain -j with no -jE/-jI filter: that's the documented "only what
+ * -jE/-jI/-o/--save-output actually asked for" contract, not a blanket
+ * "-j means everything" (-jA is what means that). */
 /* Splits a --desc/-D format string on the literal "..." into a search
  * prefix (everything before, e.g. `&desc: "`) and a closing suffix
  * (everything after, e.g. `"`). No special-casing of "the character
@@ -132,10 +133,15 @@ static void print_usage(const char *prog, bool no_colour) {
     printf("usage: %s [path] [options]\n\n", prog);
 
 #define H(name, desc) help_entry(no_colour, name, "\x1b[1;36m", desc)
-    H("-j", "output JSON instead of a tree view");
-    H("-jL", "output NDJSON (one flat object per entry, path-tagged) instead\n"
-             "  of -j's one nested tree -- streamable line-by-line, same --stdout\n"
-             "  filtering applies");
+    H("-j", "output JSON instead of a tree view. Fields mirror whatever -o enabled --\n"
+            "  same contract as the terminal views. Case-insensitive one-letter suffix\n"
+            "  picks a different set instead: -jA every module at once (like -oA);\n"
+            "  -jE <MODULES> excludes the named modules' fields, keeping everything\n"
+            "  else; -jI <MODULES> keeps only the named modules' fields. --save-output's\n"
+            "  snapshot is unaffected either way -- always the full data");
+    H("-jL", "output NDJSON (one flat object per entry, path-tagged) instead of -j's\n"
+             "  one nested tree -- streamable line-by-line. Same A/E/I suffixes as -j\n"
+             "  apply here too (-jLA, -jLE <MODULES>, -jLI <MODULES>)");
     H("-d", "list directories only");
     H("-L <n>", "max depth to descend (like tree -L), also -L<n>. With -o TREE, limits\n"
                  "  the connector tree's depth; without it, recurses the plain\n"
@@ -167,9 +173,6 @@ static void print_usage(const char *prog, bool no_colour) {
     H("--sort <MODES>", "ls-mode only (no effect with -o TREE). One base: abc (default),\n"
                          "  birth, modified, lines, chars, types -- plus modifiers: combined,\n"
                          "  reversed");
-    H("--stdout <exclusive|inclusive> <MODULES>",
-      "forces JSON output (like -j) filtered to exclude or keep only the named\n"
-      "  modules' JSON fields");
     H("--desc <format>", "what -o DESC searches file content for, split on the literal\n"
                           "  \"...\" (default: &desc: \"...\", matching this project's own\n"
                           "  header-comment convention) -- everything before \"...\" is the\n"
@@ -223,11 +226,66 @@ int main(int argc, char **argv) {
 
     for (int i = 1; i < argc; i++) {
         const char *a = argv[i];
-        if (strcmp(a, "-j") == 0) {
+        if (strncasecmp(a, "-j", 2) == 0) {
+            /* -j family: -j / -jL (NDJSON), each optionally followed by
+             * a one-letter modifier -- A (every module, like -oA), or
+             * E/I (exclusive/inclusive, replacing the old standalone
+             * --stdout exclusive|inclusive <MODULES>) plus a module
+             * list as the next argv. Case-insensitive; L comes before
+             * the modifier if both are present (-jLE, not -jEL). Plain
+             * -j/-jL with no modifier mirrors whatever -o already
+             * enabled -- see json_key_allowed() in io/json.c, the same
+             * "only what was actually asked for" contract the terminal
+             * views already have. --save-output's snapshot is the one
+             * exception, always the full data regardless of -o (see
+             * save.c) -- it's a separate file, not this run's stdout. */
+            char suffix[8];
+            size_t slen = 0;
+            for (const char *p = a + 2; *p && slen < sizeof(suffix) - 1; p++)
+                suffix[slen++] = (char)tolower((unsigned char)*p);
+            suffix[slen] = '\0';
+
+            const char *rest = suffix;
+            bool ndjson = false;
+            if (rest[0] == 'l') { ndjson = true; rest++; }
+
+            bool all = false;
+            int filter_mode = STDOUT_FILTER_NONE;
+            bool bad = false;
+            if (rest[0] == '\0') { /* plain -j / -jL */ }
+            else if (strcmp(rest, "a") == 0) all = true;
+            else if (strcmp(rest, "e") == 0) filter_mode = STDOUT_FILTER_EXCLUSIVE;
+            else if (strcmp(rest, "i") == 0) filter_mode = STDOUT_FILTER_INCLUSIVE;
+            else bad = true;
+
+            if (bad) {
+                fprintf(stderr, "unknown option: %s\n", a);
+                print_usage(argv[0], cfg.no_colour);
+                return 1;
+            }
+
             cfg.json = true;
-        } else if (strcmp(a, "-jL") == 0) {
-            cfg.json = true;
-            cfg.json_lines = true;
+            cfg.json_lines = ndjson;
+
+            if (all) {
+                for (int m = 0; m < MOD_COUNT; m++) cfg.modules[m] = true;
+            } else if (filter_mode != STDOUT_FILTER_NONE) {
+                if (i + 1 >= argc) {
+                    fprintf(stderr, "error: %s needs a module list (e.g. %s TREE,LINES)\n", a, a);
+                    print_usage(argv[0], cfg.no_colour);
+                    return 1;
+                }
+                cfg.stdout_filter = filter_mode;
+                char *copy = strdup(argv[++i]);
+                char *tok = strtok(copy, ",");
+                while (tok) {
+                    const ModuleDef *def = module_lookup(tok);
+                    if (def) cfg.stdout_filter_keys[def->id] = true;
+                    else fprintf(stderr, "warning: unknown %s module '%s'\n", a, tok);
+                    tok = strtok(NULL, ",");
+                }
+                free(copy);
+            }
         } else if (strcmp(a, "-d") == 0) {
             cfg.dirs_only = true;
         } else if (strcmp(a, "--no-colour") == 0 || strcmp(a, "--no-color") == 0) {
@@ -242,33 +300,6 @@ int main(int argc, char **argv) {
             }
         } else if (strncmp(a, "--sort=", 7) == 0) {
             if (!sort_parse(a + 7, &cfg.sort)) { print_usage(argv[0], cfg.no_colour); return 1; }
-        } else if (strcmp(a, "--stdout") == 0) {
-            if (i + 2 >= argc) {
-                fprintf(stderr, "error: --stdout needs 'exclusive'/'inclusive' and a "
-                                 "module list (--stdout exclusive TREE,LINES)\n");
-                print_usage(argv[0], cfg.no_colour);
-                return 1;
-            }
-            const char *mode = argv[++i];
-            const char *list = argv[++i];
-            if (strcasecmp(mode, "exclusive") == 0) cfg.stdout_filter = STDOUT_FILTER_EXCLUSIVE;
-            else if (strcasecmp(mode, "inclusive") == 0) cfg.stdout_filter = STDOUT_FILTER_INCLUSIVE;
-            else {
-                fprintf(stderr, "error: --stdout mode must be 'exclusive' or 'inclusive', "
-                                 "got '%s'\n", mode);
-                print_usage(argv[0], cfg.no_colour);
-                return 1;
-            }
-            char *copy = strdup(list);
-            char *tok = strtok(copy, ",");
-            while (tok) {
-                const ModuleDef *def = module_lookup(tok);
-                if (def) cfg.stdout_filter_keys[def->id] = true;
-                else fprintf(stderr, "warning: unknown --stdout module '%s'\n", tok);
-                tok = strtok(NULL, ",");
-            }
-            free(copy);
-            cfg.json = true;
         } else if (strcmp(a, "--gitignore") == 0) {
             cfg.use_gitignore = true;
         } else if (strcmp(a, "--cryptographic") == 0) {

@@ -41,10 +41,13 @@ typedef struct {
                                 * of the default's whole-tree-measured ones
                                 * (see render/render_tree.h). */
 
-    /* --stdout exclusive|inclusive <MODULES> -- forces JSON (like -j)
-     * filtered to a subset of top-level/per-entry keys. Module names
-     * map to JSON field names in io/json.c's json_key_allowed(); TREE
-     * means the whole "tree" key, not a per-entry field. */
+    /* -jE/-jI <MODULES> (also -jLE/-jLI) -- filters -j/-jL's JSON to a
+     * subset of top-level/per-entry keys, set in main.c's unified -j
+     * flag parser. Module names map to JSON field names in
+     * io/json.c's json_key_allowed(); TREE means the whole "tree" key,
+     * not a per-entry field. Without either, json_key_allowed() falls
+     * back to mirroring modules[] below instead (except TREE, always
+     * on -- see its own comment there). */
     enum { STDOUT_FILTER_NONE, STDOUT_FILTER_EXCLUSIVE, STDOUT_FILTER_INCLUSIVE }
             stdout_filter;
     bool    stdout_filter_keys[MOD_COUNT];

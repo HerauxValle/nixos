@@ -1,4 +1,4 @@
-/* &desc: "Implements save_output: creates .ltree/ if needed and writes a timestamped, --stdout-filter-immune JSON snapshot via the same json_render() the -j path uses." */
+/* &desc: "Implements save_output: creates .ltree/ if needed and writes a timestamped, always-full-data JSON snapshot (immune to -jE/-jI filtering and to whatever -o this run passed) via the same json_render() the -j path uses." */
 #define _GNU_SOURCE
 #include "io/save.h"
 #include "io/json.h"
@@ -40,13 +40,17 @@ bool save_output(Node *root, const char *display_path, const Totals *tot,
      * meant to be diffed against each other later, and per-run
      * timing/RSS/pid noise would make every snapshot spuriously
      * "different" even when the scanned content hasn't changed. Same
-     * reasoning for stdout_filter: --stdout only governs what THIS
-     * run prints to the terminal, not what a snapshot -o DIFF will
-     * need to compare against later -- a snapshot missing HASH
-     * because this run happened to pass `--stdout exclusive HASH`
-     * would silently break DIFF on every future run. */
+     * reasoning for stdout_filter and modules[]: neither -jE/-jI nor
+     * plain -o govern what THIS run's snapshot needs -- a snapshot
+     * missing HASH because this run happened to pass `-jE HASH` (or
+     * just didn't pass `-o HASH` at all, now that plain -j/-jL mirror
+     * -o) would silently break a later -o DIFF run forever. Forcing
+     * every module bit true here, on a local copy, keeps the snapshot
+     * always the full data regardless of what this run's own stdout
+     * asked for. */
     Config snap_cfg = *cfg;
     snap_cfg.stdout_filter = STDOUT_FILTER_NONE;
+    for (int m = 0; m < MOD_COUNT; m++) snap_cfg.modules[m] = true;
     json_render(&sb, root, display_path, tot, ext, &snap_cfg, NULL);
     fwrite(sb.data, 1, sb.len, f);
     sbuf_free(&sb);

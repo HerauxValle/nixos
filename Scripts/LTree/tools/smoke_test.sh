@@ -333,17 +333,17 @@ fi
 # revert
 sed -i '$ d' "$PG/basic/three_lines.txt" 2>/dev/null
 
-header "--stdout-aware lazy computation (--stdout naming a module without a matching -o)"
-assert_json "--stdout inclusive HASH,TREE computes a real hash without -o HASH" \
+header "-jE/-jI-aware lazy computation (naming a module without a matching -o)"
+assert_json "-jI HASH,TREE computes a real hash without -o HASH" \
     "next(c['hash'] for c in d['tree']['children'] if c['name']=='three_lines.txt') is not None" \
-    "$BIN" "$PG/basic" --stdout inclusive HASH,TREE
-assert_json "--stdout exclusive DEBUG (i.e. NOT excluding HASH) also computes it" \
+    "$BIN" "$PG/basic" -jI HASH,TREE
+assert_json "-jE DEBUG (i.e. NOT excluding HASH) also computes it" \
     "next(c['hash'] for c in d['tree']['children'] if c['name']=='three_lines.txt') is not None" \
-    "$BIN" "$PG/basic" --stdout exclusive DEBUG
-assert_json "--stdout exclusive HASH (excluding it) correctly stays lazy, no hash key at all" \
+    "$BIN" "$PG/basic" -jE DEBUG
+assert_json "-jE HASH (excluding it) correctly stays lazy, no hash key at all" \
     "'hash' not in d['tree']['children'][0]" \
-    "$BIN" "$PG/basic" --stdout exclusive HASH
-assert_json "plain -j with no --stdout filter stays lazy (unchanged contract)" \
+    "$BIN" "$PG/basic" -jE HASH
+assert_json "plain -j with no -jE/-jI filter and no -o stays lazy (mirrors -o, unchanged contract)" \
     "d['hash_algo'] == 'none'" \
     "$BIN" "$PG/basic" -j
 
@@ -383,8 +383,8 @@ assert_json "-D is a working alias for --desc" \
     "$BIN" "$PG/desctest" -j -o DESC -D "&description: *...*"
 run_ok "-o DESC terminal rendering doesn't crash"  "$BIN" "$PG/desctest" -o DESC
 run_ok "-o DESC combined with --condense"          "$BIN" "$PG/desctest" -o DESC,LINES --condense
-assert_json "desc not computed without -o DESC (lazy, same contract as HASH)" \
-    "d['tree']['children'][0]['desc'] is None" \
+assert_json "desc field absent without -o DESC (mirrors -o, same contract as HASH/DEBUG)" \
+    "'desc' not in d['tree']['children'][0]" \
     "$BIN" "$PG/desctest" -j
 run_expect_fail "malformed --desc (no \"...\") is cleanly rejected" "$BIN" "$PG/desctest" --desc "no dots here"
 run_expect_fail "malformed --desc (empty prefix) is cleanly rejected" "$BIN" "$PG/desctest" --desc "..."

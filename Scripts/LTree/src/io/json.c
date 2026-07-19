@@ -1,4 +1,4 @@
-/* &desc: "Implements json_render/print_json (the JSON writer, with json_key_allowed() gating every optional field through --stdout's exclusive/inclusive filter) and the minimal recursive-descent JSON reader used to load snapshots back in for -o DIFF." */
+/* &desc: "Implements json_render/print_json (the JSON writer, with json_key_allowed() gating every optional field through -jE/-jI's exclusive/inclusive filter, falling back to mirroring -o otherwise) and the minimal recursive-descent JSON reader used to load snapshots back in for -o DIFF." */
 #define _GNU_SOURCE
 #include "io/json.h"
 #include <stdio.h>
@@ -6,19 +6,35 @@
 #include <string.h>
 #include <time.h>
 
-/* ===================== --stdout exclusive/inclusive filtering ===========
+/* ===================== -jE/-jI exclusive/inclusive filtering ============
  * Module names map onto JSON field/key names here. `name`/`type`/
  * `symlink` per entry and `path`/`generated_at`/`hash_algo` at the top
  * level are structurally required and never filterable -- everything
  * else funnels through this one predicate. EXT and HIDDEN have no
  * distinct JSON field of their own (EXT only ever affects the tree
  * view's display name; JSON always uses full names) so they're
- * accepted as --stdout module names but have nothing to hide -- a
- * harmless no-op, not an error. ===================================== */
+ * accepted as -jE/-jI module names but have nothing to hide -- a
+ * harmless no-op, not an error.
+ *
+ * Without -jE/-jI, JSON mirrors -o exactly -- same "only what was
+ * actually asked for" contract the terminal views already have, not a
+ * blanket "-j means everything" (that's what -jA is for, which just
+ * sets every cfg->modules[] bit, the same as -oA). TREE is the one
+ * exception: it's always included regardless of -o, because for JSON
+ * (unlike the terminal) it isn't a "view" you opt into -- the scan
+ * itself already stays fully recursive regardless of -o TREE (see
+ * main.c), so the tree data always exists and JSON always exports it.
+ * save.c's --save-output caller forces every cfg->modules[] bit true on
+ * its own Config copy before calling this, so a snapshot is always the
+ * full data regardless of what -o this run asked for on its own
+ * stdout. ===================================== */
 bool json_key_allowed(const Config *cfg, ModuleId id) {
-    if (cfg->stdout_filter == STDOUT_FILTER_NONE) return true;
-    bool listed = cfg->stdout_filter_keys[id];
-    return cfg->stdout_filter == STDOUT_FILTER_EXCLUSIVE ? !listed : listed;
+    if (cfg->stdout_filter != STDOUT_FILTER_NONE) {
+        bool listed = cfg->stdout_filter_keys[id];
+        return cfg->stdout_filter == STDOUT_FILTER_EXCLUSIVE ? !listed : listed;
+    }
+    if (id == MOD_TREE) return true;
+    return cfg->modules[id];
 }
 
 /* ===================== writer =========================================== */
@@ -122,14 +138,14 @@ void json_render(SBuf *sb, Node *root, const char *display_path,
     sbuf_append(sb, ",\n  \"hash_algo\": ");
     sbuf_append_json_string(sb, hash_algo_name(cfg->hash_algo));
 
-    /* Always present (like hash_algo), never gated by --stdout -- a later
+    /* Always present (like hash_algo), never gated by -jE/-jI -- a later
      * -o DIFF run needs to know this regardless of its own --simple-hash
      * flag to detect a mismatched comparison (see diff_peek_simple() in
      * io/diff.c). */
     sbuf_appendf(sb, ",\n  \"hash_sampled\": %s", cfg->simple_hash ? "true" : "false");
 
     /* Every block below is self-contained (no leading/trailing comma
-     * of its own) since --stdout filtering means any subset of them
+     * of its own) since -jE/-jI/-o filtering means any subset of them
      * can be the one that ends up last before the closing "}". */
     if (json_key_allowed(cfg, MOD_TOTAL)) {
         sbuf_append(sb, ",\n  \"total\": {\n");
@@ -189,7 +205,7 @@ void print_json(Node *root, const char *display_path, const Totals *tot,
  * Same per-entry fields as json_node() above, flattened: no "children"
  * array, a "path" (relative to the scan root, "." for the root entry
  * itself) stands in for the nesting instead. Reuses json_key_allowed()
- * so --stdout filters this exactly like the nested writer. ============= */
+ * so -jE/-jI filters this exactly like the nested writer. ============= */
 static void jsonl_entry(Node *n, const char *relpath, const Config *cfg) {
     SBuf sb;
     sbuf_init(&sb);
