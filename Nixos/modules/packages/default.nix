@@ -1,4 +1,4 @@
-# &desc: "Packages module schema -- imports programs, scripts, shells, venvs, and packages submodules."
+# &desc: "Packages module schema -- imports programs, repos, scripts, shells, venvs, and packages submodules."
 
 { ... }:
 
@@ -7,6 +7,7 @@
 {
   imports = [
     ./programs
+    ./repos
     ./scripts
     ./shells
     ./venvs
