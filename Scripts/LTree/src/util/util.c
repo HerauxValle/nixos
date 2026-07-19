@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 
 /* ===================== growable string builder ===================== */
 void sbuf_init(SBuf *s) {
@@ -89,6 +91,24 @@ size_t utf8_width(const char *s) {
     for (const unsigned char *p = (const unsigned char *)s; *p; p++)
         if ((*p & 0xC0) != 0x80) w++;
     return w;
+}
+
+/* Shared by render_ls.c's packed grid and columns.c's --condense wrap
+ * line-wrapping -- both need to know how wide a row can actually get
+ * before something (the terminal's own raw column wrap, or our packed
+ * grid) has to break it. $COLUMNS is the ioctl's documented fallback
+ * for a non-tty/redirected stdout that still wants a sane width (a
+ * pipe like `| less` sets it); 80 is the last-resort default every
+ * terminal-width-dependent tool falls back to. */
+size_t terminal_width(void) {
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0) return ws.ws_col;
+    const char *cols_env = getenv("COLUMNS");
+    if (cols_env) {
+        int c = atoi(cols_env);
+        if (c > 0) return (size_t)c;
+    }
+    return 80;
 }
 
 /* ===================== precise "visible character" counting =========

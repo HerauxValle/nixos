@@ -32,6 +32,11 @@ void sbuf_append_json_string(SBuf *s, const char *str);
 /* ===================== UTF-8 aware display width ===================== */
 size_t utf8_width(const char *s);
 
+/* Current terminal width: $COLUMNS/ioctl(TIOCGWINSZ), falling back to
+ * 80. Meaningless (and not called) for non-tty stdout -- callers gate
+ * on isatty(STDOUT_FILENO) themselves first. */
+size_t terminal_width(void);
+
 /* Counts "visible characters" over `size` raw bytes, for the CHARS
  * module/JSON field. Decodes real UTF-8 codepoints (rejecting
  * invalid/overlong/surrogate sequences instead of just counting lead

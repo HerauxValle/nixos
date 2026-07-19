@@ -12,7 +12,6 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
 
 /* Pushes one PrintLine for `n` into `lb`, with `indent` (plain, no
  * colour, e.g. "  " or "    ") stored as its prefix -- col_start then
@@ -142,17 +141,6 @@ static void print_ls_line(const LineBuf *lb, const MeasuredColumns *mc, const Co
 
     if (pl->truncated) printf("  %s(...)%s", COL(cfg, ANSI_BRANCH), RST(cfg));
     putchar('\n');
-}
-
-static size_t terminal_width(void) {
-    struct winsize ws;
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0) return ws.ws_col;
-    const char *cols_env = getenv("COLUMNS");
-    if (cols_env) {
-        int c = atoi(cols_env);
-        if (c > 0) return (size_t)c;
-    }
-    return 80;
 }
 
 /* Name(+slash) width, plus " [m]" if -o DIFF marked this entry --

@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* how many bytes of a hash digest to show in the [H: ...] column --
  * full digests are for JSON/DIFF integrity, the terminal only needs
@@ -234,6 +235,50 @@ static void condense_field(const char *bracketed, char *out, size_t outsz) {
     out[oi] = '\0';
 }
 
+/* Prints `text` (already-rendered plain column text, e.g. "[DESC:
+ * ...]") starting at the cursor's current column, breaking it into
+ * `avail`-wide chunks when it's longer than that -- reprinting `guide`
+ * + `guide_pad` spaces before every continuation chunk, the same
+ * indent the caller already put before the first one. Without this, a
+ * long -o DESC value (up to 480 raw bytes, see MOD_DESC in
+ * render_module_text()) is well past any real terminal width, so the
+ * TERMINAL itself would hard-wrap it at whatever column the window
+ * happens to be -- with zero indentation on the leftover fragment,
+ * which breaks the --condense wrap tree's vertical guide bars right
+ * where that fragment lands (see docs -- this is the actual bug behind
+ * "tree lines look interrupted under wrap mode", not the guide-bar
+ * plumbing above, which was already byte-correct). avail == 0 (no tty,
+ * or a terminal narrower than col_start itself) means there's no
+ * usable width to wrap into, so text prints unwrapped, same as before
+ * this existed. Chunk boundaries fall on whole UTF-8 characters (via
+ * utf8_width's own lead-byte rule), never mid-codepoint. */
+static void print_wrapped_field(const char *text, const char *color, const Config *cfg,
+                                 const char *guide, size_t guide_pad, size_t avail) {
+    if (avail == 0 || utf8_width(text) <= avail) {
+        printf("%s%s%s", color, text, RST(cfg));
+        return;
+    }
+
+    const unsigned char *p = (const unsigned char *)text;
+    bool first_chunk = true;
+    while (*p) {
+        const unsigned char *start = p;
+        size_t chunk_w = 0;
+        while (*p && chunk_w < avail) {
+            p++;
+            while ((*p & 0xC0) == 0x80) p++; /* rest of this UTF-8 char */
+            chunk_w++;
+        }
+        if (!first_chunk) {
+            putchar('\n');
+            printf("%s%s%s", COL(cfg, ANSI_BRANCH), guide, RST(cfg));
+            for (size_t s = 0; s < guide_pad; s++) putchar(' ');
+        }
+        first_chunk = false;
+        printf("%s%.*s%s", color, (int)(p - start), start, RST(cfg));
+    }
+}
+
 void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
                          const PrintLine *pl, size_t i, size_t col_start) {
     bool is_mod = cfg->modules[MOD_DIFF] && pl->diff_checked && pl->modified;
@@ -256,12 +301,15 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
         const char *guide = pl->guide ? pl->guide : "";
         size_t guide_w = utf8_width(guide);
         size_t guide_pad = (col_start > guide_w) ? (col_start - guide_w) : 0;
+        size_t term_w = isatty(STDOUT_FILENO) ? terminal_width() : 0;
+        size_t avail = (term_w > col_start) ? (term_w - col_start) : 0;
         for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
             if (!mc->active[mi]) continue;
             putchar('\n');
             printf("%s%s%s", COL(cfg, ANSI_BRANCH), guide, RST(cfg));
             for (size_t s = 0; s < guide_pad; s++) putchar(' ');
-            printf("%s%s%s", module_color(cfg, mc->order[mi]), mc->rendered[mi][i], RST(cfg));
+            print_wrapped_field(mc->rendered[mi][i], module_color(cfg, mc->order[mi]), cfg,
+                                 guide, guide_pad, avail);
         }
         if (is_mod) printf("   [m]");
         return;
