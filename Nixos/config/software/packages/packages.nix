@@ -100,7 +100,11 @@
       ntfs3g = { };
       btrfs-progs = { };
       tpm2-tools = { };
+
+      # Virtualization
       qemu = { };
+      virtiofsd = { };
+      OVMF = { };
 
       # Shell tooling
       shellcheck = { };
