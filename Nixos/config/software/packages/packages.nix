@@ -95,6 +95,11 @@
 
       # Security & Filesystems
       mkpasswd = { };
+      # "Passwords and Keys" GUI -- the only supported way to change a
+      # GNOME Keyring collection's master password IN PLACE (re-encrypts
+      # with the existing contents intact) when you don't want to go
+      # through a full login-password change. See config/system/keyring.nix.
+      seahorse = { };
       e2fsprogs = { };
       mtools = { };
       ntfs3g = { };

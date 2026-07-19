@@ -4,7 +4,7 @@
 
 {
   imports = [
-    ./programs.nix
+    ./programs
     ./services.nix
     ./scripts.nix
     ./shells.nix

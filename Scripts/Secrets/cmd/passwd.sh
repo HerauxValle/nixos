@@ -86,3 +86,27 @@ else
     echo "Run 'sudo nixos-rebuild switch --flake /etc/nixos#herauxvalle' to deploy it"
     echo "('pacnix rebuild' isn't available until after that first rebuild)."
 fi
+
+# Also run the real `passwd` -- purely to drive GNOME Keyring's login
+# keyring back into sync (config/system/keyring.nix wires
+# pam_gnome_keyring's chauthtok hook into this exact PAM service). It
+# needs YOUR CURRENT password typed interactively -- that's what lets it
+# decrypt-then-reencrypt the keyring's existing contents instead of
+# wiping them, so it can't be scripted/piped here without either
+# skipping that step or risking a mistyped password silently becoming
+# your new login password. Type the SAME new password you just entered
+# above when it asks for the new one, so the account hash (written above,
+# authoritative on next rebuild regardless of what `passwd` itself writes
+# to /etc/shadow) and the keyring's password stay identical.
+#
+# Non-fatal: if the keyring's actual password doesn't currently match
+# what you type as "current password" here (can happen if it's never
+# been reconciled since this option was added -- see keyring.nix), this
+# step just fails harmlessly and your keyring is left exactly as it was.
+echo ""
+echo "Now syncing GNOME Keyring's login password -- type your CURRENT password, then the SAME NEW password you just set above."
+if ! passwd; then
+    echo "warning: 'passwd' didn't complete -- GNOME Keyring may still be out of sync with the new password." >&2
+    echo "This is harmless (nothing in the keyring was touched); your account password above is unaffected." >&2
+    echo "Retry by hand later with 'passwd', or see config/system/keyring.nix for the one-time Seahorse fix if it's still out of sync." >&2
+fi
