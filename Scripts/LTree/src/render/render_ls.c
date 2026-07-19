@@ -61,9 +61,15 @@ static void hidden_last(Node **arr, size_t n) {
 /* Builds `lb` (dirs first, then files) plus, only for --sort types,
  * the list of [ext] bucket headers to print inline within the files
  * portion: `bucket_at[k]` is the absolute lb index the k'th header
- * belongs immediately before. Caller frees bucket_names/bucket_at. */
-static void build_lines(Node *root, const Config *cfg, LineBuf *lb, size_t *ndirs,
-                         char ***bucket_names, size_t **bucket_at, size_t *n_buckets) {
+ * belongs immediately before. Caller frees bucket_names/bucket_at.
+ * `base_indent` is the block's own depth indent (see print_ls_block) --
+ * folded into every pushed line's own "  "/"    " prefix here, once,
+ * so print_ls_line/print_grid downstream don't need to know about
+ * depth at all, they just print whatever prefix each PrintLine already
+ * carries. */
+static void build_lines(Node *root, const Config *cfg, const char *base_indent, LineBuf *lb,
+                         size_t *ndirs, char ***bucket_names, size_t **bucket_at,
+                         size_t *n_buckets) {
     Node **dirs, **files;
     size_t nd, nf;
     collect(root, &dirs, &nd, &files, &nf);
@@ -72,6 +78,10 @@ static void build_lines(Node *root, const Config *cfg, LineBuf *lb, size_t *ndir
     *bucket_at = NULL;
     *n_buckets = 0;
 
+    char indent2[128], indent4[128];
+    snprintf(indent2, sizeof(indent2), "%s  ", base_indent);
+    snprintf(indent4, sizeof(indent4), "%s    ", base_indent);
+
     if (cfg->sort.set && cfg->sort.combined) {
         /* combined: one flat list, no Folders/Files split at all. */
         Node **all = (Node **)malloc(sizeof(Node *) * (nd + nf ? nd + nf : 1));
@@ -79,7 +89,7 @@ static void build_lines(Node *root, const Config *cfg, LineBuf *lb, size_t *ndir
         memcpy(all + nd, files, sizeof(Node *) * nf);
         sort_nodes(all, nd + nf, &cfg->sort);
         *ndirs = 0;
-        for (size_t i = 0; i < nd + nf; i++) push_line(all[i], cfg, "  ", lb);
+        for (size_t i = 0; i < nd + nf; i++) push_line(all[i], cfg, indent2, lb);
         free(all);
         free(dirs); free(files);
         return;
@@ -96,7 +106,7 @@ static void build_lines(Node *root, const Config *cfg, LineBuf *lb, size_t *ndir
     }
 
     *ndirs = nd;
-    for (size_t i = 0; i < nd; i++) push_line(dirs[i], cfg, "  ", lb);
+    for (size_t i = 0; i < nd; i++) push_line(dirs[i], cfg, indent2, lb);
 
     bool types = cfg->sort.set && cfg->sort.base == SORT_TYPES;
     if (types && nf > 0) {
@@ -122,7 +132,7 @@ static void build_lines(Node *root, const Config *cfg, LineBuf *lb, size_t *ndir
         *bucket_at = at;
         *n_buckets = n;
     }
-    for (size_t i = 0; i < nf; i++) push_line(files[i], cfg, types ? "    " : "  ", lb);
+    for (size_t i = 0; i < nf; i++) push_line(files[i], cfg, types ? indent4 : indent2, lb);
 
     free(dirs); free(files);
 }
@@ -158,12 +168,13 @@ static size_t entry_grid_width(const PrintLine *pl, const Config *cfg) {
  * first column, then the next, using as many columns as fit
  * `term_width`, each column padded to its own widest entry. */
 static void print_grid(const LineBuf *lb, size_t from, size_t to, const Config *cfg,
-                        size_t term_width) {
+                        size_t term_width, const char *indent) {
     size_t n = to - from;
     if (n == 0) return;
 
     const size_t gap = 2;
-    const size_t margin = 2; /* leading "  " indent, matches the non-grid rows */
+    size_t indent_w = utf8_width(indent);
+    const size_t margin = indent_w + 2; /* depth indent + "  ", matches the non-grid rows */
 
     size_t *w = (size_t *)malloc(sizeof(size_t) * n);
     size_t maxw = 0;
@@ -201,7 +212,7 @@ static void print_grid(const LineBuf *lb, size_t from, size_t to, const Config *
     }
 
     for (size_t r = 0; r < rows; r++) {
-        printf("  ");
+        printf("%s  ", indent);
         for (size_t c = 0; c < cols; c++) {
             size_t idx = c * rows + r;
             if (idx >= n) continue;
@@ -231,10 +242,11 @@ static void print_grid(const LineBuf *lb, size_t from, size_t to, const Config *
 /* Dispatches [from,to) to either the packed grid or the existing
  * one-per-line (-o column aware) rendering. */
 static void print_block(const LineBuf *lb, size_t from, size_t to, const MeasuredColumns *mc,
-                         const Config *cfg, size_t col_start, bool grid_mode, size_t term_width) {
+                         const Config *cfg, size_t col_start, bool grid_mode, size_t term_width,
+                         const char *indent) {
     if (from >= to) return;
     if (grid_mode) {
-        print_grid(lb, from, to, cfg, term_width);
+        print_grid(lb, from, to, cfg, term_width, indent);
     } else {
         for (size_t i = from; i < to; i++) print_ls_line(lb, mc, cfg, i, col_start);
     }
@@ -242,17 +254,32 @@ static void print_block(const LineBuf *lb, size_t from, size_t to, const Measure
 
 /* One directory's whole ls-style block: header line, then [Folders]/
  * [Files] (or one combined block for --sort combined). Shared by the
- * plain non-recursive view (print_ls_view, one call) and the -L-without
- * -o-TREE recursive view (print_ls_view_recursive, one call per
- * directory the walk descended into) -- everything except the header
- * path and which Node's children are being listed is identical between
- * the two. */
-static void print_ls_block(Node *dir, const char *display_path, const Config *cfg) {
+ * plain non-recursive view (print_ls_view, one call, depth 0) and the
+ * -L-without-o-TREE recursive view (print_ls_view_recursive, one call
+ * per directory the walk descended into) -- everything except the
+ * header path, depth, and which Node's children are being listed is
+ * identical between the two.
+ *
+ * `depth` indents the whole block (header, [Folders]/[Files]/[ext]
+ * labels, and every entry) by 2 spaces per level -- with -L, a run of
+ * sequential path headers (./Documentation, ./Documentation/Bugfixes,
+ * ./Documentation/Features, ...) all sitting flush against the left
+ * margin reads as a flat, hard-to-scan list; the same headers stepping
+ * right with their depth turns it back into a visibly nested structure
+ * without needing full connector-tree drawing. depth 0 (print_ls_view,
+ * and -L's own root block) prints flush left, unchanged from before
+ * this existed. */
+static void print_ls_block(Node *dir, const char *display_path, const Config *cfg, size_t depth) {
+    char indent[128];
+    size_t iw = depth * 2 < sizeof(indent) - 1 ? depth * 2 : sizeof(indent) - 1;
+    memset(indent, ' ', iw);
+    indent[iw] = '\0';
+
     LineBuf lb;
     linebuf_init(&lb);
     size_t ndirs;
     char **bucket_names; size_t *bucket_at; size_t n_buckets;
-    build_lines(dir, cfg, &lb, &ndirs, &bucket_names, &bucket_at, &n_buckets);
+    build_lines(dir, cfg, indent, &lb, &ndirs, &bucket_names, &bucket_at, &n_buckets);
 
     size_t maxw = 0;
     for (size_t i = 0; i < lb.n; i++) if (lb.items[i].width > maxw) maxw = lb.items[i].width;
@@ -263,34 +290,41 @@ static void print_ls_block(Node *dir, const char *display_path, const Config *cf
 
     /* Packed multi-column grid, like plain `ls`, only when there's no
      * per-entry data to show (an -o column would make a packed grid
-     * unreadable) and stdout is actually a terminal -- piped output
-     * always stays one-per-line, the same way real `ls` only grids
-     * when writing to a tty. */
-    bool grid_mode = !mc.any_module && isatty(STDOUT_FILENO);
+     * unreadable), stdout is actually a terminal (piped output always
+     * stays one-per-line, the same way real `ls` only grids when
+     * writing to a tty), and no --sort is active: print_grid() fills
+     * column-major (all of column 0 top-to-bottom, then column 1, ...)
+     * same as real `ls -C`, which is fine for plain alphabetical but
+     * makes an explicitly requested order (--sort modified, etc.)
+     * unreadable -- you'd have to read down one column, jump to the
+     * top of the next, and back again to see it, so it just looks
+     * unsorted. One-per-line is the only layout that keeps a chosen
+     * order visibly a single top-to-bottom sequence. */
+    bool grid_mode = !mc.any_module && !cfg->sort.set && isatty(STDOUT_FILENO);
     size_t term_width = grid_mode ? terminal_width() : 0;
 
-    printf("%s%s%s\n", COL(cfg, ANSI_DIR), display_path, RST(cfg));
+    printf("%s%s%s%s\n", indent, COL(cfg, ANSI_DIR), display_path, RST(cfg));
 
     bool combined = cfg->sort.set && cfg->sort.combined;
 
     if (combined) {
-        print_block(&lb, 0, lb.n, &mc, cfg, col_start, grid_mode, term_width);
+        print_block(&lb, 0, lb.n, &mc, cfg, col_start, grid_mode, term_width, indent);
     } else {
         if (ndirs > 0) {
-            printf("%s[Folders]%s\n", COL(cfg, ANSI_DIR), RST(cfg));
-            print_block(&lb, 0, ndirs, &mc, cfg, col_start, grid_mode, term_width);
+            printf("%s%s[Folders]%s\n", indent, COL(cfg, ANSI_DIR), RST(cfg));
+            print_block(&lb, 0, ndirs, &mc, cfg, col_start, grid_mode, term_width, indent);
         }
         if (lb.n > ndirs) {
-            printf("%s[Files]%s\n", COL(cfg, ANSI_FILE), RST(cfg));
+            printf("%s%s[Files]%s\n", indent, COL(cfg, ANSI_FILE), RST(cfg));
             if (n_buckets > 0) {
                 for (size_t bi = 0; bi < n_buckets; bi++) {
-                    printf("  %s[%s]%s\n", COL(cfg, ANSI_EXT), bucket_names[bi], RST(cfg));
+                    printf("%s  %s[%s]%s\n", indent, COL(cfg, ANSI_EXT), bucket_names[bi], RST(cfg));
                     size_t seg_start = bucket_at[bi];
                     size_t seg_end = (bi + 1 < n_buckets) ? bucket_at[bi + 1] : lb.n;
-                    print_block(&lb, seg_start, seg_end, &mc, cfg, col_start, grid_mode, term_width);
+                    print_block(&lb, seg_start, seg_end, &mc, cfg, col_start, grid_mode, term_width, indent);
                 }
             } else {
-                print_block(&lb, ndirs, lb.n, &mc, cfg, col_start, grid_mode, term_width);
+                print_block(&lb, ndirs, lb.n, &mc, cfg, col_start, grid_mode, term_width, indent);
             }
         }
     }
@@ -305,7 +339,7 @@ static void print_ls_block(Node *dir, const char *display_path, const Config *cf
 
 void print_ls_view(Node *root, const char *display_path, const Config *cfg,
                     const Totals *tot, bool diff_available, const DebugStats *dbg) {
-    print_ls_block(root, display_path, cfg);
+    print_ls_block(root, display_path, cfg, 0);
     print_summary_tail(cfg, tot, diff_available, dbg);
 }
 
@@ -316,7 +350,7 @@ void print_ls_view(Node *root, const char *display_path, const Config *cfg,
  * path header so it stays "mappable": you can always tell which
  * on-disk folder a given block belongs to, the same way `ls -R` labels
  * each directory it lists, instead of one flattened connector tree. */
-static void print_ls_recurse(Node *dir, const char *display_path, const Config *cfg) {
+static void print_ls_recurse(Node *dir, const char *display_path, const Config *cfg, size_t depth) {
     for (size_t i = 0; i < dir->nchildren; i++) {
         Node *child = dir->children[i];
         if (!child->is_dir || child->truncated) continue;
@@ -325,14 +359,14 @@ static void print_ls_recurse(Node *dir, const char *display_path, const Config *
         snprintf(childpath, sizeof(childpath), "%s/%s", display_path, child->name);
 
         putchar('\n');
-        print_ls_block(child, childpath, cfg);
-        print_ls_recurse(child, childpath, cfg);
+        print_ls_block(child, childpath, cfg, depth + 1);
+        print_ls_recurse(child, childpath, cfg, depth + 1);
     }
 }
 
 void print_ls_view_recursive(Node *root, const char *display_path, const Config *cfg,
                               const Totals *tot, bool diff_available, const DebugStats *dbg) {
-    print_ls_block(root, display_path, cfg);
-    print_ls_recurse(root, display_path, cfg);
+    print_ls_block(root, display_path, cfg, 0);
+    print_ls_recurse(root, display_path, cfg, 0);
     print_summary_tail(cfg, tot, diff_available, dbg);
 }

@@ -340,6 +340,21 @@ static const unsigned char *find_break(const unsigned char *start, size_t avail,
  * that ever gets this long) is hard-chunked across as many
  * continuation lines as it needs, preferring natural break points via
  * find_break() over slicing mid-word. */
+/* Prints purely cosmetic text -- inter-column separators ("   "),
+ * bracket punctuation ("[", "]", " "), and column-alignment padding --
+ * that must NEVER trigger a wrap on its own. Padding in particular can
+ * be huge: colwidth[mi] is the widest rendered value for that column
+ * ACROSS THE WHOLE TREE, so a short "[DESC: -]" next to some other
+ * entry's 400-character DESC elsewhere gets padded with hundreds of
+ * spaces -- running that through lc_print() (which treats "does this
+ * fit" as a real wrap decision) turned pure alignment whitespace into
+ * a cascade of spurious blank continuation lines, one of the exact
+ * bugs this file exists to prevent, just self-inflicted this time. */
+static void lc_raw(LineCursor *lc, const char *text) {
+    printf("%s", text);
+    lc->col += utf8_width(text);
+}
+
 static void lc_print(LineCursor *lc, const char *text, const char *color) {
     size_t tw = utf8_width(text);
     if (lc->term_w == 0 || lc->col + tw <= lc->term_w) {
@@ -420,17 +435,17 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
      * same as uncondensed -- it's a modification flag, not one of the
      * data columns condense is folding together. */
     if (cfg->condense == CONDENSE_BRACKET && mc->any_module) {
-        lc_print(&lc, "[", "");
+        lc_raw(&lc, "[");
         bool first = true;
         for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
             if (!mc->active[mi]) continue;
-            if (!first) lc_print(&lc, " ", "");
+            if (!first) lc_raw(&lc, " ");
             first = false;
             char buf[128];
             condense_field(mc->rendered[mi][i], buf, sizeof(buf));
             lc_print(&lc, buf, module_color(cfg, mc->order[mi]));
         }
-        lc_print(&lc, "]", "");
+        lc_raw(&lc, "]");
         if (is_mod) printf("   [m]");
         return;
     }
@@ -438,7 +453,7 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
     bool first = true;
     for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
         if (!mc->active[mi]) continue;
-        if (!first) lc_print(&lc, "   ", "");
+        if (!first) lc_raw(&lc, "   ");
         first = false;
         const char *text = mc->rendered[mi][i];
         lc_print(&lc, text, module_color(cfg, mc->order[mi]));
@@ -449,7 +464,9 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
          * a huge padding count instead of just leaving that one row
          * unaligned. Never triggers under plain columns_measure(),
          * where colwidth is always >= every individual width by
-         * construction. */
+         * construction. Printed via lc_raw(), not lc_print() -- this is
+         * pure column-alignment whitespace, not content, and must never
+         * itself trigger a wrap (see lc_raw's own comment). */
         size_t tlen = strlen(text);
         size_t pad2 = (mc->colwidth[mi] > tlen) ? (mc->colwidth[mi] - tlen) : 0;
         while (pad2) {
@@ -457,12 +474,12 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
             size_t chunk = pad2 < sizeof(padbuf) - 1 ? pad2 : sizeof(padbuf) - 1;
             memset(padbuf, ' ', chunk);
             padbuf[chunk] = '\0';
-            lc_print(&lc, padbuf, "");
+            lc_raw(&lc, padbuf);
             pad2 -= chunk;
         }
     }
     if (is_mod) {
-        if (!first) lc_print(&lc, "   ", "");
+        if (!first) lc_raw(&lc, "   ");
         printf("[m]");
     }
 }
