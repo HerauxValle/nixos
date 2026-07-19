@@ -92,10 +92,12 @@
       # Media
       mpv = { };
       oculante = { };
+      youtube-tui = { };
+      freetube = { };
 
       # Security & Filesystems
       mkpasswd = { };
-      seahorse = { }; # "Passwords and Keys" GUI, for poking at GNOME Keyring directly
+      seahorse = { };
       e2fsprogs = { };
       mtools = { };
       ntfs3g = { };
