@@ -217,7 +217,7 @@ run_expect_fail "unknown flag"          "$BIN" "$PG" --this-flag-does-not-exist
 
 header "tree view, all module combos"
 run_ok "tree view default"             "$BIN" "$PG"
-run_ok "tree view -d dirs only"        "$BIN" "$PG" -d
+run_ok "tree view -D dirs only"        "$BIN" "$PG" -D
 run_ok "tree view LINES"               "$BIN" "$PG" -o LINES
 run_ok "tree view CHARS"               "$BIN" "$PG" -o CHARS
 run_ok "tree view TOTAL"               "$BIN" "$PG" -o TOTAL
@@ -292,7 +292,7 @@ assert_json "gitignore actually excludes ignored.log" \
 header "JSON output + validity"
 run_json "json default"              "$BIN" "$PG" -j
 run_json "json with all modules"     "$BIN" "$PG" -j -o LINES,CHARS,TOTAL,FILES,PERMISSIONS,SIZE,DATE,EXT,HASH,DEBUG
-run_json "json dirs only"            "$BIN" "$PG" -j -d
+run_json "json dirs only"            "$BIN" "$PG" -j -D
 run_json "json depth limited"        "$BIN" "$PG" -j -L 2
 run_json "json DEBUG"                "$BIN" "$PG" -j -o DEBUG
 assert_json "root hash present when -o HASH" \
@@ -365,7 +365,7 @@ assert_json "DIFF forces --simple-hash to match an unchanged snapshot (no false 
     "not any(c.get('modified') for c in d['tree']['children'])" \
     bash -c "mkdir -p '$WORK/simplehash_snap' && '$BIN' '$PG/bigfile' --simple-hash --save-output='$WORK/simplehash_snap' >/dev/null 2>&1 && '$BIN' '$PG/bigfile' -o DIFF,HASH -j --save-output='$WORK/simplehash_snap' 2>/dev/null"
 
-header "-o DESC / --desc / -D"
+header "-o DESC / --desc / -d"
 assert_json "default &desc: \"...\" format extracts the marker text" \
     "next(c['desc'] for c in d['tree']['children'] if c['name']=='marked.c') == 'hello from desctest'" \
     "$BIN" "$PG/desctest" -j -o DESC
@@ -375,9 +375,9 @@ assert_json "file with no marker gets desc: null" \
 assert_json "custom --desc format extracts a differently-delimited marker" \
     "next(c['desc'] for c in d['tree']['children'] if c['name']=='custom.c') == 'custom marker text'" \
     "$BIN" "$PG/desctest" -j -o DESC --desc "&description: *...*"
-assert_json "-D is a working alias for --desc" \
+assert_json "-d is a working alias for --desc" \
     "next(c['desc'] for c in d['tree']['children'] if c['name']=='custom.c') == 'custom marker text'" \
-    "$BIN" "$PG/desctest" -j -o DESC -D "&description: *...*"
+    "$BIN" "$PG/desctest" -j -o DESC -d "&description: *...*"
 run_ok "-o DESC terminal rendering doesn't crash"  "$BIN" "$PG/desctest" -o DESC
 run_ok "-o DESC combined with --condense"          "$BIN" "$PG/desctest" -o DESC,LINES --condense
 assert_json "desc field absent without -o DESC (mirrors -o, same contract as HASH/DEBUG)" \

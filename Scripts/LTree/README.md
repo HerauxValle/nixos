@@ -82,54 +82,67 @@ nix develop                 # gcc + gdb + valgrind for hacking on it
 ```
 ltree [path] [options]
 
-  -j                    output JSON instead of a directory listing. Fields
-                        mirror whatever -o enabled, same as the terminal
-                        views (want everything? -oA. want everything
-                        except one thing? -oA <exclude-list>)
-  -jL                   output NDJSON (one flat object per entry,
-                        path-tagged) instead of -j's one nested tree --
-                        streamable line-by-line, same -o contract as -j
-  -d                    list directories only
-  -L <n>                max depth to descend (like tree -L), also -L<n>.
-                        With -o TREE, limits the connector tree's depth;
-                        without it, recurses the plain [Folders]/[Files]
-                        listing per-directory instead of forcing -o TREE
-  -o <MODULES>          comma-separated, any order:
-                          LINES, CHARS, TOTAL, FILES,
-                          PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,
-                          TREE, HIDDEN
-  -oA <MODULES>         every module at once (MODULES optional -- if given,
-                        every module EXCEPT the ones named)
-  -oO <MODULES>         render columns in the order you typed them in -o
-                        (MODULES optional -- also just enables them)
-  --exclude <list>      comma-separated names/globs to skip, quote
-                        entries with spaces: --exclude "build,*.pyc"
-  --gitignore           also exclude what the scan root's .gitignore
-                        would (composes with --exclude)
-  --cryptographic       -o HASH / -o DIFF use SHA-256 instead of the
-                        default xxHash64
-  --simple-hash         hash a bounded sample (size + first/last 64KiB)
-                        instead of the whole file for anything over
-                        128KiB, same algorithm either way -- see below
-  --save-output[=DIR]   write a JSON snapshot to DIR/.ltree/ (default:
-                        <path>/.ltree/); filename is a local
-                        dd-mm-yyyy_hh:mm:ss timestamp
-  --no-colour           disable ANSI colour (also --no-color)
-  --condense            one [L:x C:y ...] bracket per entry instead of
-                        one bracket per active column. Either way,
-                        columns share the entry's own line for as long
-                        as they fit, wrapping to guide-indented lines
-                        beneath it once they don't
-  --live                 -o TREE only: stream top-down as the walk happens
-                        instead of waiting for it to finish; fixed-width
-                        columns instead of whole-tree-measured ones
-  --sort <MODES>        ls-mode only (no effect with -o TREE). One base:
-                          abc (default), birth, modified, lines, chars,
-                          types -- plus modifiers: combined, reversed
-  --desc <format>       what -o DESC searches file content for (default:
-                        &desc: "...") -- see below. Also --desc=<format>.
-  -D <format>           alias for --desc (NOT -d, which is dirs-only)
-  -h, --help            this help
+  --json | -j                  output JSON instead of a directory listing.
+                                Fields mirror whatever -o enabled, same as
+                                the terminal views (want everything? -oA.
+                                want everything except one thing?
+                                -oA <exclude-list>)
+  --ndjson | -jL | -nj         output NDJSON (one flat object per entry,
+                                path-tagged) instead of -j's one nested
+                                tree -- streamable line-by-line, same -o
+                                contract as -j
+  --directories | -D           list directories only
+  --depth | -L <n>             max depth to descend (like tree -L), also
+                                -L<n>. With -o TREE, limits the connector
+                                tree's depth; without it, recurses the
+                                plain [Folders]/[Files] listing
+                                per-directory instead of forcing -o TREE
+  --out | -o <MODULES>         comma-separated, any order:
+                                  LINES, CHARS, TOTAL, FILES,
+                                  PERMISSIONS, SIZE, DATE, EXT, HASH, DESC,
+                                  DIFF, DEBUG, TREE, HIDDEN
+  --out-all | -oA <MODULES>    every module at once (MODULES optional --
+                                if given, every module EXCEPT the ones
+                                named)
+  --out-order | -oO <MODULES>  render columns in the order you typed them
+                                in -o (MODULES optional -- also just
+                                enables them)
+  --exclude | -e <list>        comma-separated names/globs to skip, quote
+                                entries with spaces: --exclude "build,*.pyc"
+  --gitignore | -g              also exclude what the scan root's
+                                .gitignore would (composes with --exclude)
+  --cryptographic | -cg        -o HASH / -o DIFF use SHA-256 instead of
+                                the default xxHash64
+  --simple-hash | -sh          hash a bounded sample (size + first/last
+                                64KiB) instead of the whole file for
+                                anything over 128KiB, same algorithm
+                                either way -- see below
+  --save-output | -so [DIR]    write a JSON snapshot to DIR/.ltree/
+                                (default: <path>/.ltree/), DIR as a plain
+                                next argument, no "=" needed
+                                (--save-output=DIR also still works);
+                                filename is a local dd-mm-yyyy_hh:mm:ss
+                                timestamp
+  --no-colour | --no-color | -nc
+                                disable ANSI colour
+  --condense | -c               one [L:x C:y ...] bracket per entry
+                                instead of one bracket per active column.
+                                Either way, columns share the entry's own
+                                line for as long as they fit, wrapping to
+                                guide-indented lines beneath it once they
+                                don't
+  --live | -l                  -o TREE only: stream top-down as the walk
+                                happens instead of waiting for it to
+                                finish; fixed-width columns instead of
+                                whole-tree-measured ones
+  --sort <MODES>                ls-mode only (no effect with -o TREE). One
+                                base: abc (default), birth, modified,
+                                lines, chars, types -- plus modifiers:
+                                combined, reversed
+  --desc | -d <format>         what -o DESC searches file content for
+                                (default: &desc: "...") -- see below. Also
+                                --desc=<format>
+  --help | -h                  this help
 ```
 
 `path` defaults to `.`; if omitted and stdin isn't a terminal, the
@@ -187,7 +200,8 @@ otherwise flag every large file as modified.
 `DESC` searches each file's content for a marker and prints the text
 found between two delimiters as its own column (`[DESC: -]` when
 nothing matches). What it searches for is `--desc <format>` (alias
-`-D`, *not* `-d`), split on the literal `"..."` -- everything before
+`-d`, *not* `-D`, which is `--directories`), split on the literal
+`"..."` -- everything before
 is the literal prefix to search for, everything after is the closing
 delimiter, so the default `&desc: "..."` (this project's own header-
 comment convention -- see the top of any `.c`/`.h` file here) searches
@@ -306,8 +320,8 @@ ltree -o DESC --desc "&description: *...*"
   tree, not just the current line.
 - Native JSON output (`-j`) carries the same tree, so it's easy to
   feed into something else without scraping the pretty-printed text.
-- `--exclude` with comma-separated glob patterns, `-d` for dirs-only,
-  and depth limiting via `-L`.
+- `--exclude` with comma-separated glob patterns, `-D`/`--directories`
+  for dirs-only, and depth limiting via `-L`/`--depth`.
 - **New:** `PERMISSIONS`, `SIZE`, and `DATE` columns; `EXT` to toggle
   extension display (hidden by default); `--gitignore` support
   (composes with `--exclude`); `HASH` (xxHash64 by default, SHA-256

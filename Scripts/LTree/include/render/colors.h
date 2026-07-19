@@ -26,6 +26,19 @@
 #define ANSI_NOTE     "\x1b[2;37m"   /* dim grey     -- trailing notes      */
 #define ANSI_DEBUG    "\x1b[1;33m"   /* bold yellow  -- DEBUG: sub-dividers */
 
+/* ls-mode file-name colouring by kind (render_ls.c's file_name_color())
+ * -- deliberately the "bright" 9x foreground range, not the standard
+ * 3x/1;3x range every other colour above uses, so a richly-coloured
+ * file listing never collides with (or gets mistaken for) an existing
+ * semantic colour like MODIFIED/SYMLINK/DEBUG above. Tree mode doesn't
+ * read these yet (see PrintLine.namecolor in columns.h). */
+#define ANSI_EXEC     "\x1b[0;92m"   /* bright green   -- executable file   */
+#define ANSI_ARCHIVE  "\x1b[0;91m"   /* bright red     -- tar/zip/gz/...    */
+#define ANSI_IMAGE    "\x1b[0;95m"   /* bright magenta -- png/jpg/svg/...   */
+#define ANSI_MEDIA    "\x1b[0;96m"   /* bright cyan    -- mp3/mp4/mkv/...   */
+#define ANSI_DOC      "\x1b[0;93m"   /* bright yellow  -- md/txt/pdf/...    */
+#define ANSI_CONFIG   "\x1b[0;94m"   /* bright blue    -- json/yaml/nix/... */
+
 #define COL(cfg, code) ((cfg)->no_colour ? "" : (code))
 #define RST(cfg)       ((cfg)->no_colour ? "" : ANSI_RESET)
 

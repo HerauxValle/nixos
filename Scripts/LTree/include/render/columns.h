@@ -33,6 +33,14 @@ typedef struct {
                             * wrapped entry; "" in ls mode, which has no
                             * bars to continue                              */
     char    *name;        /* possibly extension-stripped display name    */
+    const char *namecolor; /* ls-mode only for now: a raw ANSI_* literal
+                             * (never malloc'd, never freed) picked by
+                             * render_ls.c's file_name_color() from the
+                             * ORIGINAL name/mode before EXT-stripping
+                             * could lose the extension -- NULL means "no
+                             * kind-specific colour, fall back to
+                             * ANSI_FILE" (always NULL in tree mode,
+                             * which doesn't set this yet). */
     bool     is_dir;
     bool     is_symlink;
     bool     truncated;

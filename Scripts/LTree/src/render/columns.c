@@ -41,6 +41,7 @@ void printline_fill(PrintLine *pl, Node *n, const Config *cfg) {
     if (!n->is_dir && !cfg->modules[MOD_EXT]) pl->name = strip_ext_for_display(n->name);
     else                                       pl->name = strdup(n->name);
 
+    pl->namecolor = NULL; /* ls-mode's push_line() overrides this itself */
     pl->is_dir = n->is_dir;
     pl->is_symlink = n->is_symlink;
     pl->truncated = n->truncated;

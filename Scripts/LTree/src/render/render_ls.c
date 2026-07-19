@@ -13,6 +13,52 @@
 #include <strings.h>
 #include <unistd.h>
 
+static bool ext_in(const char *ext, const char *const *list, size_t n) {
+    for (size_t i = 0; i < n; i++) if (strcasecmp(ext, list[i]) == 0) return true;
+    return false;
+}
+
+/* Picks a kind-specific colour for a file name in ls mode, rather than
+ * every non-directory name using the one flat ANSI_FILE grey -- see
+ * colors.h for why these are the separate "bright" 9x range. Must run
+ * against the ORIGINAL name/mode (before printline_fill() may have
+ * EXT-stripped the display name, which would lose the very extension
+ * this looks up), so push_line() below calls this itself rather than
+ * anything downstream trying to recover it from pl->name. Returns NULL
+ * for "no kind-specific colour, caller falls back to ANSI_FILE" --
+ * directories, --no-colour, or an extension/executable-bit that
+ * doesn't match any category. The executable bit wins over extension
+ * when both apply, same precedence real `ls` gives a script marked +x
+ * regardless of what it's named. */
+static const char *file_name_color(const Config *cfg, const char *name, mode_t mode, bool is_dir) {
+    if (is_dir || cfg->no_colour) return NULL;
+    if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) return ANSI_EXEC;
+
+    const char *ext = file_ext(name);
+    if (strcmp(ext, "(no ext)") == 0) return NULL;
+
+    static const char *const archive[] = {
+        "tar", "gz", "tgz", "zip", "xz", "bz2", "7z", "rar", "zst", "lz4", "lzma", "deb", "rpm", "iso"
+    };
+    static const char *const image[] = {
+        "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "bmp", "avif", "tiff"
+    };
+    static const char *const media[] = {
+        "mp3", "mp4", "wav", "flac", "mkv", "mov", "avi", "ogg", "webm", "m4a", "opus"
+    };
+    static const char *const doc[] = { "md", "txt", "rst", "pdf", "adoc", "org", "tex" };
+    static const char *const config[] = {
+        "json", "yaml", "yml", "toml", "ini", "conf", "nix", "env", "lock", "cfg"
+    };
+
+    if (ext_in(ext, archive, sizeof(archive) / sizeof(*archive))) return ANSI_ARCHIVE;
+    if (ext_in(ext, image, sizeof(image) / sizeof(*image)))       return ANSI_IMAGE;
+    if (ext_in(ext, media, sizeof(media) / sizeof(*media)))       return ANSI_MEDIA;
+    if (ext_in(ext, doc, sizeof(doc) / sizeof(*doc)))             return ANSI_DOC;
+    if (ext_in(ext, config, sizeof(config) / sizeof(*config)))    return ANSI_CONFIG;
+    return NULL;
+}
+
 /* Pushes one PrintLine for `n` into `lb`, with `indent` (plain, no
  * colour, e.g. "  " or "    ") stored as its prefix -- col_start then
  * only needs `maxw + 8` regardless of how much any given line is
@@ -23,6 +69,7 @@ static void push_line(Node *n, const Config *cfg, const char *indent, LineBuf *l
     printline_fill(pl, n, cfg);
     pl->prefix = strdup(indent);
     pl->guide = strdup(""); /* no tree bars to continue in ls mode */
+    pl->namecolor = file_name_color(cfg, n->name, n->mode, n->is_dir);
     pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
 }
 
@@ -144,6 +191,7 @@ static void print_ls_line(const LineBuf *lb, const MeasuredColumns *mc, const Co
     const char *namecol = is_mod                ? COL(cfg, ANSI_MODIFIED)
                            : pl->is_symlink       ? COL(cfg, ANSI_SYMLINK)
                            : pl->is_dir           ? COL(cfg, ANSI_DIR)
+                           : pl->namecolor        ? pl->namecolor
                                                    : COL(cfg, ANSI_FILE);
     printf("%s%s%s%s%s", pl->prefix, namecol, pl->name, pl->is_dir ? "/" : "", RST(cfg));
 
@@ -221,6 +269,7 @@ static void print_grid(const LineBuf *lb, size_t from, size_t to, const Config *
             const char *namecol = is_mod             ? COL(cfg, ANSI_MODIFIED)
                                   : pl->is_symlink    ? COL(cfg, ANSI_SYMLINK)
                                   : pl->is_dir        ? COL(cfg, ANSI_DIR)
+                                  : pl->namecolor     ? pl->namecolor
                                                        : COL(cfg, ANSI_FILE);
             printf("%s%s%s%s", namecol, pl->name, pl->is_dir ? "/" : "", RST(cfg));
             if (is_mod) printf(" [m]");

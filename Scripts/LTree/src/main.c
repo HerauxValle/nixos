@@ -134,51 +134,56 @@ static void print_usage(const char *prog, bool no_colour) {
                  "  no -o defaults to LINES,PERMISSIONS,SIZE,DATE,HASH,DESC,TOTAL instead\n"
                  "  (a bare filename alone isn't worth looking at) -- either way, any\n"
                  "  -o/-oA/-oO you do pass always wins over this default");
-    H("-j", "output JSON instead of a tree view. Fields mirror whatever -o enabled --\n"
-            "  same contract as the terminal views (want everything? -oA. want\n"
-            "  everything except one thing? -oA <exclude-list>). --save-output's\n"
-            "  snapshot is unaffected either way -- always the full data");
-    H("-jL", "output NDJSON (one flat object per entry, path-tagged) instead of -j's\n"
-             "  one nested tree -- streamable line-by-line, same -o contract as -j");
-    H("-d", "list directories only");
-    H("-L <n>", "max depth to descend (like tree -L), also -L<n>. With -o TREE, limits\n"
-                 "  the connector tree's depth; without it, recurses the plain\n"
-                 "  [Folders]/[Files] listing per-directory instead of forcing -o TREE");
-    H("-o <MODULES>", "comma-separated, any order: LINES, CHARS, TOTAL, FILES, PERMISSIONS,\n"
-                       "  SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG, TREE, HIDDEN");
-    H("-oA <MODULES>", "every module at once (MODULES optional -- if given, every module\n"
-                        "  EXCEPT the ones named)");
-    H("-oO <MODULES>", "render columns in the order you typed them in -o (MODULES optional\n"
-                        "  -- also just enables them)");
-    H("--exclude <list>", "comma-separated names/globs to skip, quote entries with spaces:\n"
-                           "  --exclude \"build,*.pyc\"");
-    H("--gitignore", "also exclude what the scan root's .gitignore would (composes with\n"
-                      "  --exclude)");
-    H("--cryptographic", "-o HASH / -o DIFF use SHA-256 instead of the default xxHash64");
-    H("--simple-hash", "hash a bounded sample (size + first/last 64KiB) instead of the whole\n"
-                        "  file for anything over 128KiB. -o DIFF/--save-output snapshots\n"
-                        "  record whether this was on, so a later DIFF run always compares\n"
-                        "  like-for-like regardless of its own flags");
-    H("--save-output[=DIR]", "write a JSON snapshot to DIR/.ltree/ (default: <path>/.ltree/);\n"
-                              "  filename is a local dd-mm-yyyy_hh:mm:ss timestamp");
-    H("--no-colour", "disable ANSI colour (also --no-color)");
-    H("--condense", "one [L:x C:y ...] bracket per entry instead of one bracket per active\n"
-                     "  column. Either way, columns share the entry's own line for as long as\n"
-                     "  they fit, wrapping to guide-indented lines beneath it once they don't");
-    H("--live", "-o TREE only: stream top-down as the walk happens instead of waiting for\n"
-                "  it to finish; fixed-width columns instead of whole-tree-measured ones.\n"
-                "  No effect with -j");
-    H("--sort <MODES>", "ls-mode only (no effect with -o TREE). One base: abc (default),\n"
+    H("--json | -j", "output JSON instead of a tree view. Fields mirror whatever -o enabled\n"
+                      "  -- same contract as the terminal views (want everything? -oA. want\n"
+                      "  everything except one thing? -oA <exclude-list>). --save-output's\n"
+                      "  snapshot is unaffected either way -- always the full data");
+    H("--ndjson | -jL | -nj", "output NDJSON (one flat object per entry, path-tagged) instead\n"
+                               "  of -j's one nested tree -- streamable line-by-line, same -o\n"
+                               "  contract as -j");
+    H("--directories | -D", "list directories only");
+    H("--depth | -L <n>", "max depth to descend (like tree -L), also -L<n>. With -o TREE,\n"
+                           "  limits the connector tree's depth; without it, recurses the\n"
+                           "  plain [Folders]/[Files] listing per-directory instead of\n"
+                           "  forcing -o TREE");
+    H("--out | -o <MODULES>", "comma-separated, any order: LINES, CHARS, TOTAL, FILES,\n"
+                               "  PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG, TREE,\n"
+                               "  HIDDEN");
+    H("--out-all | -oA <MODULES>", "every module at once (MODULES optional -- if given,\n"
+                                    "  every module EXCEPT the ones named)");
+    H("--out-order | -oO <MODULES>", "render columns in the order you typed them in -o\n"
+                                      "  (MODULES optional -- also just enables them)");
+    H("--exclude | -e <list>", "comma-separated names/globs to skip, quote entries with\n"
+                                "  spaces: --exclude \"build,*.pyc\"");
+    H("--gitignore | -g", "also exclude what the scan root's .gitignore would (composes\n"
+                           "  with --exclude)");
+    H("--cryptographic | -cg", "-o HASH / -o DIFF use SHA-256 instead of the default xxHash64");
+    H("--simple-hash | -sh", "hash a bounded sample (size + first/last 64KiB) instead of the\n"
+                              "  whole file for anything over 128KiB. -o DIFF/--save-output\n"
+                              "  snapshots record whether this was on, so a later DIFF run\n"
+                              "  always compares like-for-like regardless of its own flags");
+    H("--save-output | -so [DIR]", "write a JSON snapshot to DIR/.ltree/ (default:\n"
+                                    "  <path>/.ltree/), DIR as a plain next argument, no \"=\"\n"
+                                    "  needed (--save-output=DIR also still works); filename is\n"
+                                    "  a local dd-mm-yyyy_hh:mm:ss timestamp");
+    H("--no-colour | --no-color | -nc", "disable ANSI colour");
+    H("--condense | -c", "one [L:x C:y ...] bracket per entry instead of one bracket per\n"
+                          "  active column. Either way, columns share the entry's own line\n"
+                          "  for as long as they fit, wrapping to guide-indented lines\n"
+                          "  beneath it once they don't");
+    H("--live | -l", "-o TREE only: stream top-down as the walk happens instead of waiting\n"
+                      "  for it to finish; fixed-width columns instead of whole-tree-measured\n"
+                      "  ones. No effect with -j");
+    H("--sort | -s <MODES>", "ls-mode only (no effect with -o TREE). One base: abc (default),\n"
                          "  birth, modified, lines, chars, types -- plus modifiers: combined,\n"
                          "  reversed");
-    H("--desc <format>", "what -o DESC searches file content for, split on the literal\n"
-                          "  \"...\" (default: &desc: \"...\", matching this project's own\n"
-                          "  header-comment convention) -- everything before \"...\" is the\n"
-                          "  search prefix, everything after is the closing delimiter, e.g.\n"
-                          "  --desc \"&description: *...*\" searches for &description: * ... *\n"
-                          "  instead. Also --desc=<format>");
-    H("-D <format>", "alias for --desc (NOT -d, which is dirs-only)");
-    H("-h, --help", "this help");
+    H("--desc | -d <format>", "what -o DESC searches file content for, split on the literal\n"
+                               "  \"...\" (default: &desc: \"...\", matching this project's own\n"
+                               "  header-comment convention) -- everything before \"...\" is the\n"
+                               "  search prefix, everything after is the closing delimiter,\n"
+                               "  e.g. --desc \"&description: *...*\" searches for\n"
+                               "  &description: * ... * instead. Also --desc=<format>");
+    H("--help | -h", "this help");
 #undef H
 
 #define M(name, color, desc) help_entry(no_colour, name, color, desc)
@@ -217,7 +222,8 @@ int main(int argc, char **argv) {
      * line (the main loop below sets it again in its normal position,
      * harmlessly redundant). */
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--no-colour") == 0 || strcmp(argv[i], "--no-color") == 0) {
+        if (strcmp(argv[i], "--no-colour") == 0 || strcmp(argv[i], "--no-color") == 0 ||
+            strcmp(argv[i], "-nc") == 0) {
             cfg.no_colour = true;
             break;
         }
@@ -225,42 +231,49 @@ int main(int argc, char **argv) {
 
     for (int i = 1; i < argc; i++) {
         const char *a = argv[i];
-        if (strcmp(a, "-j") == 0) {
+        if (strcmp(a, "-j") == 0 || strcmp(a, "--json") == 0) {
             cfg.json = true;
-        } else if (strcmp(a, "-jL") == 0) {
+        } else if (strcmp(a, "-jL") == 0 || strcmp(a, "-nj") == 0 || strcmp(a, "--ndjson") == 0) {
             cfg.json = true;
             cfg.json_lines = true;
-        } else if (strcmp(a, "-d") == 0) {
+        } else if (strcmp(a, "-D") == 0 || strcmp(a, "--directories") == 0) {
             cfg.dirs_only = true;
-        } else if (strcmp(a, "--no-colour") == 0 || strcmp(a, "--no-color") == 0) {
+        } else if (strcmp(a, "--no-colour") == 0 || strcmp(a, "--no-color") == 0 ||
+                   strcmp(a, "-nc") == 0) {
             cfg.no_colour = true;
-        } else if (strcmp(a, "--condense") == 0) {
+        } else if (strcmp(a, "--condense") == 0 || strcmp(a, "-c") == 0) {
             cfg.condense = true;
-        } else if (strcmp(a, "--live") == 0) {
+        } else if (strcmp(a, "--live") == 0 || strcmp(a, "-l") == 0) {
             cfg.live = true;
-        } else if (strcmp(a, "--sort") == 0) {
+        } else if (strcmp(a, "--sort") == 0 || strcmp(a, "-s") == 0) {
             if (i + 1 < argc) {
                 if (!sort_parse(argv[++i], &cfg.sort)) { print_usage(argv[0], cfg.no_colour); return 1; }
             }
         } else if (strncmp(a, "--sort=", 7) == 0) {
             if (!sort_parse(a + 7, &cfg.sort)) { print_usage(argv[0], cfg.no_colour); return 1; }
-        } else if (strcmp(a, "--gitignore") == 0) {
+        } else if (strcmp(a, "--gitignore") == 0 || strcmp(a, "-g") == 0) {
             cfg.use_gitignore = true;
-        } else if (strcmp(a, "--cryptographic") == 0) {
+        } else if (strcmp(a, "--cryptographic") == 0 || strcmp(a, "-cg") == 0) {
             cfg.cryptographic = true;
-        } else if (strcmp(a, "--simple-hash") == 0) {
+        } else if (strcmp(a, "--simple-hash") == 0 || strcmp(a, "-sh") == 0) {
             cfg.simple_hash = true;
-        } else if (strcmp(a, "--save-output") == 0) {
+        } else if (strcmp(a, "--save-output") == 0 || strcmp(a, "-so") == 0) {
+            /* Optional DIR as the next plain argv, no "=" needed (matches
+             * -oA/-oO's own optional-arg convention below) -- still also
+             * accepts the older --save-output=DIR spelling. */
             cfg.save_output = true;
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                cfg.save_output_dir = strdup(argv[++i]);
+            }
         } else if (strncmp(a, "--save-output=", 14) == 0) {
             cfg.save_output = true;
             cfg.save_output_dir = strdup(a + 14);
-        } else if (strcmp(a, "--desc") == 0 || strcmp(a, "-D") == 0) {
+        } else if (strcmp(a, "--desc") == 0 || strcmp(a, "-d") == 0) {
             if (i + 1 < argc) {
                 const char *format = argv[++i];
                 char *prefix = NULL, *suffix = NULL;
                 if (!desc_parse_format(format, &prefix, &suffix)) {
-                    fprintf(stderr, "error: --desc/-D format needs \"...\" with a non-empty "
+                    fprintf(stderr, "error: --desc/-d format needs \"...\" with a non-empty "
                                      "prefix and suffix around it (got '%s')\n", format);
                     print_usage(argv[0], cfg.no_colour);
                     return 1;
@@ -291,11 +304,13 @@ int main(int argc, char **argv) {
              * depth_limited dispatch below). With -o TREE, unchanged:
              * limits the connector tree's own depth. */
             cfg.max_depth = atoi(a + 2);
-        } else if (strcmp(a, "-L") == 0) {
+        } else if (strcmp(a, "-L") == 0 || strcmp(a, "--depth") == 0) {
             if (i + 1 < argc) {
                 cfg.max_depth = atoi(argv[++i]);
             }
-        } else if (strcmp(a, "-o") == 0) {
+        } else if (strncmp(a, "--depth=", 8) == 0) {
+            cfg.max_depth = atoi(a + 8);
+        } else if (strcmp(a, "-o") == 0 || strcmp(a, "--out") == 0) {
             /* Plain module list: "-o LINES,CHARS". Always literal -- "A"/
              * "O" here are just (unknown) module names, not shorthand;
              * the shorthand only exists as -oA/-oO below. */
@@ -304,7 +319,8 @@ int main(int argc, char **argv) {
                 enable_modules_from_list(&cfg, val);
                 free(val);
             }
-        } else if (strncmp(a, "-o", 2) == 0 && strcasecmp(a + 2, "A") == 0) {
+        } else if ((strncmp(a, "-o", 2) == 0 && strcasecmp(a + 2, "A") == 0) ||
+                   strcmp(a, "--out-all") == 0) {
             /* Every module at once. Optionally followed by modules to
              * exclude instead -- "-oA" alone means everything, "-oA DESC"
              * means everything except DESC. */
@@ -315,7 +331,8 @@ int main(int argc, char **argv) {
             } else {
                 for (int m = 0; m < MOD_COUNT; m++) cfg.modules[m] = true;
             }
-        } else if (strncmp(a, "-o", 2) == 0 && strcasecmp(a + 2, "O") == 0) {
+        } else if ((strncmp(a, "-o", 2) == 0 && strcasecmp(a + 2, "O") == 0) ||
+                   strcmp(a, "--out-order") == 0) {
             /* Render -o columns in the order they were typed, across the
              * whole run. Optionally followed by more modules to enable in
              * the same breath -- "-oO HASH" enables HASH and preserves
@@ -331,7 +348,7 @@ int main(int argc, char **argv) {
             char *val = strdup(a + 2);
             enable_modules_from_list(&cfg, val);
             free(val);
-        } else if (strcmp(a, "--exclude") == 0) {
+        } else if (strcmp(a, "--exclude") == 0 || strcmp(a, "-e") == 0) {
             if (i + 1 < argc) {
                 char **list; size_t n;
                 parse_exclude_list(argv[++i], &list, &n);
