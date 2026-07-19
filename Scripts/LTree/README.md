@@ -82,14 +82,18 @@ nix develop                 # gcc + gdb + valgrind for hacking on it
 ```
 ltree [path] [options]
 
-  -j                    output JSON instead of a directory listing
+  -j                    output JSON instead of a directory listing. Fields
+                        mirror whatever -o enabled, same as the terminal
+                        views (want everything? -oA. want everything
+                        except one thing? -oA <exclude-list>)
   -jL                   output NDJSON (one flat object per entry,
                         path-tagged) instead of -j's one nested tree --
-                        streamable line-by-line, same --stdout filtering
-                        applies
+                        streamable line-by-line, same -o contract as -j
   -d                    list directories only
-  -L <n>                max depth to descend (like tree -L), also
-                        -L<n> -- implies -o TREE
+  -L <n>                max depth to descend (like tree -L), also -L<n>.
+                        With -o TREE, limits the connector tree's depth;
+                        without it, recurses the plain [Folders]/[Files]
+                        listing per-directory instead of forcing -o TREE
   -o <MODULES>          comma-separated, any order:
                           LINES, CHARS, TOTAL, FILES,
                           PERMISSIONS, SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG,
@@ -122,9 +126,6 @@ ltree [path] [options]
   --sort <MODES>        ls-mode only (no effect with -o TREE). One base:
                           abc (default), birth, modified, lines, chars,
                           types -- plus modifiers: combined, reversed
-  --stdout <exclusive|inclusive> <MODULES>
-                        forces JSON output (like -j) filtered to exclude
-                        or keep only the named modules' JSON fields
   --desc <format>       what -o DESC searches file content for (default:
                         &desc: "...") -- see below. Also --desc=<format>.
   -D <format>           alias for --desc (NOT -d, which is dirs-only)
@@ -223,14 +224,13 @@ is working rather than stuck. Without `--live` it's the only thing on
 screen until the whole walk finishes; with `--live` it's redrawn after
 every streamed line so it's always the last thing at the bottom.
 
-`--stdout exclusive <MODULES>` / `--stdout inclusive <MODULES>` forces
-JSON output filtered to exclude (or keep only) the listed modules'
-corresponding JSON keys/fields -- e.g. `--stdout exclusive HASH` omits
-the `"hash"` field from every entry, `--stdout inclusive TREE,LINES`
-emits only the tree structure with just each entry's `"lines"` field
-(plus the always-present `name`/`type`/`symlink`). Never affects
-`--save-output` snapshots, which always stay complete so `-o DIFF` has
-everything to compare against on a later run.
+`-j`/`-jL`'s JSON fields mirror `-o` exactly, the same contract the
+terminal views already have -- `-j -o HASH` includes just the `"hash"`
+field, `-j -oA HASH` includes everything except it (`-oA <exclude-list>`
+already covers exclusion, no separate JSON-only filtering mechanism
+needed). Never affects `--save-output` snapshots, which always stay
+complete regardless of `-o` so `-o DIFF` has everything to compare
+against on a later run.
 
 See [`docs/usage.md`](docs/usage.md) for the full breakdown of every
 flag, the exclude/gitignore matching rules, the column-alignment
@@ -280,7 +280,7 @@ ltree -o TREE --live
 ltree -o HIDDEN,LINES,CHARS --condense
 
 # JSON with just the tree + line counts, nothing else
-ltree --stdout inclusive TREE,LINES
+ltree -j -o LINES
 
 # hash a directory full of large files without reading every byte of each one
 ltree -o HASH --simple-hash
@@ -369,9 +369,15 @@ Full design reasoning in [`docs/plan-ls-rework.md`](docs/plan-ls-rework.md).
 - **New:** stdin as path input -- `path` defaults to reading a line
   from stdin when no positional arg was given and stdin isn't a
   terminal.
-- **New:** `--stdout exclusive|inclusive <MODULES>` -- forces JSON
-  filtered to exclude/keep-only the given modules' fields; never
-  affects `--save-output` snapshots, which always stay complete.
+- **New (later removed, see below):** `--stdout exclusive|inclusive
+  <MODULES>` -- forces JSON filtered to exclude/keep-only the given
+  modules' fields; never affects `--save-output` snapshots, which
+  always stay complete.
+- **Changed:** `--stdout` removed. `-j`/`-jL` now mirror `-o` exactly,
+  the same contract the terminal views already have -- `-oA
+  <exclude-list>` (already existed) and plain comma lists already
+  cover exclusion/inclusion, so a separate JSON-only filtering
+  mechanism was redundant complexity for the same result.
 - **Changed:** `TOTAL:`/`FILES:` now use the same `[X: value]` bracket
   style as per-entry columns instead of plain `label: value` lines.
 - **New:** creation time (`--sort birth`) via `statx()`'s `STATX_BTIME`,

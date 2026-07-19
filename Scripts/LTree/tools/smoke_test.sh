@@ -333,17 +333,14 @@ fi
 # revert
 sed -i '$ d' "$PG/basic/three_lines.txt" 2>/dev/null
 
-header "-jE/-jI-aware lazy computation (naming a module without a matching -o)"
-assert_json "-jI HASH,TREE computes a real hash without -o HASH" \
+header "-j mirrors -o exactly (no separate JSON filtering mechanism)"
+assert_json "-j -o HASH computes and includes a real hash" \
     "next(c['hash'] for c in d['tree']['children'] if c['name']=='three_lines.txt') is not None" \
-    "$BIN" "$PG/basic" -jI HASH,TREE
-assert_json "-jE DEBUG (i.e. NOT excluding HASH) also computes it" \
-    "next(c['hash'] for c in d['tree']['children'] if c['name']=='three_lines.txt') is not None" \
-    "$BIN" "$PG/basic" -jE DEBUG
-assert_json "-jE HASH (excluding it) correctly stays lazy, no hash key at all" \
+    "$BIN" "$PG/basic" -j -o HASH
+assert_json "-j -oA HASH (every module except HASH) omits just the hash key" \
     "'hash' not in d['tree']['children'][0]" \
-    "$BIN" "$PG/basic" -jE HASH
-assert_json "plain -j with no -jE/-jI filter and no -o stays lazy (mirrors -o, unchanged contract)" \
+    "$BIN" "$PG/basic" -j -oA HASH
+assert_json "plain -j with no -o at all stays lazy, no hash computed" \
     "d['hash_algo'] == 'none'" \
     "$BIN" "$PG/basic" -j
 

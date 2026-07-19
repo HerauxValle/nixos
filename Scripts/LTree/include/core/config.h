@@ -1,4 +1,4 @@
-/* &desc: "Defines the Config struct -- the fully-parsed command line (modules[] array, sort spec, --stdout filter, every other flag) passed by const pointer to every module that needs to read a flag, and the HashAlgo enum." */
+/* &desc: "Defines the Config struct -- the fully-parsed command line (modules[] array, sort spec, every other flag) passed by const pointer to every module that needs to read a flag, and the HashAlgo enum." */
 /* config.h -- the parsed command line, in one place. Every module
  * that needs a flag takes `const Config *cfg` rather than growing its
  * own globals; main.c is the only place that ever writes to it. */
@@ -40,17 +40,6 @@ typedef struct {
                                 * the walk happens, fixed-width columns instead
                                 * of the default's whole-tree-measured ones
                                 * (see render/render_tree.h). */
-
-    /* -jE/-jI <MODULES> (also -jLE/-jLI) -- filters -j/-jL's JSON to a
-     * subset of top-level/per-entry keys, set in main.c's unified -j
-     * flag parser. Module names map to JSON field names in
-     * io/json.c's json_key_allowed(); TREE means the whole "tree" key,
-     * not a per-entry field. Without either, json_key_allowed() falls
-     * back to mirroring modules[] below instead (except TREE, always
-     * on -- see its own comment there). */
-    enum { STDOUT_FILTER_NONE, STDOUT_FILTER_EXCLUSIVE, STDOUT_FILTER_INCLUSIVE }
-            stdout_filter;
-    bool    stdout_filter_keys[MOD_COUNT];
 
     /* -o MODULES -- one bool per ModuleId, see core/modules.h. Replaces
      * what used to be 11 hand-written bool fields (o_lines, o_chars, ...);

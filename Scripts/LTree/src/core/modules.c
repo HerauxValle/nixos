@@ -1,4 +1,4 @@
-/* &desc: "Defines MODULE_TABLE (every -o token's name/id/category) and module_lookup(), the case-insensitive lookup every -o/-jE/-jI parser and every renderer uses." */
+/* &desc: "Defines MODULE_TABLE (every -o token's name/id/category) and module_lookup(), the case-insensitive lookup every -o parser and every renderer uses." */
 #include "core/modules.h"
 #include <strings.h>
 #include <stddef.h>
