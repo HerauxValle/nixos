@@ -4,6 +4,7 @@
   imports = [
     ./c_cpp.nix
     ./custom.nix
+    ./docker.nix
     ./general.nix
     ./go.nix
     ./html_css.nix
@@ -11,5 +12,6 @@
     ./nix.nix
     ./python.nix
     ./rust.nix
+    ./shell.nix
   ];
 }

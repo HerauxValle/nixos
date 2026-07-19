@@ -1,4 +1,4 @@
-# &desc: "VS Code general/cross-language extensions -- todo tree, icon theme, direnv, editorconfig, prettier, gitlens."
+# &desc: "VS Code general/cross-language extensions -- todo tree, icon theme, direnv, editorconfig, prettier, gitlens, markdown linting, git history."
 
 { config, pkgs, ... }:
 
@@ -16,5 +16,9 @@
       esbenp.prettier-vscode
       # Supercharged Git visualization (highly recommended)
       eamodio.gitlens
+      # Markdown linting and style checking
+      davidanson.vscode-markdownlint
+      # Browse/compare a file's or the repo's past commits
+      donjayamanne.githistory
     ];
 }
