@@ -261,14 +261,30 @@ static void lc_init(LineCursor *lc, const Config *cfg, const char *guide,
                      size_t col_start, size_t start_col) {
     lc->cfg = cfg;
     lc->guide = guide;
-    size_t guide_w = utf8_width(guide);
-    lc->guide_pad = (col_start > guide_w) ? (col_start - guide_w) : 0;
-    lc->col_start = col_start;
     size_t term_w = isatty(STDOUT_FILENO) ? terminal_width() : 0;
-    /* A terminal narrower than the guide+padding alone has no usable
-     * width to wrap into -- disable wrapping entirely rather than loop
-     * on a zero-width chunk. */
-    lc->term_w = (term_w > col_start) ? term_w : 0;
+
+    /* col_start is a GLOBAL alignment column -- the widest name+prefix
+     * ANYWHERE in the tree, shared by every row so every [DESC:...]
+     * lines up. One deeply nested entry elsewhere can push it past the
+     * terminal's actual width; when that happens, wrapping used to be
+     * disabled for the ENTIRE run (every row shares the same
+     * col_start), which meant an otherwise-short, otherwise-fine row
+     * like a shallow "flake" got its long DESC dumped as one giant
+     * unwrapped line for the terminal to mangle -- exactly the bug
+     * this file exists to prevent, just reintroduced by an over-broad
+     * guard. Falling back to just past THIS row's own guide keeps
+     * wrapping working (guide bars, natural break points, all of it)
+     * even though continuation lines won't align with col_start-based
+     * rows anymore -- there's no usable alignment to offer once the
+     * shared column itself doesn't fit, but there's still plenty of
+     * room to wrap sanely within. Only a terminal narrower than the
+     * guide bars themselves is truly hopeless and disables wrapping. */
+    size_t guide_w = utf8_width(guide);
+    size_t eff_col_start = (term_w > 0 && col_start + 10 > term_w) ? guide_w + 2 : col_start;
+
+    lc->col_start = eff_col_start;
+    lc->guide_pad = (eff_col_start > guide_w) ? (eff_col_start - guide_w) : 0;
+    lc->term_w = (term_w > eff_col_start) ? term_w : 0;
     lc->col = start_col;
 }
 
