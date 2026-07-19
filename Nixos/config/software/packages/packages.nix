@@ -138,6 +138,7 @@
       zip = { };
       wget = { };
       xclip = { };
+      yt-dlp = { };
 
       # Fonts
       noto-fonts-color-emoji = { };

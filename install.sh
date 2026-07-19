@@ -1,42 +1,44 @@
 #!/usr/bin/env bash
-# install.sh -- bootstrap a system onto this checkout:
-#   1. Symlinks /etc/nixos -> this checkout, if it isn't already. That's
-#      what actually matters: Scripts/Pacnix/lib/common.sh hardcodes
-#      FLAKE="/etc/nixos", so `pacnix rebuild` (and a plain `nixos-rebuild
-#      switch --flake /etc/nixos#herauxvalle`) both resolve through this
-#      symlink, not a path into $HOME directly.
-#   2. Regenerates Nixos/hardware-configuration.nix for whatever machine
-#      this actually is -- the checked-in copy only ever matches the
-#      machine it was generated on. Always overwritten unconditionally
-#      (that's nixos-generate-config's own behavior for this file, not a
-#      flag here); Nixos/configuration.nix is left alone either way, since
-#      it already exists and is hand-authored.
-#   3. Runs Scripts/Secrets/secrets.sh passwd once, for the initial
-#      password -- that script is the reusable one (also wired up as the
-#      `secrets` command via scripts.nix) for whenever you actually want to
-#      change it later; this is just step 3 of first-time setup, not
-#      duplicated here.
+# &desc: "Install dispatcher -- --format wipes/partitions a disk via disko, --setup symlinks /etc/nixos and seeds the password. Actual logic lives in Installation/."
 #
-# Safe to re-run: skips the symlink step if already correct, and
-# regenerating hardware-configuration.nix again is harmless.
+# install.sh -- entry point, flag-required so nothing destructive can
+# ever run by accident just from running this script bare:
+#   --format   Installation/format.sh -- DESTRUCTIVE. Wipes and
+#              partitions/formats a disk via disko, for a genuinely
+#              fresh install. Confirms extensively before touching
+#              anything -- see that script's own comment.
+#   --setup    Installation/setup.sh -- what this script used to be
+#              (the same logic, moved and renamed). Symlinks /etc/nixos,
+#              regenerates hardware-configuration.nix, seeds the initial
+#              password. Assumes an already-partitioned, already-booted
+#              system -- run --format first if starting from a blank disk.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
+REPO_ROOT="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
 
-# ── /etc/nixos symlink ───────────────────────────────────────────────────────
-if [ -L /etc/nixos ] && [ "$(readlink -f /etc/nixos)" = "$SCRIPT_DIR" ]; then
-    echo "/etc/nixos already -> $SCRIPT_DIR"
-elif [ -e /etc/nixos ]; then
-    echo "/etc/nixos exists and isn't already this checkout -- not touching it." >&2
-    echo "Move or remove it yourself, then re-run this script, if you want it linked here." >&2
+usage() {
+    echo "Usage: $0 --setup | --format" >&2
+    echo "" >&2
+    echo "  --setup   Symlink /etc/nixos, regenerate hardware-configuration.nix, seed the password." >&2
+    echo "            (Installation/setup.sh -- assumes an already-partitioned, booted system.)" >&2
+    echo "" >&2
+    echo "  --format  DESTRUCTIVE. Partition/format a disk via disko for a fresh install." >&2
+    echo "            (Installation/format.sh -- asks which disk, confirms repeatedly.)" >&2
     exit 1
-else
-    sudo ln -s "$SCRIPT_DIR" /etc/nixos
-    echo "Linked: /etc/nixos -> $SCRIPT_DIR"
+}
+
+if [ "$#" -ne 1 ]; then
+    usage
 fi
 
-# ── hardware-configuration.nix ──────────────────────────────────────────────
-sudo nixos-generate-config --dir "$SCRIPT_DIR/Nixos"
-echo "Regenerated: $SCRIPT_DIR/Nixos/hardware-configuration.nix"
-
-bash "$SCRIPT_DIR/Scripts/Secrets/secrets.sh" passwd
+case "$1" in
+    --setup)
+        exec bash "$REPO_ROOT/Installation/setup.sh"
+        ;;
+    --format)
+        exec bash "$REPO_ROOT/Installation/format.sh"
+        ;;
+    *)
+        usage
+        ;;
+esac

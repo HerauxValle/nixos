@@ -26,6 +26,18 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Wired into nixosConfigurations.herauxvalle's modules below with
+    # disko.enableConfig = false -- present and buildable (so the FULL
+    # real config, every module, can be dry-built together with disko in
+    # the mix), but contributes nothing to fileSystems/
+    # boot.initrd.luks.devices/swapDevices yet. hardware-configuration.nix
+    # stays the sole live source of truth for those until
+    # docs/disko-wiring-verification.md's remaining gaps are closed.
+    # Also exposed standalone as diskoConfigurations.herauxvalle below.
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # ================================ LOCAL-ONLY ================================
     crun.url = "path:./Scripts/CRun";
@@ -49,11 +61,32 @@
           ./Nixos/configuration.nix
           inputs.home-manager.nixosModules.home-manager
           inputs.silent-sddm.nixosModules.default
+          inputs.disko.nixosModules.disko
+          ./Nixos/partitioning.nix
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.maxmustermann = import ./Nixos/home.nix;
+
+            # Build/eval-only -- see the `disko` input's own comment
+            # above and docs/disko-wiring-verification.md. false means
+            # disko contributes nothing to fileSystems/
+            # boot.initrd.luks.devices/swapDevices, so
+            # hardware-configuration.nix's declarations remain the only
+            # ones actually in effect -- this line is what makes that
+            # true, not just documentation.
+            disko.enableConfig = false;
           }
+        ];
+      };
+
+      # Standalone (not through nixosConfigurations.herauxvalle) so
+      # partitioning.nix's own schema can still be validated/built in
+      # isolation too -- see Nixos/partitioning.nix's own top comment.
+      diskoConfigurations.herauxvalle = {
+        imports = [
+          inputs.disko.nixosModules.disko
+          ./Nixos/partitioning.nix
         ];
       };
     };

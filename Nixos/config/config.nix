@@ -23,6 +23,15 @@
       luks2.usbKeyLabel = "VirtualKeys";
       usbRequired.enable = false;
       usbRequired.usbKeyLabel = "VirtualKeys";
+
+      # Temporarily visible (default is hidden, revealed with ESC) --
+      # while disko is being dry-built/wired alongside
+      # hardware-configuration.nix (see partitioning.nix), a real
+      # countdown menu means rollback to the previous generation doesn't
+      # depend on catching an ESC-press window under pressure if a
+      # switch ever goes wrong. Safe to flip back to true once that
+      # verification work is done.
+      grub.hidden = false;
     };
 
     security = {

@@ -70,9 +70,9 @@ HASHEOF
     # Re-applied on every rebuild (mutableUsers = false above) -- this file's
     # CONTENT (not this path) is what's authoritative. Also your sudo
     # password: sudo just re-checks your account's own password via PAM,
-    # there's no separate one. Written by ./install.sh (prompts for a
-    # password, hashes it, writes it here as root:root, 600) -- run that
-    # first, this path won't exist otherwise.
+    # there's no separate one. Written by ./install.sh --setup (prompts
+    # for a password, hashes it, writes it here as root:root, 600) --
+    # run that first, this path won't exist otherwise.
     hashedPasswordFile = config.vars.system.users.hashFile;
 
     # password = "plaintext";  # Also exists, but stores the literal password
