@@ -3,6 +3,7 @@
 #include "render/render_tree.h"
 #include "render/colors.h"
 #include "render/columns.h"
+#include "render/namecolor.h"
 #include "util/util.h"
 #include "util/spinner.h"
 #include "core/modules.h"
@@ -64,6 +65,8 @@ static void flatten(Node *n, const Config *cfg, const char *prefix,
         snprintf(pl->guide, glen, "%s%s", childprefix, has_children ? "\xE2\x94\x82   " /* │   */ : "");
 
         printline_fill(pl, n, cfg);
+        pl->namecolor = n->is_dir ? dir_name_color(cfg, n->name)
+                                   : file_name_color(cfg, n->name, n->mode);
         pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
     }
 
@@ -95,7 +98,8 @@ void print_tree_view(Node *root, const char *display_path, const Config *cfg,
         bool is_mod = cfg->modules[MOD_DIFF] && pl->diff_checked && pl->modified;
         const char *namecol = is_mod                ? COL(cfg, ANSI_MODIFIED)
                                : pl->is_symlink       ? COL(cfg, ANSI_SYMLINK)
-                               : pl->is_dir           ? COL(cfg, ANSI_DIR)
+                               : pl->is_dir           ? (pl->namecolor ? pl->namecolor : COL(cfg, ANSI_DIR))
+                               : pl->namecolor        ? pl->namecolor
                                                        : COL(cfg, ANSI_FILE);
         printf("%s%s%s%s%s%s%s", COL(cfg, ANSI_BRANCH), pl->prefix, RST(cfg),
                namecol, pl->name, pl->is_dir ? "/" : "", RST(cfg));
@@ -206,6 +210,8 @@ void tree_live_on_dir_measure(Node *dir, int depth, const Config *cfg, void *ctx
         pl->guide = (char *)malloc(glen);
         snprintf(pl->guide, glen, "%s%s", childprefix, has_children ? "\xE2\x94\x82   " /* │   */ : "");
         free(childprefix);
+        pl->namecolor = n->is_dir ? dir_name_color(cfg, n->name)
+                                   : file_name_color(cfg, n->name, n->mode);
         pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
     }
 
@@ -225,7 +231,8 @@ void tree_live_on_entry_ready(Node *node, size_t index, bool is_last, int depth,
      * tree, which only exists after the whole walk finishes, well
      * after this line has already printed. */
     const char *namecol = pl->is_symlink ? COL(cfg, ANSI_SYMLINK)
-                        : pl->is_dir     ? COL(cfg, ANSI_DIR)
+                        : pl->is_dir     ? (pl->namecolor ? pl->namecolor : COL(cfg, ANSI_DIR))
+                        : pl->namecolor  ? pl->namecolor
                                          : COL(cfg, ANSI_FILE);
 
     /* Erase the spinner before this real line prints, then redraw it
