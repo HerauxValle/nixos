@@ -145,6 +145,22 @@ usage: pacnix <command> [args]
       package named; add it to the pasted block's extraBuildInputs and
       rebuild. e.g. pacnix plugins https://github.com/user/some-plugin.git
 
+  plugins <publisher.name | marketplace url | pasted "Copy" block>
+      Same command, VS Code extension mode -- auto-detected from the
+      input shape (a bare "publisher.name" id has no "://" or "/"; a
+      marketplace.visualstudio.com/items link is matched directly; VS
+      Code's own right-click "Copy" block is detected by its embedded
+      newlines and read via its Id: line, the rest of that block is
+      ignored). Checks whether the extension is already packaged in
+      nixpkgs (pkgs.vscode-extensions.<publisher>.<name>) -- if so,
+      prints the "publisher.name" to paste into the right
+      extensions/*.nix topic file's `with pkgs.vscode-extensions; [ ... ]`
+      list (nixpkgs auto-updates that one for you). If it isn't
+      packaged, queries the Marketplace for the current version,
+      prefetches the real sha256, and prints a ready-to-paste
+      extensionFromVscodeMarketplace { ... } block for custom.nix
+      instead. e.g. pacnix plugins DavidAnson.vscode-markdownlint
+
   info [-o FIELD1,FIELD2,...] [-n] [-p]
       Exhaustive, machine-parsable system report -- 124 fields across
       15 categories: Packages, Store, Generations, Flake, System, Disk,

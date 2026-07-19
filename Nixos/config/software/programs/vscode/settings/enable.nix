@@ -25,10 +25,18 @@
     # backup exists, VS Code restores it as a dirty buffer on every future
     # launch and immediately fails to autosave it (EROFS), forever. Since both
     # files are 100% Nix-managed, any such backup is always stale garbage --
-    # wipe it on every rebuild so it can never accumulate.
+    # move it out of the way (never delete outright) on every rebuild so it
+    # can never accumulate.
     home.activation.clearVscodeUserdataBackups =
       inputs.home-manager.lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        $DRY_RUN_CMD rm -rf ${config.vars.identity.homeDirectory}/.config/Code/Backups/*/vscode-userdata
+        vscodeStaleBackupDest="${config.vars.identity.homeDirectory}/.backup/vscode"
+        for vscodeStaleUserdataDir in "${config.vars.identity.homeDirectory}"/.config/Code/Backups/*/vscode-userdata; do
+          if [ -d "$vscodeStaleUserdataDir" ]; then
+            printf '\033[0;31m[vscode] stale userdata found -- cleared and moved into %s\033[0m\n' "$vscodeStaleBackupDest"
+            $DRY_RUN_CMD mkdir -p "$vscodeStaleBackupDest"
+            $DRY_RUN_CMD mv "$vscodeStaleUserdataDir" "$vscodeStaleBackupDest/$(basename "$(dirname "$vscodeStaleUserdataDir")")-$(date +%s)"
+          fi
+        done
       '';
   };
 }

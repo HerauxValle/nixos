@@ -5,6 +5,20 @@
 # wrapper needed per entry -- that function (in ./plugins.nix) is mapped
 # over the whole list once.
 #
+# Also doubles as a VS Code extension lookup: give it a bare "publisher.name"
+# id, a marketplace.visualstudio.com/items link, or the whole multi-line
+# block VS Code's right-click "Copy" gives you (Name/Id/Description/Version/
+# Publisher/VS Marketplace Link -- only the Id: line is actually read), and
+# it tells you which of the two extension formats this repo's vscode config
+# needs: if the extension is already packaged in nixpkgs, it prints the
+# "publisher.name" attribute to paste into the right extensions/*.nix
+# topic file's `with pkgs.vscode-extensions; [ ... ]` list (that format
+# rides nixpkgs' own update bot for free); if it isn't, it queries the
+# Marketplace for the current version, prefetches the real sha256, and
+# prints a ready-to-paste extensionFromVscodeMarketplace { ... } block for
+# custom.nix instead (the only format that needs one, since nixpkgs has
+# nothing to auto-update there).
+#
 # Prints a colored, spinner-driven progress trail on stderr while it works,
 # and exactly one thing on stdout: the finished block, plain, no color --
 # meant to be piped/copy-pasted straight into the real config. Progress
@@ -47,6 +61,7 @@
 # block in and rebuild.
 #
 # Usage: pacnix plugins <git-url> [rev]
+#        pacnix plugins <publisher.name | marketplace url | pasted "Copy" block>
 set -euo pipefail
 DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 source "$DIR/../lib/common.sh"
@@ -111,16 +126,103 @@ note() {
 cleanup() {
     [ -n "$spinner_pid" ] && kill "$spinner_pid" 2>/dev/null
     [ -n "$build_err" ] && rm -f "$build_err"
+    return 0
 }
 trap cleanup EXIT
 
-url="${1:-}"
+input="${1:-}"
 rev="${2:-}"
 
-if [ -z "$url" ]; then
+if [ -z "$input" ]; then
     echo "usage: pacnix plugins <git-url> [rev]" >&2
+    echo "       pacnix plugins <publisher.name | marketplace url | pasted \"Copy\" block>" >&2
     exit 1
 fi
+
+flake_real="$(readlink -f "$FLAKE")"
+
+attr_exists() {
+    nix eval --extra-experimental-features "nix-command flakes" \
+        "$flake_real#nixosConfigurations.$HOST.pkgs.$1" --apply 'x: "ok"' >/dev/null 2>&1
+}
+
+# --- VS Code extension mode ------------------------------------------------
+# Three input shapes collapse to the same "publisher.name" id: a bare id,
+# a marketplace link's itemName= query param, or the Id: line out of VS
+# Code's own multi-line "Copy" block (the rest of that block is just
+# display text -- Name/Description/Version/Publisher are all derived
+# fresh below anyway, not trusted from what's pasted).
+ext_id=""
+case "$input" in
+    *$'\n'*)
+        ext_id="$(grep -oP '^Id:\s*\K\S+' <<< "$input" | head -1 || true)"
+        if [ -z "$ext_id" ]; then
+            echo "couldn't find an 'Id:' line in the pasted block -- expected VS Code's own \"Copy\" output" >&2
+            exit 1
+        fi
+        ;;
+    https://marketplace.visualstudio.com/items\?itemName=*)
+        ext_id="${input#*itemName=}"
+        ext_id="${ext_id%%&*}"
+        ;;
+    *://*) ;; # some other URL -- fall through to the git-plugin flow below
+    *.*)
+        # bare "publisher.name", no scheme or path separators
+        [[ "$input" != */* ]] && ext_id="$input"
+        ;;
+esac
+
+if [ -n "$ext_id" ]; then
+    publisher="${ext_id%%.*}"
+    name="${ext_id#*.}"
+    publisher_lc="$(tr '[:upper:]' '[:lower:]' <<< "$publisher")"
+
+    step_start "checking nixpkgs for $ext_id"
+    if attr_exists "vscode-extensions.$publisher_lc.$name"; then
+        step_end "✓" "$c_green" "already packaged in nixpkgs"
+        note "add this to the with-block in the right extensions/*.nix topic file (not custom.nix):"
+        echo "$publisher_lc.$name"
+        exit 0
+    fi
+    step_end "→" "$c_cyan" "not in nixpkgs -- fetching from the Marketplace"
+
+    step_start "querying marketplace for $ext_id"
+    query_json="$(curl -sf -X POST "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery" \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json;api-version=3.0-preview.1" \
+        -d "{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"$ext_id\"}]}],\"flags\":950}" 2>/dev/null || true)"
+
+    real_publisher="$(grep -oP '"publisherName"\s*:\s*"\K[^"]+' <<< "$query_json" | head -1 || true)"
+    real_name="$(grep -oP '"extensionName"\s*:\s*"\K[^"]+' <<< "$query_json" | head -1 || true)"
+    ext_version="$(grep -oP '"version"\s*:\s*"\K[^"]+' <<< "$query_json" | head -1 || true)"
+
+    if [ -z "$real_publisher" ] || [ -z "$real_name" ] || [ -z "$ext_version" ]; then
+        step_end "✗" "$c_red" "not found on the Marketplace -- check the id"
+        exit 1
+    fi
+    step_end "✓" "$c_green" "found $real_publisher.$real_name @ $ext_version"
+
+    # Publisher case matters here -- it's substituted verbatim into the
+    # vsix URL both as the hostname and as a path segment, and must match
+    # exactly what nixpkgs' own fetchVsixFromVscodeMarketplace does with
+    # the same string later, not the lowercased nixpkgs attrname above.
+    vsix_url="https://${real_publisher}.gallery.vsassets.io/_apis/public/gallery/publisher/${real_publisher}/extension/${real_name}/${ext_version}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"
+
+    step_start "prefetching vsix"
+    ext_sha256="$(nix-prefetch-url "$vsix_url" 2>/dev/null | tail -1 || true)"
+    if [ -z "$ext_sha256" ]; then
+        step_end "✗" "$c_red" "failed to prefetch the vsix"
+        exit 1
+    fi
+    step_end "✓" "$c_green" "prefetched"
+
+    printf '\n    (pkgs.vscode-utils.extensionFromVscodeMarketplace {\n      publisher = "%s";\n      name = "%s";\n      version = "%s";\n      sha256 = "%s";\n    })\n' \
+        "$real_publisher" "$real_name" "$ext_version" "$ext_sha256"
+    exit 0
+fi
+
+# --- Hyprland plugin mode (original behavior) -------------------------------
+url="$input"
 
 step_start "prefetching $url"
 json="$(nix run nixpkgs#nix-prefetch-git -- --url "$url" ${rev:+--rev "$rev"} --quiet 2>/dev/null)"
@@ -137,7 +239,6 @@ fi
 step_end "✓" "$c_green" "prefetched @ ${got_rev:0:8}"
 
 version="0-unstable-${commit_date:-unknown}"
-flake_real="$(readlink -f "$FLAKE")"
 plugins_file="$flake_real/Nixos/modules/hyprland/plugins/default.nix"
 
 # Real library name, straight from the build files -- not a guess. Every
@@ -245,11 +346,6 @@ candidates_for() {
         seen[$c]=1
         echo "$c"
     done
-}
-
-attr_exists() {
-    nix eval --extra-experimental-features "nix-command flakes" \
-        "$flake_real#nixosConfigurations.$HOST.pkgs.$1" --apply 'x: "ok"' >/dev/null 2>&1
 }
 
 build_err="$(mktemp)"
