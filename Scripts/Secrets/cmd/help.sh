@@ -17,7 +17,7 @@ usage: secrets <command>
       each other, setting one never touches the others. auth is used for
       git clone/push over SSH, sign for commit signing, classic is a
       GitHub classic personal access token (repo scope) REQUIRED by
-      `pacnix github release` to create/delete real GitHub Releases --
+      `gitctl release` to create/delete real GitHub Releases --
       that command errors immediately if it's missing (push never
       touches it -- that stays plain SSH via auth). auth/sign print the
       new public key to register on GitHub yourself (Settings -> SSH and

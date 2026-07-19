@@ -6,12 +6,12 @@
 # EXAMPLES -- every config.vars.packages.repos option, all commented out.
 # Same shape as glossar/software/venvs.nix, scoped to one module. Schema:
 # modules/packages/repos/default.nix. Logic that turns this into real
-# pushes: modules/packages/repos/repos.nix + lib/ (the gitctl CLI,
-# invoked as `pacnix github push`/`release`).
+# pushes: modules/packages/repos/repos.nix + lib/ (the gitctl CLI --
+# `gitctl push`/`release`).
 #
 # This is a PUSH registry, not a clone tool -- `path` must already exist
 # on disk. Nothing here ever clones, creates, or initializes a repo for
-# you; `pacnix github push`/`release` fails loudly if `path` is missing
+# you; `gitctl push`/`release` fails loudly if `path` is missing
 # instead of silently skipping it. Replaces
 # ~/Scripts/Python/gitpushall.py's hardcoded REMOTES/SUBTREES/
 # GITHUB_REPOS dicts with the same shape, declared here instead.
@@ -40,7 +40,7 @@
   #       path = "~/Dotfiles"; # must already exist -- never cloned/created
   #       excludeFiles = [ "Claude/Global/config.json" ]; # `git update-index --assume-unchanged`, history-mode remotes only
   #       excludePaths = [ ]; # stripped from the snapshot before committing, squash-mode remotes only
-  #       githubRepo = null;  # "owner/repo" slug -- only needed for `pacnix github release`; null = release automation unavailable
+  #       githubRepo = null;  # "owner/repo" slug -- only needed for `gitctl release`; null = release automation unavailable
   #       remotes = {
   #         origin = {
   #           url = "git@github.com:someuser/Dotfiles.git";
@@ -68,11 +68,11 @@
 
   # };
 
-  # --- `pacnix github push` pushes every declared repo (or just the
-  # names you pass); `pacnix github release <name> <tag> [changelog]`
+  # --- `gitctl push` pushes every declared repo (or just the
+  # names you pass); `gitctl release <name> <tag> [changelog]`
   # squash-pushes + tags + optionally creates a GitHub Release (needs
   # githubRepo here + a token from `secrets github add token`);
-  # `pacnix github release rm <name> <tag>` deletes both. Nothing here
+  # `gitctl release rm <name> <tag>` deletes both. Nothing here
   # runs on a plain rebuild -- pushing only happens when you run one of
   # these yourself. See modules/packages/repos/lib/*.sh for the exact
   # safety model (no --force in history mode; squash mode force-pushes

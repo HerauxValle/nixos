@@ -10,7 +10,7 @@
 #       user.signingKey at the .pub half.
 # classic: a GitHub classic personal access token (repo scope) -- pasted,
 #          not generated. modules/packages/repos/repos.nix deploys it to
-#          ~/.config/gitctl/classic-token. REQUIRED for `pacnix github
+#          ~/.config/gitctl/classic-token. REQUIRED for `gitctl
 #          release` -- it errors immediately if this is missing, since
 #          `release` always means a real GitHub Release, same fields as
 #          ~/Scripts/Python/gitpushall.py's create_github_release, just
@@ -64,7 +64,7 @@ if [[ "$action" == "rem" ]]; then
     echo "Removed $kind credential ($KEY_FILE)."
     if [[ "$kind" == "classic" ]]; then
         echo "Run 'pacnix rebuild' to also remove the deployed ~/.config/gitctl copy."
-        echo "'pacnix github release' will error until a new one is added -- it's required,"
+        echo "'gitctl release' will error until a new one is added -- it's required,"
         echo "not optional. Remember to revoke the token on GitHub yourself (Settings ->"
         echo "Developer settings -> Personal access tokens) -- it keeps working until you do."
     else
@@ -102,7 +102,7 @@ if [[ "$kind" == "classic" ]]; then
 
     echo ""
     echo "Token written to $KEY_FILE (root:root, 600)."
-    echo "Run 'pacnix rebuild' to deploy it -- 'pacnix github release' requires it and"
+    echo "Run 'pacnix rebuild' to deploy it -- 'gitctl release' requires it and"
     echo "errors immediately if it's missing."
     exit 0
 fi

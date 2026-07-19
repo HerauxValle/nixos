@@ -34,7 +34,7 @@ _release_create() { # $1=name $2=tag $3=changelog_arg
   # Release behind it.
   github_repo="$(jq -r '.githubRepo // empty' <<< "$entry")"
   if [[ -z "$github_repo" ]]; then
-    log error "'$name': no githubRepo configured -- required for 'pacnix github release'"
+    log error "'$name': no githubRepo configured -- required for 'gitctl release'"
     exit 1
   fi
   token="$(gitctl_token)"
@@ -127,13 +127,13 @@ cmd_release() {
   if [[ "${1:-}" == "rm" ]]; then
     shift
     if [[ $# -lt 2 ]]; then
-      log error "usage: pacnix github release rm <name> <tag>"
+      log error "usage: gitctl release rm <name> <tag>"
       exit 1
     fi
     _release_rm "$1" "$2"
   else
     if [[ $# -lt 2 ]]; then
-      log error "usage: pacnix github release <name> <tag> [changelog]"
+      log error "usage: gitctl release <name> <tag> [changelog]"
       exit 1
     fi
     _release_create "$1" "$2" "${3:-}"

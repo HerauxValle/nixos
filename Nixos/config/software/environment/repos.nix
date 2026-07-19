@@ -2,7 +2,7 @@
 
 { ... }:
 
-# Personal picks -- which EXISTING local dirs you want `pacnix github
+# Personal picks -- which EXISTING local dirs you want `gitctl
 # push`/`release` to push, and where. Never clones/creates `path` itself
 # -- see modules/packages/repos for exactly what this does and doesn't
 # touch, and glossar/software/repos.nix for every available field.

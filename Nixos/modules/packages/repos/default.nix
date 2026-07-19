@@ -1,4 +1,4 @@
-# &desc: "Declarative git push-target registry schema (no defaults) -- existing local dirs -> named remotes, squash/history push. Logic lives in ./repos.nix + ./lib, driven by the gitctl CLI (pacnix github push/release)."
+# &desc: "Declarative git push-target registry schema (no defaults) -- existing local dirs -> named remotes, squash/history push. Logic lives in ./repos.nix + ./lib, driven by the gitctl CLI (push/release)."
 
 { config, lib, ... }:
 
@@ -43,7 +43,7 @@
                   type = lib.types.str;
                   description = ''
                     Existing local directory -- never cloned, never
-                    created. `pacnix github push`/`release` fails loudly
+                    created. `gitctl push`/`release` fails loudly
                     if this doesn't exist rather than silently skipping
                     it. `~` is expanded against
                     config.vars.identity.homeDirectory at eval time.
@@ -98,8 +98,8 @@
                   type = lib.types.nullOr lib.types.str;
                   default = null;
                   description = ''
-                    "owner/repo" slug -- only needed to use `pacnix
-                    github release` (creates/deletes a GitHub Release
+                    "owner/repo" slug -- only needed to use `gitctl
+                    release` (creates/deletes a GitHub Release
                     via the API using the token from `secrets github
                     add token`). null = release automation unavailable
                     for this repo, tag+push still works without it.
@@ -116,8 +116,8 @@
       Declarative git push-target registry: which existing local dirs
       push to which remotes, and how (squash snapshot vs real history).
       Never clones, never touches commit history/working tree of `path`
-      itself in squash mode. Pushing only happens when you run `pacnix
-      github push`/`release` -- nothing here runs on a plain rebuild.
+      itself in squash mode. Pushing only happens when you run `gitctl
+      push`/`release` -- nothing here runs on a plain rebuild.
     '';
   };
 }

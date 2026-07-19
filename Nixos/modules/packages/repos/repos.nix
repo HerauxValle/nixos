@@ -1,4 +1,4 @@
-# &desc: "Git push-target registry companion to venvs/venv.nix -- builds GITCTL_DATA json, packages the gitctl CLI (pacnix github push/release), deploys the required GitHub classic token."
+# &desc: "Git push-target registry companion to venvs/venv.nix -- builds GITCTL_DATA json, packages the gitctl CLI (push/release), deploys the required GitHub classic token."
 
 {
   config,
@@ -49,7 +49,7 @@ let
   # Root-owned source (`secrets github add classic`) -> user-readable
   # copy -- see deployGithubClassicToken below for why this needs its
   # own activation step rather than being read straight from
-  # /etc/nixos-secrets. `pacnix github release` requires this to exist
+  # /etc/nixos-secrets. `gitctl release` requires this to exist
   # and errors immediately if it doesn't -- it's not optional the way
   # gitpushall.py's GITHUB_TOKEN env var was.
   tokenFile = "${homeDir}/.config/gitctl/classic-token";
