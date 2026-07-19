@@ -20,4 +20,12 @@
 void print_ls_view(Node *root, const char *display_path, const Config *cfg,
                     const Totals *tot, bool diff_available, const DebugStats *dbg);
 
+/* Same per-directory rendering as print_ls_view, but recursive: -L<n>
+ * given without -o TREE walks (and shows) up to n levels deep, printing
+ * one print_ls_view-style block per directory descended into, each
+ * under its own path header, instead of forcing the connector tree
+ * view. Respects every -o column the same as print_ls_view. */
+void print_ls_view_recursive(Node *root, const char *display_path, const Config *cfg,
+                              const Totals *tot, bool diff_available, const DebugStats *dbg);
+
 #endif

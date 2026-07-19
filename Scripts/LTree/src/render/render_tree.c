@@ -25,6 +25,7 @@ static void flatten(Node *n, const Config *cfg, const char *prefix,
         size_t plen = strlen(prefix) + strlen(connector) + 1;
         pl->prefix = (char *)malloc(plen);
         snprintf(pl->prefix, plen, "%s%s", prefix, connector);
+        pl->guide = strdup(prefix);
 
         printline_fill(pl, n, cfg);
         pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
@@ -161,6 +162,7 @@ void tree_live_on_dir_measure(Node *dir, int depth, const Config *cfg, void *ctx
         size_t plen = strlen(prefix) + strlen(connector) + 1;
         pl->prefix = (char *)malloc(plen);
         snprintf(pl->prefix, plen, "%s%s", prefix, connector);
+        pl->guide = strdup(prefix);
         pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
     }
 

@@ -137,7 +137,9 @@ static void print_usage(const char *prog, bool no_colour) {
              "  of -j's one nested tree -- streamable line-by-line, same --stdout\n"
              "  filtering applies");
     H("-d", "list directories only");
-    H("-L <n>", "max depth to descend (like tree -L), also -L<n> -- implies -o TREE");
+    H("-L <n>", "max depth to descend (like tree -L), also -L<n>. With -o TREE, limits\n"
+                 "  the connector tree's depth; without it, recurses the plain\n"
+                 "  [Folders]/[Files] listing per-directory instead of forcing -o TREE");
     H("-o <MODULES>", "comma-separated, any order: LINES, CHARS, TOTAL, FILES, PERMISSIONS,\n"
                        "  SIZE, DATE, EXT, HASH, DESC, DIFF, DEBUG, TREE, HIDDEN");
     H("-oA <MODULES>", "every module at once (MODULES optional -- if given, every module\n"
@@ -316,18 +318,16 @@ int main(int argc, char **argv) {
             print_usage(argv[0], cfg.no_colour);
             return 0;
         } else if (strncmp(a, "-L", 2) == 0 && strlen(a) > 2) {
-            /* Depth only means anything with -o TREE's recursive walk --
-             * without it, ltree lists one non-recursive level regardless
-             * (see the max_depth=0 override below), silently making -L a
-             * no-op. Passing -L at all means you want depth-limited
-             * recursion, so it implies -o TREE rather than requiring it
-             * spelled out separately too. */
+            /* Depth-limited recursion. Without -o TREE spelled out
+             * separately, this no longer forces the connector tree view --
+             * it instead recurses the plain [Folders]/[Files] listing,
+             * one block per directory (see print_ls_view_recursive and the
+             * depth_limited dispatch below). With -o TREE, unchanged:
+             * limits the connector tree's own depth. */
             cfg.max_depth = atoi(a + 2);
-            cfg.modules[MOD_TREE] = true;
         } else if (strcmp(a, "-L") == 0) {
             if (i + 1 < argc) {
                 cfg.max_depth = atoi(argv[++i]);
-                cfg.modules[MOD_TREE] = true;
             }
         } else if (strcmp(a, "-o") == 0) {
             /* Plain module list: "-o LINES,CHARS". Always literal -- "A"/
@@ -492,13 +492,18 @@ int main(int argc, char **argv) {
     ExtTable ext;
     exttable_init(&ext);
 
-    /* Without -o TREE, the terminal view is the new non-recursive
-     * [Folders]/[Files] listing (see docs/plan-ls-rework.md, Category 2)
-     * -- one level is all it'll ever show, so don't walk deeper than
-     * that. -j stays fully recursive regardless of -o TREE: JSON is a
-     * data export whose existing contract (full tree, -L-limited)
-     * predates -o TREE and isn't a "view" this flag is meant to change. */
-    if (!cfg.json && !cfg.modules[MOD_TREE]) cfg.max_depth = 0;
+    /* Without -o TREE and without -L, the terminal view is the
+     * non-recursive [Folders]/[Files] listing (see
+     * docs/plan-ls-rework.md, Category 2) -- one level is all it'll
+     * ever show, so don't walk deeper than that. -L given without -o
+     * TREE instead recurses that same listing per-directory up to its
+     * depth (print_ls_view_recursive below), so max_depth stays
+     * whatever -L set. -j stays fully recursive regardless of -o TREE:
+     * JSON is a data export whose existing contract (full tree,
+     * -L-limited) predates -o TREE and isn't a "view" this flag is
+     * meant to change. */
+    bool depth_limited = cfg.max_depth >= 0;
+    if (!cfg.json && !cfg.modules[MOD_TREE] && !depth_limited) cfg.max_depth = 0;
 
     /* --live is the only case that streams -o TREE's output during
      * the walk (see render/render_tree.h) -- the default is fully
@@ -602,6 +607,9 @@ int main(int argc, char **argv) {
         print_summary_tail(&cfg, &totals, diff_available, dbg);
     } else if (cfg.modules[MOD_TREE]) {
         print_tree_view(root, cfg.path, &cfg, &totals, diff_available, dbg);
+        if (cfg.modules[MOD_FILES]) print_files_summary(&ext, &cfg);
+    } else if (depth_limited) {
+        print_ls_view_recursive(root, cfg.path, &cfg, &totals, diff_available, dbg);
         if (cfg.modules[MOD_FILES]) print_files_summary(&ext, &cfg);
     } else {
         print_ls_view(root, cfg.path, &cfg, &totals, diff_available, dbg);

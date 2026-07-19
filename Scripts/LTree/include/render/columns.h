@@ -24,6 +24,12 @@
 typedef struct {
     char    *prefix;      /* plain, no colour: tree connector glyphs, or
                             * "" in ls mode, which has no tree to draw   */
+    char    *guide;       /* plain, no colour: prefix's ANCESTOR bars only
+                            * (no trailing connector glyph) -- reprinted on
+                            * every --condense wrap continuation line so the
+                            * tree's vertical bars stay unbroken instead of
+                            * going blank under a wrapped entry; "" in ls
+                            * mode, which has no bars to continue           */
     char    *name;        /* possibly extension-stripped display name    */
     bool     is_dir;
     bool     is_symlink;
@@ -49,9 +55,10 @@ void       linebuf_init(LineBuf *lb);
 PrintLine *linebuf_push(LineBuf *lb);
 void       linebuf_free(LineBuf *lb);
 
-/* Fills every field of `pl` from `n` except `prefix`/`width`, which the
- * caller sets afterwards (tree mode builds a connector string; ls mode
- * leaves prefix as ""). Applies EXT display-name stripping per cfg. */
+/* Fills every field of `pl` from `n` except `prefix`/`guide`/`width`,
+ * which the caller sets afterwards (tree mode builds a connector string
+ * and its ancestor-bars guide; ls mode leaves both as ""). Applies EXT
+ * display-name stripping per cfg. */
 void printline_fill(PrintLine *pl, Node *n, const Config *cfg);
 
 #define RENDER_COLUMN_COUNT 7

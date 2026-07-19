@@ -29,6 +29,7 @@ PrintLine *linebuf_push(LineBuf *lb) {
 void linebuf_free(LineBuf *lb) {
     for (size_t i = 0; i < lb->n; i++) {
         free(lb->items[i].prefix);
+        free(lb->items[i].guide);
         free(lb->items[i].name);
         free(lb->items[i].desc);
     }
@@ -244,12 +245,22 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
      * line at all (unlike CONDENSE_BRACKET/off, which print the first
      * column right after the name). The caller's own trailing newline
      * (after this function returns) closes out the last column's line,
-     * same as it closes out the single line in every other mode. */
+     * same as it closes out the single line in every other mode.
+     *
+     * Each wrapped line reprints pl->guide (the entry's ancestor tree
+     * bars, no trailing connector) before padding out to col_start, so
+     * the vertical │ guides stay unbroken running down through the
+     * wrapped block instead of going blank under it -- ls mode's guide
+     * is always "", so this is a no-op there. */
     if (cfg->condense == CONDENSE_WRAP && mc->any_module) {
+        const char *guide = pl->guide ? pl->guide : "";
+        size_t guide_w = utf8_width(guide);
+        size_t guide_pad = (col_start > guide_w) ? (col_start - guide_w) : 0;
         for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
             if (!mc->active[mi]) continue;
             putchar('\n');
-            for (size_t s = 0; s < col_start; s++) putchar(' ');
+            printf("%s%s%s", COL(cfg, ANSI_BRANCH), guide, RST(cfg));
+            for (size_t s = 0; s < guide_pad; s++) putchar(' ');
             printf("%s%s%s", module_color(cfg, mc->order[mi]), mc->rendered[mi][i], RST(cfg));
         }
         if (is_mod) printf("   [m]");

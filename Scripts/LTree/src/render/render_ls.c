@@ -23,6 +23,7 @@ static void push_line(Node *n, const Config *cfg, const char *indent, LineBuf *l
     PrintLine *pl = linebuf_push(lb);
     printline_fill(pl, n, cfg);
     pl->prefix = strdup(indent);
+    pl->guide = strdup(""); /* no tree bars to continue in ls mode */
     pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
 }
 
@@ -251,13 +252,19 @@ static void print_block(const LineBuf *lb, size_t from, size_t to, const Measure
     }
 }
 
-void print_ls_view(Node *root, const char *display_path, const Config *cfg,
-                    const Totals *tot, bool diff_available, const DebugStats *dbg) {
+/* One directory's whole ls-style block: header line, then [Folders]/
+ * [Files] (or one combined block for --sort combined). Shared by the
+ * plain non-recursive view (print_ls_view, one call) and the -L-without
+ * -o-TREE recursive view (print_ls_view_recursive, one call per
+ * directory the walk descended into) -- everything except the header
+ * path and which Node's children are being listed is identical between
+ * the two. */
+static void print_ls_block(Node *dir, const char *display_path, const Config *cfg) {
     LineBuf lb;
     linebuf_init(&lb);
     size_t ndirs;
     char **bucket_names; size_t *bucket_at; size_t n_buckets;
-    build_lines(root, cfg, &lb, &ndirs, &bucket_names, &bucket_at, &n_buckets);
+    build_lines(dir, cfg, &lb, &ndirs, &bucket_names, &bucket_at, &n_buckets);
 
     size_t maxw = 0;
     for (size_t i = 0; i < lb.n; i++) if (lb.items[i].width > maxw) maxw = lb.items[i].width;
@@ -306,6 +313,38 @@ void print_ls_view(Node *root, const char *display_path, const Config *cfg,
 
     columns_free(&lb, &mc);
     linebuf_free(&lb);
+}
 
+void print_ls_view(Node *root, const char *display_path, const Config *cfg,
+                    const Totals *tot, bool diff_available, const DebugStats *dbg) {
+    print_ls_block(root, display_path, cfg);
+    print_summary_tail(cfg, tot, diff_available, dbg);
+}
+
+/* Recurses into every subdirectory the walk actually descended into
+ * (node->truncated means -L's depth limit stopped the walk there --
+ * same flag the tree view's own "(...)" marker reads, see
+ * render_tree.c), printing each one's own print_ls_block under its own
+ * path header so it stays "mappable": you can always tell which
+ * on-disk folder a given block belongs to, the same way `ls -R` labels
+ * each directory it lists, instead of one flattened connector tree. */
+static void print_ls_recurse(Node *dir, const char *display_path, const Config *cfg) {
+    for (size_t i = 0; i < dir->nchildren; i++) {
+        Node *child = dir->children[i];
+        if (!child->is_dir || child->truncated) continue;
+
+        char childpath[4096];
+        snprintf(childpath, sizeof(childpath), "%s/%s", display_path, child->name);
+
+        putchar('\n');
+        print_ls_block(child, childpath, cfg);
+        print_ls_recurse(child, childpath, cfg);
+    }
+}
+
+void print_ls_view_recursive(Node *root, const char *display_path, const Config *cfg,
+                              const Totals *tot, bool diff_available, const DebugStats *dbg) {
+    print_ls_block(root, display_path, cfg);
+    print_ls_recurse(root, display_path, cfg);
     print_summary_tail(cfg, tot, diff_available, dbg);
 }
