@@ -129,6 +129,11 @@ static void print_usage(const char *prog, bool no_colour) {
     printf("usage: %s [path] [options]\n\n", prog);
 
 #define H(name, desc) help_entry(no_colour, name, "\x1b[1;36m", desc)
+    H("[path]", "directory (default: .) or a single file. A directory with no -o\n"
+                 "  defaults to the plain [Folders]/[Files] listing; a single file with\n"
+                 "  no -o defaults to LINES,PERMISSIONS,SIZE,DATE,HASH,DESC,TOTAL instead\n"
+                 "  (a bare filename alone isn't worth looking at) -- either way, any\n"
+                 "  -o/-oA/-oO you do pass always wins over this default");
     H("-j", "output JSON instead of a tree view. Fields mirror whatever -o enabled --\n"
             "  same contract as the terminal views (want everything? -oA. want\n"
             "  everything except one thing? -oA <exclude-list>). --save-output's\n"
@@ -190,9 +195,10 @@ static void print_usage(const char *prog, bool no_colour) {
     M("DEBUG", ANSI_DEBUG, "prints a hyper-detailed run report (timing, peak RSS, heap arena\n"
                             "  breakdown, page faults, throughput, ...) appended after TOTAL");
     M("TREE", ANSI_DIR, "without it, ltree lists only `path`'s direct children, grouped into\n"
-                         "  [Folders]/[Files] (like plain ls); with it, the recursive connector\n"
-                         "  tree (respecting -L), whole-tree column aligned, printed once the\n"
-                         "  walk finishes (see --live to stream it)");
+                         "  [Folders]/[Files] (like plain ls) -- or, with -L, that same listing\n"
+                         "  recursed per-directory instead (see -L); with -o TREE, the\n"
+                         "  recursive connector tree, whole-tree column aligned, printed once\n"
+                         "  the walk finishes (see --live to stream it)");
     M("HIDDEN", ANSI_DIR, "shows dotfiles/dot-dirs (hidden by default, like ls -a)");
 #undef M
 }

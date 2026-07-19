@@ -113,7 +113,7 @@
         # config.nix's dotfilesBackup block ever moves.
         find = "enable = false;";
         replaceWith = "enable = false;";
-        line = 33;
+        line = 35;
       }
     ];
   };
