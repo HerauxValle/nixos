@@ -8,6 +8,7 @@ DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
 
 PASSWD_CMD="passwd"
 DOTFILES_CMD="dotfiles"
+GITHUB_CMD="github"
 
 cmd="${1:-help}"
 shift || true
@@ -16,6 +17,7 @@ case "$cmd" in
     -h | --help) cmd="help" ;;
     "$PASSWD_CMD") cmd="passwd" ;;
     "$DOTFILES_CMD") cmd="dotfiles" ;;
+    "$GITHUB_CMD") cmd="github" ;;
 esac
 
 script="$DIR/cmd/${cmd}.sh"
