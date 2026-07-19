@@ -255,6 +255,12 @@ typedef struct {
     size_t        col_start;
     size_t        term_w;     /* 0 == not a tty / too narrow: never wrap */
     size_t        col;        /* current absolute display column */
+    bool          wrapped;    /* has lc_newline() fired at least once yet --
+                                * --condense wrap reads this to switch from
+                                * "pack columns onto the name's line" to
+                                * "one column per line" the moment ANY
+                                * column needed the room, see its own
+                                * comment in columns_print_line(). */
 } LineCursor;
 
 static void lc_init(LineCursor *lc, const Config *cfg, const char *guide,
@@ -286,6 +292,7 @@ static void lc_init(LineCursor *lc, const Config *cfg, const char *guide,
     lc->guide_pad = (eff_col_start > guide_w) ? (eff_col_start - guide_w) : 0;
     lc->term_w = (term_w > eff_col_start) ? term_w : 0;
     lc->col = start_col;
+    lc->wrapped = false;
 }
 
 static void lc_newline(LineCursor *lc) {
@@ -293,6 +300,7 @@ static void lc_newline(LineCursor *lc) {
     printf("%s%s%s", COL(lc->cfg, ANSI_BRANCH), lc->guide, RST(lc->cfg));
     for (size_t s = 0; s < lc->guide_pad; s++) putchar(' ');
     lc->col = lc->col_start;
+    lc->wrapped = true;
 }
 
 static bool is_ascii_letter(unsigned char c) {
@@ -347,15 +355,6 @@ static const unsigned char *find_break(const unsigned char *start, size_t avail,
     return hard_end; /* nothing break-worthy nearby -- hard cut */
 }
 
-/* Prints `text` in `color` at the cursor's current column, wrapping to
- * a fresh guide-indented line whenever continuing here would overflow
- * the terminal. A value that doesn't fit where we are but WOULD fit on
- * a whole fresh line (typical case: a short column after a long one)
- * moves there wholesale, never split internally -- only a value too
- * wide even for that (DESC territory, realistically the only column
- * that ever gets this long) is hard-chunked across as many
- * continuation lines as it needs, preferring natural break points via
- * find_break() over slicing mid-word. */
 /* Prints purely cosmetic text -- inter-column separators ("   "),
  * bracket punctuation ("[", "]", " "), and column-alignment padding --
  * that must NEVER trigger a wrap on its own. Padding in particular can
@@ -371,6 +370,15 @@ static void lc_raw(LineCursor *lc, const char *text) {
     lc->col += utf8_width(text);
 }
 
+/* Prints `text` in `color` at the cursor's current column, wrapping to
+ * a fresh guide-indented line whenever continuing here would overflow
+ * the terminal. A value that doesn't fit where we are but WOULD fit on
+ * a whole fresh line (typical case: a short column after a long one)
+ * moves there wholesale, never split internally -- only a value too
+ * wide even for that (DESC territory, realistically the only column
+ * that ever gets this long) is hard-chunked across as many
+ * continuation lines as it needs, preferring natural break points via
+ * find_break() over slicing mid-word. */
 static void lc_print(LineCursor *lc, const char *text, const char *color) {
     size_t tw = utf8_width(text);
     if (lc->term_w == 0 || lc->col + tw <= lc->term_w) {
@@ -418,26 +426,6 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
 
     const char *guide = pl->guide ? pl->guide : "";
 
-    /* --condense wrap: every active column gets its own line, indented
-     * to col_start from column 0 -- nothing shares the entry's name
-     * line at all (unlike CONDENSE_BRACKET/off, which print the first
-     * column right after the name). The caller's own trailing newline
-     * (after this function returns) closes out the last column's line,
-     * same as it closes out the single line in every other mode. */
-    if (cfg->condense == CONDENSE_WRAP && mc->any_module) {
-        LineCursor lc;
-        for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
-            if (!mc->active[mi]) continue;
-            putchar('\n');
-            printf("%s%s%s", COL(cfg, ANSI_BRANCH), guide, RST(cfg));
-            lc_init(&lc, cfg, guide, col_start, col_start);
-            for (size_t s = 0; s < lc.guide_pad; s++) putchar(' ');
-            lc_print(&lc, mc->rendered[mi][i], module_color(cfg, mc->order[mi]));
-        }
-        if (is_mod) printf("   [m]");
-        return;
-    }
-
     size_t pad = (col_start > pl->width) ? (col_start - pl->width) : 1;
     for (size_t s = 0; s < pad; s++) putchar(' ');
 
@@ -463,6 +451,34 @@ void columns_print_line(const MeasuredColumns *mc, const Config *cfg,
         }
         lc_raw(&lc, "]");
         if (is_mod) printf("   [m]");
+        return;
+    }
+
+    /* --condense wrap: columns stay separate (unlike CONDENSE_BRACKET's
+     * single folded-together "[...]"), and share the entry's line just
+     * like default mode for as long as everything actually fits -- a
+     * short "[DESC: -]" has no reason to be pushed onto a line of its
+     * own. "wrap" earns its name once something genuinely doesn't fit:
+     * from the column that first needed the room onward, every
+     * remaining column is forced onto its own fresh line (lc.wrapped,
+     * set by lc_newline() and checked below) instead of default mode's
+     * "pack whatever still fits" -- so once a row starts breaking it
+     * reads as a clean one-bracket-per-line stack, not a ragged mix of
+     * packed and wrapped columns. */
+    if (cfg->condense == CONDENSE_WRAP && mc->any_module) {
+        bool first = true;
+        for (int mi = 0; mi < RENDER_COLUMN_COUNT; mi++) {
+            if (!mc->active[mi]) continue;
+            if (lc.wrapped) lc_newline(&lc);
+            else if (!first) lc_raw(&lc, "   ");
+            first = false;
+            lc_print(&lc, mc->rendered[mi][i], module_color(cfg, mc->order[mi]));
+        }
+        if (is_mod) {
+            if (lc.wrapped) lc_newline(&lc);
+            else lc_raw(&lc, "   ");
+            printf("[m]");
+        }
         return;
     }
 
