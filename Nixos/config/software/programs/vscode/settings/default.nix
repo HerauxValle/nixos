@@ -13,5 +13,6 @@
     ./shortcuts.nix
     ./telemetry.nix
     ./terminal.nix
+    ./writable-settings.nix
   ];
 }
