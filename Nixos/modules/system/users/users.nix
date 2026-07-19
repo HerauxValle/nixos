@@ -53,6 +53,7 @@ HASHEOF
       "immich"
       "qbittorrent"
       "kvm" # Claude Desktop's Cowork feature spins up a local KVM sandbox
+      "docker" # run docker/docker compose without sudo
     ];
 
     # initialPassword = "changeme";  # one-time bootstrap only, from before

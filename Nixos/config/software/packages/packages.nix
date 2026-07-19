@@ -108,6 +108,8 @@
       qemu = { };
       virtiofsd = { };
       OVMF = { };
+      docker-compose = { };
+      docker-buildx = { };
 
       # Shell tooling
       shellcheck = { };
