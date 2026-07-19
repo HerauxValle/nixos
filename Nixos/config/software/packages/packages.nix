@@ -110,6 +110,12 @@
       OVMF = { };
       docker-compose = { };
       docker-buildx = { };
+      dive = { }; # inspect an image layer-by-layer to find what's bloating its size
+      ctop = { }; # htop-style live dashboard for running containers
+      hadolint = { }; # actual Dockerfile linter
+      trivy = { }; # scans images for known CVEs
+      skopeo = { }; # inspect/copy/sign images across registries, no daemon needed
+      act = { }; # run GitHub Actions workflows locally via Docker
 
       # Shell tooling
       shellcheck = { };
