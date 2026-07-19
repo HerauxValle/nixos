@@ -1,20 +1,15 @@
-# &desc: "Personal declarative git repos -- currently empty, see modules/packages/repos/default.nix for the schema."
+# &desc: "Personal declarative git repos -- test repo (HerauxValle/test) declared to exercise modules/packages/repos end-to-end."
 
 { ... }:
 
 # Personal picks -- which repos YOU want declaratively checked out/kept
 # in sync (existence + local git config only -- see modules/packages/repos
 # for exactly what "in sync" means and what it deliberately never touches).
-# Nothing declared here yet. Example shape:
-#
-#   config.vars.packages.repos.repos = {
-#     some-project = {
-#       url = "git@github.com:someuser/some-project.git";
-#       # path = "~/Projects/some-project";  # default: basePath/<name>
-#       # initialBranch = "main";
-#       # userEmail = "you@example.com";
-#     };
-#   };
+# See glossar/software/repos.nix for every available field.
 {
-  config.vars.packages.repos.repos = { };
+  config.vars.packages.repos.repos = {
+    test = {
+      url = "git@github.com:HerauxValle/test.git";
+    };
+  };
 }
