@@ -26,41 +26,53 @@
 #define ANSI_NOTE     "\x1b[2;37m"   /* dim grey     -- trailing notes      */
 #define ANSI_DEBUG    "\x1b[1;33m"   /* bold yellow  -- DEBUG: sub-dividers */
 
-/* ls-mode file-name colouring by kind (render_ls.c's file_name_color())
- * -- deliberately the "bright" 9x foreground range, not the standard
- * 3x/1;3x range every other colour above uses, so a richly-coloured
- * file listing never collides with (or gets mistaken for) an existing
- * semantic colour like MODIFIED/SYMLINK/DEBUG above. Tree mode doesn't
- * read these yet (see PrintLine.namecolor in columns.h). CODE/MARKUP
- * reuse IMAGE/MEDIA's hues at bold weight instead of claiming a 7th/8th
- * fresh hue -- the bright range only has 6 (91-96; 90/97 are grey/near-
- * white, too easily mistaken for FILE/DESC's already-similar shades) --
- * bold vs plain is enough separation since a file's extension is right
- * there next to it either way. */
-#define ANSI_EXEC     "\x1b[0;92m"   /* bright green        -- executable file */
-#define ANSI_ARCHIVE  "\x1b[0;91m"   /* bright red          -- tar/zip/gz/...  */
-#define ANSI_IMAGE    "\x1b[0;95m"   /* bright magenta      -- png/jpg/svg/... */
-#define ANSI_MEDIA    "\x1b[0;96m"   /* bright cyan         -- mp3/mp4/mkv/... */
-#define ANSI_DOC      "\x1b[0;93m"   /* bright yellow       -- md/txt/pdf/...  */
-#define ANSI_CONFIG   "\x1b[0;94m"   /* bright blue         -- json/yaml/nix.. */
-#define ANSI_CODE     "\x1b[1;96m"   /* bold bright cyan    -- c/py/rs/js/...  */
-#define ANSI_MARKUP   "\x1b[1;95m"   /* bold bright magenta -- html/css/xml/.. */
+/* ls-mode file-name colouring by kind (render/namecolor.c's
+ * file_name_color()) -- deliberately the "bright" 9x foreground range,
+ * not the standard 3x/1;3x range every other colour above uses, so a
+ * richly-coloured file listing never collides with (or gets mistaken
+ * for) an existing semantic colour like MODIFIED/SYMLINK/DEBUG above.
+ * Tree mode reads these too now (see PrintLine.namecolor in
+ * columns.h). The bright range only has 6 real hues (91-96; 90/97 are
+ * grey/near-white, too easily mistaken for FILE/DESC's already-similar
+ * shades), so past the first 6 categories every further one reuses a
+ * hue at BOLD weight instead of inventing a new one -- a file's
+ * extension is right there next to it either way, so bold-vs-plain is
+ * enough separation even when two categories share a hue. */
+#define ANSI_EXEC     "\x1b[0;92m"   /* bright green          -- executable file    */
+#define ANSI_ARCHIVE  "\x1b[0;91m"   /* bright red            -- tar/zip/gz/...     */
+#define ANSI_IMAGE    "\x1b[0;95m"   /* bright magenta        -- png/jpg/svg/...    */
+#define ANSI_MEDIA    "\x1b[0;96m"   /* bright cyan           -- mp3/mp4/mkv/...    */
+#define ANSI_DOC      "\x1b[0;93m"   /* bright yellow         -- md/txt/pdf/...     */
+#define ANSI_CONFIG   "\x1b[0;94m"   /* bright blue           -- json/yaml/nix/...  */
+#define ANSI_CODE     "\x1b[1;96m"   /* bold bright cyan      -- c/py/rs/js/...     */
+#define ANSI_MARKUP   "\x1b[1;95m"   /* bold bright magenta   -- html/css/xml/...   */
+#define ANSI_FONT     "\x1b[1;93m"   /* bold bright yellow    -- ttf/otf/woff/...   */
+#define ANSI_CERT     "\x1b[1;91m"   /* bold bright red       -- pem/crt/key/...    */
+#define ANSI_DATABASE "\x1b[1;94m"   /* bold bright blue      -- db/sqlite/...      */
 
-/* ls-mode folder-name colouring by common role (render_ls.c's
+/* ls-mode folder-name colouring by common role (render/namecolor.c's
  * dir_name_color()) -- matched case-insensitively against the whole
  * folder name (src/Src/SRC all the same), not by any extension.
- * Reuses the exact same file-kind hues where the mental mapping is
- * obvious (docs/ -> ANSI_DOC's yellow) since folders and files never
- * share a row (ls mode always splits [Folders] from [Files]), so the
- * hue reuse can't actually be confused for the wrong kind. BUILD uses
- * the existing dim BRANCH/NOTE grey -- generated output deliberately
- * recedes rather than competing for attention with real source. */
-#define ANSI_DIR_SRC    ANSI_EXEC     /* src/lib/cmd/cli/pkg/...        */
-#define ANSI_DIR_DOCS   ANSI_DOC      /* docs/wiki/man/...              */
-#define ANSI_DIR_TEST   ANSI_IMAGE    /* test/tests/spec/e2e/...        */
-#define ANSI_DIR_BUILD  "\x1b[2;37m"  /* dim grey -- build/dist/target  */
-#define ANSI_DIR_VENDOR ANSI_ARCHIVE  /* node_modules/vendor/deps/...   */
-#define ANSI_DIR_ASSETS ANSI_MEDIA    /* assets/static/public/...       */
+ * Reuses the same 11 file-kind hues above where the mental mapping is
+ * obvious (docs/ -> ANSI_DOC's yellow, secrets/ -> ANSI_CERT's red) --
+ * folders and files are always visually distinguished by the trailing
+ * "/" and by which of [Folders]/[Files] a row is under (or, in tree
+ * mode, just by that trailing slash), so the hue reuse can't actually
+ * be confused for the wrong kind. BUILD/LOGS are the two that don't
+ * reuse a file hue -- generated/ephemeral output deliberately recedes
+ * (dim grey) rather than competing for attention with real source. */
+#define ANSI_DIR_SRC     ANSI_EXEC      /* src/lib/cmd/cli/pkg/...            */
+#define ANSI_DIR_DOCS    ANSI_DOC       /* docs/wiki/man/...                  */
+#define ANSI_DIR_TEST    ANSI_IMAGE     /* test/tests/spec/e2e/...            */
+#define ANSI_DIR_BUILD   "\x1b[2;37m"   /* dim grey -- build/dist/target/...  */
+#define ANSI_DIR_VENDOR  ANSI_ARCHIVE   /* node_modules/vendor/deps/...       */
+#define ANSI_DIR_ASSETS  ANSI_MEDIA     /* assets/static/public/...           */
+#define ANSI_DIR_CI      ANSI_CONFIG    /* .github/.gitlab/workflows/...      */
+#define ANSI_DIR_IDE     ANSI_CODE      /* .vscode/.idea/.vs/...              */
+#define ANSI_DIR_I18N    ANSI_MARKUP    /* locale/locales/i18n/translations/. */
+#define ANSI_DIR_SECRETS ANSI_CERT      /* secrets/credentials/keys/certs/... */
+#define ANSI_DIR_DATA    ANSI_DATABASE  /* data/datasets/fixtures/db/...      */
+#define ANSI_DIR_LOGS    ANSI_FONT      /* logs/tmp/temp/cache/coverage/...   */
 
 #define COL(cfg, code) ((cfg)->no_colour ? "" : (code))
 #define RST(cfg)       ((cfg)->no_colour ? "" : ANSI_RESET)
