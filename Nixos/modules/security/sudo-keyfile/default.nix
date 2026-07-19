@@ -4,7 +4,11 @@
 
 # Plain facts, same convention as boot/luks2's usbKeyLabel/keyFileName --
 # not a generic reusable option, just this machine's actual settings. Logic
-# that reads these lives in ./sudo-keyfile.nix, imported below.
+# that reads these lives in ./sudo-keyfile.nix, imported below -- it just
+# wires together the checker script and its setuid stub (./lib/checker/,
+# ./lib/checker-stub/) and the activation-time keyfile registration
+# (./lib/register.nix). Same split as modules/system/mountpoints' own
+# lib/ layout, split out since sudo-keyfile.nix was getting sizeable.
 {
   imports = [ ./sudo-keyfile.nix ];
 
