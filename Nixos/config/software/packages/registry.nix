@@ -1,4 +1,4 @@
-# &desc: "Package sources registry -- kde/qt5/qt6/python from nixpkgs, custom sources from flakes (claude-code/desktop-fhs, casket, ltree, crun, kitty with libxkbcommon wrapper)."
+# &desc: "Package sources registry -- kde/qt5/qt6/python from nixpkgs, custom sources from flakes (claude-code, claude-desktop, casket, ltree, crun, kitty with libxkbcommon wrapper)."
 
 {
   pkgs,
@@ -17,12 +17,15 @@
     # Complex custom sources
     custom = {
       claudeCode = inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
-      # -fhs (not the plain "claude-desktop" output) -- MCP servers
-      # (npm/uvx-installed, dynamically linked against system libs) need
-      # an FHS environment on NixOS to run at all. Also this flake's own
-      # "default".
+      # This flake (patrickjaja/claude-desktop-bin) has no "-fhs" output --
+      # unlike the previous aaddrick/claude-desktop-debian source, it
+      # doesn't sandbox via buildFHSEnv at all; it substitutes nixpkgs'
+      # own (already NixOS-patched) electron derivation and wraps qemu/
+      # virtiofsd/OVMF in directly. MCP servers (npm/uvx-installed,
+      # dynamically linked against system libs) are handled by nix-ld,
+      # already configured system-wide on this machine.
       claudeDesktop =
-        inputs.claude-desktop.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop-fhs;
+        inputs.claude-desktop.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop;
       mybarBackend = pkgs.callPackage ../../../../Quickshell/MyBar/backend.nix { };
       crun = inputs.crun.packages.${pkgs.stdenv.hostPlatform.system}.default;
       ltree = inputs.ltree.packages.${pkgs.stdenv.hostPlatform.system}.default;

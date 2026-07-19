@@ -5,7 +5,17 @@
     # ================================ ONE-LINERS ================================
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     claude-code-nix.url = "github:sadjow/claude-code-nix";
-    claude-desktop.url = "github:aaddrick/claude-desktop-debian";
+    claude-desktop.url = "github:patrickjaja/claude-desktop-bin";
+    # Deprecated: "github:aaddrick/claude-desktop-debian" -- its fhs.nix
+    # never added virtiofsd to the FHS env's targetPkgs, only qemu (via
+    # PATH search) and OVMF (via a dedicated compat shim). Cowork's
+    # virtiofsd probe only checks the literal paths /usr/libexec/virtiofsd
+    # and /usr/bin/virtiofsd (no PATH search) with an Ubuntu-22.04-only
+    # apt fallback, so on NixOS it always resolved to null and Cowork
+    # stayed permanently greyed out regardless of what was installed on
+    # the host. patrickjaja/claude-desktop-bin hit and fixed this exact
+    # class of bug upstream (issue #177 / PR #178) and wires qemu/
+    # virtiofsd/OVMF into the Nix closure directly instead of an FHS env.
 
     # ================================ DEPENDS-ON ================================
     silent-sddm = {
