@@ -18,21 +18,19 @@
  * see tree_live_* below for --live's alternative. ===================== */
 static void flatten(Node *n, const Config *cfg, const char *prefix,
                      bool is_last, bool is_root, LineBuf *lb) {
-    if (!is_root) {
-        PrintLine *pl = linebuf_push(lb);
-        const char *connector = is_last ? "\xE2\x95\xB0\xE2\x94\x80\xE2\x94\x80 " /* ╰── */
-                                         : "\xE2\x94\x9C\xE2\x94\x80\xE2\x94\x80 " /* ├── */;
-        size_t plen = strlen(prefix) + strlen(connector) + 1;
-        pl->prefix = (char *)malloc(plen);
-        snprintf(pl->prefix, plen, "%s%s", prefix, connector);
-        pl->guide = strdup(prefix);
-
-        printline_fill(pl, n, cfg);
-        pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
-    }
-
-    if (!n->is_dir) return;
-
+    /* childprefix = this entry's own branch stem, one level past its
+     * ancestors': "│   " if it has more siblings still to come (so
+     * that stem keeps running down to connect to the next one),
+     * "    " if it's the last sibling (nothing left to connect to).
+     * Computed for every non-root entry regardless of is_dir -- a
+     * directory recurses into it for real children below, but every
+     * entry (file or dir) also uses it as pl->guide, since a
+     * --condense wrap column block is visually "underneath" the entry
+     * the exact same way real children would be, and needs the same
+     * stem to keep the tree's vertical line unbroken between this
+     * entry and its next sibling (see the "default"/"exclusions" case
+     * this fixed -- guide used to stop at the ANCESTOR bars and skip
+     * this entry's own connecting stem entirely). */
     char childprefix[4096];
     if (is_root) {
         childprefix[0] = '\0';
@@ -40,6 +38,21 @@ static void flatten(Node *n, const Config *cfg, const char *prefix,
         const char *cont = is_last ? "    " : "\xE2\x94\x82   " /* │   */;
         snprintf(childprefix, sizeof(childprefix), "%s%s", prefix, cont);
     }
+
+    if (!is_root) {
+        PrintLine *pl = linebuf_push(lb);
+        const char *connector = is_last ? "\xE2\x95\xB0\xE2\x94\x80\xE2\x94\x80 " /* ╰── */
+                                         : "\xE2\x94\x9C\xE2\x94\x80\xE2\x94\x80 " /* ├── */;
+        size_t plen = strlen(prefix) + strlen(connector) + 1;
+        pl->prefix = (char *)malloc(plen);
+        snprintf(pl->prefix, plen, "%s%s", prefix, connector);
+        pl->guide = strdup(childprefix);
+
+        printline_fill(pl, n, cfg);
+        pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
+    }
+
+    if (!n->is_dir) return;
 
     for (size_t i = 0; i < n->nchildren; i++) {
         bool last = (i == n->nchildren - 1);
@@ -162,7 +175,15 @@ void tree_live_on_dir_measure(Node *dir, int depth, const Config *cfg, void *ctx
         size_t plen = strlen(prefix) + strlen(connector) + 1;
         pl->prefix = (char *)malloc(plen);
         snprintf(pl->prefix, plen, "%s%s", prefix, connector);
-        pl->guide = strdup(prefix);
+        /* Same fix as flatten() in the buffered path above: guide is
+         * this entry's own branch stem (one level past its ancestors',
+         * "│   " unless it's the last sibling), not just the ancestor
+         * prefix -- otherwise a --condense wrap column block loses the
+         * stem connecting this entry down to its next sibling. */
+        const char *own_cont = is_last ? "    " : "\xE2\x94\x82   " /* │   */;
+        size_t glen = strlen(prefix) + strlen(own_cont) + 1;
+        pl->guide = (char *)malloc(glen);
+        snprintf(pl->guide, glen, "%s%s", prefix, own_cont);
         pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
     }
 
