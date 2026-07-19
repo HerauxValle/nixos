@@ -21,6 +21,6 @@
     ./gamescope.nix
     ./silent-sddm.nix
     ./steam.nix
-    ./vscode.nix
+    ./vscode
   ];
 }

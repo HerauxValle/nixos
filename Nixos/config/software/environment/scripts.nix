@@ -11,7 +11,7 @@
   config.vars.packages.scripts = [
 
     {
-      dir = ../../../Scripts/Reload;
+      dir = ../../../../Scripts/Reload;
       include = {
         "qsr.sh" = "qsr";
       };
@@ -21,7 +21,7 @@
       # wallpaper.jpg lives alongside reload.sh here (not in a separate
       # Wallpaper/ folder) specifically so this folder is self-contained
       # -- copying it doesn't drag in anything else from Scripts/.
-      dir = ../../../Scripts/Wallpaper;
+      dir = ../../../../Scripts/Wallpaper;
       include = {
         "reload.sh" = "wallpaper";
       };
@@ -32,7 +32,7 @@
       # itself. Hyprland keybinds/autostart call it by full path already
       # (sourceMe.lua); this just also puts it on PATH as `hyprfloat` for
       # manual/CLI use (--status, --conflicts, etc).
-      dir = ../../../Hyprland/Floating;
+      dir = ../../../../Hyprland/Floating;
       include = {
         "main.sh" = "hyprfloat";
       };
@@ -41,7 +41,7 @@
     {
       # frecency-scored directory/file launcher + alias manager, used by
       # cd.fish alongside zoxide. Own DB at ~/.local/share/lookup/.
-      dir = ../../../Scripts/Run;
+      dir = ../../../../Scripts/Run;
       include = {
         "run.sh" = "run";
       };
@@ -52,14 +52,14 @@
       # dotfiles-backup deploy key) -- writes to /etc/nixos-secrets/, not the
       # Nix store, so no $0-relative path concerns; fine to expose here.
       # Multi-file project: secrets.sh sources ./cmd/*.sh relative to itself.
-      dir = ../../../Scripts/Secrets;
+      dir = ../../../../Scripts/Secrets;
       include = {
         "secrets.sh" = "secrets";
       };
     }
 
     # {
-    #   dir = ../../../Projects/Path;
+    #   dir = ../../../../Projects/Path;
     #   include = { "bin" = "path"; };
     # }
 
