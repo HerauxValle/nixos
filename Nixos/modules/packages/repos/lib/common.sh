@@ -53,5 +53,14 @@ gitctl_make_snapshot() { # $1=name $2=src_dir $3=exclude_paths_json
 }
 
 gitctl_token() {
-  [[ -f "$GITCTL_TOKEN_FILE" ]] && cat "$GITCTL_TOKEN_FILE"
+  # Plain `[[ -f ... ]] && cat ...` would make this function's own exit
+  # status the failed test's (1) when the file is missing -- fine
+  # inside this function under set -e (exempt mid-AND-list), but NOT
+  # once captured by a caller as `token="$(gitctl_token)"`, where that
+  # assignment is a bare simple command and set -e would abort the
+  # whole script instead of letting the caller's own empty-token check
+  # handle it gracefully. An explicit if with no else always returns 0.
+  if [[ -f "$GITCTL_TOKEN_FILE" ]]; then
+    cat "$GITCTL_TOKEN_FILE"
+  fi
 }
