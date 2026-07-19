@@ -279,13 +279,67 @@ static void lc_newline(LineCursor *lc) {
     lc->col = lc->col_start;
 }
 
+static bool is_ascii_letter(unsigned char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+/* How far back from the hard width limit to look for a natural break
+ * point before giving up and slicing mid-word. Small enough that a
+ * short field never gets an absurdly early break, generous enough to
+ * usually find the end of the word DESC's 480-char text happened to
+ * land on. */
+#define WRAP_LOOKBACK 24
+
+/* Chooses where to end the current chunk of a too-long-for-one-line
+ * field, given the hard UTF-8-width limit `avail` counted from
+ * `start`. Prefers, scanning backward from the limit: a space (the
+ * chunk ends before it, the space itself is dropped -- the next chunk
+ * starts clean); a comma or period (kept on THIS chunk, since it's
+ * trailing punctuation, not a word start); a '-' directly between two
+ * ASCII letters, i.e. a hyphenated compound like "no-cli" (also kept
+ * on this chunk, splitting after the hyphen the way a dictionary
+ * would). Falls back to the hard limit (mid-word) only when nothing
+ * break-worthy shows up within WRAP_LOOKBACK of it. Returns a pointer
+ * into `start`'s buffer at the chosen cut (exclusive end of this
+ * chunk) and sets *skip_bytes to however many trailing bytes (a
+ * dropped space) the NEXT chunk should skip past. */
+static const unsigned char *find_break(const unsigned char *start, size_t avail,
+                                        size_t *skip_bytes) {
+    *skip_bytes = 0;
+    const unsigned char *hard_end = start;
+    size_t w = 0;
+    while (*hard_end && w < avail) {
+        hard_end++;
+        while ((*hard_end & 0xC0) == 0x80) hard_end++;
+        w++;
+    }
+    if (!*hard_end) return hard_end; /* text ends exactly at/before the limit */
+
+    size_t lookback = w < WRAP_LOOKBACK ? w : WRAP_LOOKBACK;
+    const unsigned char *scan = hard_end;
+    for (size_t k = 0; k < lookback; k++) {
+        scan--;
+        while (scan > start && (*scan & 0xC0) == 0x80) scan--;
+        unsigned char c = *scan;
+        if (c == ' ') { *skip_bytes = 1; return scan; }
+        if (c == ',' || c == '.') return scan + 1;
+        if (c == '-' && scan > start && scan + 1 < hard_end &&
+            is_ascii_letter(*(scan - 1)) && is_ascii_letter(*(scan + 1))) {
+            return scan + 1;
+        }
+    }
+    return hard_end; /* nothing break-worthy nearby -- hard cut */
+}
+
 /* Prints `text` in `color` at the cursor's current column, wrapping to
  * a fresh guide-indented line whenever continuing here would overflow
  * the terminal. A value that doesn't fit where we are but WOULD fit on
  * a whole fresh line (typical case: a short column after a long one)
- * moves there wholesale; a value too wide even for that (DESC
- * territory) is hard-chunked across as many continuation lines as it
- * needs, splitting only on whole UTF-8 characters. */
+ * moves there wholesale, never split internally -- only a value too
+ * wide even for that (DESC territory, realistically the only column
+ * that ever gets this long) is hard-chunked across as many
+ * continuation lines as it needs, preferring natural break points via
+ * find_break() over slicing mid-word. */
 static void lc_print(LineCursor *lc, const char *text, const char *color) {
     size_t tw = utf8_width(text);
     if (lc->term_w == 0 || lc->col + tw <= lc->term_w) {
@@ -306,16 +360,22 @@ static void lc_print(LineCursor *lc, const char *text, const char *color) {
     while (*p) {
         if (!first_chunk) lc_newline(lc);
         first_chunk = false;
+        /* A small margin off the hard edge so a wrap doesn't look like
+         * it's crammed right up against the terminal's last column --
+         * find_break() still searches back from here for a real break
+         * char rather than cutting exactly on the margin. */
         size_t avail = lc->term_w - lc->col;
+        avail = avail > 2 ? avail - 2 : avail;
+
+        size_t skip_bytes;
         const unsigned char *start = p;
-        size_t w = 0;
-        while (*p && w < avail) {
-            p++;
-            while ((*p & 0xC0) == 0x80) p++; /* rest of this UTF-8 char */
-            w++;
-        }
-        printf("%s%.*s%s", color, (int)(p - start), start, RST(lc->cfg));
-        lc->col += w;
+        const unsigned char *cut = find_break(start, avail, &skip_bytes);
+        printf("%s%.*s%s", color, (int)(cut - start), start, RST(lc->cfg));
+        size_t chunk_w = 0;
+        for (const unsigned char *q = start; q < cut; q++)
+            if ((*q & 0xC0) != 0x80) chunk_w++;
+        lc->col += chunk_w;
+        p = cut + skip_bytes;
     }
 }
 
