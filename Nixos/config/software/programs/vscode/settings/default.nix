@@ -4,6 +4,7 @@
   imports = [
     ./appearance.nix
     ./editor.nix
+    ./enable.nix
     ./explorer.nix
     ./extensions.nix
     ./files.nix
