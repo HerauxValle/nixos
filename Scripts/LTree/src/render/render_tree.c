@@ -46,7 +46,22 @@ static void flatten(Node *n, const Config *cfg, const char *prefix,
         size_t plen = strlen(prefix) + strlen(connector) + 1;
         pl->prefix = (char *)malloc(plen);
         snprintf(pl->prefix, plen, "%s%s", prefix, connector);
-        pl->guide = strdup(childprefix);
+
+        /* pl->guide is childprefix PLUS one more bar segment when this
+         * entry has real children -- childprefix alone (is_last-based)
+         * is right for reaching the next SIBLING, but a directory with
+         * children needs the stem even as the LAST sibling, to connect
+         * down into its own first child instead (see docs -- the
+         * "users/" -> "default" case: users/ is the last entry at its
+         * level, so childprefix is blank there, but its wrap
+         * continuation still needs a bar, positioned exactly where
+         * default's own connector will land, i.e. one full childprefix
+         * further in -- hence appending a whole extra segment rather
+         * than just flipping childprefix's own blank to a bar). */
+        bool has_children = n->is_dir && n->nchildren > 0;
+        size_t glen = strlen(childprefix) + (has_children ? strlen("\xE2\x94\x82   ") : 0) + 1;
+        pl->guide = (char *)malloc(glen);
+        snprintf(pl->guide, glen, "%s%s", childprefix, has_children ? "\xE2\x94\x82   " /* │   */ : "");
 
         printline_fill(pl, n, cfg);
         pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
@@ -176,14 +191,21 @@ void tree_live_on_dir_measure(Node *dir, int depth, const Config *cfg, void *ctx
         pl->prefix = (char *)malloc(plen);
         snprintf(pl->prefix, plen, "%s%s", prefix, connector);
         /* Same fix as flatten() in the buffered path above: guide is
-         * this entry's own branch stem (one level past its ancestors',
-         * "│   " unless it's the last sibling), not just the ancestor
-         * prefix -- otherwise a --condense wrap column block loses the
-         * stem connecting this entry down to its next sibling. */
+         * childprefix (ancestor bars + this entry's own stem, "│   "
+         * unless it's the last sibling) PLUS one more bar segment when
+         * this entry has real children -- a directory needs the stem
+         * even as the last sibling, to connect down into its own first
+         * child instead of a next sibling that doesn't exist. */
         const char *own_cont = is_last ? "    " : "\xE2\x94\x82   " /* │   */;
-        size_t glen = strlen(prefix) + strlen(own_cont) + 1;
+        size_t cplen = strlen(prefix) + strlen(own_cont) + 1;
+        char *childprefix = (char *)malloc(cplen);
+        snprintf(childprefix, cplen, "%s%s", prefix, own_cont);
+
+        bool has_children = n->is_dir && n->nchildren > 0;
+        size_t glen = strlen(childprefix) + (has_children ? strlen("\xE2\x94\x82   ") : 0) + 1;
         pl->guide = (char *)malloc(glen);
-        snprintf(pl->guide, glen, "%s%s", prefix, own_cont);
+        snprintf(pl->guide, glen, "%s%s", childprefix, has_children ? "\xE2\x94\x82   " /* │   */ : "");
+        free(childprefix);
         pl->width = utf8_width(pl->prefix) + utf8_width(pl->name) + (n->is_dir ? 1 : 0);
     }
 
