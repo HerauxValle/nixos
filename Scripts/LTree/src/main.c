@@ -422,6 +422,43 @@ int main(int argc, char **argv) {
     }
     if (!cfg.path) cfg.path = strdup(".");
 
+    struct stat st;
+    if (stat(cfg.path, &st) != 0 || !(S_ISDIR(st.st_mode) || S_ISREG(st.st_mode))) {
+        fprintf(stderr, "invalid path: %s\n", cfg.path);
+        return 1;
+    }
+    /* `path` naming a regular file instead of a directory: same rendering,
+     * same rules, just one entry -- root becomes a synthetic single-child
+     * container instead of a real directory (see the path_is_file branch
+     * of the walk below), same shape print_json/print_tree_view/
+     * print_ls_view already expect for a directory that happens to hold
+     * exactly one file. */
+    bool path_is_file = S_ISREG(st.st_mode);
+
+    /* A directory's default (no -o at all) view is the [Folders]/[Files]
+     * grid -- genuinely useful with nothing else. A single file's
+     * equivalent default would just be its bare name and nothing else,
+     * which isn't worth looking at -- so default a single file to the
+     * same info -oA would give (short of TREE/HIDDEN/EXT/TOTAL's
+     * siblings FILES/DIFF/DEBUG, which don't mean anything for exactly
+     * one file), unless the user explicitly asked for specific modules
+     * themselves via -o/-oA/-oO, which always wins over this. Checked by
+     * whether anything in modules[] is already set post-parse -- true
+     * for any of those three flags, regardless of which one was used. */
+    if (path_is_file) {
+        bool any_module = false;
+        for (int m = 0; m < MOD_COUNT; m++) if (cfg.modules[m]) { any_module = true; break; }
+        if (!any_module) {
+            cfg.modules[MOD_LINES] = true;
+            cfg.modules[MOD_PERM] = true;
+            cfg.modules[MOD_SIZE] = true;
+            cfg.modules[MOD_DATE] = true;
+            cfg.modules[MOD_HASH] = true;
+            cfg.modules[MOD_DESC] = true;
+            cfg.modules[MOD_TOTAL] = true;
+        }
+    }
+
     /* --desc/-D's default, matching this project's own `&desc: "..."`
      * header-comment convention -- only set if the user didn't already
      * pass a custom format above. */
@@ -453,19 +490,6 @@ int main(int argc, char **argv) {
         fprintf(stderr, "warning: --live has no effect with -j, ignoring\n");
         cfg.live = false;
     }
-
-    struct stat st;
-    if (stat(cfg.path, &st) != 0 || !(S_ISDIR(st.st_mode) || S_ISREG(st.st_mode))) {
-        fprintf(stderr, "invalid path: %s\n", cfg.path);
-        return 1;
-    }
-    /* `path` naming a regular file instead of a directory: same rendering,
-     * same rules, just one entry -- root becomes a synthetic single-child
-     * container instead of a real directory (see the path_is_file branch
-     * of the walk below), same shape print_json/print_tree_view/
-     * print_ls_view already expect for a directory that happens to hold
-     * exactly one file. */
-    bool path_is_file = S_ISREG(st.st_mode);
 
     /* ---- resolve hashing: DIFF forces the snapshot's own algorithm AND
      * --simple-hash setting, regardless of --cryptographic/--simple-hash
