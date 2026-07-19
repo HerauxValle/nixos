@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# &desc: "gitctl release -- squash-push + tag + optional GitHub Release for a named repo; release rm deletes both."
+# &desc: "gitctl release -- squash-push + tag + a REAL GitHub Release for a named repo (githubRepo + a classic token are required, errors immediately if either is missing); release rm deletes both."
 
 _resolve_changelog() { # $1=raw arg -> body text on stdout
   local raw="$1" tmp
@@ -27,6 +27,22 @@ _release_create() { # $1=name $2=tag $3=changelog_arg
     log error "unknown repo: '$name'"
     exit 1
   fi
+
+  # `release` always means a real GitHub Release -- both prerequisites
+  # are checked BEFORE touching anything (no push, no tag, no tmp repo)
+  # so a missing one fails clean instead of leaving a tag pushed with no
+  # Release behind it.
+  github_repo="$(jq -r '.githubRepo // empty' <<< "$entry")"
+  if [[ -z "$github_repo" ]]; then
+    log error "'$name': no githubRepo configured -- required for 'pacnix github release'"
+    exit 1
+  fi
+  token="$(gitctl_token)"
+  if [[ -z "$token" ]]; then
+    log error "'$name': no classic token -- run 'secrets github add classic' then 'pacnix rebuild'"
+    exit 1
+  fi
+
   path="$(jq -r '.path' <<< "$entry")"
   gitctl_require_path "$name" "$path" || exit 1
 
@@ -54,17 +70,6 @@ _release_create() { # $1=name $2=tag $3=changelog_arg
   rm -rf "$tmp"
   log ok "'$name': pushed + tagged '$tag'"
 
-  github_repo="$(jq -r '.githubRepo // empty' <<< "$entry")"
-  if [[ -z "$github_repo" ]]; then
-    log warn "'$name': no githubRepo configured -- skipping GitHub Release"
-    return 0
-  fi
-  token="$(gitctl_token)"
-  if [[ -z "$token" ]]; then
-    log warn "'$name': no token from 'secrets github add token' -- skipping GitHub Release"
-    return 0
-  fi
-
   body="$(_resolve_changelog "$changelog_arg")"
   payload="$(jq -n --arg tag "$tag" --arg body "${body:-Release $tag}" \
     '{tag_name:$tag, name:$tag, body:$body, draft:false, prerelease:false}')"
@@ -75,6 +80,7 @@ _release_create() { # $1=name $2=tag $3=changelog_arg
     log ok "'$name': GitHub Release created for '$tag'"
   else
     log error "'$name': GitHub Release creation failed (HTTP $http_code)"
+    exit 1
   fi
 }
 

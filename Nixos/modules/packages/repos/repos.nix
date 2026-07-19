@@ -1,4 +1,4 @@
-# &desc: "Git push-target registry companion to venvs/venv.nix -- builds GITCTL_DATA json, packages the gitctl CLI (pacnix github push/release), deploys the GitHub API token."
+# &desc: "Git push-target registry companion to venvs/venv.nix -- builds GITCTL_DATA json, packages the gitctl CLI (pacnix github push/release), deploys the required GitHub classic token."
 
 {
   config,
@@ -46,11 +46,13 @@ let
   # $GITCTL_LIBROOT -- same reasoning as venvs' $VENVCTL_LIBROOT.
   libRoot = ./lib;
 
-  # Root-owned source (`secrets github add token`) -> user-readable copy
-  # -- see deployGithubApiToken below for why this needs its own
-  # activation step rather than being read straight from
-  # /etc/nixos-secrets.
-  tokenFile = "${homeDir}/.config/gitctl/github-token";
+  # Root-owned source (`secrets github add classic`) -> user-readable
+  # copy -- see deployGithubClassicToken below for why this needs its
+  # own activation step rather than being read straight from
+  # /etc/nixos-secrets. `pacnix github release` requires this to exist
+  # and errors immediately if it doesn't -- it's not optional the way
+  # gitpushall.py's GITHUB_TOKEN env var was.
+  tokenFile = "${homeDir}/.config/gitctl/classic-token";
 
   gitctl = pkgs.writeShellApplication {
     name = "gitctl";
@@ -74,16 +76,16 @@ in
 {
   inherit assertions;
 
-  # Root-owned secret (written by `secrets github add token`) -> a copy
-  # readable by the regular user -- gitctl runs as you, not root, so it
-  # can't read /etc/nixos-secrets directly (600 root:root). Same
+  # Root-owned secret (written by `secrets github add classic`) -> a
+  # copy readable by the regular user -- gitctl runs as you, not root,
+  # so it can't read /etc/nixos-secrets directly (600 root:root). Same
   # copy-if-source-exists/remove-if-not pattern as
   # modules/security/github-keys.nix's deployKeyScript: presence is a
   # runtime fact this can't see at eval time, so it just reconciles
   # every rebuild.
-  system.activationScripts.deployGithubApiToken.text =
+  system.activationScripts.deployGithubClassicToken.text =
     let
-      src = "${config.vars.identity.secretsBaseDir}/github/api-token";
+      src = "${config.vars.identity.secretsBaseDir}/github/classic";
     in
     ''
       if [ -f "${src}" ]; then

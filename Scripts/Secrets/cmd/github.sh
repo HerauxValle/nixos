@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# secrets github add/rem auth/sign/token -- (re)generate or remove one of
+# secrets github add/rem auth/sign/classic -- (re)generate or remove one of
 # your personal GitHub credentials, independently of each other.
 #
 # auth: used for `git clone`/`push` over SSH -- Nixos/modules/security/
@@ -8,18 +8,22 @@
 # sign: used for commit signing -- same module deploys it to
 #       ~/.ssh/github-sign{,.pub} and points git's global gpg.format=ssh +
 #       user.signingKey at the .pub half.
-# token: a GitHub personal access token (repo scope) -- pasted, not
-#        generated. modules/packages/repos/repos.nix deploys it to
-#        ~/.config/gitctl/github-token for `pacnix github release` to
-#        create/delete GitHub Releases via the API.
+# classic: a GitHub classic personal access token (repo scope) -- pasted,
+#          not generated. modules/packages/repos/repos.nix deploys it to
+#          ~/.config/gitctl/classic-token. REQUIRED for `pacnix github
+#          release` -- it errors immediately if this is missing, since
+#          `release` always means a real GitHub Release, same fields as
+#          ~/Scripts/Python/gitpushall.py's create_github_release, just
+#          no longer optional the way GITHUB_TOKEN was there. push never
+#          touches this -- that stays plain SSH via the auth key above.
 #
 # Same shape as dotfiles.sh: writes to a root-owned file outside the
 # checkout, never talks to any API itself. For auth/sign, registering the
 # printed public key with GitHub (Settings -> SSH and GPG keys -> New SSH
 # key, "Authentication Key" or "Signing Key" as appropriate) is a manual,
-# one-time step you do yourself. For token, generating the PAT itself
-# (Settings -> Developer settings -> Personal access tokens) is the manual
-# step -- this only stores what you paste.
+# one-time step you do yourself. For classic, generating the PAT itself
+# (Settings -> Developer settings -> Personal access tokens -> Tokens
+# (classic)) is the manual step -- this only stores what you paste.
 #
 # `add <kind>` OVERWRITES only that kind's credential -- the others (if
 # any) are never touched, generated, or deleted. The deployed copy and
@@ -30,7 +34,7 @@
 # `rem <kind>` deletes only that kind's root-owned credential. For
 # auth/sign, the old public key keeps working on GitHub until you remove
 # it there yourself -- this can't reach into GitHub's side of that trust
-# relationship, only your side of it. For token, the PAT itself keeps
+# relationship, only your side of it. For classic, the PAT itself keeps
 # working until revoked on GitHub the same way.
 set -euo pipefail
 
@@ -39,7 +43,7 @@ KEY_TYPE="ed25519"
 HOSTNAME="$(hostname)"
 
 usage() {
-    echo "usage: secrets github <add|rem> <auth|sign|token>" >&2
+    echo "usage: secrets github <add|rem> <auth|sign|classic>" >&2
     exit 1
 }
 
@@ -47,14 +51,9 @@ action="${1:-}"
 kind="${2:-}"
 
 [[ "$action" != "add" && "$action" != "rem" ]] && usage
-[[ "$kind" != "auth" && "$kind" != "sign" && "$kind" != "token" ]] && usage
+[[ "$kind" != "auth" && "$kind" != "sign" && "$kind" != "classic" ]] && usage
 
-case "$kind" in
-    auth | sign) FILE_NAME="$kind" ;;
-    token) FILE_NAME="api-token" ;;
-esac
-
-KEY_FILE="$SECRETS_DIR/$FILE_NAME"
+KEY_FILE="$SECRETS_DIR/$kind"
 
 if [[ "$action" == "rem" ]]; then
     if [[ ! -f "$KEY_FILE" ]]; then
@@ -63,10 +62,11 @@ if [[ "$action" == "rem" ]]; then
     fi
     sudo rm -f "$KEY_FILE" "$KEY_FILE.pub"
     echo "Removed $kind credential ($KEY_FILE)."
-    if [[ "$kind" == "token" ]]; then
+    if [[ "$kind" == "classic" ]]; then
         echo "Run 'pacnix rebuild' to also remove the deployed ~/.config/gitctl copy."
-        echo "Remember to revoke the token on GitHub yourself (Settings -> Developer"
-        echo "settings -> Personal access tokens) -- it keeps working until you do."
+        echo "'pacnix github release' will error until a new one is added -- it's required,"
+        echo "not optional. Remember to revoke the token on GitHub yourself (Settings ->"
+        echo "Developer settings -> Personal access tokens) -- it keeps working until you do."
     else
         echo "Run 'pacnix rebuild' to also remove the deployed ~/.ssh copy and its wiring."
         echo "Remember to delete the matching public key from GitHub yourself (Settings ->"
@@ -78,15 +78,15 @@ fi
 # action == add
 if [[ -f "$KEY_FILE" ]]; then
     echo "A $kind credential already exists at $KEY_FILE -- this will replace it."
-    if [[ "$kind" == "token" ]]; then
+    if [[ "$kind" == "classic" ]]; then
         echo "The old token keeps working on GitHub until you revoke it there yourself."
     else
         echo "The old public key keeps working on GitHub until you remove it there yourself."
     fi
 fi
 
-if [[ "$kind" == "token" ]]; then
-    read -r -s -p "Paste your GitHub personal access token (repo scope, for Releases): " token
+if [[ "$kind" == "classic" ]]; then
+    read -r -s -p "Paste your GitHub classic personal access token (repo scope): " token
     echo ""
     if [[ -z "$token" ]]; then
         echo "empty input -- nothing written." >&2
@@ -95,14 +95,15 @@ if [[ "$kind" == "token" ]]; then
 
     tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp"' EXIT
-    printf '%s' "$token" > "$tmp/token"
+    printf '%s' "$token" > "$tmp/classic"
 
     sudo install -d -m 700 -o root -g root "$SECRETS_DIR"
-    sudo install -m 600 -o root -g root "$tmp/token" "$KEY_FILE"
+    sudo install -m 600 -o root -g root "$tmp/classic" "$KEY_FILE"
 
     echo ""
     echo "Token written to $KEY_FILE (root:root, 600)."
-    echo "Run 'pacnix rebuild' to deploy it for 'pacnix github release' to use."
+    echo "Run 'pacnix rebuild' to deploy it -- 'pacnix github release' requires it and"
+    echo "errors immediately if it's missing."
     exit 0
 fi
 
