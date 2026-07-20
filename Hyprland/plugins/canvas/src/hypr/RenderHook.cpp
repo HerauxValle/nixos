@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <vector>
 
 // Traced against Hyprland 0.55.4's real src/render/Renderer.cpp (not just the
@@ -66,6 +67,15 @@ void hkRenderAllClientsForWorkspace(Render::IHyprRenderer* thisptr, PHLMONITOR p
     const auto workspaces = workspacesOnMonitor(pMonitor);
     if (workspaces.empty()) {
         (*ORIGINAL)(thisptr, pMonitor, pWorkspace, time, translate, scale);
+        return;
+    }
+
+    // TEMPORARY diagnostic: isolate whether the scale/translate modifier
+    // itself works correctly for a single call before trusting the
+    // multi-workspace grid loop below. Remove once the real bug is found.
+    {
+        (*ORIGINAL)(thisptr, pMonitor, pWorkspace, time, Vector2D{0, 0}, 0.5f);
+        g_pHyprRenderer->damageMonitor(pMonitor);
         return;
     }
 
