@@ -74,8 +74,24 @@ void placeOnCanvas(PHLWINDOW pWindow) {
     dlog(std::string("placeOnCanvas: floatWindow ") + (floatResult ? "ok" : ("FAILED: " + floatResult.error().message)));
     const auto moveResult = Config::Actions::move(target, false, pWindow);
     dlog(std::string("placeOnCanvas: move ") + (moveResult ? "ok" : ("FAILED: " + moveResult.error().message)));
-    dlog("placeOnCanvas: isFloating now " + std::to_string(pWindow->m_isFloating) + " realPosition=(" + std::to_string(pWindow->m_realPosition->value().x) + "," +
+    dlog("placeOnCanvas: immediately after -- isFloating=" + std::to_string(pWindow->m_isFloating) + " goal=(" + std::to_string(pWindow->m_realPosition->goal().x) + "," +
+         std::to_string(pWindow->m_realPosition->goal().y) + ") value=(" + std::to_string(pWindow->m_realPosition->value().x) + "," +
          std::to_string(pWindow->m_realPosition->value().y) + ")");
+
+    // TEMPORARY diagnostic: check again later to see if something else
+    // (re-centering logic running after ours) overwrites the position.
+    SP<CEventLoopTimer> verifyTimer = makeShared<CEventLoopTimer>(
+        std::chrono::milliseconds(600),
+        [pWindow](SP<CEventLoopTimer> self, void*) {
+            if (pWindow)
+                dlog("placeOnCanvas: 600ms later -- isFloating=" + std::to_string(pWindow->m_isFloating) + " goal=(" + std::to_string(pWindow->m_realPosition->goal().x) + "," +
+                     std::to_string(pWindow->m_realPosition->goal().y) + ") value=(" + std::to_string(pWindow->m_realPosition->value().x) + "," +
+                     std::to_string(pWindow->m_realPosition->value().y) + ")");
+            std::erase(g_pendingPlacementTimers, self);
+        },
+        nullptr);
+    g_pendingPlacementTimers.push_back(verifyTimer);
+    g_pEventLoopManager->addTimer(verifyTimer);
 }
 
 void onWindowOpen(PHLWINDOW pWindow) {
