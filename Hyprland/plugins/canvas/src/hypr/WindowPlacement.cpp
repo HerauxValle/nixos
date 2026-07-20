@@ -18,6 +18,7 @@
 #include <vector>
 
 namespace {
+HANDLE                            g_handle = nullptr; // TEMPORARY, for diagnostic notifications only
 std::vector<SP<CEventLoopTimer>> g_pendingPlacementTimers;
 
 void placeOnCanvas(PHLWINDOW pWindow) {
@@ -57,7 +58,11 @@ void onWindowOpen(PHLWINDOW pWindow) {
     if (!pWindow || !pWindow->m_workspace)
         return;
 
-    if (!RenderHook::stateFor(pWindow->m_workspace->m_id).active())
+    const bool active = RenderHook::stateFor(pWindow->m_workspace->m_id).active();
+    // TEMPORARY diagnostic: see exactly what state onWindowOpen observes.
+    HyprlandAPI::addNotification(g_handle, "[canvas diag] onWindowOpen ws=" + std::to_string(pWindow->m_workspace->m_id) + " active=" + (active ? "true" : "false"),
+                                  CHyprColor{0.2, 0.6, 1.0, 1.0}, 8000);
+    if (!active)
         return; // not a canvas workspace right now -- open normally, untouched
 
     // Hyprland's own initial floating-window placement (e.g. centering on
@@ -83,7 +88,9 @@ void onWorkspaceRemoved(PHLWORKSPACEREF wsRef) {
 }
 }
 
-void WindowPlacement::registerListeners(HANDLE) {
+void WindowPlacement::registerListeners(HANDLE handle) {
+    g_handle = handle;
+
     static auto P_OPEN    = Event::bus()->m_events.window.open.listen(onWindowOpen);
     static auto P_REMOVED = Event::bus()->m_events.workspace.removed.listen(onWorkspaceRemoved);
 }
