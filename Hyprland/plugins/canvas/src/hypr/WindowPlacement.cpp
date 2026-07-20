@@ -11,15 +11,22 @@
 #include <hyprland/src/desktop/Workspace.hpp>
 #include <hyprland/src/helpers/Monitor.hpp>
 #include <hyprland/src/config/shared/actions/ConfigActions.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopTimer.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
+
+#include <algorithm>
+#include <vector>
 
 namespace {
-void onWindowOpen(PHLWINDOW pWindow) {
-    if (!pWindow || !pWindow->m_workspace)
+std::vector<SP<CEventLoopTimer>> g_pendingPlacementTimers;
+
+void placeOnCanvas(PHLWINDOW pWindow) {
+    if (!pWindow || !pWindow->m_isMapped || !pWindow->m_workspace)
         return;
 
     auto& state = RenderHook::stateFor(pWindow->m_workspace->m_id);
     if (!state.active())
-        return; // not a canvas workspace right now -- open normally, untouched
+        return; // canvas mode was turned off in the meantime -- leave it alone
 
     const auto monitor = pWindow->m_workspace->m_monitor.lock();
     if (!monitor)
@@ -44,6 +51,30 @@ void onWindowOpen(PHLWINDOW pWindow) {
     // invokeHyprctlCommand's string-based route entirely).
     Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, pWindow);
     Config::Actions::move(Vector2D{canvasPos.x + monitor->m_position.x, canvasPos.y + monitor->m_position.y}, false, pWindow);
+}
+
+void onWindowOpen(PHLWINDOW pWindow) {
+    if (!pWindow || !pWindow->m_workspace)
+        return;
+
+    if (!RenderHook::stateFor(pWindow->m_workspace->m_id).active())
+        return; // not a canvas workspace right now -- open normally, untouched
+
+    // Hyprland's own initial floating-window placement (e.g. centering on
+    // the monitor) runs some time after "open" fires and would otherwise
+    // clobber our positioning if applied immediately -- confirmed live: an
+    // immediate move() landed exactly at the monitor's centered-floating
+    // default instead of the cursor position we asked for. A short deferred
+    // timer lets that settle first, so ours is the last word.
+    SP<CEventLoopTimer> timer = makeShared<CEventLoopTimer>(
+        std::chrono::milliseconds(50),
+        [pWindow](SP<CEventLoopTimer> self, void*) {
+            placeOnCanvas(pWindow);
+            std::erase(g_pendingPlacementTimers, self);
+        },
+        nullptr);
+    g_pendingPlacementTimers.push_back(timer);
+    g_pEventLoopManager->addTimer(timer);
 }
 
 void onWorkspaceRemoved(PHLWORKSPACEREF wsRef) {
