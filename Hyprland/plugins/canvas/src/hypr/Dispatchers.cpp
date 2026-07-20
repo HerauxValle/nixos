@@ -2,6 +2,8 @@
 #include "Dispatchers.hpp"
 #include "RenderHook.hpp"
 
+#include "../canvas/Transform.hpp"
+
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/Compositor.hpp>
@@ -19,17 +21,9 @@ extern "C" {
 #include <chrono>
 #include <cstdlib>
 #include <format>
-#include <fstream>
 
 namespace {
 HANDLE g_handle = nullptr; // for the occasional user-facing warning notification
-
-// TEMPORARY diagnostic: confirms whether scroll/drag binds actually invoke
-// these callbacks at all.
-void dlog(const std::string& msg) {
-    std::ofstream f("/tmp/canvas-debug.log", std::ios::app);
-    f << msg << "\n";
-}
 
 constexpr double ZOOM_STEP_IN  = 1.25;
 constexpr double ZOOM_STEP_OUT = 0.8;
@@ -49,6 +43,20 @@ WORKSPACEID currentWorkspaceID() {
 
 CCanvasState& currentState() {
     return RenderHook::stateFor(currentWorkspaceID());
+}
+
+// Cursor position in monitor-relative coordinates -- getMouseCoordsInternal()
+// returns *global* desktop coordinates (matching `hyprctl cursorpos`), but
+// the render hook's translate/scale (and so canvas space) are monitor-
+// relative, matching how renderAllClientsForWorkspace itself operates on a
+// {0,0}-origin box for its own monitor. Returns {0,0} if no monitor is under
+// the cursor (shouldn't normally happen).
+CanvasVec2 cursorLocal() {
+    const auto mon    = g_pCompositor->getMonitorFromCursor();
+    const auto cursor = g_pInputManager->getMouseCoordsInternal();
+    if (!mon)
+        return {.x = cursor.x, .y = cursor.y};
+    return {.x = cursor.x - mon->m_position.x, .y = cursor.y - mon->m_position.y};
 }
 
 // Canvas mode is floating-only (windows placed freely, like ComfyUI nodes,
@@ -92,7 +100,17 @@ void toggleImpl() {
 }
 
 void zoomImpl(const std::string& arg) {
-    auto& state = currentState();
+    auto&      state  = currentState();
+    const auto cursor = cursorLocal();
+
+    // Anchor the zoom on whatever canvas point is currently under the
+    // cursor (matching scroll-to-zoom in ComfyUI/most editors) -- without
+    // this, zoom always keeps canvas-origin fixed on screen, so zooming out
+    // flings your content into the top-left corner and reveals mostly-empty
+    // canvas space around it. Confirmed live: this was the actual cause
+    // behind "zooming out looks broken/black", not a rendering bug.
+    const auto anchorCanvas = Transform::screenToCanvas(state, cursor);
+
     if (arg == "in")
         state.zoomBy(ZOOM_STEP_IN);
     else if (arg == "out")
@@ -103,6 +121,15 @@ void zoomImpl(const std::string& arg) {
         if (end != arg.c_str())
             state.zoomTo(v);
     }
+
+    // Re-derive pan so that same canvas point ends up back under the
+    // cursor at the new target scale: screenPos = (canvasPos - pan) * scale
+    // => pan = canvasPos - screenPos / scale.
+    const double newScale = state.targetScale();
+    state.panTo({
+        .x = anchorCanvas.x - cursor.x / newScale,
+        .y = anchorCanvas.y - cursor.y / newScale,
+    });
 }
 
 void panImpl(const std::string& arg) {
@@ -185,7 +212,6 @@ int luaToggle(lua_State*) {
     return 0;
 }
 int luaZoom(lua_State* L) {
-    dlog("luaZoom called, gettop=" + std::to_string(lua_gettop(L)));
     zoomImpl(argStringOr(L, 1, ""));
     return 0;
 }
@@ -194,7 +220,6 @@ int luaPan(lua_State* L) {
     return 0;
 }
 int luaPanDrag(lua_State*) {
-    dlog("luaPanDrag called");
     panDragImpl();
     return 0;
 }

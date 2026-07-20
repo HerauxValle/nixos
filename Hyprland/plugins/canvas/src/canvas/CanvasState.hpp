@@ -34,6 +34,7 @@ class CCanvasState {
     bool       active() const { return m_active; }
     double     currentScale() const { return m_scale; }
     CanvasVec2 currentPan() const { return m_pan; }
+    double     targetScale() const { return m_targetScale; }
 
   private:
     double     m_scale       = 1.0;

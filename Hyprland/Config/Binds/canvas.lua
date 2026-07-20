@@ -15,9 +15,9 @@ hl.bind(mainMod .. " + SHIFT + down",  function() hl.plugin.canvas.pan("down") e
 hl.bind(mainMod .. " + SHIFT + left",  function() hl.plugin.canvas.pan("left") end,  { repeating = true })
 hl.bind(mainMod .. " + SHIFT + right", function() hl.plugin.canvas.pan("right") end, { repeating = true })
 
--- Scroll to zoom (wheel up = in, wheel down = out)
-hl.bind(mainMod .. " + SHIFT + mouse_up",   function() hl.plugin.canvas.zoom("in") end)
-hl.bind(mainMod .. " + SHIFT + mouse_down", function() hl.plugin.canvas.zoom("out") end)
+-- Scroll to zoom (wheel down = in, wheel up = out)
+hl.bind(mainMod .. " + SHIFT + mouse_down", function() hl.plugin.canvas.zoom("in") end)
+hl.bind(mainMod .. " + SHIFT + mouse_up",   function() hl.plugin.canvas.zoom("out") end)
 
 -- Hold + right-click-drag to pan
 hl.bind(mainMod .. " + SHIFT + mouse:273", function() hl.plugin.canvas.panDrag() end, { mouse = true })
