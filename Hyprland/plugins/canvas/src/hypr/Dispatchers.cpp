@@ -74,6 +74,13 @@ void toggleImpl() {
     state.toggle();
     if (state.active())
         floatAllWindowsOnCurrentWorkspace();
+
+    // toggle() alone never touches zoom/pan, so at 1:1/no-pan it's a
+    // no-visible-change identity transform -- easy to mistake for "the bind
+    // isn't working" when it's actually just waiting for you to zoom/pan.
+    // A brief confirmation makes that state visible either way.
+    HyprlandAPI::addNotification(g_handle, std::string("[canvas] ") + (state.active() ? "ON -- scroll or drag to zoom/pan" : "OFF"),
+                                  state.active() ? CHyprColor{0.2, 1.0, 0.4, 1.0} : CHyprColor{0.6, 0.6, 0.6, 1.0}, 2500);
 }
 
 void zoomImpl(const std::string& arg) {
