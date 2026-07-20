@@ -43,6 +43,19 @@
     # -------------------------------------------------------------------------
 
     {
+      # First-party: infinite canvas viewport (zoom out to see all
+      # workspaces in a grid, pan around, zoom back in). Local source, not
+      # fetched -- see ../../../../Hyprland/plugins/canvas/DESIGN.md for the
+      # architecture and why hypr-canvas (the third-party plugin this
+      # replaces) didn't work here.
+      name = "canvas";
+      src = ../../../../Hyprland/plugins/canvas;
+      version = "0-unstable-local";
+      libFile = "canvas.so"; # Makefile's OUT has no "lib" prefix
+      nativeBuildInputs = [ pkgs.pkg-config ]; # plain Makefile, no CMake
+    }
+
+    {
       name = "scrolloverview";
       url = "https://github.com/yayuuu/hyprland-scroll-overview.git";
       rev = "8b6d2b6943f82067febc4ecd6b4a73cb9bf8b3ba";

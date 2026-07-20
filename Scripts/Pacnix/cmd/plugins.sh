@@ -28,11 +28,20 @@
 # `name` is never guessed: it's read straight out of the plugin's own
 # CMakeLists.txt/meson.build (add_library/shared_library/shared_module,
 # including resolving meson.project_name() back to its literal string) --
-# the same name its build will actually produce as a .so.
+# the same name its build will actually produce as a .so. A plugin with
+# neither file (a plain Makefile, common for small single-.so plugins) falls
+# back to a Makefile-declared PLUGIN_NAME/NAME variable, then the repo's own
+# name off the url -- still read, never invented.
 #
-# Build system (cmake vs meson) is detected from what's actually in the
-# repo, not assumed -- mkPlugin's nativeBuildInputs default is cmake, but a
-# meson-based plugin gets meson+ninja instead.
+# Build system (cmake vs meson vs plain Makefile) is detected from what's
+# actually in the repo, not assumed -- mkPlugin's nativeBuildInputs default
+# is cmake, a meson-based plugin gets meson+ninja instead, and a plain
+# Makefile gets pkg-config alone (make itself is already part of stdenv).
+# Makefile-based plugins also always get a generic installPhase override
+# (mkdir -p $out/lib, copy out whatever .so the build produced) instead of
+# running the plugin's own `make install` -- that target is unvetted and,
+# in every plugin seen so far, assumes a live compositor to `hyprctl plugin
+# load` against, which doesn't exist in the build sandbox.
 #
 # Missing pkg-config deps: a missing module gets a few deterministic name
 # transforms tried against nixpkgs (dots/dashes -> underscores, strip a
@@ -260,6 +269,18 @@ if [ -z "$name" ]; then
     fi
 fi
 
+# Neither CMake nor meson: a plain Makefile, common for small single-.so
+# plugins. There's no standard "add_library(name SHARED)" to read, so fall
+# back to a Makefile-declared PLUGIN_NAME/NAME variable (the convention
+# several plugins already use) and, failing that, the repo's own name off
+# the url -- both real facts about the plugin/request, never guessed.
+is_makefile_plugin=0
+if [ -z "$name" ] && [ -f "$src_path/Makefile" ]; then
+    is_makefile_plugin=1
+    name="$(grep -oP '^\s*(PLUGIN_NAME|NAME)\s*[:+]?=\s*\K\S+' "$src_path/Makefile" | head -1 || true)"
+    [ -z "$name" ] && name="$(basename "$url" .git)"
+fi
+
 if [ -z "$name" ]; then
     step_end "✗" "$c_red" "couldn't find a shared-library target (add_library/shared_library/shared_module)"
     echo "inspect the source and name it by hand:" >&2
@@ -267,6 +288,7 @@ if [ -z "$name" ]; then
     exit 1
 fi
 step_end "✓" "$c_green" "name: $name"
+[ "$is_makefile_plugin" -eq 1 ] && note "build system: plain Makefile (no CMakeLists.txt/meson.build)"
 
 # Reuse extraBuildInputs/nativeBuildInputs already known to work for this
 # exact url, if it's already in the real config -- from its own text, not
@@ -303,11 +325,14 @@ fi
 
 # Native build inputs: reuse from an existing config entry for this url if
 # there is one, else detect from the plugin's own top-level build file --
-# mkPlugin's own default is cmake+pkg-config, so only a meson-based plugin
-# (meson.build with no CMakeLists.txt) needs anything different.
+# mkPlugin's own default is cmake+pkg-config, a meson-based plugin (meson.build
+# with no CMakeLists.txt) needs meson+ninja instead, and a plain Makefile
+# needs neither generator, just pkg-config (make itself is already in stdenv).
 native_attrs=("${existing_native[@]}")
 if [ "${#native_attrs[@]}" -eq 0 ]; then
-    if [ -f "$src_path/meson.build" ] && [ ! -f "$src_path/CMakeLists.txt" ]; then
+    if [ "$is_makefile_plugin" -eq 1 ]; then
+        native_attrs=(pkg-config)
+    elif [ -f "$src_path/meson.build" ] && [ ! -f "$src_path/CMakeLists.txt" ]; then
         native_attrs=(meson ninja pkg-config)
     else
         native_attrs=(cmake pkg-config)
@@ -353,6 +378,16 @@ build_err="$(mktemp)"
 try_build() {
     local extra_list=""
     for a in "${extra_attrs[@]}"; do extra_list+="pkgs.$a "; done
+
+    # Plain-Makefile plugins never get their own `make install` run (see the
+    # header comment for why) -- a generic copy-out-the-.so step stands in
+    # for it, here too, so the trial build actually reaches a real result
+    # instead of failing on something unrelated to missing dependencies.
+    local install_phase_attr=""
+    if [ "$is_makefile_plugin" -eq 1 ]; then
+        install_phase_attr="  installPhase = \"mkdir -p \$out/lib && find . -maxdepth 2 -name '*.so' -exec cp {} \$out/lib/ \\\\;\";"
+    fi
+
     local build_expr="
 let
   pkgs = (builtins.getFlake \"$flake_real\").nixosConfigurations.$HOST.pkgs;
@@ -368,6 +403,7 @@ pkgs.hyprland.stdenv.mkDerivation {
   nativeBuildInputs = [ $native_list ];
   buildInputs = [ pkgs.hyprland ] ++ pkgs.hyprland.buildInputs ++ [ $extra_list ];
   dontStrip = true;
+$install_phase_attr
 }
 "
     nix build --impure --no-link --print-out-paths --expr "$build_expr" 2>"$build_err"
@@ -376,6 +412,9 @@ pkgs.hyprland.stdenv.mkDerivation {
 print_block() {
     printf '\n    {\n      name = "%s";\n      url = "%s";\n      rev = "%s";\n      hash = "%s";\n      version = "%s";\n' \
         "$name" "$url" "$got_rev" "$hash" "$version"
+    if [ -n "${real_libfile:-}" ] && [ "$real_libfile" != "lib${name}.so" ]; then
+        printf '      libFile = "%s";\n' "$real_libfile"
+    fi
     if [ "$is_default_native" -eq 0 ]; then
         line="      nativeBuildInputs = ["
         for a in "${native_attrs[@]}"; do line+=" pkgs.$a"; done
@@ -387,6 +426,14 @@ print_block() {
         for a in "${extra_attrs[@]}"; do line+=" pkgs.$a"; done
         line+=" ];"
         echo "$line"
+    fi
+    if [ "$is_makefile_plugin" -eq 1 ]; then
+        cat <<'EOF'
+      installPhase = ''
+        mkdir -p $out/lib
+        find . -maxdepth 2 -name '*.so' -exec cp {} $out/lib/ \;
+      '';
+EOF
     fi
     echo "    }"
 }
@@ -436,8 +483,17 @@ while [ "$attempt" -lt "$max_attempts" ]; do
     [ "$progress" -eq 0 ] && break
 done
 
+real_libfile="lib${name}.so"
 if [ "$success" -eq 1 ]; then
-    if [ ! -f "$out_path/lib/lib${name}.so" ]; then
+    if [ "$is_makefile_plugin" -eq 1 ]; then
+        found_so="$(find "$out_path/lib" -maxdepth 1 -name '*.so' 2>/dev/null | head -1 || true)"
+        if [ -n "$found_so" ]; then
+            real_libfile="$(basename "$found_so")"
+        else
+            echo "built, but no .so ended up under $out_path/lib --" >&2
+            echo "inspect it and adjust libFile/installPhase in the block below:" >&2
+        fi
+    elif [ ! -f "$out_path/lib/lib${name}.so" ]; then
         echo "built, but lib${name}.so isn't where expected under $out_path/lib --" >&2
         echo "inspect it and adjust libFile in the block below:" >&2
     fi
