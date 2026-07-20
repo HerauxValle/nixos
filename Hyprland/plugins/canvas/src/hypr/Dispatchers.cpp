@@ -21,7 +21,7 @@ extern "C" {
 #include <format>
 
 namespace {
-HANDLE g_handle = nullptr; // TEMPORARY, for diagnostic notifications only
+HANDLE g_handle = nullptr; // for the occasional user-facing warning notification
 
 constexpr double ZOOM_STEP_IN  = 1.25;
 constexpr double ZOOM_STEP_OUT = 0.8;
@@ -59,7 +59,7 @@ void floatAllWindowsOnCurrentWorkspace() {
         // "dispatch" command itself, which broke invokeHyprctlCommand too).
         const auto result = Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, w);
         if (!result)
-            HyprlandAPI::addNotification(g_handle, "[canvas diag] floatWindow failed for " + w->m_title + ": " + result.error().message, CHyprColor{1.0, 1.0, 0.2, 1.0}, 8000);
+            HyprlandAPI::addNotification(g_handle, "[canvas] Couldn't float \"" + w->m_title + "\": " + result.error().message, CHyprColor{1.0, 0.6, 0.2, 1.0}, 5000);
     }
 }
 
