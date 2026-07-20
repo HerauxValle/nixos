@@ -1,99 +1,117 @@
-/* &desc: "RenderHook implementation -- hooks IHyprRenderer::renderAllClientsForWorkspace only." */
+/* &desc: "RenderHook implementation -- hooks IHyprRenderer::renderWorkspaceWindows(Fullscreen), windows only." */
 #include "RenderHook.hpp"
 
 #include "../canvas/Transform.hpp"
 
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/render/Renderer.hpp>
+#include <hyprland/src/render/types.hpp>
+#include <hyprland/src/render/pass/RendererHintsPassElement.hpp>
 #include <hyprland/src/helpers/Monitor.hpp>
 #include <hyprland/src/desktop/Workspace.hpp>
 
 #include <chrono>
 #include <unordered_map>
 
-// Traced against Hyprland 0.55.4's real src/render/Renderer.cpp (not just the
-// header) before writing this: renderAllClientsForWorkspace has exactly one
-// call site in the whole compositor (IHyprRenderer::renderWorkspace, itself
-// called once per monitor per frame from renderMonitor, always for that
-// monitor's own m_activeWorkspace). Its translate/scale work by pushing a
-// render-pass-wide modifier that's popped again before it returns
-// (SRenderModifData / CRendererHintsPassElement in Renderer.cpp) -- exactly
-// the mechanism this hook rides, just parameterized by a per-workspace
-// camera instead of the identity transform Hyprland normally passes.
-//
-// Earlier design tried making one workspace's render call fan out into many
-// (one per grid slot) to show multiple workspaces at once. Confirmed via
-// screenshot + reading shouldRenderWindow() in the real source: a window
-// only renders if its *own* workspace is genuinely the one switched-to
-// (CWorkspace::isVisible(), a real compositor state flag) -- not whichever
-// workspace happens to get passed into this call. So calls for any
-// workspace other than the monitor's real active one render nothing (or
-// worse, corrupt adjacent render-pass state), no matter what translate/
-// scale is used. Dropped that model entirely: canvas mode is now a
-// per-workspace *camera* (own pan/zoom, own infinite coordinate space for
-// its own floating windows), never touching any other workspace's render at
-// all -- see DESIGN.md.
-using origRenderAllClientsForWorkspace = void (*)(Render::IHyprRenderer*, PHLMONITOR, PHLWORKSPACE, const Time::steady_tp&, const Vector2D&, const float&);
+// First attempt hooked renderAllClientsForWorkspace and pushed the
+// translate/scale modifier around the *entire* call -- which also wraps
+// that function's own background/layer-shell rendering (wallpaper, and
+// crucially bars/panels in the TOP/OVERLAY layers, confirmed live: a
+// quickshell bar was zooming along with the windows). Traced the real
+// Renderer.cpp: renderAllClientsForWorkspace calls exactly one of
+// renderWorkspaceWindows/renderWorkspaceWindowsFullscreen to draw *just* the
+// windows (tiled/floating/pinned, no layers), sandwiched between its own
+// background+bottom-layer rendering (before) and top+overlay-layer
+// rendering (after) -- both untouched by our hook now. Hooking these two
+// narrower functions instead and pushing the modifier only around them
+// scopes the transform to window content exclusively, exactly matching
+// Hyprland's own push/pop pattern (SRenderModifData via
+// CRendererHintsPassElement) but scoped tighter. Two hooks instead of one,
+// but each is narrower and the result is more correct.
+using origRenderWorkspaceWindows = void (*)(Render::IHyprRenderer*, PHLMONITOR, PHLWORKSPACE, const Time::steady_tp&);
 
 namespace {
-CFunctionHook*                          g_pHook = nullptr;
-std::unordered_map<WORKSPACEID, CCanvasState> g_states;
+CFunctionHook*                                   g_pWindowsHook     = nullptr;
+CFunctionHook*                                   g_pFullscreenHook  = nullptr;
+std::unordered_map<WORKSPACEID, CCanvasState>    g_states;
 std::unordered_map<WORKSPACEID, Time::steady_tp> g_lastTick;
 
-void hkRenderAllClientsForWorkspace(Render::IHyprRenderer* thisptr, PHLMONITOR pMonitor, PHLWORKSPACE pWorkspace, const Time::steady_tp& time, const Vector2D& translate,
-                                     const float& scale) {
-    const auto ORIGINAL = (origRenderAllClientsForWorkspace)g_pHook->m_original;
+void tickIfNeeded(CCanvasState& state, WORKSPACEID id, const Time::steady_tp& time) {
+    auto& lastTick = g_lastTick[id];
+    if (lastTick.time_since_epoch().count() != 0)
+        state.tick(std::chrono::duration<double>(time - lastTick).count());
+    lastTick = time;
+}
 
-    if (!pWorkspace) {
-        (*ORIGINAL)(thisptr, pMonitor, pWorkspace, time, translate, scale);
+// Shared by both hooks below -- windows-only rendering wrapped in our own
+// translate/scale modifier, mirroring exactly how renderAllClientsForWorkspace
+// itself pushes/pops SRenderModifData around a render call.
+void renderWithCanvasTransform(origRenderWorkspaceWindows original, Render::IHyprRenderer* thisptr, PHLMONITOR pMonitor, PHLWORKSPACE pWorkspace, const Time::steady_tp& time) {
+    if (!pMonitor || !pWorkspace) {
+        (*original)(thisptr, pMonitor, pWorkspace, time);
         return;
     }
 
     const auto it = g_states.find(pWorkspace->m_id);
     if (it == g_states.end() || !it->second.active()) {
-        // Not a canvas workspace right now -- pass through whatever
-        // translate/scale Hyprland itself wanted (identity, normally),
-        // untouched. Don't assume it's always {0,0}/1.0 -- something else
-        // (e.g. the built-in cursor zoom accessibility feature) could
-        // legitimately already be using this same parameter.
-        (*ORIGINAL)(thisptr, pMonitor, pWorkspace, time, translate, scale);
+        (*original)(thisptr, pMonitor, pWorkspace, time);
         return;
     }
 
     auto& state = it->second;
-
-    auto&      lastTick = g_lastTick[pWorkspace->m_id];
-    if (lastTick.time_since_epoch().count() != 0)
-        state.tick(std::chrono::duration<double>(time - lastTick).count());
-    lastTick = time;
+    tickIfNeeded(state, pWorkspace->m_id, time);
 
     const auto xf = Transform::cameraTransform(state);
-    (*ORIGINAL)(thisptr, pMonitor, pWorkspace, time, Vector2D{xf.translate.x, xf.translate.y}, xf.scale);
+
+    Render::SRenderModifData modif;
+    if (xf.translate.x != 0.0 || xf.translate.y != 0.0)
+        modif.modifs.emplace_back(Render::SRenderModifData::RMOD_TYPE_TRANSLATE, Vector2D{xf.translate.x, xf.translate.y});
+    if (xf.scale != 1.f)
+        modif.modifs.emplace_back(Render::SRenderModifData::RMOD_TYPE_SCALE, xf.scale);
+
+    const bool hasModif = !modif.modifs.empty();
+    if (hasModif)
+        g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{modif}));
+
+    (*original)(thisptr, pMonitor, pWorkspace, time);
+
+    if (hasModif)
+        g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{Render::SRenderModifData{}}));
 
     g_pHyprRenderer->damageMonitor(pMonitor);
+}
+
+void hkRenderWorkspaceWindows(Render::IHyprRenderer* thisptr, PHLMONITOR pMonitor, PHLWORKSPACE pWorkspace, const Time::steady_tp& time) {
+    renderWithCanvasTransform((origRenderWorkspaceWindows)g_pWindowsHook->m_original, thisptr, pMonitor, pWorkspace, time);
+}
+
+void hkRenderWorkspaceWindowsFullscreen(Render::IHyprRenderer* thisptr, PHLMONITOR pMonitor, PHLWORKSPACE pWorkspace, const Time::steady_tp& time) {
+    renderWithCanvasTransform((origRenderWorkspaceWindows)g_pFullscreenHook->m_original, thisptr, pMonitor, pWorkspace, time);
+}
+
+bool hookOne(HANDLE handle, const char* fnName, CFunctionHook*& slot, void* trampoline) {
+    const auto FNS = HyprlandAPI::findFunctionsByName(handle, fnName);
+    for (auto& fn : FNS) {
+        if (!fn.demangled.contains("IHyprRenderer"))
+            continue;
+        slot = HyprlandAPI::createFunctionHook(handle, fn.address, trampoline);
+        break;
+    }
+    return slot && slot->hook();
 }
 }
 
 bool RenderHook::install(HANDLE handle) {
-    const auto FNS = HyprlandAPI::findFunctionsByName(handle, "renderAllClientsForWorkspace");
-
-    for (auto& fn : FNS) {
-        if (!fn.demangled.contains("IHyprRenderer"))
-            continue;
-
-        g_pHook = HyprlandAPI::createFunctionHook(handle, fn.address, (void*)::hkRenderAllClientsForWorkspace);
-        break;
-    }
-
-    if (!g_pHook)
-        return false;
-
-    return g_pHook->hook();
+    const bool a = hookOne(handle, "renderWorkspaceWindows", g_pWindowsHook, (void*)::hkRenderWorkspaceWindows);
+    const bool b = hookOne(handle, "renderWorkspaceWindowsFullscreen", g_pFullscreenHook, (void*)::hkRenderWorkspaceWindowsFullscreen);
+    return a && b;
 }
 
 void RenderHook::uninstall() {
-    if (g_pHook)
-        g_pHook->unhook();
+    if (g_pWindowsHook)
+        g_pWindowsHook->unhook();
+    if (g_pFullscreenHook)
+        g_pFullscreenHook->unhook();
 }
 
 CCanvasState& RenderHook::stateFor(WORKSPACEID id) {
