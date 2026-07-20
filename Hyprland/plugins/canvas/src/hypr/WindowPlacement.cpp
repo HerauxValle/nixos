@@ -9,8 +9,7 @@
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/desktop/Workspace.hpp>
-
-#include <format>
+#include <hyprland/src/config/shared/actions/ConfigActions.hpp>
 
 namespace {
 void onWindowOpen(PHLWINDOW pWindow) {
@@ -23,15 +22,14 @@ void onWindowOpen(PHLWINDOW pWindow) {
 
     const auto cursor    = g_pInputManager->getMouseCoordsInternal();
     const auto canvasPos = Transform::screenToCanvas(state, {cursor.x, cursor.y});
-    const auto addr      = std::format("0x{:x}", (uintptr_t)pWindow.get());
 
-    // Reuses Hyprland's own setfloating/movewindowpixel dispatchers (via
-    // hyprctl) rather than poking m_isFloating/position directly -- those
-    // dispatchers already handle the layout-removal/geometry bookkeeping
-    // that comes with floating a window, which isn't something to
-    // reimplement here.
-    HyprlandAPI::invokeHyprctlCommand("dispatch", "setfloating address:" + addr + " 1");
-    HyprlandAPI::invokeHyprctlCommand("dispatch", "movewindowpixel exact " + std::to_string((int)canvasPos.x) + " " + std::to_string((int)canvasPos.y) + ",address:" + addr);
+    // Config::Actions functions are the same internal calls both the legacy
+    // string-dispatcher table and the Lua hl.dsp.* bindings ultimately call
+    // into -- calling them directly skips both layers (this system's Lua
+    // config wraps hyprctl's "dispatch" command itself, breaking
+    // invokeHyprctlCommand's string-based route entirely).
+    Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, pWindow);
+    Config::Actions::move(Vector2D{canvasPos.x, canvasPos.y}, false, pWindow);
 }
 
 void onWorkspaceRemoved(PHLWORKSPACEREF wsRef) {
