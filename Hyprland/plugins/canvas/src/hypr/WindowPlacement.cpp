@@ -15,23 +15,39 @@
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 
 #include <algorithm>
+#include <fstream>
 #include <vector>
 
 namespace {
 HANDLE                            g_handle = nullptr; // TEMPORARY, for diagnostic notifications only
 std::vector<SP<CEventLoopTimer>> g_pendingPlacementTimers;
 
+// TEMPORARY diagnostic: file logging instead of on-screen notifications --
+// notifications are too easy to miss with screenshot timing; this is a
+// plain, always-readable trace of what actually happened and when.
+void dlog(const std::string& msg) {
+    std::ofstream f("/tmp/canvas-debug.log", std::ios::app);
+    f << msg << "\n";
+}
+
 void placeOnCanvas(PHLWINDOW pWindow) {
-    if (!pWindow || !pWindow->m_isMapped || !pWindow->m_workspace)
+    dlog("placeOnCanvas: fired");
+    if (!pWindow || !pWindow->m_isMapped || !pWindow->m_workspace) {
+        dlog("placeOnCanvas: bailed (null/unmapped/no workspace)");
         return;
+    }
 
     auto& state = RenderHook::stateFor(pWindow->m_workspace->m_id);
-    if (!state.active())
+    if (!state.active()) {
+        dlog("placeOnCanvas: bailed (workspace no longer active)");
         return; // canvas mode was turned off in the meantime -- leave it alone
+    }
 
     const auto monitor = pWindow->m_workspace->m_monitor.lock();
-    if (!monitor)
+    if (!monitor) {
+        dlog("placeOnCanvas: bailed (no monitor)");
         return;
+    }
 
     // getMouseCoordsInternal() returns *global* desktop coordinates
     // (matching `hyprctl cursorpos`, spanning every monitor's own layout
@@ -44,24 +60,32 @@ void placeOnCanvas(PHLWINDOW pWindow) {
     const auto       cursorGlobal = g_pInputManager->getMouseCoordsInternal();
     const CanvasVec2 cursorLocal{cursorGlobal.x - monitor->m_position.x, cursorGlobal.y - monitor->m_position.y};
     const auto       canvasPos = Transform::screenToCanvas(state, cursorLocal);
+    const Vector2D   target{canvasPos.x + monitor->m_position.x, canvasPos.y + monitor->m_position.y};
+
+    dlog("placeOnCanvas: cursorGlobal=(" + std::to_string(cursorGlobal.x) + "," + std::to_string(cursorGlobal.y) + ") monitorPos=(" + std::to_string(monitor->m_position.x) + "," +
+         std::to_string(monitor->m_position.y) + ") scale=" + std::to_string(state.currentScale()) + " target=(" + std::to_string(target.x) + "," + std::to_string(target.y) + ")");
 
     // Config::Actions functions are the same internal calls both the legacy
     // string-dispatcher table and the Lua hl.dsp.* bindings ultimately call
     // into -- calling them directly skips both layers (this system's Lua
     // config wraps hyprctl's "dispatch" command itself, breaking
     // invokeHyprctlCommand's string-based route entirely).
-    Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, pWindow);
-    Config::Actions::move(Vector2D{canvasPos.x + monitor->m_position.x, canvasPos.y + monitor->m_position.y}, false, pWindow);
+    const auto floatResult = Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, pWindow);
+    dlog(std::string("placeOnCanvas: floatWindow ") + (floatResult ? "ok" : ("FAILED: " + floatResult.error().message)));
+    const auto moveResult = Config::Actions::move(target, false, pWindow);
+    dlog(std::string("placeOnCanvas: move ") + (moveResult ? "ok" : ("FAILED: " + moveResult.error().message)));
+    dlog("placeOnCanvas: isFloating now " + std::to_string(pWindow->m_isFloating) + " realPosition=(" + std::to_string(pWindow->m_realPosition->value().x) + "," +
+         std::to_string(pWindow->m_realPosition->value().y) + ")");
 }
 
 void onWindowOpen(PHLWINDOW pWindow) {
-    if (!pWindow || !pWindow->m_workspace)
+    if (!pWindow || !pWindow->m_workspace) {
+        dlog("onWindowOpen: bailed (null window/workspace)");
         return;
+    }
 
     const bool active = RenderHook::stateFor(pWindow->m_workspace->m_id).active();
-    // TEMPORARY diagnostic: see exactly what state onWindowOpen observes.
-    HyprlandAPI::addNotification(g_handle, "[canvas diag] onWindowOpen ws=" + std::to_string(pWindow->m_workspace->m_id) + " active=" + (active ? "true" : "false"),
-                                  CHyprColor{0.2, 0.6, 1.0, 1.0}, 8000);
+    dlog("onWindowOpen: ws=" + std::to_string(pWindow->m_workspace->m_id) + " active=" + (active ? "true" : "false"));
     if (!active)
         return; // not a canvas workspace right now -- open normally, untouched
 
