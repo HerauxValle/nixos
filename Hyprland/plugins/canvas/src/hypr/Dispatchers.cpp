@@ -20,6 +20,8 @@ extern "C" {
 #include <format>
 
 namespace {
+HANDLE g_handle = nullptr;
+
 constexpr double ZOOM_STEP_IN  = 1.25;
 constexpr double ZOOM_STEP_OUT = 0.8;
 constexpr double PAN_STEP      = 80.0; // canvas units per discrete keyboard step
@@ -49,7 +51,10 @@ void floatAllWindowsOnCurrentWorkspace() {
     for (auto& w : g_pCompositor->m_windows) {
         if (!w || !w->m_workspace || w->m_workspace->m_id != id || w->m_isFloating)
             continue;
-        HyprlandAPI::invokeHyprctlCommand("dispatch", "setfloating address:" + std::format("0x{:x}", (uintptr_t)w.get()) + " 1");
+        const auto result = HyprlandAPI::invokeHyprctlCommand("dispatch", "setfloating address:" + std::format("0x{:x}", (uintptr_t)w.get()) + " 1");
+        // TEMPORARY diagnostic: show exactly what invokeHyprctlCommand
+        // returned instead of guessing why floating didn't take.
+        HyprlandAPI::addNotification(g_handle, "[canvas diag] setfloating result: '" + result + "'", CHyprColor{1.0, 1.0, 0.2, 1.0}, 8000);
     }
 }
 
@@ -178,6 +183,8 @@ int luaReset(lua_State*) {
 }
 
 void Dispatchers::registerAll(HANDLE handle) {
+    g_handle = handle;
+
     HyprlandAPI::addDispatcherV2(handle, "toggle", dispatchToggle);
     HyprlandAPI::addDispatcherV2(handle, "zoom", dispatchZoom);
     HyprlandAPI::addDispatcherV2(handle, "pan", dispatchPan);
