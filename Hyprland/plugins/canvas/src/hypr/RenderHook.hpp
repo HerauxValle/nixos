@@ -13,8 +13,13 @@ namespace RenderHook {
     bool install(HANDLE handle);
     void uninstall();
 
-    // The shared canvas state the hook reads every frame. Owned here so
-    // Dispatchers.cpp (which mutates it) and the hook (which reads it) share
-    // one instance without main.cpp needing to wire up a singleton itself.
-    CCanvasState& state();
+    // Each workspace is its own independent infinite canvas (own pan/zoom
+    // camera) -- this gets-or-creates the state for a given workspace ID.
+    // Shared by the render hook itself, Dispatchers.cpp (mutates it on
+    // keybinds), and WindowPlacement.cpp (reads it to place new windows).
+    CCanvasState& stateFor(WORKSPACEID id);
+
+    // Drops a workspace's camera state -- called when a workspace is
+    // destroyed so the map doesn't grow unbounded over a long session.
+    void forgetWorkspace(WORKSPACEID id);
 }

@@ -1,20 +1,24 @@
-/* &desc: "Transform implementation -- grid-cell origin combined with global canvas pan/zoom." */
+/* &desc: "Transform implementation -- camera translate/scale and its screen<->canvas inverse." */
 #include "Transform.hpp"
 
-SRenderTransform Transform::computeWorkspaceTransform(const CCanvasState& state, const CanvasVec2& monitorSizePx, const GridSlot& slot) {
+// screenPos = (canvasPos - pan) * scale  =>  canvasPos = screenPos / scale + pan
+SRenderTransform Transform::cameraTransform(const CCanvasState& state) {
     const double scale = state.currentScale();
     const auto   pan   = state.currentPan();
 
-    // This workspace's top-left in canvas space, before pan/zoom is applied.
-    const CanvasVec2 gridOrigin{
-        .x = slot.col * monitorSizePx.x,
-        .y = slot.row * monitorSizePx.y,
-    };
-
     SRenderTransform out;
     out.scale       = static_cast<float>(scale);
-    out.translate.x = (gridOrigin.x - pan.x) * scale;
-    out.translate.y = (gridOrigin.y - pan.y) * scale;
-
+    out.translate.x = -pan.x * scale;
+    out.translate.y = -pan.y * scale;
     return out;
+}
+
+CanvasVec2 Transform::screenToCanvas(const CCanvasState& state, const CanvasVec2& screenPos) {
+    const double scale = state.currentScale();
+    const auto   pan   = state.currentPan();
+
+    return CanvasVec2{
+        .x = screenPos.x / scale + pan.x,
+        .y = screenPos.y / scale + pan.y,
+    };
 }

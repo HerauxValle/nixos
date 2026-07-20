@@ -1,8 +1,7 @@
-/* &desc: "Pure math: canvas state + monitor size + grid slot -> render translate/scale." */
+/* &desc: "Pure math: canvas camera state -> render translate/scale, and the inverse (screen -> canvas coords)." */
 #pragma once
 
 #include "CanvasState.hpp"
-#include "Grid.hpp"
 
 struct SRenderTransform {
     CanvasVec2 translate{};
@@ -10,12 +9,14 @@ struct SRenderTransform {
 };
 
 namespace Transform {
-    // Where should the workspace occupying `slot` in the grid render on
-    // screen, given the live pan/zoom state and this monitor's pixel size?
-    // Each grid cell is exactly one monitor-size wide/tall in canvas space
-    // (workspaces tile like a wall of monitor-sized panels); the canvas's
-    // own scale/pan then zooms/pans that whole wall. Assumes canvas mode is
-    // active -- callers in the hypr/ layer decide whether to use this at
-    // all versus rendering normally.
-    SRenderTransform computeWorkspaceTransform(const CCanvasState& state, const CanvasVec2& monitorSizePx, const GridSlot& slot);
+    // What translate/scale to feed the renderer so this workspace's windows
+    // (which live at arbitrary canvas-space coordinates, not bound to one
+    // screen's worth of space) appear correctly panned/zoomed on screen.
+    SRenderTransform cameraTransform(const CCanvasState& state);
+
+    // Inverse: given a point in screen space (e.g. the live cursor position)
+    // and this workspace's camera state, where is that point in canvas
+    // space? Used to place new windows where the cursor is instead of at a
+    // fixed origin, mirroring how a new ComfyUI node appears near your view.
+    CanvasVec2 screenToCanvas(const CCanvasState& state, const CanvasVec2& screenPos);
 }

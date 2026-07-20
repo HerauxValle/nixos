@@ -14,8 +14,8 @@ CXXFLAGS ?= -O2
 CXXFLAGS += -shared -fPIC -std=c++2b
 
 SRC = src/main.cpp \
-      src/hypr/VersionGuard.cpp src/hypr/RenderHook.cpp src/hypr/Dispatchers.cpp \
-      src/canvas/CanvasState.cpp src/canvas/Grid.cpp src/canvas/Transform.cpp
+      src/hypr/VersionGuard.cpp src/hypr/RenderHook.cpp src/hypr/Dispatchers.cpp src/hypr/WindowPlacement.cpp \
+      src/canvas/CanvasState.cpp src/canvas/Transform.cpp
 OUT = canvas.so
 
 # Nix's stdenv.mkDerivation exports $out for the sandboxed build; a

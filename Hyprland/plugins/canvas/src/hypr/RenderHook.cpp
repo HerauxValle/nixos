@@ -2,114 +2,73 @@
 #include "RenderHook.hpp"
 
 #include "../canvas/Transform.hpp"
-#include "../canvas/Grid.hpp"
 
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/render/Renderer.hpp>
-#include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/helpers/Monitor.hpp>
+#include <hyprland/src/desktop/Workspace.hpp>
 
-#include <algorithm>
 #include <chrono>
-#include <cstdlib>
-#include <vector>
+#include <unordered_map>
 
 // Traced against Hyprland 0.55.4's real src/render/Renderer.cpp (not just the
 // header) before writing this: renderAllClientsForWorkspace has exactly one
 // call site in the whole compositor (IHyprRenderer::renderWorkspace, itself
-// called once per monitor per frame from renderMonitor). Its translate/scale
-// work by pushing a render-pass-wide modifier that's popped again before it
-// returns (SRenderModifData / CRendererHintsPassElement in Renderer.cpp), so
-// calling it N times back-to-back for N different workspaces -- each with its
-// own translate/scale -- renders each one at its own transformed position
-// within the *same*, already-begun render pass. That's the entire multi-
-// workspace grid: no second orchestration hook (e.g. renderMonitor) needed,
-// simplifying the originally-planned two-hook design down to one. See
-// DESIGN.md's fragility ledger for the exact signature this relies on.
+// called once per monitor per frame from renderMonitor, always for that
+// monitor's own m_activeWorkspace). Its translate/scale work by pushing a
+// render-pass-wide modifier that's popped again before it returns
+// (SRenderModifData / CRendererHintsPassElement in Renderer.cpp) -- exactly
+// the mechanism this hook rides, just parameterized by a per-workspace
+// camera instead of the identity transform Hyprland normally passes.
+//
+// Earlier design tried making one workspace's render call fan out into many
+// (one per grid slot) to show multiple workspaces at once. Confirmed via
+// screenshot + reading shouldRenderWindow() in the real source: a window
+// only renders if its *own* workspace is genuinely the one switched-to
+// (CWorkspace::isVisible(), a real compositor state flag) -- not whichever
+// workspace happens to get passed into this call. So calls for any
+// workspace other than the monitor's real active one render nothing (or
+// worse, corrupt adjacent render-pass state), no matter what translate/
+// scale is used. Dropped that model entirely: canvas mode is now a
+// per-workspace *camera* (own pan/zoom, own infinite coordinate space for
+// its own floating windows), never touching any other workspace's render at
+// all -- see DESIGN.md.
 using origRenderAllClientsForWorkspace = void (*)(Render::IHyprRenderer*, PHLMONITOR, PHLWORKSPACE, const Time::steady_tp&, const Vector2D&, const float&);
 
 namespace {
-CFunctionHook* g_pHook = nullptr;
-CCanvasState   g_state;
-Time::steady_tp g_lastTick{};
-bool            g_wasActive = false; // detects the activation edge, see the fit-on-activate block below
-
-std::vector<PHLWORKSPACE> workspacesOnMonitor(PHLMONITOR pMonitor) {
-    std::vector<PHLWORKSPACE> out;
-    for (auto& ws : g_pCompositor->getWorkspacesCopy()) {
-        if (!ws || ws->m_isSpecialWorkspace)
-            continue;
-        if (ws->m_monitor.lock() != pMonitor)
-            continue;
-        out.push_back(ws);
-    }
-    return out;
-}
+CFunctionHook*                          g_pHook = nullptr;
+std::unordered_map<WORKSPACEID, CCanvasState> g_states;
+std::unordered_map<WORKSPACEID, Time::steady_tp> g_lastTick;
 
 void hkRenderAllClientsForWorkspace(Render::IHyprRenderer* thisptr, PHLMONITOR pMonitor, PHLWORKSPACE pWorkspace, const Time::steady_tp& time, const Vector2D& translate,
                                      const float& scale) {
     const auto ORIGINAL = (origRenderAllClientsForWorkspace)g_pHook->m_original;
 
-    if (!g_state.active()) {
-        g_wasActive = false;
+    if (!pWorkspace) {
         (*ORIGINAL)(thisptr, pMonitor, pWorkspace, time, translate, scale);
         return;
     }
 
-    // Ease state toward its target once per frame. Multiple monitors each
-    // call this once per their own frame, so this may tick more than once
-    // per "true" frame on multi-monitor setups -- harmless, just slightly
-    // uneven pacing across differently-refreshing monitors, not a bug.
-    if (g_lastTick.time_since_epoch().count() != 0)
-        g_state.tick(std::chrono::duration<double>(time - g_lastTick).count());
-    g_lastTick = time;
-
-    const auto workspaces = workspacesOnMonitor(pMonitor);
-    if (workspaces.empty()) {
+    const auto it = g_states.find(pWorkspace->m_id);
+    if (it == g_states.end() || !it->second.active()) {
+        // Not a canvas workspace right now -- pass through whatever
+        // translate/scale Hyprland itself wanted (identity, normally),
+        // untouched. Don't assume it's always {0,0}/1.0 -- something else
+        // (e.g. the built-in cursor zoom accessibility feature) could
+        // legitimately already be using this same parameter.
         (*ORIGINAL)(thisptr, pMonitor, pWorkspace, time, translate, scale);
         return;
     }
 
-    // TEMPORARY diagnostic: isolate whether the scale/translate modifier
-    // itself works correctly for a single call before trusting the
-    // multi-workspace grid loop below. Remove once the real bug is found.
-    {
-        (*ORIGINAL)(thisptr, pMonitor, pWorkspace, time, Vector2D{0, 0}, 0.5f);
-        g_pHyprRenderer->damageMonitor(pMonitor);
-        return;
-    }
+    auto& state = it->second;
 
-    const CanvasVec2 monitorSizePx{pMonitor->m_pixelSize.x, pMonitor->m_pixelSize.y};
+    auto&      lastTick = g_lastTick[pWorkspace->m_id];
+    if (lastTick.time_since_epoch().count() != 0)
+        state.tick(std::chrono::duration<double>(time - lastTick).count());
+    lastTick = time;
 
-    // Toggling active() alone never touched zoom/pan -- scale stayed at 1.0,
-    // so grid slots (spaced a full monitor-size apart) didn't overlap the
-    // visible viewport at all; only whichever workspace happened to land in
-    // the on-screen slot showed anything, usually not the one you were
-    // actually looking at. Confirmed live: this produced a stuck blank/gray
-    // primary monitor with a 10-workspace grid at scale 1.0. Fix: the instant
-    // activation is detected, auto-target a scale that fits the whole grid
-    // and center the pan on whichever workspace was active, so canvas mode is
-    // immediately coherent instead of requiring a manual zoom-out first.
-    if (!g_wasActive) {
-        const int cols = Grid::columnsFor(workspaces.size());
-        const int rows = (static_cast<int>(workspaces.size()) + cols - 1) / cols;
-        g_state.zoomTo(1.0 / static_cast<double>(std::max(cols, rows)));
-
-        for (std::size_t i = 0; i < workspaces.size(); ++i) {
-            if (workspaces[i] != pMonitor->m_activeWorkspace)
-                continue;
-            const auto activeSlot = Grid::slotFor(i, workspaces.size());
-            g_state.panTo({.x = activeSlot.col * monitorSizePx.x, .y = activeSlot.row * monitorSizePx.y});
-            break;
-        }
-    }
-    g_wasActive = true;
-
-    for (std::size_t i = 0; i < workspaces.size(); ++i) {
-        const auto slot = Grid::slotFor(i, workspaces.size());
-        const auto xf   = Transform::computeWorkspaceTransform(g_state, monitorSizePx, slot);
-        (*ORIGINAL)(thisptr, pMonitor, workspaces[i], time, Vector2D{xf.translate.x, xf.translate.y}, xf.scale);
-    }
+    const auto xf = Transform::cameraTransform(state);
+    (*ORIGINAL)(thisptr, pMonitor, pWorkspace, time, Vector2D{xf.translate.x, xf.translate.y}, xf.scale);
 
     g_pHyprRenderer->damageMonitor(pMonitor);
 }
@@ -137,6 +96,11 @@ void RenderHook::uninstall() {
         g_pHook->unhook();
 }
 
-CCanvasState& RenderHook::state() {
-    return g_state;
+CCanvasState& RenderHook::stateFor(WORKSPACEID id) {
+    return g_states[id];
+}
+
+void RenderHook::forgetWorkspace(WORKSPACEID id) {
+    g_states.erase(id);
+    g_lastTick.erase(id);
 }

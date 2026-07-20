@@ -4,6 +4,7 @@
 #include "hypr/VersionGuard.hpp"
 #include "hypr/RenderHook.hpp"
 #include "hypr/Dispatchers.hpp"
+#include "hypr/WindowPlacement.hpp"
 
 // Do NOT change this function -- required verbatim by every Hyprland plugin.
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
@@ -18,8 +19,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     }
 
     Dispatchers::registerAll(handle);
+    WindowPlacement::registerListeners(handle);
 
-    return {"canvas", "Infinite canvas viewport: zoom out to see all workspaces at once, pan around, zoom back in", "herauxvalle", "0.1.0"};
+    return {"canvas", "Infinite canvas per workspace: floating windows placed anywhere in an unbounded space, pan/zoom to navigate", "herauxvalle", "0.1.0"};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {

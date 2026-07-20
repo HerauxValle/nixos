@@ -1,9 +1,13 @@
-/* &desc: "Dispatcher callbacks -- the only translation point between bind-triggered strings/Lua calls and CCanvasState." */
+/* &desc: "Dispatcher callbacks -- the only translation point between bind-triggered strings/Lua calls and per-workspace CCanvasState." */
 #include "Dispatchers.hpp"
 #include "RenderHook.hpp"
 
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
+#include <hyprland/src/Compositor.hpp>
+#include <hyprland/src/helpers/Monitor.hpp>
+#include <hyprland/src/desktop/Workspace.hpp>
+#include <hyprland/src/desktop/view/Window.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -13,11 +17,41 @@ extern "C" {
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <format>
 
 namespace {
 constexpr double ZOOM_STEP_IN  = 1.25;
 constexpr double ZOOM_STEP_OUT = 0.8;
 constexpr double PAN_STEP      = 80.0; // canvas units per discrete keyboard step
+
+// "The workspace this action applies to" -- the active workspace of
+// whichever monitor the cursor is over. Every dispatcher here is either
+// keyboard-triggered (acts on wherever you're looking) or mouse-triggered
+// (scroll/drag, inherently cursor-based already), so the cursor's monitor
+// is the right notion of "current" for both.
+WORKSPACEID currentWorkspaceID() {
+    const auto mon = g_pCompositor->getMonitorFromCursor();
+    if (!mon || !mon->m_activeWorkspace)
+        return WORKSPACE_INVALID;
+    return mon->m_activeWorkspace->m_id;
+}
+
+CCanvasState& currentState() {
+    return RenderHook::stateFor(currentWorkspaceID());
+}
+
+// Canvas mode is floating-only (windows placed freely, like ComfyUI nodes,
+// rather than auto-arranged). Existing windows on a workspace need floating
+// the moment it enters canvas mode; new ones are handled separately by
+// WindowPlacement.cpp's window.open listener.
+void floatAllWindowsOnCurrentWorkspace() {
+    const auto id = currentWorkspaceID();
+    for (auto& w : g_pCompositor->m_windows) {
+        if (!w || !w->m_workspace || w->m_workspace->m_id != id || w->m_isFloating)
+            continue;
+        HyprlandAPI::invokeHyprctlCommand("dispatch", "setfloating address:" + std::format("0x{:x}", (uintptr_t)w.get()) + " 1");
+    }
+}
 
 // Actual behavior lives here, called from both addDispatcherV2 callbacks
 // (legacy bind = ... syntax, string-based) and addLuaFunction callbacks
@@ -26,31 +60,36 @@ constexpr double PAN_STEP      = 80.0; // canvas units per discrete keyboard ste
 // scrolloverview plugin, since addDispatcherV2 alone isn't reachable from
 // Lua-authored binds here).
 void toggleImpl() {
-    RenderHook::state().toggle();
+    auto& state = currentState();
+    state.toggle();
+    if (state.active())
+        floatAllWindowsOnCurrentWorkspace();
 }
 
 void zoomImpl(const std::string& arg) {
+    auto& state = currentState();
     if (arg == "in")
-        RenderHook::state().zoomBy(ZOOM_STEP_IN);
+        state.zoomBy(ZOOM_STEP_IN);
     else if (arg == "out")
-        RenderHook::state().zoomBy(ZOOM_STEP_OUT);
+        state.zoomBy(ZOOM_STEP_OUT);
     else if (!arg.empty()) {
         char*        end = nullptr;
         const double v   = std::strtod(arg.c_str(), &end);
         if (end != arg.c_str())
-            RenderHook::state().zoomTo(v);
+            state.zoomTo(v);
     }
 }
 
 void panImpl(const std::string& arg) {
+    auto& state = currentState();
     if (arg == "up")
-        RenderHook::state().panBy({.x = 0, .y = -PAN_STEP});
+        state.panBy({.x = 0, .y = -PAN_STEP});
     else if (arg == "down")
-        RenderHook::state().panBy({.x = 0, .y = PAN_STEP});
+        state.panBy({.x = 0, .y = PAN_STEP});
     else if (arg == "left")
-        RenderHook::state().panBy({.x = -PAN_STEP, .y = 0});
+        state.panBy({.x = -PAN_STEP, .y = 0});
     else if (arg == "right")
-        RenderHook::state().panBy({.x = PAN_STEP, .y = 0});
+        state.panBy({.x = PAN_STEP, .y = 0});
 }
 
 // Fires repeatedly while a drag button is held and the mouse moves, with no
@@ -58,19 +97,20 @@ void panImpl(const std::string& arg) {
 // first call of a new drag" is inferred from a time gap since the last call
 // rather than a real begin/end hook. Simple, tunable heuristic; revisit if
 // it ever feels laggy or jumpy in practice (see DESIGN.md open risks).
-Vector2D                            g_lastDragPos{};
+Vector2D                              g_lastDragPos{};
 std::chrono::steady_clock::time_point g_lastDragCall{};
-constexpr std::chrono::milliseconds DRAG_GAP_RESET{150};
+constexpr std::chrono::milliseconds   DRAG_GAP_RESET{150};
 
 void panDragImpl() {
-    const auto now = std::chrono::steady_clock::now();
-    const auto pos = g_pInputManager->getMouseCoordsInternal();
+    auto&      state = currentState();
+    const auto now   = std::chrono::steady_clock::now();
+    const auto pos   = g_pInputManager->getMouseCoordsInternal();
 
     const bool freshDrag = (now - g_lastDragCall) > DRAG_GAP_RESET;
 
     if (!freshDrag) {
-        const double scale = std::max(0.0001, RenderHook::state().currentScale());
-        RenderHook::state().panBy({
+        const double scale = std::max(0.0001, state.currentScale());
+        state.panBy({
             .x = (g_lastDragPos.x - pos.x) / scale,
             .y = (g_lastDragPos.y - pos.y) / scale,
         });
@@ -81,7 +121,7 @@ void panDragImpl() {
 }
 
 void resetImpl() {
-    RenderHook::state().reset();
+    currentState().reset();
 }
 
 // -- addDispatcherV2 callbacks (legacy `bind = MOD, KEY, name, arg` config) --
