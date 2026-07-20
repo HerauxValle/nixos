@@ -9,6 +9,7 @@
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/helpers/Monitor.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <vector>
 
@@ -30,6 +31,7 @@ namespace {
 CFunctionHook* g_pHook = nullptr;
 CCanvasState   g_state;
 Time::steady_tp g_lastTick{};
+bool            g_wasActive = false; // detects the activation edge, see the fit-on-activate block below
 
 std::vector<PHLWORKSPACE> workspacesOnMonitor(PHLMONITOR pMonitor) {
     std::vector<PHLWORKSPACE> out;
@@ -48,6 +50,7 @@ void hkRenderAllClientsForWorkspace(Render::IHyprRenderer* thisptr, PHLMONITOR p
     const auto ORIGINAL = (origRenderAllClientsForWorkspace)g_pHook->m_original;
 
     if (!g_state.active()) {
+        g_wasActive = false;
         (*ORIGINAL)(thisptr, pMonitor, pWorkspace, time, translate, scale);
         return;
     }
@@ -67,6 +70,30 @@ void hkRenderAllClientsForWorkspace(Render::IHyprRenderer* thisptr, PHLMONITOR p
     }
 
     const CanvasVec2 monitorSizePx{pMonitor->m_pixelSize.x, pMonitor->m_pixelSize.y};
+
+    // Toggling active() alone never touched zoom/pan -- scale stayed at 1.0,
+    // so grid slots (spaced a full monitor-size apart) didn't overlap the
+    // visible viewport at all; only whichever workspace happened to land in
+    // the on-screen slot showed anything, usually not the one you were
+    // actually looking at. Confirmed live: this produced a stuck blank/gray
+    // primary monitor with a 10-workspace grid at scale 1.0. Fix: the instant
+    // activation is detected, auto-target a scale that fits the whole grid
+    // and center the pan on whichever workspace was active, so canvas mode is
+    // immediately coherent instead of requiring a manual zoom-out first.
+    if (!g_wasActive) {
+        const int cols = Grid::columnsFor(workspaces.size());
+        const int rows = (static_cast<int>(workspaces.size()) + cols - 1) / cols;
+        g_state.zoomTo(1.0 / static_cast<double>(std::max(cols, rows)));
+
+        for (std::size_t i = 0; i < workspaces.size(); ++i) {
+            if (workspaces[i] != pMonitor->m_activeWorkspace)
+                continue;
+            const auto activeSlot = Grid::slotFor(i, workspaces.size());
+            g_state.panTo({.x = activeSlot.col * monitorSizePx.x, .y = activeSlot.row * monitorSizePx.y});
+            break;
+        }
+    }
+    g_wasActive = true;
 
     for (std::size_t i = 0; i < workspaces.size(); ++i) {
         const auto slot = Grid::slotFor(i, workspaces.size());
