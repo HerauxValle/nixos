@@ -19,9 +19,17 @@ extern "C" {
 #include <chrono>
 #include <cstdlib>
 #include <format>
+#include <fstream>
 
 namespace {
 HANDLE g_handle = nullptr; // for the occasional user-facing warning notification
+
+// TEMPORARY diagnostic: confirms whether scroll/drag binds actually invoke
+// these callbacks at all.
+void dlog(const std::string& msg) {
+    std::ofstream f("/tmp/canvas-debug.log", std::ios::app);
+    f << msg << "\n";
+}
 
 constexpr double ZOOM_STEP_IN  = 1.25;
 constexpr double ZOOM_STEP_OUT = 0.8;
@@ -177,6 +185,7 @@ int luaToggle(lua_State*) {
     return 0;
 }
 int luaZoom(lua_State* L) {
+    dlog("luaZoom called, gettop=" + std::to_string(lua_gettop(L)));
     zoomImpl(argStringOr(L, 1, ""));
     return 0;
 }
@@ -185,6 +194,7 @@ int luaPan(lua_State* L) {
     return 0;
 }
 int luaPanDrag(lua_State*) {
+    dlog("luaPanDrag called");
     panDragImpl();
     return 0;
 }
