@@ -25,7 +25,7 @@ out ?= /usr/local
 all: $(OUT)
 
 $(OUT): $(SRC)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(EXTRA_FLAGS) $(SRC) -o $(OUT) `pkg-config --cflags hyprland`
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(EXTRA_FLAGS) $(SRC) -o $(OUT) `pkg-config --cflags hyprland lua`
 
 install: $(OUT)
 	mkdir -p $(out)/lib
