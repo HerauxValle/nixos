@@ -169,7 +169,14 @@ void hkRenderWorkspaceWindowsFullscreen(Render::IHyprRenderer* thisptr, PHLMONIT
 // CRenderPass::render()'s damage argument to the full monitor for such
 // frames (below) so nothing gets discarded downstream either.
 bool hkShouldRenderWindow(Render::IHyprRenderer* thisptr, PHLWINDOW pWindow, PHLMONITOR pMonitor) {
-    if (pWindow && pMonitor && pWindow->m_workspace && pWindow->m_workspace->m_monitor.lock() == pMonitor && workspaceCanvasActive(pWindow->m_workspace->m_id))
+    const bool forced = pWindow && pMonitor && pWindow->m_workspace && pWindow->m_workspace->m_monitor.lock() == pMonitor && workspaceCanvasActive(pWindow->m_workspace->m_id);
+
+    if (pWindow && (pWindow->m_title == "verifyA" || pWindow->m_title == "verifyB")) {
+        static std::ofstream dbg("/tmp/canvas-shouldrender.log", std::ios::app);
+        dbg << "hkShouldRenderWindow: win=\"" << pWindow->m_title << "\" mon=" << (pMonitor ? pMonitor->m_name : "null") << " forced=" << forced << std::endl;
+    }
+
+    if (forced)
         return true;
 
     return ((bool (*)(Render::IHyprRenderer*, PHLWINDOW, PHLMONITOR))g_pShouldRenderHook->m_original)(thisptr, pWindow, pMonitor);
