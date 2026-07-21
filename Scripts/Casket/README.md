@@ -1,17 +1,26 @@
 <!-- &desc: "Top-level README: what cas is, how to build/run it, and where the rest of the docs live." -->
-# cas — encrypted vault manager
+# cas -- encrypted vault manager
 
-A vault is a single `.img` file — a LUKS2 container — that mounts like a
+A vault is a single `.img` file -- a LUKS2 container -- that mounts like a
 folder once opened. Optional 2FA (a keyfile alongside your passphrase),
 btrfs snapshots, safe passphrase rotation, and grow/shrink resizing, all
 from one binary.
 
 This is a Rust rewrite of the original Python `cas`, now on `PATH` as
 the `casket` package (`Nixos/config/software/packages/`). The Python
-original is deprecated but kept for reference at `.old/main.py` — see
-`.old/info.md`. Full behavioral parity was the goal — every action,
-flag, and message text carries over — plus two real bugs fixed and some
+original is deprecated but kept for reference at `.old/main.py` -- see
+`.old/info.md`. Full behavioral parity was the goal -- every action,
+flag, and message text carries over -- plus two real bugs fixed and some
 hardening. See `docs/porting-notes.md` for exactly what changed and why.
+
+> **Linux only.** `cas` depends on LUKS2 (`cryptsetup`/`dm-crypt`) and
+> btrfs, both Linux-kernel features with no macOS equivalent -- there's
+> no working cryptsetup on macOS and no write-capable btrfs driver.
+> Getting `cas` onto macOS isn't a port, it'd mean either swapping
+> `luks.rs`/`btrfs.rs`/`udisks.rs` for a Linux-microVM backend (see
+> `linsk`/`anylinuxfs` for the pattern) or dropping LUKS/btrfs entirely
+> for macOS-native encryption (`hdiutil`/APFS) -- a different vault
+> format, not this one.
 
 ## Build
 
@@ -28,7 +37,7 @@ nix develop                  # devShell with cargo/rustc/rust-analyzer
 
 `cas` self-elevates via `sudo` if not already running as root, then
 shells out to `cryptsetup`, `btrfs`, `udisksctl`, `losetup`, `blkid`,
-`mount`/`umount`, and `udevadm` — all expected to already be on `PATH`.
+`mount`/`umount`, and `udevadm` -- all expected to already be on `PATH`.
 The Nix package wraps the binary with all of them.
 
 ## Quick start
@@ -45,17 +54,17 @@ per-action usage and examples.
 
 ## Docs
 
-- `docs/architecture.md` — module map and the design decisions behind
+- `docs/architecture.md` -- module map and the design decisions behind
   the rewrite (why no CLI-parsing crate, the stdin-secret pattern, the
   metadata-restoration guarantee).
-- `docs/metadata-format.md` — the exact on-disk byte layout of the
-  vault metadata trailer (shared with the Python original — no
+- `docs/metadata-format.md` -- the exact on-disk byte layout of the
+  vault metadata trailer (shared with the Python original -- no
   compatibility shim needed).
-- `docs/cli.md` — structured flag/action reference.
-- `docs/usage.md` — worked examples: first vault, 2FA on a USB drive,
+- `docs/cli.md` -- structured flag/action reference.
+- `docs/usage.md` -- worked examples: first vault, 2FA on a USB drive,
   scripted use, routine snapshots.
-- `docs/porting-notes.md` — what changed versus the original and why.
-- `glossar/glossary.md` — LUKS/btrfs/udisks domain vocabulary used
+- `docs/porting-notes.md` -- what changed versus the original and why.
+- `glossar/glossary.md` -- LUKS/btrfs/udisks domain vocabulary used
   throughout the code and docs.
 
 ## Project layout
@@ -72,7 +81,7 @@ src/
   keyfile_mount.rs, proc.rs
   size.rs, prompt.rs,    small focused utilities
   help.rs
-  commands/              one file per action — see docs/architecture.md
+  commands/              one file per action -- see docs/architecture.md
     backup/                 for how to add a new one
 docs/                   architecture, format, CLI, and usage docs
 glossar/                domain glossary
