@@ -1,4 +1,4 @@
-/* &desc: "The plugin's single fragile hook: renderAllClientsForWorkspace. See DESIGN.md." */
+/* &desc: "The plugin's fragile hooks: renderWorkspaceWindows(Fullscreen), shouldRenderWindow, CRenderPass::render. See DESIGN.md." */
 #pragma once
 
 #include <hyprland/src/plugins/PluginAPI.hpp>
