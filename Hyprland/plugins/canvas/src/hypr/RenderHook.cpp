@@ -12,6 +12,7 @@
 #include <hyprland/src/desktop/view/Window.hpp>
 
 #include <chrono>
+#include <fstream>
 #include <unordered_map>
 
 // Originally hooked renderWorkspaceWindows/renderWorkspaceWindowsFullscreen
@@ -92,6 +93,13 @@ void hkRenderWindow(Render::IHyprRenderer* thisptr, PHLWINDOW pWindow, PHLMONITO
         mapIt = g_canvasPos.emplace(pWindow.get(), Transform::screenToCanvas(state, realMonRelative)).first;
 
     const auto xf = Transform::windowTransform(state, mapIt->second, realMonRelative);
+
+    {
+        static std::ofstream dbg("/tmp/canvas-debug.log", std::ios::app);
+        dbg << "win=" << pWindow.get() << " canvasPos=(" << mapIt->second.x << "," << mapIt->second.y << ") realPos=(" << realMonRelative.x << "," << realMonRelative.y << ") pan=("
+            << state.currentPan().x << "," << state.currentPan().y << ") scale=" << state.currentScale() << " translate=(" << xf.translate.x << "," << xf.translate.y
+            << ") xfScale=" << xf.scale << std::endl;
+    }
 
     // Order matters: applyToBox applies modifs in insertion order
     // (box.scale() then box.translate(), chained) -- windowTransform's
