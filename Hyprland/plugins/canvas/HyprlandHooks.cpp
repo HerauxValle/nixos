@@ -26,6 +26,7 @@
 #include <hyprland/src/render/pass/RendererHintsPassElement.hpp>
 #include <hyprland/src/helpers/memory/Memory.hpp> // UP / makeUnique
 #include <hyprland/src/devices/IKeyboard.hpp> // eKeyboardModifiers / HL_MODIFIER_*
+#include <hyprland/src/config/shared/actions/ConfigActions.hpp> // Config::Actions::floatWindow
 
 #include <linux/input-event-codes.h> // BTN_RIGHT
 
@@ -456,8 +457,39 @@ Vector2D hkWaylandToXWaylandCoords(CHyprXWaylandManager* self, const Vector2D& c
 // Toggle entry points
 // ============================================================================
 
+// Canvas mode is floating-only: windows placed freely (like ComfyUI nodes)
+// instead of auto-arranged by the tiling layout. Without this, every tiled
+// window collectively fills the monitor's own (0,0)-(monSize) rectangle --
+// that's the *only* thing there is to zoom, so zooming out just shrinks
+// that one tiled block toward its origin corner, indistinguishable from
+// "zooming out the whole monitor" (confirmed: this is exactly the reported
+// symptom, not a transform-math bug -- there's nothing positioned outside
+// the monitor rect for a pan/zoom to reveal until windows can leave it).
+// Floats every non-floating window already on the focused monitor's active
+// workspace the moment canvas mode turns on; already-floating windows are
+// left where they are.
+void floatAllWindowsOnCurrentWorkspace() {
+    auto mon = Desktop::focusState()->monitor();
+    if (!mon || !mon->m_activeWorkspace)
+        return;
+
+    const auto wsId = mon->m_activeWorkspace->m_id;
+    for (auto& w : g_pCompositor->m_windows) {
+        if (!w || !w->m_workspace || w->m_workspace->m_id != wsId || w->m_isFloating)
+            continue;
+        // Config::Actions is the same internal layer both the legacy
+        // string-dispatcher table and Lua hl.dsp.* bindings ultimately call
+        // into -- calling it directly here works regardless of config mode.
+        const auto result = Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, w);
+        if (!result)
+            HyprlandAPI::addNotification(PHANDLE, "[canvas] couldn't float \"" + w->m_title + "\": " + result.error().message, CHyprColor(1.0, 0.6, 0.2, 1.0), 5000);
+    }
+}
+
 void toggleCanvas() {
     g_pCanvas->toggle();
+    if (g_pCanvas->m_active)
+        floatAllWindowsOnCurrentWorkspace();
     HyprlandAPI::addNotification(PHANDLE, g_pCanvas->m_active ? "[canvas] on" : "[canvas] off", CHyprColor(0.6, 0.8, 1.0, 1.0), 1500);
     scheduleFrame();
 }

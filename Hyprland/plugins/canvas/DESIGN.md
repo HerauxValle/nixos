@@ -4,6 +4,7 @@
 ComfyUI-style infinite pan/zoom canvas for Hyprland. Windows are the "nodes":
 they keep their normal Hyprland positions on an infinite plane, and this
 plugin moves/scales a camera over that plane instead of moving the windows.
+Canvas mode is **floating-only** -- see "Floating on toggle" below for why.
 
 Controls: **Meta+Shift+C** toggles canvas mode. While active, **Meta+Shift+Scroll**
 zooms in/out anchored at the cursor, and **Meta+Shift+Right-Drag** pans anywhere
@@ -165,13 +166,58 @@ Damage regions are in physical screen-space pixels (`0..monSize`), not
 canvas space -- as soon as `offset != (0,0)` that box drifts off the monitor
 entirely, so only a small, wrongly-placed patch of the frame actually gets
 repainted each frame and the rest of the screen keeps showing whatever was
-there before (this is what made zoomed-out content look like it was
-shrinking into a corner instead of the whole screen updating). Since any
-pan/zoom can touch every pixel on the monitor anyway, there's no benefit to
-computing anything from `offset`/`zoom` here -- both damage-region hooks
-(`CRenderPass::render()` and the `m_renderData.damage.add()` call in
-`renderAllClientsForWorkspace()`) now just mark `{0, 0, monSize.x,
-monSize.y}`.
+there before. Since any pan/zoom can touch every pixel on the monitor
+anyway, there's no benefit to computing anything from `offset`/`zoom` here --
+both damage-region hooks (`CRenderPass::render()` and the
+`m_renderData.damage.add()` call in `renderAllClientsForWorkspace()`) now
+just mark `{0, 0, monSize.x, monSize.y}`. This is a real, independent fix
+(stale-pixel artifacts on partial repaint), but turned out **not** to be the
+cause of zoomed-out content looking like it was shrinking into a corner "as
+if zooming out the whole monitor" -- that symptom persisted after this fix
+and traced to something else entirely; see "Floating on toggle" below.
+
+## Floating on toggle: why canvas mode can't work with tiled windows
+
+Reported symptom: zooming out looked like "zooming out your whole monitor" --
+everything shrinking uniformly toward the top-left, no different content
+revealed around it. Every render-transform math check came back correct
+(cross-checked cursor-anchored `applyZoom`, and Hyprland's own
+`SRenderModifData::applyToBox` in `OpenGL.cpp:2541` -- `box.translate()` then
+`box.scale()`, exactly `(pos - offset) * zoom`). The actual cause has nothing
+to do with the render transform: **tiled windows are laid out by Hyprland's
+own tiling layout (dwindle/master) to collectively fill the monitor's own
+`(0,0)`-`(monSize)` rectangle.** A camera transform over positions that are
+already confined to that one rectangle can only ever shrink that single
+block toward its own origin corner -- there is nothing else positioned
+elsewhere in canvas space for a pan/zoom to reveal, so "zoom out" and "shrink
+the whole desktop into a corner" are the same thing until windows can leave
+that rectangle.
+
+Confirmed by recovering the git history of an earlier, more advanced
+implementation of this same plugin (a `src/hypr/` + `src/canvas/` layout,
+since scrapped in favor of this flatter rewrite -- recovered via
+`git clone git@github.com:HerauxValle/nixos.git`, the Dotfiles auto-backup
+remote, and diffing the commit history for this directory). That version's
+`Dispatchers.cpp` had exactly this comment: *"Canvas mode is floating-only
+(windows placed freely, like ComfyUI nodes, rather than auto-arranged).
+Existing windows on a workspace need floating the moment it enters canvas
+mode."* -- confirmed working at that point in the repo's history, and not
+part of what regressed later (the later regression was the render hook
+reverting from two narrower functions back to the wide
+`renderAllClientsForWorkspace`, re-breaking the bar/wallpaper -- unrelated to
+floating).
+
+Fix: `floatAllWindowsOnCurrentWorkspace()` in `HyprlandHooks.cpp`, called
+from `toggleCanvas()` only when canvas mode turns **on**, floats every
+non-floating window on the focused monitor's active workspace via
+`Config::Actions::floatWindow(TOGGLE_ACTION_ENABLE, w)` -- the same internal
+layer both the legacy string-dispatcher table and Lua `hl.dsp.*` bindings
+ultimately call into, so it works regardless of config mode (this system's
+Lua config wraps `hyprctl dispatch` itself, which breaks
+`HyprlandAPI::invokeHyprctlCommand`-based approaches). Already-floating
+windows are left alone. There is deliberately no matching "un-float on
+toggle off" -- floating is a one-way door here, matching "canvas mode
+rearranges your desktop, going back doesn't un-rearrange it for you."
 
 ## Gating: an explicit toggle, not an implied one
 
