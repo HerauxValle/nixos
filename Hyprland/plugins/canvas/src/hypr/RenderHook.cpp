@@ -121,8 +121,28 @@ void hkRenderWindow(Render::IHyprRenderer* thisptr, PHLWINDOW pWindow, PHLMONITO
         modif.modifs.emplace_back(Render::SRenderModifData::RMOD_TYPE_TRANSLATE, Vector2D{xf.translate.x, xf.translate.y});
 
     const bool hasModif = !modif.modifs.empty();
-    if (hasModif)
+    if (hasModif) {
+        // CRenderPass::simplify() decides whether to bother drawing an
+        // element at all based on whether its boundingBox() (== the same
+        // real, untransformed box CSurfacePassElement::getTexBox() returns
+        // -- never our render-modifier) intersects this frame's already-
+        // fixed damage region. That real box never moves as canvas pan
+        // changes (only the actual, transformed draw position does), so
+        // damage tracking eventually stops considering a panned-far-enough
+        // window "damaged" at all and simplify() silently discards it --
+        // window renders nothing, no error, no crash, just gone. Confirmed
+        // live with ground-truth logging of the exact translate/scale being
+        // computed (correct) immediately before the window vanished
+        // on-screen (via grim) despite that. m_renderData.noSimplify skips
+        // this whole discard-by-damage-intersection path; there's no
+        // per-frame reset of it anywhere in the real source, so this
+        // trades a minor, likely-imperceptible damage-culling optimization
+        // for correctness the first time any workspace ever enters canvas
+        // mode, for the rest of the compositor's runtime.
+        g_pHyprRenderer->m_renderData.noSimplify = true;
+
         g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{modif}));
+    }
 
     (*original)(thisptr, pWindow, pMonitor, time, decorate, mode, ignorePosition, standalone);
 
