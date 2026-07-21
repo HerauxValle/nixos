@@ -47,10 +47,10 @@ CCanvasState& currentState() {
 
 // Cursor position in monitor-relative coordinates -- getMouseCoordsInternal()
 // returns *global* desktop coordinates (matching `hyprctl cursorpos`), but
-// the render hook's translate/scale (and so canvas space) are monitor-
-// relative, matching how renderAllClientsForWorkspace itself operates on a
-// {0,0}-origin box for its own monitor. Returns {0,0} if no monitor is under
-// the cursor (shouldn't normally happen).
+// canvas space is monitor-relative, matching how the render hook computes
+// its per-window transform relative to each monitor's own {0,0} origin.
+// Returns {0,0} if no monitor is under the cursor (shouldn't normally
+// happen).
 CanvasVec2 cursorLocal() {
     const auto mon    = g_pCompositor->getMonitorFromCursor();
     const auto cursor = g_pInputManager->getMouseCoordsInternal();
@@ -124,6 +124,36 @@ void setCanvasVisualsOnCurrentWorkspace(bool normal) {
     }
 }
 
+// Canvas position is tracked entirely independently of a window's real
+// Hyprland position while canvas mode is active (see RenderHook.cpp) -- so
+// turning canvas mode *off* needs to "bake" each window's current on-screen
+// appearance back into its real position before the transform stops
+// applying, or every window on the workspace would instantly snap to
+// wherever Hyprland's own untouched real position/last commit happens to be
+// (likely all clustered together near wherever they were originally
+// floated), discarding whatever arrangement panning/zooming produced.
+// Mirrors WindowPlacement's onWindowOpen math in the opposite direction,
+// then drops the now-meaningless canvas position so a fresh one gets
+// derived (from this same just-committed real position, so no jump) if the
+// workspace ever re-enters canvas mode later.
+void commitCanvasPositionsOnCurrentWorkspace() {
+    const auto id    = currentWorkspaceID();
+    auto&      state = currentState();
+    for (auto& w : g_pCompositor->m_windows) {
+        if (!w || !w->m_workspace || w->m_workspace->m_id != id)
+            continue;
+
+        const auto monitor = w->m_workspace->m_monitor.lock();
+        const auto canvasPos = RenderHook::canvasPosFor(w);
+        if (!monitor || !canvasPos)
+            continue; // never rendered under canvas mode -- nothing to commit
+
+        const CanvasVec2 screenPos{(canvasPos->x - state.currentPan().x) * state.currentScale(), (canvasPos->y - state.currentPan().y) * state.currentScale()};
+        Config::Actions::move(Vector2D{screenPos.x + monitor->m_position.x, screenPos.y + monitor->m_position.y}, false, w);
+        RenderHook::forgetWindow(w);
+    }
+}
+
 // Actual behavior lives here, called from both addDispatcherV2 callbacks
 // (legacy bind = ... syntax, string-based) and addLuaFunction callbacks
 // (this system's Lua config calls hl.plugin.canvas.<name>(...) directly --
@@ -135,6 +165,8 @@ void toggleImpl() {
     state.toggle();
     if (state.active())
         floatAllWindowsOnCurrentWorkspace();
+    else
+        commitCanvasPositionsOnCurrentWorkspace();
     setCanvasVisualsOnCurrentWorkspace(!state.active());
 
     // toggle() alone never touches zoom/pan, so at 1:1/no-pan it's a

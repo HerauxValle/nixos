@@ -1,4 +1,4 @@
-/* &desc: "RenderHook implementation -- hooks IHyprRenderer::renderWorkspaceWindows(Fullscreen), windows only." */
+/* &desc: "RenderHook implementation -- hooks IHyprRenderer::renderWindow (per-window), pairs each window's stored canvas-space position against its real Hyprland position." */
 #include "RenderHook.hpp"
 
 #include "../canvas/Transform.hpp"
@@ -9,69 +9,94 @@
 #include <hyprland/src/render/pass/RendererHintsPassElement.hpp>
 #include <hyprland/src/helpers/Monitor.hpp>
 #include <hyprland/src/desktop/Workspace.hpp>
+#include <hyprland/src/desktop/view/Window.hpp>
 
 #include <chrono>
 #include <unordered_map>
 
-// First attempt hooked renderAllClientsForWorkspace and pushed the
-// translate/scale modifier around the *entire* call -- which also wraps
-// that function's own background/layer-shell rendering (wallpaper, and
-// crucially bars/panels in the TOP/OVERLAY layers, confirmed live: a
-// quickshell bar was zooming along with the windows). Traced the real
-// Renderer.cpp: renderAllClientsForWorkspace calls exactly one of
-// renderWorkspaceWindows/renderWorkspaceWindowsFullscreen to draw *just* the
-// windows (tiled/floating/pinned, no layers), sandwiched between its own
-// background+bottom-layer rendering (before) and top+overlay-layer
-// rendering (after) -- both untouched by our hook now. Hooking these two
-// narrower functions instead and pushing the modifier only around them
-// scopes the transform to window content exclusively, exactly matching
-// Hyprland's own push/pop pattern (SRenderModifData via
-// CRendererHintsPassElement) but scoped tighter. Two hooks instead of one,
-// but each is narrower and the result is more correct.
-using origRenderWorkspaceWindows = void (*)(Render::IHyprRenderer*, PHLMONITOR, PHLWORKSPACE, const Time::steady_tp&);
+// Originally hooked renderWorkspaceWindows/renderWorkspaceWindowsFullscreen
+// (one shared transform for an entire render call's worth of windows) --
+// abandoned after live testing: that approach encodes each window's
+// canvas-space position by writing it into the window's *real* Hyprland
+// position (Config::Actions::move), which is the only way two windows can
+// end up visually separated by a single whole-call transform. That runs
+// straight into CWindow::visibleOnMonitor (desktop/view/Window.cpp), a
+// native Hyprland visibility gate -- checked from shouldRenderWindow
+// *before* any render hook gets a chance to run -- that compares a window's
+// *real*, untransformed position against the monitor's real rectangle. Pan
+// far enough and a window's real position lands outside the monitor's real
+// bounds; Hyprland drops it from that monitor's render pass entirely,
+// regardless of what our transform would have done. Confirmed live: two
+// windows placed ~2000 canvas units apart (confirmed via hyprctl clients
+// that their real positions really did differ by that amount) -- only one
+// ever rendered, however far zoomed out. If a window's real position
+// happened to land on a *neighboring* monitor's real rectangle instead,
+// Hyprland's own cross-monitor floating-window rendering drew it there,
+// full size, completely untransformed.
+//
+// The fix: never write canvas position into real position at all. Each
+// window's canvas-space position lives in g_canvasPos here, entirely
+// decoupled from wherever Hyprland's own default floating placement put its
+// *real* box (which stays wherever Hyprland put it -- always safely
+// on-monitor, so visibleOnMonitor never has a reason to exclude it). This
+// hook computes a *per-window* transform -- translate/scale from the
+// difference between where a window actually is (real) and where it should
+// visually appear (canvas position, camera pan/scale) -- instead of one
+// transform shared across everything a render call draws.
+using origRenderWindow = void (*)(Render::IHyprRenderer*, PHLWINDOW, PHLMONITOR, const Time::steady_tp&, bool, Render::eRenderPassMode, bool, bool);
 
 namespace {
-CFunctionHook*                                   g_pWindowsHook     = nullptr;
-CFunctionHook*                                   g_pFullscreenHook  = nullptr;
+CFunctionHook*                                   g_pHook = nullptr;
 std::unordered_map<WORKSPACEID, CCanvasState>    g_states;
 std::unordered_map<WORKSPACEID, Time::steady_tp> g_lastTick;
+std::unordered_map<Desktop::View::CWindow*, CanvasVec2> g_canvasPos;
 
 void tickIfNeeded(CCanvasState& state, WORKSPACEID id, const Time::steady_tp& time) {
     auto& lastTick = g_lastTick[id];
     if (lastTick.time_since_epoch().count() != 0)
         state.tick(std::chrono::duration<double>(time - lastTick).count());
     lastTick = time;
+    // renderWindow fires once per window, all sharing the same frame's
+    // `time` -- every call after the first within a frame sees dt == 0
+    // above (lastTick was just set to this same `time`), a harmless no-op
+    // ease step. No separate "already ticked this frame" guard needed.
 }
 
-// Shared by both hooks below -- windows-only rendering wrapped in our own
-// translate/scale modifier, mirroring exactly how renderAllClientsForWorkspace
-// itself pushes/pops SRenderModifData around a render call.
-void renderWithCanvasTransform(origRenderWorkspaceWindows original, Render::IHyprRenderer* thisptr, PHLMONITOR pMonitor, PHLWORKSPACE pWorkspace, const Time::steady_tp& time) {
-    if (!pMonitor || !pWorkspace) {
-        (*original)(thisptr, pMonitor, pWorkspace, time);
+void hkRenderWindow(Render::IHyprRenderer* thisptr, PHLWINDOW pWindow, PHLMONITOR pMonitor, const Time::steady_tp& time, bool decorate, Render::eRenderPassMode mode, bool ignorePosition,
+                     bool standalone) {
+    const auto original = (origRenderWindow)g_pHook->m_original;
+
+    if (!pWindow || !pMonitor || !pWindow->m_workspace) {
+        (*original)(thisptr, pWindow, pMonitor, time, decorate, mode, ignorePosition, standalone);
         return;
     }
 
-    const auto it = g_states.find(pWorkspace->m_id);
-    if (it == g_states.end() || !it->second.active()) {
-        (*original)(thisptr, pMonitor, pWorkspace, time);
+    const auto it = g_states.find(pWindow->m_workspace->m_id);
+    // Only transform when this window is rendering on its *own* workspace's
+    // owning monitor -- leaves the rare "floating window visible on a
+    // neighboring monitor" case (a different, non-canvas render context)
+    // untouched, rather than double-transforming or transforming with the
+    // wrong workspace's camera.
+    if (it == g_states.end() || !it->second.active() || pWindow->m_workspace->m_monitor.lock() != pMonitor) {
+        (*original)(thisptr, pWindow, pMonitor, time, decorate, mode, ignorePosition, standalone);
         return;
     }
 
     auto& state = it->second;
-    tickIfNeeded(state, pWorkspace->m_id, time);
+    tickIfNeeded(state, pWindow->m_workspace->m_id, time);
 
-    const auto xf = Transform::cameraTransform(state);
+    const CanvasVec2 realMonRelative{pWindow->m_realPosition->value().x - pMonitor->m_position.x, pWindow->m_realPosition->value().y - pMonitor->m_position.y};
 
-    // Order matters: SRenderModifData::applyToBox applies modifs in
-    // insertion order (box.scale() then box.translate(), chained). translate
-    // above is pre-multiplied by scale (-pan * scale, see Transform.cpp), so
-    // it must land *after* the scale step -- (pos * S) + T == (pos - pan) *
-    // S. Pushing translate first would instead compute (pos + T) * S,
-    // scaling the already-scaled pan term a second time (pos*S - pan*S²),
-    // which silently under-applies panning the further you zoom out. Caught
-    // by hand-deriving the math against zoomImpl's documented formula
-    // (screenPos = (canvasPos - pan) * scale) rather than live symptoms.
+    auto mapIt = g_canvasPos.find(pWindow.get());
+    if (mapIt == g_canvasPos.end())
+        mapIt = g_canvasPos.emplace(pWindow.get(), Transform::screenToCanvas(state, realMonRelative)).first;
+
+    const auto xf = Transform::windowTransform(state, mapIt->second, realMonRelative);
+
+    // Order matters: applyToBox applies modifs in insertion order
+    // (box.scale() then box.translate(), chained) -- windowTransform's
+    // translate is derived assuming scale lands first (see its own
+    // comment), so push scale before translate here to match.
     Render::SRenderModifData modif;
     if (xf.scale != 1.f)
         modif.modifs.emplace_back(Render::SRenderModifData::RMOD_TYPE_SCALE, xf.scale);
@@ -82,45 +107,29 @@ void renderWithCanvasTransform(origRenderWorkspaceWindows original, Render::IHyp
     if (hasModif)
         g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{modif}));
 
-    (*original)(thisptr, pMonitor, pWorkspace, time);
+    (*original)(thisptr, pWindow, pMonitor, time, decorate, mode, ignorePosition, standalone);
 
     if (hasModif)
         g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{Render::SRenderModifData{}}));
 
     g_pHyprRenderer->damageMonitor(pMonitor);
 }
-
-void hkRenderWorkspaceWindows(Render::IHyprRenderer* thisptr, PHLMONITOR pMonitor, PHLWORKSPACE pWorkspace, const Time::steady_tp& time) {
-    renderWithCanvasTransform((origRenderWorkspaceWindows)g_pWindowsHook->m_original, thisptr, pMonitor, pWorkspace, time);
-}
-
-void hkRenderWorkspaceWindowsFullscreen(Render::IHyprRenderer* thisptr, PHLMONITOR pMonitor, PHLWORKSPACE pWorkspace, const Time::steady_tp& time) {
-    renderWithCanvasTransform((origRenderWorkspaceWindows)g_pFullscreenHook->m_original, thisptr, pMonitor, pWorkspace, time);
-}
-
-bool hookOne(HANDLE handle, const char* fnName, CFunctionHook*& slot, void* trampoline) {
-    const auto FNS = HyprlandAPI::findFunctionsByName(handle, fnName);
-    for (auto& fn : FNS) {
-        if (!fn.demangled.contains("IHyprRenderer"))
-            continue;
-        slot = HyprlandAPI::createFunctionHook(handle, fn.address, trampoline);
-        break;
-    }
-    return slot && slot->hook();
-}
 }
 
 bool RenderHook::install(HANDLE handle) {
-    const bool a = hookOne(handle, "renderWorkspaceWindows", g_pWindowsHook, (void*)::hkRenderWorkspaceWindows);
-    const bool b = hookOne(handle, "renderWorkspaceWindowsFullscreen", g_pFullscreenHook, (void*)::hkRenderWorkspaceWindowsFullscreen);
-    return a && b;
+    const auto FNS = HyprlandAPI::findFunctionsByName(handle, "renderWindow");
+    for (auto& fn : FNS) {
+        if (!fn.demangled.contains("IHyprRenderer"))
+            continue;
+        g_pHook = HyprlandAPI::createFunctionHook(handle, fn.address, (void*)::hkRenderWindow);
+        break;
+    }
+    return g_pHook && g_pHook->hook();
 }
 
 void RenderHook::uninstall() {
-    if (g_pWindowsHook)
-        g_pWindowsHook->unhook();
-    if (g_pFullscreenHook)
-        g_pFullscreenHook->unhook();
+    if (g_pHook)
+        g_pHook->unhook();
 }
 
 CCanvasState& RenderHook::stateFor(WORKSPACEID id) {
@@ -130,4 +139,21 @@ CCanvasState& RenderHook::stateFor(WORKSPACEID id) {
 void RenderHook::forgetWorkspace(WORKSPACEID id) {
     g_states.erase(id);
     g_lastTick.erase(id);
+}
+
+void RenderHook::setCanvasPos(PHLWINDOW window, const CanvasVec2& pos) {
+    if (window)
+        g_canvasPos[window.get()] = pos;
+}
+
+std::optional<CanvasVec2> RenderHook::canvasPosFor(PHLWINDOW window) {
+    if (!window)
+        return std::nullopt;
+    const auto it = g_canvasPos.find(window.get());
+    return it == g_canvasPos.end() ? std::nullopt : std::optional{it->second};
+}
+
+void RenderHook::forgetWindow(PHLWINDOW window) {
+    if (window)
+        g_canvasPos.erase(window.get());
 }
