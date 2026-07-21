@@ -52,6 +52,20 @@ void placeOnCanvas(PHLWINDOW pWindow) {
     // invokeHyprctlCommand's string-based route entirely).
     Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, pWindow);
     Config::Actions::move(target, false, pWindow);
+    // Border/shadow decoration and blur are both computed from a window's
+    // *real* geometry only and never consult the render-modifier transform
+    // RenderHook.cpp applies -- confirmed against the real source
+    // (CHyprBorderDecoration::draw, CSurfacePassElement::boundingBox).
+    // Without this, a canvas window shows its real-size/real-position
+    // border floating wherever its untransformed position happens to be,
+    // completely disconnected from its correctly-transformed content.
+    // Simplest fix: turn both off for the duration of canvas mode rather
+    // than fight to make Hyprland's decoration pipeline transform-aware --
+    // also fits the bare, chrome-less ComfyUI-node look this plugin is
+    // going for anyway. "0"/"1" here, "unset" (see Dispatchers.cpp) on
+    // toggle-off so a pre-existing window rule isn't clobbered.
+    Config::Actions::setProp("decorate", "0", pWindow);
+    Config::Actions::setProp("no_blur", "1", pWindow);
 }
 
 void onWindowOpen(PHLWINDOW pWindow) {

@@ -79,6 +79,22 @@ void floatAllWindowsOnCurrentWorkspace() {
     }
 }
 
+// Border/shadow decoration and blur never respect the canvas's render-time
+// transform (see WindowPlacement.cpp's onWindowOpen comment for the full
+// why) -- windows already on a workspace when it enters canvas mode need
+// this applied here (onWindowOpen only covers genuinely new windows).
+// "unset" (not hardcoded back on) restores whatever a window rule already
+// had on toggle-off.
+void setCanvasVisualsOnCurrentWorkspace(bool normal) {
+    const auto id = currentWorkspaceID();
+    for (auto& w : g_pCompositor->m_windows) {
+        if (!w || !w->m_workspace || w->m_workspace->m_id != id)
+            continue;
+        Config::Actions::setProp("decorate", normal ? "unset" : "0", w);
+        Config::Actions::setProp("no_blur", normal ? "unset" : "1", w);
+    }
+}
+
 // Actual behavior lives here, called from both addDispatcherV2 callbacks
 // (legacy bind = ... syntax, string-based) and addLuaFunction callbacks
 // (this system's Lua config calls hl.plugin.canvas.<name>(...) directly --
@@ -90,6 +106,7 @@ void toggleImpl() {
     state.toggle();
     if (state.active())
         floatAllWindowsOnCurrentWorkspace();
+    setCanvasVisualsOnCurrentWorkspace(!state.active());
 
     // toggle() alone never touches zoom/pan, so at 1:1/no-pan it's a
     // no-visible-change identity transform -- easy to mistake for "the bind
