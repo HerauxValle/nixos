@@ -214,7 +214,7 @@ Rectangle {
                     // This glyph's own vertical metrics sit higher in its em-box
                     // than the other icons here (gear/power etc., which don't
                     // need this) -- small empirical nudge to visually match.
-                    anchors.verticalCenterOffset: BarConfig.sp(1)
+                    anchors.verticalCenterOffset: 0.5
                     text: "\uF0C9"
                     font.family: "Symbols Nerd Font Mono"; font.pixelSize: BarConfig.sp(12)
                     color: ShellState.drawerOpen ? Colors.primary : Colors.colOnSurfaceVariant
