@@ -47,10 +47,10 @@ CCanvasState& currentState() {
 
 // Cursor position in monitor-relative coordinates -- getMouseCoordsInternal()
 // returns *global* desktop coordinates (matching `hyprctl cursorpos`), but
-// canvas space is monitor-relative, matching how the render hook computes
-// its per-window transform relative to each monitor's own {0,0} origin.
-// Returns {0,0} if no monitor is under the cursor (shouldn't normally
-// happen).
+// the render hook's translate/scale (and so canvas space) are monitor-
+// relative, matching how renderAllClientsForWorkspace itself operates on a
+// {0,0}-origin box for its own monitor. Returns {0,0} if no monitor is under
+// the cursor (shouldn't normally happen).
 CanvasVec2 cursorLocal() {
     const auto mon    = g_pCompositor->getMonitorFromCursor();
     const auto cursor = g_pInputManager->getMouseCoordsInternal();
@@ -79,81 +79,6 @@ void floatAllWindowsOnCurrentWorkspace() {
     }
 }
 
-// Window border/shadow decorations are drawn from a window's *real* geometry
-// and never consult Hyprland's render-modifier (SRenderModifData) pipeline
-// at all -- confirmed against the real source (CHyprBorderDecoration::draw,
-// CHyprDropShadowDecoration::getRenderData): only surface content
-// (CSurfacePassElement) respects it. So while a workspace is panned/zoomed,
-// a window's border/shadow render at full real size in the real (unscaled)
-// position while its content correctly shrinks and moves inside that outline
-// -- confirmed live via screenshot, looked exactly like a stray glass pane
-// with a small scaled screenshot floating inside it. Faking scale onto
-// decorations would need hooking multiple additional, deeper, more fragile
-// render internals (border boxes are baked eagerly at queue time; shadow and
-// inner-glow are computed lazily from a separate code path). Turning
-// decoration off entirely for the duration of canvas mode sidesteps that
-// whole class of desync -- and fits the ComfyUI-node aesthetic this plugin
-// is going for anyway (bare content, no native window chrome).
-//
-// Blur has the exact same class of bug and gets the exact same treatment.
-// CSurfacePassElement::boundingBox() (what blur-region aggregation in
-// CRenderPass::simplify()/render() uses to decide what screen area to
-// sample/precompute blur for) returns getTexBox() -- the *real*,
-// untransformed box. The render-modifier only gets applied later, at the
-// actual texture draw call. So a blurred window's live/precomputed backdrop
-// samples the wrong (real-size, real-position) screen region while its
-// sharp content draws correctly scaled/moved -- a translucent, misaligned
-// "ghost" of the window's real bounds bleeding through, on top of whatever
-// border/shadow fix already handled. Confirmed live: reported as "the
-// window turns see-thru and the edges remain" even after decoration was
-// fixed -- this is why.
-//
-// Both use the same direct Config::Actions::setProp call hyprctl's own
-// "setprop" dispatcher resolves to (see Config::Actions::floatWindow's
-// comment above for why direct calls, not invokeHyprctlCommand, are this
-// plugin's mechanism). "unset" restores whatever value config/window rules
-// had before -- not hardcoding back to enabled, in case a rule already
-// disabled it.
-void setCanvasVisualsOnCurrentWorkspace(bool normal) {
-    const auto id = currentWorkspaceID();
-    for (auto& w : g_pCompositor->m_windows) {
-        if (!w || !w->m_workspace || w->m_workspace->m_id != id)
-            continue;
-        Config::Actions::setProp("decorate", normal ? "unset" : "0", w);
-        Config::Actions::setProp("no_blur", normal ? "unset" : "1", w);
-    }
-}
-
-// Canvas position is tracked entirely independently of a window's real
-// Hyprland position while canvas mode is active (see RenderHook.cpp) -- so
-// turning canvas mode *off* needs to "bake" each window's current on-screen
-// appearance back into its real position before the transform stops
-// applying, or every window on the workspace would instantly snap to
-// wherever Hyprland's own untouched real position/last commit happens to be
-// (likely all clustered together near wherever they were originally
-// floated), discarding whatever arrangement panning/zooming produced.
-// Mirrors WindowPlacement's onWindowOpen math in the opposite direction,
-// then drops the now-meaningless canvas position so a fresh one gets
-// derived (from this same just-committed real position, so no jump) if the
-// workspace ever re-enters canvas mode later.
-void commitCanvasPositionsOnCurrentWorkspace() {
-    const auto id    = currentWorkspaceID();
-    auto&      state = currentState();
-    for (auto& w : g_pCompositor->m_windows) {
-        if (!w || !w->m_workspace || w->m_workspace->m_id != id)
-            continue;
-
-        const auto monitor = w->m_workspace->m_monitor.lock();
-        const auto canvasPos = RenderHook::canvasPosFor(w);
-        if (!monitor || !canvasPos)
-            continue; // never rendered under canvas mode -- nothing to commit
-
-        const CanvasVec2 screenPos{(canvasPos->x - state.currentPan().x) * state.currentScale(), (canvasPos->y - state.currentPan().y) * state.currentScale()};
-        Config::Actions::move(Vector2D{screenPos.x + monitor->m_position.x, screenPos.y + monitor->m_position.y}, false, w);
-        RenderHook::forgetWindow(w);
-    }
-}
-
 // Actual behavior lives here, called from both addDispatcherV2 callbacks
 // (legacy bind = ... syntax, string-based) and addLuaFunction callbacks
 // (this system's Lua config calls hl.plugin.canvas.<name>(...) directly --
@@ -165,9 +90,6 @@ void toggleImpl() {
     state.toggle();
     if (state.active())
         floatAllWindowsOnCurrentWorkspace();
-    else
-        commitCanvasPositionsOnCurrentWorkspace();
-    setCanvasVisualsOnCurrentWorkspace(!state.active());
 
     // toggle() alone never touches zoom/pan, so at 1:1/no-pan it's a
     // no-visible-change identity transform -- easy to mistake for "the bind
