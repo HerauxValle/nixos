@@ -93,24 +93,85 @@ solve `anchorScreen == (anchorCanvas - offset) * zoom` for `offset`.
 | `closestValid()` | Clamps the cursor to the physical monitor layout; disabled while active so the (canvas-space) cursor can sit outside the physical monitor bounds, which is the entire point of an infinite canvas. |
 | `getMonitorFromCursor()` | Internally calls the now-remapped `position()`; canvas coordinates can be outside every monitor, which would otherwise return null. Short-circuits to the focused monitor (the physical cursor is always on some real monitor). |
 | `getMonitorFromVector()` | Same problem, for position-based lookups like `vectorToWindowUnified`. Falls back to the focused monitor when the real lookup comes back null. |
-| `shouldRenderWindow(PHLWINDOW, PHLMONITOR)` | Normally culls windows outside a monitor's geometry. While active, forces every window to be considered renderable -- the render-transform hook below is what actually places them, so geometric culling against the physical monitor box would hide anything panned/zoomed away from its original spot. |
-| `CRenderPass::render()` | Expands the damage region to the full virtual viewport. Without this, Hyprland only repaints the small region it thinks changed, leaving stale pixels when a pan/zoom reveals previously off-screen content. |
-| `renderAllClientsForWorkspace()` | Where the transform actually gets applied, via Hyprland's own render-modifier mechanism (see below) instead of hand-rolled OpenGL matrices. Also clears the framebuffer first (see below) and disables damage-region simplification (`noSimplify`), which otherwise assumes small, monitor-sized regions. |
+| `shouldRenderWindow(PHLWINDOW, PHLMONITOR)` | Normally culls windows outside a monitor's geometry. While active, forces every window to be considered renderable -- the `renderWindow()` hook below is what actually places them, so geometric culling against the physical monitor box would hide anything panned/zoomed away from its original spot. |
+| `CRenderPass::render()` | Expands the damage region to the full physical monitor. Without this, Hyprland only repaints the small region it thinks changed, leaving stale pixels when a pan/zoom reveals previously off-screen content. |
+| `renderAllClientsForWorkspace()` | Calls through to the original with `translate`/`scale` **passed through unchanged** rather than folding the camera transform in -- see "Why the transform lives on `renderWindow()`, not here" below. Still clears the framebuffer first and disables damage-region simplification (`noSimplify`), which otherwise assumes small, monitor-sized regions. |
+| `renderWindow()` | Where the transform actually gets applied, via Hyprland's own render-modifier mechanism (see below) instead of hand-rolled OpenGL matrices, scoped to a single window's render call. |
 | `applyPositioning()` (CXDGPopupResource) | xdg_positioner constrains popups (right-click menus, tooltips) to a box that defaults to the physical monitor. A window sitting outside that box while zoomed out would have its popups clamped back onto the monitor instead of anchoring near their parent; widen the constraint box instead. |
 | `waylandToXWaylandCoords()` | XWayland (X11) apps use absolute display coordinates, entirely independent of any Wayland-side viewport transform. Canvas-space coordinates reaching an XWayland app unconverted would misplace or mis-click on every X11 app (Chrome, Discord, etc.) whenever canvas mode is active, so this hook converts canvas -> physical right before the X11 boundary. |
 
+**Why the transform lives on `renderWindow()`, not `renderAllClientsForWorkspace()`:**
+the first implementation fed `translate`/`scale` straight into
+`renderAllClientsForWorkspace(monitor, workspace, now, translate, scale)`,
+reasoning that it "already exists specifically to let a caller offset+scale
+everything rendered for a workspace." Reading Hyprland's actual
+`Renderer.cpp` (not just the header) shows that's true but too broad: that
+one call also renders the background and every layer-shell surface
+(wallpaper, bar, all four layers) under the same active render-modifier for
+the whole function body -- so the zoom/pan was scaling and translating the
+wallpaper and bar right along with the windows, which is not what was asked
+for. Every window render (tiled, floating, popup, pinned, fullscreen) funnels
+through one leaf call, `renderWindow()`, so the fix moves the
+push-modifier/call-original/pop-modifier sequence there instead -- same
+mechanism, scoped to one window instead of the whole workspace pass.
+`renderAllClientsForWorkspace()` now passes its `translate`/`scale` params
+through unchanged instead of overwriting them with the camera transform, so
+its background/layer rendering is untouched. Passing through rather than
+hardcoding identity also matters for a case that has nothing to do with
+canvas mode: `Renderer.cpp`'s `renderWorkspace()` calls this same function
+with a real, non-identity `translate`/`scale` for its own purposes
+(workspace-preview-style geometry) -- forcing identity here would break
+whatever relies on that whenever canvas mode happens to be active.
+
+Also considered and rejected: faking `CMonitor::m_position`/`m_size` so the
+*tiling layout* itself has more room than the physical monitor (so zooming
+out would reveal more real tiled-window content, not just blank canvas).
+That field is read throughout the compositor -- reserved-area/gap math,
+fullscreen sizing, multi-monitor relative offsets, IPC monitor info -- and
+no existing plugin does this; `hypr-canvas` (this plugin's own reference)
+and `hyprscroller` both leave monitor geometry alone. The one project that
+does spatially arrange monitor-sized "workspace tiles" on a real infinite
+plane, `infinity-land`, is a full fork of Hyprland, not a plugin -- a strong
+signal that this needs changes to output/workspace geometry modeling deeper
+than any plugin API exposes. `hyprscroller`'s actual approach (confirmed
+from its source, not just its README) is the proven pattern for "more space
+than the monitor": a custom `IHyprLayout` (registered via the sanctioned
+`HyprlandAPI::addLayout`) that keeps its own virtual bookkeeping per window
+and only assigns a *real* Hyprland position/size to whatever's currently
+scrolled into view. That's a materially different feature (a new layout) from
+this plugin's camera-over-existing-positions model, not a tweak to it.
+
 **Why the render transform doesn't hand-roll OpenGL matrices:**
-`renderAllClientsForWorkspace(monitor, workspace, now, translate, scale)`
-already exists specifically to let a caller offset+scale everything rendered
-for a workspace -- it feeds Hyprland's own `SRenderModifData`, applied
-internally as `(pos + translate) * scale`. Solving `(pos + translate) * scale
-== (pos - offset) * zoom` gives `translate = -offset, scale = zoom`, so the
-hook is two field reads and a function call, not a render-pipeline rewrite.
+`renderWindow(...)` calls are bracketed by a `CRendererHintsPassElement`
+pushed onto `g_pHyprRenderer->m_renderPass` (an identity one after), which
+feeds Hyprland's own `SRenderModifData`, applied internally as `(pos +
+translate) * scale`. Solving `(pos + translate) * scale == (pos - offset) *
+zoom` gives `translate = -offset, scale = zoom` -- two field reads and two
+pass-element pushes, not a render-pipeline rewrite. This is the same
+push/pop-around-a-call pattern Hyprland's own
+`renderAllClientsForWorkspace()` uses internally (a `CScopeGuard` pops it at
+function exit); the only difference is scope, one window vs. the whole pass.
 
 **Why the framebuffer gets cleared:** panning/zooming can reveal screen area
 that nothing this frame will draw over (e.g. background between two
 far-apart windows). Without clearing first, that area shows whatever was
 rendered there last frame instead of the wallpaper/background color.
+
+**Why damage regions use the full physical monitor box, not a canvas-space
+box:** the first implementation built the expanded damage region from
+`m_offset`/`m_zoom` (e.g. `{offset.x, offset.y, monSize.x/zoom,
+monSize.y/zoom}`), reasoning it needed to cover "the virtual viewport."
+Damage regions are in physical screen-space pixels (`0..monSize`), not
+canvas space -- as soon as `offset != (0,0)` that box drifts off the monitor
+entirely, so only a small, wrongly-placed patch of the frame actually gets
+repainted each frame and the rest of the screen keeps showing whatever was
+there before (this is what made zoomed-out content look like it was
+shrinking into a corner instead of the whole screen updating). Since any
+pan/zoom can touch every pixel on the monitor anyway, there's no benefit to
+computing anything from `offset`/`zoom` here -- both damage-region hooks
+(`CRenderPass::render()` and the `m_renderData.damage.add()` call in
+`renderAllClientsForWorkspace()`) now just mark `{0, 0, monSize.x,
+monSize.y}`.
 
 ## Gating: an explicit toggle, not an implied one
 
@@ -138,18 +199,15 @@ and the transform hooks live in that scenario.
   own mapping of raw scroll events to the `mouse_down`/`mouse_up` bind
   keywords used in `hyprland.conf` (e.g. `bind = SUPER, mouse_down,
   workspace, e+1`): `e.delta < 0` is `mouse_down` (scroll down), `e.delta >
-  0` is `mouse_up` (scroll up). This plugin reuses that exact convention --
-  scroll down (`delta < 0`) zooms **out**, scroll up (`delta > 0`) zooms
-  **in** -- both because it's what was asked for, and because it keeps this
-  plugin's scroll direction consistent with the rest of the user's Hyprland
-  scroll binds automatically: natural-scrolling/inverted-scroll settings
+  0` is `mouse_up` (scroll up). Natural-scrolling/inverted-scroll settings
   flip `e.delta`'s sign globally in libinput, not per-consumer, so whatever
-  the user has configured elsewhere just carries over here for free.
+  the user has configured elsewhere carries over here for free regardless of
+  which polarity this plugin picks.
 
-  `hypr-canvas`'s own code does the opposite mapping (`delta < 0` zooms
-  *in*, toward its 1.0 cap) without commenting on why -- worth calling out
-  explicitly since it would have been easy to copy that polarity by habit
-  and end up with reversed scroll direction from what was asked for.
+  The first implementation mapped scroll down (`delta < 0`) to zoom **out**
+  and scroll up to zoom **in** -- backwards from what was actually wanted.
+  Flipped per explicit correction: scroll down now zooms **in**, scroll up
+  zooms **out**.
 
 ## Bugs a naive copy of the reference plugin would have shipped with
 
@@ -209,6 +267,14 @@ than trusting the reference plugin's typedefs) caught three real problems:
    function's own declaration line; they show up as "type not found in this
    scope" from the compiler once something several layers away has moved.
 
+5. **`renderWindow` is also ambiguous.** Added when the transform was moved
+   from `renderAllClientsForWorkspace()` to `renderWindow()` (see "Why the
+   transform lives on `renderWindow()`" above). `src/managers/screenshare/
+   ScreenshareManager.hpp:188` declares an unrelated zero-arg
+   `void renderWindow()`; `findFunctionsByName` returns both, so this one
+   goes through `hookByOwner("renderWindow", "IHyprRenderer", ...)` rather
+   than the unchecked `hookOne` used for the unambiguous names.
+
 **Takeaway kept in the code as a standing warning:** `findFunctionsByName`
 disambiguates by *string match on a demangled name*, not a real C++ overload
 resolution. Anywhere a name is even slightly generic or overloaded, checking
@@ -221,7 +287,19 @@ drift.
 
 Every file in this plugin was actually compiled and linked against the
 Hyprland v0.55.4 dev headers matching this machine's running compositor
-(`hyprctl version`), not just checked by eye against source on GitHub:
+(`hyprctl version`), not just checked by eye against source on GitHub, as of
+the state described below. **The `renderWindow()` rescoping and damage-region
+fix (see "Why the transform lives on `renderWindow()`" above) were cross-
+checked line-by-line against these same dev headers -- every type
+(`Render::eRenderPassMode`, `Render::SRenderModifData`,
+`CRendererHintsPassElement::SData`, `UP`/`makeUnique`) and the exact 7-arg
+`renderWindow` signature were read directly from the installed headers, not
+assumed -- but were not re-run through the full local build below.**
+Reconstructing the pkg-config environment (see the transitive-dependency
+list a few paragraphs down) is a real, repeatable cost, not a one-time fluke;
+re-paying it just to re-confirm a header-verified change wasn't judged worth
+it this round. Run `make` before loading this into a live session if you
+want that guarantee restored.
 
 ```
 CanvasState.cpp    -- g++ -fsyntax-only -Wall -Wextra: zero errors, zero warnings

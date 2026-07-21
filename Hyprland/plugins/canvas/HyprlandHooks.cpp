@@ -1,6 +1,6 @@
 // &desc: "all Hyprland CFunctionHook wiring + trampolines for the canvas plugin -- see DESIGN.md for the why"
 //
-// This file hooks 11 internal (non-exported, non-API) Hyprland functions via
+// This file hooks 12 internal (non-exported, non-API) Hyprland functions via
 // HyprlandAPI::createFunctionHook, plus one legitimate dispatcher for the
 // Meta+Shift+C toggle. Every signature below was cross-checked against the
 // Hyprland v0.55.4 tag (the version installed on this machine, confirmed via
@@ -23,6 +23,8 @@
 #include <hyprland/src/protocols/XDGShell.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
+#include <hyprland/src/render/pass/RendererHintsPassElement.hpp>
+#include <hyprland/src/helpers/memory/Memory.hpp> // UP / makeUnique
 #include <hyprland/src/devices/IKeyboard.hpp> // eKeyboardModifiers / HL_MODIFIER_*
 
 #include <linux/input-event-codes.h> // BTN_RIGHT
@@ -72,6 +74,7 @@ struct SHooks {
     CFunctionHook* shouldRender      = nullptr;
     CFunctionHook* renderPass        = nullptr;
     CFunctionHook* renderClients     = nullptr;
+    CFunctionHook* renderWindow      = nullptr;
     CFunctionHook* popupPositioning  = nullptr;
     CFunctionHook* waylandToXWayland = nullptr;
 } g_hooks;
@@ -88,17 +91,14 @@ using onMouseWheelFn = void (*)(CInputManager*, IPointer::SAxisEvent, SP<IPointe
 
 void hkOnMouseWheel(CInputManager* self, IPointer::SAxisEvent e, SP<IPointer> pointer) {
     if (g_pCanvas->m_active && chordHeld() && e.axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
-        // Direction convention verified against Hyprland's own scroll
-        // handling, not assumed: src/managers/KeybindManager.cpp:428-431
-        // maps `e.delta < 0` to the "mouse_down" bind keyword and
-        // `e.delta > 0` to "mouse_up". So delta<0 == scroll down == zoom
-        // OUT (see more canvas, less detail), delta>0 == scroll up == zoom
-        // IN, matching the user's ask and staying consistent with however
-        // they've configured natural/inverted scrolling elsewhere, since
-        // that setting flips e.delta's sign globally, not just for us.
+        // Direction: src/managers/KeybindManager.cpp:428-431 maps
+        // `e.delta < 0` to "mouse_down" (scroll down) and `e.delta > 0` to
+        // "mouse_up" (scroll up). Per explicit user request this plugin maps
+        // scroll down (delta<0) -> zoom IN and scroll up (delta>0) -> zoom
+        // OUT -- the opposite of the first pass, which had it backwards.
         const double d = e.deltaDiscrete != 0 ? (double)e.deltaDiscrete : e.delta;
         if (d != 0) {
-            double newZoom = g_pCanvas->m_zoom * (d < 0 ? (1.0 / CCanvasState::ZOOM_STEP) : CCanvasState::ZOOM_STEP);
+            double newZoom = g_pCanvas->m_zoom * (d < 0 ? CCanvasState::ZOOM_STEP : (1.0 / CCanvasState::ZOOM_STEP));
 
             // Anchor at the cursor's *physical* position. Reading it through
             // the position() hook below would recurse into canvas-space
@@ -285,9 +285,15 @@ CRegion hkRenderPassRender(Render::CRenderPass* self, const CRegion& damage) {
     if (!mon)
         return original(self, damage);
 
+    // damage_ is in physical screen-space pixels (0..monSize), NOT canvas
+    // space -- a box built from m_offset/m_zoom drifts off the monitor
+    // entirely once offset != (0,0), so only a small wrongly-placed patch
+    // actually gets repainted and the rest of the screen shows stale pixels
+    // from the last frame. Any pan/zoom can touch every pixel, so just mark
+    // the whole physical monitor damaged.
     const auto monSize = mon->m_transformedSize;
     CRegion    expanded;
-    expanded.add(CBox{g_pCanvas->m_offset.x, g_pCanvas->m_offset.y, monSize.x / g_pCanvas->m_zoom, monSize.y / g_pCanvas->m_zoom});
+    expanded.add(CBox{0, 0, monSize.x, monSize.y});
     return original(self, expanded);
 }
 
@@ -298,11 +304,23 @@ CRegion hkRenderPassRender(Render::CRenderPass* self, const CRegion& damage) {
 //                                      const float& scale = 1.f);
 // (Time::steady_tp is `using steady_tp = std::chrono::steady_clock::time_point;`
 // -- src/helpers/time/Time.hpp:10 -- so the raw std::chrono type used in this
-// typedef is layout-identical.) This is the actual pan/zoom application: the
-// translate+scale pair here feeds Hyprland's own SRenderModifData machinery
-// (applied as `(pos + translate) * scale`), so we don't need to touch OpenGL
-// matrices directly -- just pass the numbers that make that formula equal our
-// `(pos - offset) * zoom`.
+// typedef is layout-identical.)
+//
+// This hook no longer folds the canvas zoom/pan into translate/scale here --
+// it passes them through exactly as received. Reading Hyprland's actual
+// implementation (Renderer.cpp) shows this call renders the background AND
+// every layer-shell surface (bar included) internally, under whatever
+// render-modifier is active for the *entire* call -- so feeding our camera
+// transform in here would zoom/pan the wallpaper and bar right along with
+// the windows. The camera transform is applied per-window instead, scoped
+// tightly around renderWindow() (see hkRenderWindow below), which is the
+// one call every window (tiled, floating, popup, pinned, fullscreen) funnels
+// through. Passing translate/scale through unchanged (rather than hardcoding
+// identity) also matters for a case unrelated to canvas mode: Renderer.cpp's
+// renderWorkspace() calls this same function with a real, non-identity
+// translate/scale for its own purposes (workspace-preview-style geometry) --
+// clobbering that to identity would break whatever internal feature relies
+// on it whenever canvas mode happens to be active.
 using renderAllClientsFn = void (*)(Render::IHyprRenderer*, PHLMONITOR, PHLWORKSPACE, const steady_tp&, const Vector2D&, const float&);
 
 void hkRenderAllClientsForWorkspace(Render::IHyprRenderer* self, PHLMONITOR pMonitor, PHLWORKSPACE pWorkspace, const steady_tp& now, const Vector2D& translate,
@@ -332,15 +350,58 @@ void hkRenderAllClientsForWorkspace(Render::IHyprRenderer* self, PHLMONITOR pMon
     // src/render/types.hpp:72) at some point after whatever Hyprland version
     // the reference plugin's g_pHyprOpenGL->m_renderData accesses targeted --
     // g_pHyprOpenGL has no m_renderData member at all in v0.55.4.
-    CBox virtualViewport = {g_pCanvas->m_offset.x, g_pCanvas->m_offset.y, monSize.x / g_pCanvas->m_zoom, monSize.y / g_pCanvas->m_zoom};
-    g_pHyprRenderer->m_renderData.damage.add(virtualViewport);
+    //
+    // This box is in physical screen-space pixels (0..monSize), NOT canvas
+    // space: a box built from m_offset/m_zoom drifts off the monitor as soon
+    // as offset != (0,0), leaving only a wrongly-placed patch actually
+    // repainted. Any pan/zoom can touch every pixel, so mark the whole
+    // physical monitor damaged.
+    g_pHyprRenderer->m_renderData.damage.add(CBox{0, 0, monSize.x, monSize.y});
     g_pHyprRenderer->m_renderData.clipBox    = {}; // no clip: nothing should be culled to the physical monitor box
     g_pHyprRenderer->m_renderData.noSimplify = true; // skip damage-region simplification that assumes small, monitor-sized regions
 
+    original(self, pMonitor, pWorkspace, now, translate, scale); // pass through unchanged: see comment above
+}
+
+// src/render/Renderer.hpp:254:
+//   void renderWindow(PHLWINDOW, PHLMONITOR, const Time::steady_tp&, bool,
+//                      eRenderPassMode, bool ignorePosition = false, bool standalone = false);
+// The single leaf call every window render goes through (tiled, floating,
+// popup, pinned, fullscreen -- confirmed from renderWorkspaceWindows(Fullscreen)
+// in Renderer.cpp, which call nothing else to put a window on screen).
+// Hooking here instead of renderAllClientsForWorkspace is what keeps the
+// camera transform scoped to windows only: push our own render-modifier
+// hint immediately before the real call and pop it (reset to identity)
+// immediately after, mirroring exactly the push/CScopeGuard-pop pattern
+// Hyprland's own renderAllClientsForWorkspace uses internally, just scoped
+// to one window's render instead of the whole workspace pass.
+//
+// NOTE: "renderWindow" is ambiguous -- src/managers/screenshare/
+// ScreenshareManager.hpp:188 also declares a zero-arg `void renderWindow()`.
+// findFunctionsByName returns both and hookOne() would take fns[0]
+// unchecked (the same coin-flip bug DESIGN.md flags for the other ambiguous
+// names), so this one goes through hookByOwner() and matches on
+// "IHyprRenderer" instead.
+using renderWindowFn = void (*)(Render::IHyprRenderer*, PHLWINDOW, PHLMONITOR, const steady_tp&, bool, Render::eRenderPassMode, bool, bool);
+
+void hkRenderWindow(Render::IHyprRenderer* self, PHLWINDOW pWindow, PHLMONITOR pMonitor, const steady_tp& now, bool decorate, Render::eRenderPassMode mode,
+                    bool ignorePosition, bool standalone) {
+    auto original = (renderWindowFn)g_hooks.renderWindow->m_original;
+
+    if (!g_pCanvas->m_active) {
+        original(self, pWindow, pMonitor, now, decorate, mode, ignorePosition, standalone);
+        return;
+    }
+
     // (pos + translate) * scale == (pos - offset) * zoom  =>  translate = -offset
-    const Vector2D canvasTranslate = {-g_pCanvas->m_offset.x, -g_pCanvas->m_offset.y};
-    const float    canvasScale     = (float)g_pCanvas->m_zoom;
-    original(self, pMonitor, pWorkspace, now, canvasTranslate, canvasScale);
+    Render::SRenderModifData modif;
+    modif.modifs.emplace_back(std::make_pair<>(Render::SRenderModifData::eRenderModifType::RMOD_TYPE_TRANSLATE,
+                                                Vector2D{-g_pCanvas->m_offset.x, -g_pCanvas->m_offset.y}));
+    modif.modifs.emplace_back(std::make_pair<>(Render::SRenderModifData::eRenderModifType::RMOD_TYPE_SCALE, (float)g_pCanvas->m_zoom));
+
+    g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{modif}));
+    original(self, pWindow, pMonitor, now, decorate, mode, ignorePosition, standalone);
+    g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{Render::SRenderModifData{}}));
 }
 
 // ============================================================================
@@ -479,11 +540,12 @@ bool CanvasHooks::init(HANDLE handle) {
     g_hooks.shouldRender      = hookOverload("shouldRenderWindow", (void*)&hkShouldRenderWindow, /*wantsMonitorArg=*/true);
     g_hooks.renderPass        = hookByOwner("render", "CRenderPass", (void*)&hkRenderPassRender);
     g_hooks.renderClients     = hookOne("renderAllClientsForWorkspace", (void*)&hkRenderAllClientsForWorkspace);
+    g_hooks.renderWindow      = hookByOwner("renderWindow", "IHyprRenderer", (void*)&hkRenderWindow);
     g_hooks.waylandToXWayland = hookOverload("waylandToXWaylandCoords", (void*)&hkWaylandToXWaylandCoords, /*wantsMonitorArg=*/false);
 
     const bool allHooked = g_hooks.mouseWheel && g_hooks.mouseButton && g_hooks.mouseMoved && g_hooks.position && g_hooks.closestValid &&
         g_hooks.monitorFromCursor && g_hooks.monitorFromVector && g_hooks.popupPositioning && g_hooks.shouldRender && g_hooks.renderPass &&
-        g_hooks.renderClients && g_hooks.waylandToXWayland;
+        g_hooks.renderClients && g_hooks.renderWindow && g_hooks.waylandToXWayland;
 
     if (!allHooked) {
         // Deliberately refuse to run half-hooked: e.g. position() remapping
@@ -510,7 +572,7 @@ bool CanvasHooks::init(HANDLE handle) {
 void CanvasHooks::shutdown() {
     for (auto* h : {g_hooks.mouseWheel, g_hooks.mouseButton, g_hooks.mouseMoved, g_hooks.position, g_hooks.closestValid, g_hooks.monitorFromCursor,
                      g_hooks.monitorFromVector, g_hooks.popupPositioning, g_hooks.shouldRender, g_hooks.renderPass, g_hooks.renderClients,
-                     g_hooks.waylandToXWayland}) {
+                     g_hooks.renderWindow, g_hooks.waylandToXWayland}) {
         if (h)
             HyprlandAPI::removeFunctionHook(PHANDLE, h);
     }

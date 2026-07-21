@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# &desc: "pacnix reload -- fish config reload, qsr, hyprctl config reload, and unload+reload every nix-built Hyprland plugin so code changes actually take effect"
 
 # Reuses the real `reload` fish function and the real `qsr` command directly
 # instead of duplicating their logic here -- each stays the single source of
@@ -25,6 +25,23 @@ fi
 fish -c reload
 qsr
 hyprctl reload
+
+# Nix-built Hyprland plugins (Nixos/modules/hyprland/plugins/) are loaded
+# once at session start by Config/Apps/autostart.lua's own loop over this
+# same directory. A rebuild only swaps the home-manager symlink to a new
+# nix store path -- Hyprland already has the *old* .so dlopen'd in memory,
+# so it never picks up the change until explicitly unloaded and reloaded.
+# `hyprctl reload` above is a config reload only, not a plugin reload.
+# Mirrors autostart.lua's loop, but unload-then-load instead of load-only;
+# unload is allowed to fail (`|| true`) for a plugin not yet loaded (e.g.
+# freshly added to the list, not loaded this session).
+if command -v hyprctl >/dev/null 2>&1; then
+    for f in "$HOME"/.local/share/hypr-plugins/*.so; do
+        [ -e "$f" ] || continue
+        hyprctl plugin unload "$f" >/dev/null 2>&1 || true
+        hyprctl plugin load "$f"
+    done
+fi
 
 # Only meaningful from inside a kitty window (remote control connects via
 # kitty's own child-process channel, not a general system-wide socket).
