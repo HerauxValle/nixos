@@ -1,4 +1,4 @@
-/* &desc: "The plugin's fragile hooks: renderWindow (per-window transform), shouldRenderWindow (force-visible safety net). See DESIGN.md." */
+/* &desc: "The plugin's fragile hooks: renderMonitor+renderLayer (zoom via faked monitor scale), visibleOnMonitor (force-visible), renderWindow (per-window pan translate). See DESIGN.md." */
 #pragma once
 
 #include <optional>
@@ -17,8 +17,8 @@ namespace RenderHook {
 
     // Each workspace is its own independent infinite canvas (own pan/zoom
     // camera) -- this gets-or-creates the state for a given workspace ID.
-    // Shared by the render hook itself, Dispatchers.cpp (mutates it on
-    // keybinds), and WindowPlacement.cpp (reads it to place new windows).
+    // Shared by the render hooks, Dispatchers.cpp (mutates it on keybinds),
+    // and WindowPlacement.cpp (reads it to place new windows).
     CCanvasState& stateFor(WORKSPACEID id);
 
     // Drops a workspace's camera state -- called when a workspace is
