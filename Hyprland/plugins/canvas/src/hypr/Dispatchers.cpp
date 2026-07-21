@@ -21,7 +21,6 @@ extern "C" {
 #include <chrono>
 #include <cstdlib>
 #include <format>
-#include <fstream>
 
 namespace {
 HANDLE g_handle = nullptr; // for the occasional user-facing warning notification
@@ -102,18 +101,44 @@ void setCanvasVisualsOnCurrentWorkspace(bool normal) {
 // confirmed the working convention empirically against the already-loaded
 // scrolloverview plugin, since addDispatcherV2 alone isn't reachable from
 // Lua-authored binds here).
-void toggleImpl() {
+// Canvas position is tracked entirely independently of a window's real
+// Hyprland position while canvas mode is active (see RenderHook.cpp) -- so
+// turning canvas mode *off* needs to "bake" each window's current on-screen
+// appearance back into its real position before the transform stops
+// applying, or every window on the workspace would instantly snap to
+// wherever Hyprland's own untouched real position happens to be (likely all
+// clustered together near wherever they were originally floated),
+// discarding whatever arrangement panning/zooming produced. Mirrors
+// WindowPlacement's onWindowOpen math in the opposite direction, then drops
+// the now-meaningless canvas position so a fresh one gets derived (from
+// this same just-committed real position, so no jump) if the workspace
+// ever re-enters canvas mode later.
+void commitCanvasPositionsOnCurrentWorkspace() {
     const auto id    = currentWorkspaceID();
     auto&      state = currentState();
+    for (auto& w : g_pCompositor->m_windows) {
+        if (!w || !w->m_workspace || w->m_workspace->m_id != id)
+            continue;
+
+        const auto monitor   = w->m_workspace->m_monitor.lock();
+        const auto canvasPos = RenderHook::canvasPosFor(w);
+        if (!monitor || !canvasPos)
+            continue; // never rendered under canvas mode -- nothing to commit
+
+        const CanvasVec2 screenPos{(canvasPos->x - state.currentPan().x) * state.currentScale(), (canvasPos->y - state.currentPan().y) * state.currentScale()};
+        Config::Actions::move(Vector2D{screenPos.x + monitor->m_position.x, screenPos.y + monitor->m_position.y}, false, w);
+        RenderHook::forgetWindow(w);
+    }
+}
+
+void toggleImpl() {
+    auto& state = currentState();
     state.toggle();
     if (state.active())
         floatAllWindowsOnCurrentWorkspace();
+    else
+        commitCanvasPositionsOnCurrentWorkspace();
     setCanvasVisualsOnCurrentWorkspace(!state.active());
-
-    {
-        static std::ofstream dbg("/tmp/canvas-toggle.log", std::ios::app);
-        dbg << "toggleImpl: workspace=" << id << " active=" << state.active() << std::endl;
-    }
 
     // toggle() alone never touches zoom/pan, so at 1:1/no-pan it's a
     // no-visible-change identity transform -- easy to mistake for "the bind
