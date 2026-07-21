@@ -44,14 +44,14 @@ using Render::GL::g_pHyprOpenGL;
 
 namespace {
 
-// TEMPORARY diagnostic logging -- writes to /tmp/canvas-debug.log to get
+// TEMPORARY diagnostic logging -- writes to /home/herauxvalle/.cache/canvas-debug.log to get
 // ground-truth runtime values (screenshots/notifications have bad timing
 // for this) instead of guessing further. Remove once the top-left-zoom /
 // bar-still-scaling reports are resolved; see docs/claude/canvas-
 // continuation.md for precedent (this exact technique was used and then
 // removed in an earlier session).
 void dlog(const std::string& msg) {
-    std::ofstream f("/tmp/canvas-debug.log", std::ios::app);
+    std::ofstream f("/home/herauxvalle/.cache/canvas-debug.log", std::ios::app);
     f << msg << "\n";
 }
 
@@ -592,7 +592,7 @@ CFunctionHook* hookByOwner(const std::string& name, const std::string& ownerMark
 bool CanvasHooks::init(HANDLE handle) {
     PHANDLE  = handle;
     g_pCanvas = std::make_unique<CCanvasState>();
-    { std::ofstream(("/tmp/canvas-debug.log"), std::ios::trunc); } // TEMPORARY: fresh log per plugin (re)load
+    { std::ofstream(("/home/herauxvalle/.cache/canvas-debug.log"), std::ios::trunc); } // TEMPORARY: fresh log per plugin (re)load
 
     g_hooks.mouseWheel        = hookOne("onMouseWheel", (void*)&hkOnMouseWheel);
     g_hooks.mouseButton       = hookOne("onMouseButton", (void*)&hkOnMouseButton);
