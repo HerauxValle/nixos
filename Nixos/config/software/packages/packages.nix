@@ -7,7 +7,9 @@
     pkgs = {
 
       # Browsers
-      vivaldi = { };
+      vivaldi = {
+        builtIn = true;
+      }; # live ISO: browser, essential for a real install session
 
       # Development
       git = { };
@@ -64,15 +66,23 @@
       nil = { };
 
       # Shells
-      fish = { };
+      fish = {
+        builtIn = true;
+      }; # live ISO: default shell
       nushell = { };
       powershell = { };
-      quickshell = { };
+      quickshell = {
+        builtIn = true;
+      }; # live ISO: MyBar's runtime, see custom.mybarBackend below
 
       # CLI utilities
       curl = { };
-      fastfetch = { };
-      tree = { };
+      fastfetch = {
+        builtIn = true;
+      }; # live ISO
+      tree = {
+        builtIn = true;
+      }; # live ISO
       eza = { };
       fzf = { };
       zoxide = { };
@@ -84,7 +94,9 @@
       grim = { };
       slurp = { };
       wl-clipboard = { };
-      awww = { };
+      awww = {
+        builtIn = true;
+      }; # live ISO: wallpaper daemon, Hyprland's own exec-once invokes it unconditionally (not Nix-gated)
       mangohud = { };
       polkit_gnome = { };
       pinta = { };
@@ -159,10 +171,16 @@
     custom = {
       claudeCode = { };
       claudeDesktop = { };
-      mybarBackend = { };
-      kittyWrapped = { };
+      mybarBackend = {
+        builtIn = true;
+      }; # live ISO: MyBar's backend, see quickshell below
+      kittyWrapped = {
+        builtIn = true;
+      }; # live ISO: only terminal emulator on the image, essential
       crun = { };
-      ltree = { };
+      ltree = {
+        builtIn = true;
+      }; # live ISO: local flake input, no extra fetch cost
 
       # `cas` was named `obi` (ObiLock) before the Casket rename --
       # "obi" is kept as a muscle-memory alias via the versions/"@alias"
@@ -172,6 +190,7 @@
           "2.0.0@obi" = "";
         };
         default = "2.0.0@obi";
+        builtIn = true; # live ISO: local flake input, no extra fetch cost
       };
 
       # Package/attribute is "seed" (matches the flake's own pname and
@@ -192,18 +211,41 @@
     kde = {
 
       # File management
-      dolphin = { };
-      kio-extras = { };
-      kio-admin = { };
-      kservice = { };
+      # live ISO: dolphin + its three direct companions below all opt
+      # in together -- kio-extras/kio-admin/kservice are what dolphin
+      # actually needs, not just adjacent packages (kio-admin
+      # specifically is the privileged-file-op KIO worker, relevant for
+      # an install session).
+      dolphin = {
+        builtIn = true;
+      };
+      kio-extras = {
+        builtIn = true;
+      };
+      kio-admin = {
+        builtIn = true;
+      };
+      kservice = {
+        builtIn = true;
+      };
 
       # Media
       gwenview = { };
 
       # Theming
-      breeze = { };
-      breeze-icons = { };
-      qtstyleplugin-kvantum = { };
+      # live ISO: not just decoration -- modules/desktop/theming.nix
+      # hardwires QT_QPA_PLATFORMTHEME=qt6ct unconditionally, so
+      # without qt6ct (below) + these, dolphin would actually render
+      # with a broken/default theme, not just a plain one.
+      breeze = {
+        builtIn = true;
+      };
+      breeze-icons = {
+        builtIn = true;
+      };
+      qtstyleplugin-kvantum = {
+        builtIn = true;
+      };
     };
 
     python = {
@@ -216,7 +258,12 @@
     };
 
     qt6 = {
-      qt6ct = { };
+      # live ISO: QT_QPA_PLATFORMTHEME=qt6ct is hardwired (see kde.*
+      # theming comment above) -- required, not optional, for dolphin
+      # to theme correctly at all.
+      qt6ct = {
+        builtIn = true;
+      };
     };
   };
 }
