@@ -108,10 +108,13 @@ hl.bind(mainMod .. " + left",  hl.dsp.window.swap({ direction = "left" }))
 hl.bind(mainMod .. " + right", hl.dsp.window.swap({ direction = "right" }))
 hl.bind(mainMod .. " + up",    hl.dsp.window.swap({ direction = "up" }))
 hl.bind(mainMod .. " + down",  hl.dsp.window.swap({ direction = "down" }))
-hl.bind(mainMod .. " + SHIFT + up",        hl.dsp.focus({ workspace = "e-1" }))
-hl.bind(mainMod .. " + SHIFT + down",       hl.dsp.focus({ workspace = "e+1" }))
-hl.bind(mainMod .. " + SHIFT + ALT + up",   hl.dsp.window.move({ workspace = "e-1" }))
-hl.bind(mainMod .. " + SHIFT + ALT + down", hl.dsp.window.move({ workspace = "e+1" }))
+-- Swapped from e-1/e+1 on up/down respectively -- up now goes to the next
+-- (higher) workspace and down to the previous (lower) one, so the slidevert
+-- animation direction reads the way it feels like it should on these keys.
+hl.bind(mainMod .. " + SHIFT + up",        hl.dsp.focus({ workspace = "e+1" }))
+hl.bind(mainMod .. " + SHIFT + down",       hl.dsp.focus({ workspace = "e-1" }))
+hl.bind(mainMod .. " + SHIFT + ALT + up",   hl.dsp.window.move({ workspace = "e+1" }))
+hl.bind(mainMod .. " + SHIFT + ALT + down", hl.dsp.window.move({ workspace = "e-1" }))
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 -- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 13, bezier = "easeOut", style = "slidevert" })
 -- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 3.5, bezier = "standard", style = "slidevert" })

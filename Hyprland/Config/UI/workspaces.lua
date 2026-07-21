@@ -1,4 +1,5 @@
-hl.workspace_rule({ workspace = "1", persistent = true })
+-- default so this is the workspace Hyprland lands on at startup.
+hl.workspace_rule({ workspace = "1", persistent = true, default = true })
 hl.workspace_rule({ workspace = "2", persistent = true })
 hl.workspace_rule({ workspace = "3", persistent = true })
 hl.workspace_rule({ workspace = "4", persistent = true })
