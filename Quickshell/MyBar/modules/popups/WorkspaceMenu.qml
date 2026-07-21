@@ -16,7 +16,8 @@ Rectangle {
 
     MouseArea { anchors.fill: parent; onClicked: {} }
 
-    readonly property int wsId: BarConfig.ctxWorkspaceId
+    readonly property int wsId:      BarConfig.ctxWorkspaceId       // raw Hyprland ID -- used for dispatch
+    readonly property int wsDisplay: BarConfig.ctxWorkspaceDisplay  // displayed number -- used for labels
 
     Column {
         anchors { fill: parent; margins: BarConfig.sp(14) }
@@ -27,7 +28,7 @@ Rectangle {
             width: parent.width; height: BarConfig.sp(32)
             Text {
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                text: "Workspace " + root.wsId
+                text: "Workspace " + root.wsDisplay
                 color: Colors.colOnSurface; font.pixelSize: BarConfig.fsMd; font.weight: Font.Medium
             }
             Text {
@@ -52,7 +53,7 @@ Rectangle {
                 anchors { left: parent.left; leftMargin: BarConfig.sp(8); verticalCenter: parent.verticalCenter }
                 spacing: BarConfig.sp(10)
                 Text { text: ""; font.family: "Symbols Nerd Font Mono"; font.pixelSize: BarConfig.fsMd; color: Colors.primary; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: "Switch to workspace " + root.wsId; font.pixelSize: BarConfig.fs; color: Colors.colOnSurface; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: "Switch to workspace " + root.wsDisplay; font.pixelSize: BarConfig.fs; color: Colors.colOnSurface; anchors.verticalCenter: parent.verticalCenter }
             }
             MouseArea {
                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -71,7 +72,7 @@ Rectangle {
                 anchors { left: parent.left; leftMargin: BarConfig.sp(8); verticalCenter: parent.verticalCenter }
                 spacing: BarConfig.sp(10)
                 Text { text: ""; font.family: "Symbols Nerd Font Mono"; font.pixelSize: BarConfig.fsMd; color: Colors.primary; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: "Move window to workspace " + root.wsId; font.pixelSize: BarConfig.fs; color: Colors.colOnSurface; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: "Move window to workspace " + root.wsDisplay; font.pixelSize: BarConfig.fs; color: Colors.colOnSurface; anchors.verticalCenter: parent.verticalCenter }
             }
             MouseArea {
                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor

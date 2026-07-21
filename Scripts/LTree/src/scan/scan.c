@@ -318,10 +318,20 @@ void scan_single_file(const char *path, const Config *cfg,
  * is a far less surprising failure mode than a garbage/zero timestamp
  * for --sort birth. ===================================================== */
 time_t fetch_btime(const char *path, time_t mtime_fallback) {
+#if defined(__APPLE__)
+    /* BSD/Darwin `struct stat` already carries birth time as
+     * st_birthtimespec -- no statx() syscall needed (and none exists
+     * here), so a plain stat() gets us there directly. */
+    struct stat st;
+    if (stat(path, &st) == 0) {
+        return st.st_birthtimespec.tv_sec;
+    }
+#elif defined(__linux__)
     struct statx stx;
     if (statx(AT_FDCWD, path, 0, STATX_BTIME, &stx) == 0 && (stx.stx_mask & STATX_BTIME)) {
         return (time_t)stx.stx_btime.tv_sec;
     }
+#endif
     return mtime_fallback;
 }
 

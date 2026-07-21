@@ -125,6 +125,11 @@ Item {
                 }
             }
 
+            HR {}
+            SLabel { text: "WORKSPACES" }
+
+            SRow { label: "Invert Workspace IDs"; Toggle { checked: BarConfig.invertWorkspaceIds; onToggled: (v) => BarConfig.invertWorkspaceIds = v } }
+
             Item { height: 8 }
         }
     }

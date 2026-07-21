@@ -59,6 +59,28 @@ ShellRoot {
             BarConfig.togglePopup("workspacemenu", Hyprland.focusedMonitor?.name ?? "")
         }
     }
+    // Next/prev workspace switch and window-move, direction-aware of
+    // BarConfig.invertWorkspaceIds -- Hyprland's workspaces slide animation
+    // is fixed to raw-ID comparison with no config override (confirmed:
+    // hyprwm/Hyprland discussion #3828), so flipping e+1/e-1 here is what
+    // actually reverses it while Workspaces.qml keeps displayed numbers
+    // unchanged. Bound from Config/Reactive/windowMode.lua via "qs ipc call".
+    IpcHandler {
+        target: "workspacefocusnext"
+        function onMessage(message: string) { Hyprland.dispatch("workspace " + (BarConfig.invertWorkspaceIds ? "e-1" : "e+1")) }
+    }
+    IpcHandler {
+        target: "workspacefocusprev"
+        function onMessage(message: string) { Hyprland.dispatch("workspace " + (BarConfig.invertWorkspaceIds ? "e+1" : "e-1")) }
+    }
+    IpcHandler {
+        target: "workspacemovenext"
+        function onMessage(message: string) { Hyprland.dispatch("movetoworkspace " + (BarConfig.invertWorkspaceIds ? "e-1" : "e+1")) }
+    }
+    IpcHandler {
+        target: "workspacemoveprev"
+        function onMessage(message: string) { Hyprland.dispatch("movetoworkspace " + (BarConfig.invertWorkspaceIds ? "e+1" : "e-1")) }
+    }
 
     Connections {
         target: BarConfig

@@ -99,7 +99,8 @@ Singleton {
     property string currentPopupScreen: ""   // screen name that owns the open popup
     property string lastPopupScreen:    ""   // persists after close — used by drawer gear icon
     property string primaryScreen:      ""   // fallback screen for IPC calls with no screen context
-    property int    ctxWorkspaceId:     0    // set before opening workspacemenu popup
+    property int    ctxWorkspaceId:      0   // raw Hyprland workspace ID -- set before opening workspacemenu popup
+    property int    ctxWorkspaceDisplay: 0   // displayed number for that same workspace (may differ under invertWorkspaceIds)
     property string capturingKey:       ""   // set by BarSettings during key capture
 
     function closePopup()                    { currentPopup = ""; currentPopupScreen = "" }
@@ -165,6 +166,7 @@ Singleton {
             "AETHERA_AP_ETH=" + (apLockEth ? "1" : "0") + "\n" +
             "AETHERA_AP_DAEMONS=" + (apLockDaemons ? "1" : "0") + "\n" +
             "AETHERA_AP_FIREWALL=" + (apLockFirewall ? "1" : "0") + "\n" +
+            "AETHERA_INVERT_WS=" + (invertWorkspaceIds ? "1" : "0") + "\n" +
             "AETHERA_NOTIF_MAX=" + maxToastPopups + "\n" +
             "AETHERA_DRAWER_MAX=" + maxDrawerNotifs + "\n" +
             "AETHERA_BIND_DRAWER=" + bindDrawer + "\n" +
@@ -242,6 +244,16 @@ Singleton {
     onApLockEthChanged:      _schedSave()
     onApLockDaemonsChanged:  _schedSave()
     onApLockFirewallChanged: _schedSave()
+
+    // ── Workspace ID inversion ────────────────────────────────────────────
+    // Displayed numbers stay 1..N; when on, the workspace IDs they map onto
+    // are reversed on the backend (see Workspaces.qml's reflect()) so the
+    // slidevert workspace-switch animation reads the other direction --
+    // Hyprland ties that direction to raw workspace ID comparison with no
+    // config override (confirmed: hyprwm/Hyprland discussion #3828).
+    property bool _invertWsInit: { const v = Quickshell.env("AETHERA_INVERT_WS"); return v ? v === "1" : false }
+    property bool invertWorkspaceIds: _invertWsInit
+    onInvertWorkspaceIdsChanged: _schedSave()
 
     // ── Keybinds ──────────────────────────────────────────────────────────
     // Each bind stored as "MOD+MOD+KEY" string, e.g. "SUPER+Space"

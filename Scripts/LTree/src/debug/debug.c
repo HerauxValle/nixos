@@ -8,7 +8,11 @@
 #include <unistd.h>
 #include <sys/resource.h>
 #include <sys/types.h>
+#if defined(__APPLE__)
+#include <malloc/malloc.h>
+#else
 #include <malloc.h>
+#endif
 
 /* ===================== timing ============================================ */
 void debug_timer_mark_start(DebugTimer *t)      { clock_gettime(CLOCK_MONOTONIC, &t->program_start); }
@@ -61,7 +65,11 @@ void debug_collect(DebugStats *out, const DebugTimer *timer, Node *root,
     if (getrusage(RUSAGE_SELF, &ru) == 0) {
         out->cpu_user_seconds         = (double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1e6;
         out->cpu_system_seconds       = (double)ru.ru_stime.tv_sec + (double)ru.ru_stime.tv_usec / 1e6;
-        out->peak_rss_kb              = ru.ru_maxrss;      /* already KB on Linux */
+#if defined(__APPLE__)
+        out->peak_rss_kb           = ru.ru_maxrss / 1024;  /* Darwin reports bytes, not KB */
+#else
+        out->peak_rss_kb           = ru.ru_maxrss;         /* already KB on Linux */
+#endif
         out->minor_page_faults        = ru.ru_minflt;
         out->major_page_faults        = ru.ru_majflt;
         out->block_input_ops          = ru.ru_inblock;
@@ -70,11 +78,26 @@ void debug_collect(DebugStats *out, const DebugTimer *timer, Node *root,
         out->involuntary_ctx_switches = ru.ru_nivcsw;
     }
 
+#if defined(__APPLE__)
+    /* No mallinfo2() on Darwin -- malloc_zone_statistics() over the
+     * default zone is the nearest equivalent: size_in_use is bytes
+     * actually live, size_allocated is what the zone holds overall
+     * (in-use + free), so the gap between them stands in for glibc's
+     * "free" bucket. Darwin doesn't split out an mmap'd region the
+     * way glibc does, so that field is left at 0. */
+    malloc_statistics_t mi;
+    malloc_zone_statistics(NULL, &mi);
+    out->heap_in_use_bytes = (long long)mi.size_in_use;
+    out->heap_free_bytes   = (long long)(mi.size_allocated - mi.size_in_use);
+    out->heap_mmap_bytes   = 0;
+    out->heap_arena_bytes  = (long long)mi.size_allocated;
+#else
     struct mallinfo2 mi = mallinfo2();
     out->heap_in_use_bytes = (long long)mi.uordblks;
     out->heap_free_bytes   = (long long)mi.fordblks;
     out->heap_mmap_bytes   = (long long)mi.hblkhd;
     out->heap_arena_bytes  = (long long)mi.arena;
+#endif
 
     out->dirs_scanned  = tot->dirs;
     out->files_scanned = tot->files;

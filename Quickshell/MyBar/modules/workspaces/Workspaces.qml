@@ -20,9 +20,21 @@ Item {
         return Math.max(maxId, activeWsId, 1)
     }
 
+    // Displayed workspace numbers always read 1..wsCount in natural order;
+    // when BarConfig.invertWorkspaceIds is on, this maps that displayed
+    // number onto the reversed raw Hyprland workspace ID instead (a
+    // reflection is its own inverse, so the same function converts either
+    // direction). Hyprland's workspaces slide animation is fixed to raw ID
+    // comparison with no config override (confirmed: hyprwm/Hyprland
+    // discussion #3828), so this is what actually flips its direction while
+    // keeping what you see on the bar unchanged.
+    function reflect(n) {
+        return BarConfig.invertWorkspaceIds ? (root.wsCount + 1 - n) : n
+    }
+
     function updateOccupied() {
         wsOccupied = Array.from({length: 10}, (_, i) =>
-            Hyprland.workspaces.values.some(ws => ws.id === i + 1)
+            Hyprland.workspaces.values.some(ws => ws.id === root.reflect(i + 1))
         )
     }
 
@@ -32,6 +44,10 @@ Item {
         target: Hyprland.workspaces
         function onValuesChanged() { root.updateOccupied() }
     }
+    Connections {
+        target: BarConfig
+        function onInvertWorkspaceIdsChanged() { root.updateOccupied() }
+    }
 
     implicitWidth: wsRow.implicitWidth
     implicitHeight: wsRow.implicitHeight
@@ -39,8 +55,11 @@ Item {
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         onWheel: (event) => {
-            Hyprland.dispatch(event.angleDelta.y < 0
-                ? "workspace r+1" : "workspace r-1")
+            const down = event.angleDelta.y < 0
+            const rel = BarConfig.invertWorkspaceIds
+                ? (down ? "r-1" : "r+1")
+                : (down ? "r+1" : "r-1")
+            Hyprland.dispatch("workspace " + rel)
         }
     }
 
@@ -55,8 +74,9 @@ Item {
                 id: wsItem
                 required property int index
 
-                readonly property int  wsId:    index + 1
-                readonly property bool active:   wsId === root.activeWsId
+                readonly property int  displayId: index + 1               // always shown in natural order
+                readonly property int  wsId:      root.reflect(displayId)  // raw Hyprland ID actually dispatched to
+                readonly property bool active:    wsId === root.activeWsId
                 readonly property bool occupied: root.wsOccupied.length > index
                                                   && root.wsOccupied[index]
 
@@ -75,7 +95,7 @@ Item {
                 Text {
                     id: wsLabel
                     anchors.centerIn: parent
-                    text: String(wsItem.wsId).padStart(2, '0')
+                    text: String(wsItem.displayId).padStart(2, '0')
                     font.pixelSize: BarConfig.barFontSize - 1
                     font.family: "JetBrains Mono, monospace"
                     font.weight: wsItem.active ? Font.Medium : Font.Normal
@@ -99,6 +119,7 @@ Item {
                     onClicked: (event) => {
                         if (event.button === Qt.RightButton) {
                             BarConfig.ctxWorkspaceId = wsItem.wsId
+                            BarConfig.ctxWorkspaceDisplay = wsItem.displayId
                             Qt.callLater(function() { BarConfig.togglePopup("workspacemenu", QsWindow.window?.screen?.name ?? "") })
                         } else {
                             Hyprland.dispatch("workspace " + wsItem.wsId)

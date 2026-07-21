@@ -108,20 +108,23 @@ hl.bind(mainMod .. " + left",  hl.dsp.window.swap({ direction = "left" }))
 hl.bind(mainMod .. " + right", hl.dsp.window.swap({ direction = "right" }))
 hl.bind(mainMod .. " + up",    hl.dsp.window.swap({ direction = "up" }))
 hl.bind(mainMod .. " + down",  hl.dsp.window.swap({ direction = "down" }))
--- Swapped from e-1/e+1 on up/down respectively -- up now goes to the next
--- (higher) workspace and down to the previous (lower) one, so the slidevert
--- animation direction reads the way it feels like it should on these keys.
-hl.bind(mainMod .. " + SHIFT + up",        hl.dsp.focus({ workspace = "e+1" }))
-hl.bind(mainMod .. " + SHIFT + down",       hl.dsp.focus({ workspace = "e-1" }))
-hl.bind(mainMod .. " + SHIFT + ALT + up",   hl.dsp.window.move({ workspace = "e+1" }))
-hl.bind(mainMod .. " + SHIFT + ALT + down", hl.dsp.window.move({ workspace = "e-1" }))
+-- Routed through MyBar's own IpcHandlers (shell.qml) instead of e+1/e-1
+-- directly, the same "qs ipc call" mechanism BarConfig.qml's own configurable
+-- binds (drawer/launcher/etc.) already use -- so the invert check happens
+-- against the live BarConfig.invertWorkspaceIds property in the bar process
+-- itself, not a re-read of a file on disk.
+local MYBAR_QS_PATH = os.getenv("HOME") .. "/.config/quickshell/MyBar"
+local function mybarIpc(target)
+    return hl.dsp.exec_cmd("qs ipc -p " .. MYBAR_QS_PATH .. " call " .. target .. " onMessage \"\"")
+end
+hl.bind(mainMod .. " + SHIFT + up",        mybarIpc("workspacefocusnext"))
+hl.bind(mainMod .. " + SHIFT + down",       mybarIpc("workspacefocusprev"))
+hl.bind(mainMod .. " + SHIFT + ALT + up",   mybarIpc("workspacemovenext"))
+hl.bind(mainMod .. " + SHIFT + ALT + down", mybarIpc("workspacemoveprev"))
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 -- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 13, bezier = "easeOut", style = "slidevert" })
 -- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 3.5, bezier = "standard", style = "slidevert" })
--- Same speed/bezier as theme.lua's "windows" leaf (which drives the
--- left/right window scroll in the scrolling layout), so this reads as the
--- same motion -- kept "slidevert" since mod+shift+up/down is a vertical
--- (e-1/e+1) switch, not horizontal.
+-- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "standard", style = "fade" })
 hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "standard", style = "slidevert" })
 -- << END
 

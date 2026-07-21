@@ -22,7 +22,7 @@
         activation = {
           onEntry = true;
           paths = {
-            "~/Dotfiles/test/" = "recursive";
+            "~/Dotfiles/" = "recursive";
           };
         };
       };
