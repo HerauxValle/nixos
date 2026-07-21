@@ -76,20 +76,33 @@ editing.
 
 ### Layer A (`hypr/`) — the fragile glue
 
-- **`RenderHook`**: hooks exactly one function,
-  `IHyprRenderer::renderAllClientsForWorkspace`. Traced against real Hyprland
-  source (not just headers) before writing: this function has exactly one
-  call site in the whole compositor (`renderWorkspace`, called once per
-  monitor per frame from `renderMonitor`, always for that monitor's own
-  `m_activeWorkspace`). Its `translate`/`scale` work by pushing a
-  render-pass-wide modifier (`SRenderModifData`/`CRendererHintsPassElement`)
-  that's popped again before the function returns — so this hook only ever
-  needs to override the transform for the *one* workspace Hyprland already
-  asked to render; it never touches any other workspace's render at all.
-  When the workspace isn't in canvas mode, it passes through whatever
-  translate/scale Hyprland itself supplied, untouched (something else, e.g.
-  the built-in cursor-zoom accessibility feature, could legitimately already
-  be using this same parameter).
+- **`RenderHook`**: hooks two functions,
+  `IHyprRenderer::renderWorkspaceWindows` and
+  `IHyprRenderer::renderWorkspaceWindowsFullscreen`. Originally hooked the
+  single, wider `renderAllClientsForWorkspace` instead, wrapping its
+  translate/scale modifier around the *entire* call — but that function also
+  draws that workspace's background and layer-shell surfaces (wallpaper, and
+  crucially TOP/OVERLAY-layer bars/panels), confirmed live as a quickshell
+  bar zooming along with the windows. Traced the real `Renderer.cpp`:
+  `renderAllClientsForWorkspace` calls exactly one of these two narrower
+  functions to draw *just* the windows (tiled/floating/pinned, no layers),
+  sandwiched between its own background/bottom-layer rendering (before) and
+  top/overlay-layer rendering (after) — both left untouched now. Each hook's
+  `translate`/`scale` work by pushing a render-pass-wide modifier
+  (`SRenderModifData`/`CRendererHintsPassElement`) that's popped again before
+  the function returns — so this hook only ever needs to override the
+  transform for the *one* workspace Hyprland already asked to render; it
+  never touches any other workspace's render at all. When the workspace
+  isn't in canvas mode, it passes through whatever translate/scale Hyprland
+  itself supplied, untouched (something else, e.g. the built-in cursor-zoom
+  accessibility feature, could legitimately already be using this same
+  parameter). Order matters when both modifs are pushed: `applyToBox` applies
+  them in insertion order, and `Transform::cameraTransform`'s translate is
+  pre-multiplied by scale (`-pan * scale`), so scale must be pushed *before*
+  translate — pushing translate first double-scales the pan term
+  (`pos*S - pan*S²` instead of `pos*S - pan*S`), silently under-applying pan
+  the further you zoom out. (Caught and fixed by hand-deriving the math, not
+  a live symptom report.)
   Owns the `std::unordered_map<WORKSPACEID, CCanvasState>` — each workspace's
   camera is independent, matching "one workspace = one infinite canvas."
 - **`VersionGuard`**: compares `__hyprland_api_get_hash()` (running server)
@@ -156,7 +169,7 @@ dependency on *when* Hyprland's own centering logic runs relative to the
 
 | Hook / dependency | Exact signature/behavior relied on | File | Why | What breaks if it changes | First thing to check after a Hyprland bump |
 |---|---|---|---|---|---|
-| `renderAllClientsForWorkspace` hook | `void(IHyprRenderer*, PHLMONITOR, PHLWORKSPACE, const Time::steady_tp&, const Vector2D&, const float&)`, one call site (`renderWorkspace`) | `hypr/RenderHook.cpp` | Only hook point that lets a workspace's windows render at a different position/scale than 1:1 — no stable API covers render transforms | Signature change, class rename (already happened once upstream: `CHyprRenderer` → `Render::IHyprRenderer`), or a second call site appearing (would mean this hook fires for contexts we don't expect, e.g. screenshots) | Diff `Renderer.hpp`'s declaration; re-run `findFunctionsByName` and compare `SFunctionMatch::demangled` against what was captured at last successful build; re-grep the real `Renderer.cpp` source for other call sites |
+| `renderWorkspaceWindows`/`renderWorkspaceWindowsFullscreen` hooks | `void(IHyprRenderer*, PHLMONITOR, PHLWORKSPACE, const Time::steady_tp&)`, each called from within `renderAllClientsForWorkspace` | `hypr/RenderHook.cpp` | Only hook point that lets a workspace's windows render at a different position/scale than 1:1, without also zooming background/layer-shell surfaces (bars/panels) — no stable API covers render transforms | Signature change, class rename (already happened once upstream: `CHyprRenderer` → `Render::IHyprRenderer`), or `renderAllClientsForWorkspace` no longer calling exactly one of these two per invocation | Diff `Renderer.hpp`'s declarations; re-run `findFunctionsByName` and compare `SFunctionMatch::demangled` against what was captured at last successful build; re-grep the real `Renderer.cpp` source for how `renderAllClientsForWorkspace` dispatches to these |
 | `getMouseCoordsInternal()` read | `Vector2D CInputManager::getMouseCoordsInternal()` returning **global** desktop coordinates | `hypr/Dispatchers.cpp`, `hypr/WindowPlacement.cpp` | Live cursor position for drag-pan deltas and new-window placement | Read, not a hook — lower risk, but the coordinate-space assumption (global vs. monitor-relative) is a real, confirmed-the-hard-way gotcha; if this ever returns something else, math silently goes wrong rather than crashing | Sanity-check a known cursor position against `hyprctl cursorpos` |
 | Deferred-placement timing | Hyprland's own floating-window centering logic runs *after* `window.open` fires; 50ms is empirically enough to settle first | `hypr/WindowPlacement.cpp` | New windows would otherwise snap back to a centered default instead of the cursor position | If the centering logic's timing changes (faster/slower), the deferred move could race it again (window ends up centered, not at cursor) | If new windows stop landing at the cursor, first suspect: increase the timer delay and see if it starts working again |
 | `Config::Actions::floatWindow`/`move` | `ActionResult floatWindow(eTogglableAction, std::optional<PHLWINDOW>)`, `ActionResult move(const Vector2D&, bool, std::optional<PHLWINDOW>)` | `hypr/Dispatchers.cpp`, `hypr/WindowPlacement.cpp` | Direct, config-mode-independent equivalent of the `setfloating`/`move` dispatchers — bypasses the Lua-config `dispatch` wrapper that broke `invokeHyprctlCommand` entirely on this system | If these functions are renamed/restructured, floating/positioning stops working (each call already checks its `ActionResult` and is safe to no-op on failure) | Re-check `src/config/shared/actions/ConfigActions.hpp` for the current function signatures |

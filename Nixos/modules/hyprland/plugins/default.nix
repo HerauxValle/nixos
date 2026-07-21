@@ -43,11 +43,12 @@
     # -------------------------------------------------------------------------
 
     {
-      # First-party: infinite canvas viewport (zoom out to see all
-      # workspaces in a grid, pan around, zoom back in). Local source, not
-      # fetched -- see ../../../../Hyprland/plugins/canvas/DESIGN.md for the
-      # architecture and why hypr-canvas (the third-party plugin this
-      # replaces) didn't work here.
+      # First-party: infinite canvas per workspace (each workspace is its own
+      # pannable/zoomable 2D space, floating windows placed anywhere in it
+      # like nodes on a ComfyUI canvas). Local source, not fetched -- see
+      # ../../../../Hyprland/plugins/canvas/DESIGN.md for the architecture
+      # and why hypr-canvas (the third-party plugin this replaces) didn't
+      # work here.
       name = "canvas";
       src = ../../../../Hyprland/plugins/canvas;
       version = "0-unstable-local";

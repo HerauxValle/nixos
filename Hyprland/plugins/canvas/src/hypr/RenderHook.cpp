@@ -63,11 +63,20 @@ void renderWithCanvasTransform(origRenderWorkspaceWindows original, Render::IHyp
 
     const auto xf = Transform::cameraTransform(state);
 
+    // Order matters: SRenderModifData::applyToBox applies modifs in
+    // insertion order (box.scale() then box.translate(), chained). translate
+    // above is pre-multiplied by scale (-pan * scale, see Transform.cpp), so
+    // it must land *after* the scale step -- (pos * S) + T == (pos - pan) *
+    // S. Pushing translate first would instead compute (pos + T) * S,
+    // scaling the already-scaled pan term a second time (pos*S - pan*S²),
+    // which silently under-applies panning the further you zoom out. Caught
+    // by hand-deriving the math against zoomImpl's documented formula
+    // (screenPos = (canvasPos - pan) * scale) rather than live symptoms.
     Render::SRenderModifData modif;
-    if (xf.translate.x != 0.0 || xf.translate.y != 0.0)
-        modif.modifs.emplace_back(Render::SRenderModifData::RMOD_TYPE_TRANSLATE, Vector2D{xf.translate.x, xf.translate.y});
     if (xf.scale != 1.f)
         modif.modifs.emplace_back(Render::SRenderModifData::RMOD_TYPE_SCALE, xf.scale);
+    if (xf.translate.x != 0.0 || xf.translate.y != 0.0)
+        modif.modifs.emplace_back(Render::SRenderModifData::RMOD_TYPE_TRANSLATE, Vector2D{xf.translate.x, xf.translate.y});
 
     const bool hasModif = !modif.modifs.empty();
     if (hasModif)

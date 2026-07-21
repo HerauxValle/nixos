@@ -14,8 +14,8 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     if (checkHyprlandVersion(handle)) {
         if (!RenderHook::install(handle))
-            HyprlandAPI::addNotification(handle, "[canvas] Disabled: couldn't find renderAllClientsForWorkspace to hook -- dispatchers still active", CHyprColor{1.0, 0.2, 0.2, 1.0},
-                                          6000);
+            HyprlandAPI::addNotification(handle, "[canvas] Disabled: couldn't find renderWorkspaceWindows/renderWorkspaceWindowsFullscreen to hook -- dispatchers still active",
+                                          CHyprColor{1.0, 0.2, 0.2, 1.0}, 6000);
     }
 
     Dispatchers::registerAll(handle);
