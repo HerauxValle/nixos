@@ -115,11 +115,11 @@ hl.bind(mainMod .. " + SHIFT + ALT + down", hl.dsp.window.move({ workspace = "e+
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 -- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 13, bezier = "easeOut", style = "slidevert" })
 -- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 3.5, bezier = "standard", style = "slidevert" })
--- Matches theme.lua's "windows" leaf (speed 3, bezier "standard", no style)
--- exactly, so mod+shift+up/down (workspace e-1/e+1) reads as the same motion
--- as the left/right window scroll within the scrolling layout, which is
--- driven by that same "windows" leaf.
-hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "standard" })
+-- Same speed/bezier as theme.lua's "windows" leaf (which drives the
+-- left/right window scroll in the scrolling layout), so this reads as the
+-- same motion -- kept "slidevert" since mod+shift+up/down is a vertical
+-- (e-1/e+1) switch, not horizontal.
+hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "standard", style = "slidevert" })
 -- << END
 
 hl.config({
