@@ -59,7 +59,7 @@
       # mkPlugin doc comment warns about) -- override with a plain copy into
       # $out/lib instead, matching what mkPlugin's xdg.dataFile wiring
       # expects to find at "${drv}/lib/${libFile}".
-      installPhase = "mkdir -p $out/lib && cp canvas.so $out/lib/canvas.so";
+      installPhase = "mkdir -p $out/lib && cp hypr-canvas.so $out/lib/canvas.so";
     }
 
     {
