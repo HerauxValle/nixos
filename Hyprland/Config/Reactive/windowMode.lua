@@ -108,19 +108,12 @@ hl.bind(mainMod .. " + left",  hl.dsp.window.swap({ direction = "left" }))
 hl.bind(mainMod .. " + right", hl.dsp.window.swap({ direction = "right" }))
 hl.bind(mainMod .. " + up",    hl.dsp.window.swap({ direction = "up" }))
 hl.bind(mainMod .. " + down",  hl.dsp.window.swap({ direction = "down" }))
--- Routed through MyBar's own IpcHandlers (shell.qml) instead of e+1/e-1
--- directly, the same "qs ipc call" mechanism BarConfig.qml's own configurable
--- binds (drawer/launcher/etc.) already use -- so the invert check happens
--- against the live BarConfig.invertWorkspaceIds property in the bar process
--- itself, not a re-read of a file on disk.
-local MYBAR_QS_PATH = os.getenv("HOME") .. "/.config/quickshell/MyBar"
-local function mybarIpc(target)
-    return hl.dsp.exec_cmd("qs ipc -p " .. MYBAR_QS_PATH .. " call " .. target .. " onMessage \"\"")
-end
-hl.bind(mainMod .. " + SHIFT + up",        mybarIpc("workspacefocusnext"))
-hl.bind(mainMod .. " + SHIFT + down",       mybarIpc("workspacefocusprev"))
-hl.bind(mainMod .. " + SHIFT + ALT + up",   mybarIpc("workspacemovenext"))
-hl.bind(mainMod .. " + SHIFT + ALT + down", mybarIpc("workspacemoveprev"))
+-- Workspace focus/move next/prev binds live entirely in MyBar's own
+-- configurable-keybind system now (config/BarConfig.qml's bindWorkspace*
+-- properties, registered via "qs ipc call" the same way drawer/launcher/etc.
+-- already are) -- not here, so they show up on the Binds settings page under
+-- WORKSPACES instead of being fixed. See shell.qml's IpcHandlers for the
+-- actual dispatch + BarConfig.invertWorkspaceIds direction flip.
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 -- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 13, bezier = "easeOut", style = "slidevert" })
 -- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 3.5, bezier = "standard", style = "slidevert" })

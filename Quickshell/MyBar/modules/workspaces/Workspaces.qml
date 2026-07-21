@@ -59,7 +59,12 @@ Item {
             const rel = BarConfig.invertWorkspaceIds
                 ? (down ? "r-1" : "r+1")
                 : (down ? "r+1" : "r-1")
-            Hyprland.dispatch("workspace " + rel)
+            // Plain "workspace <arg>" dispatch strings error on this Hyprland
+            // build -- it parses every dispatch as a Lua expression
+            // unconditionally (confirmed live: even a plain "workspace 5"
+            // fails with "hl.dispatch(workspace 5)) ')' expected"), so this
+            // needs the full hl.dsp.* Lua call form instead.
+            Hyprland.dispatch("hl.dsp.focus({ workspace = '" + rel + "' })")
         }
     }
 
@@ -122,7 +127,7 @@ Item {
                             BarConfig.ctxWorkspaceDisplay = wsItem.displayId
                             Qt.callLater(function() { BarConfig.togglePopup("workspacemenu", QsWindow.window?.screen?.name ?? "") })
                         } else {
-                            Hyprland.dispatch("workspace " + wsItem.wsId)
+                            Hyprland.dispatch("hl.dsp.focus({ workspace = '" + wsItem.wsId + "' })")
                         }
                     }
                 }

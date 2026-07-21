@@ -776,6 +776,124 @@ Rectangle {
                 }
             }
 
+            SLabel { visible: root.activeTab === 4; text: "WORKSPACES" }
+
+            Repeater {
+                model: root.activeTab === 4 ? root._wsBindDefs : []
+                delegate: Item {
+                    id: wsBindRow
+                    required property var modelData
+                    required property int index
+                    width: inner.width
+                    height: BarConfig.sp(36)
+
+                    readonly property string currentBind: root._getBind(wsBindRow.modelData.key)
+                    readonly property bool isDefault: wsBindRow.currentBind === BarConfig._bindDefaults[wsBindRow.modelData.key]
+                    readonly property bool hasConflict: root._hasConflict(wsBindRow.modelData.key, wsBindRow.currentBind)
+                    readonly property bool isCapturing: root._capturingKey === wsBindRow.modelData.key
+                    readonly property bool isGreen: root._greenKey === wsBindRow.modelData.key
+                    readonly property bool isConflict: root._conflictKey === wsBindRow.modelData.key
+                    readonly property bool isYellow: root._yellowKey === wsBindRow.modelData.key
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: wsBindRow.modelData.label
+                        color: Colors.colOnSurface
+                        font.pixelSize: BarConfig.fs
+                    }
+
+                    // Reset arrow — visible when not default
+                    Text {
+                        id: wsResetArrow
+                        anchors.right: wsBindBtn.left
+                        anchors.rightMargin: BarConfig.sp(8)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "↺"
+                        font.pixelSize: BarConfig.fsLg
+                        color: Colors.primary
+                        opacity: wsBindRow.isDefault ? 0 : 1
+                        Behavior on opacity { NumberAnimation { duration: 160 } }
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.margins: -4
+                            cursorShape: Qt.PointingHandCursor
+                            enabled: !wsBindRow.isDefault
+                            onClicked: root._setBind(wsBindRow.modelData.key, BarConfig._bindDefaults[wsBindRow.modelData.key])
+                        }
+                    }
+
+                    // Keybind button
+                    Rectangle {
+                        id: wsBindBtn
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: BarConfig.sp(140)
+                        height: BarConfig.sp(28)
+                        radius: BarConfig.sp(6)
+                        color: wsBindRow.isCapturing
+                            ? Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.15)
+                            : wsBindRow.isGreen
+                                ? Qt.rgba(0.13, 0.77, 0.37, 0.15)
+                                : wsBindRow.isYellow
+                                    ? Qt.rgba(0.98, 0.75, 0.18, 0.12)
+                                    : (wsBindRow.hasConflict || wsBindRow.isConflict)
+                                        ? Qt.rgba(0.94, 0.27, 0.27, 0.12)
+                                        : Colors.surfaceContainerHigh
+                        border.width: 1
+                        border.color: wsBindRow.isGreen
+                            ? "#21c45d"
+                            : wsBindRow.isYellow
+                                ? "#f9be2e"
+                                : (wsBindRow.hasConflict || wsBindRow.isConflict)
+                                    ? "#ef4444"
+                                    : wsBindRow.isCapturing
+                                        ? Colors.primary
+                                        : Colors.outline
+                        Behavior on border.color { ColorAnimation { duration: 120 } }
+                        Behavior on color        { ColorAnimation { duration: 120 } }
+
+                        SequentialAnimation {
+                            running: wsBindRow.isCapturing
+                            loops: Animation.Infinite
+                            NumberAnimation { target: wsBindBtn; property: "opacity"; to: 0.6; duration: 500; easing.type: Easing.InOutSine }
+                            NumberAnimation { target: wsBindBtn; property: "opacity"; to: 1.0; duration: 500; easing.type: Easing.InOutSine }
+                            onStopped: wsBindBtn.opacity = 1.0
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: {
+                                if (wsBindRow.isCapturing) return root._captureDisplay || "Press keys…"
+                                if (wsBindRow.isYellow)   return root._yellowMsg
+                                if (wsBindRow.isConflict) return "Already bound"
+                                const b = wsBindRow.currentBind
+                                return b ? (root._displayStr(b) || "—") : "—"
+                            }
+                            color: wsBindRow.isCapturing    ? Colors.primary
+                                 : wsBindRow.isGreen        ? "#21c45d"
+                                 : wsBindRow.isYellow       ? "#f9be2e"
+                                 : wsBindRow.isConflict     ? "#ef4444"
+                                 : Colors.colOnSurface
+                            font.pixelSize: BarConfig.fsSm
+                            font.weight: Font.Medium
+                            elide: Text.ElideRight
+                            width: parent.width - BarConfig.sp(8)
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (wsBindRow.isCapturing) return
+                                root._startCapture(wsBindRow.modelData.key)
+                            }
+                        }
+                    }
+                }
+            }
+
             Item { height: BarConfig.sp(8); visible: root.activeTab === 4 }
             Item { height: BarConfig.sp(8) }
         }
@@ -974,6 +1092,13 @@ Rectangle {
         { key: "workspacemenu", label: "Workspace Menu" }
     ]
 
+    readonly property var _wsBindDefs: [
+        { key: "workspacefocusnext", label: "Focus Next Workspace" },
+        { key: "workspacefocusprev", label: "Focus Prev Workspace" },
+        { key: "workspacemovenext",  label: "Move Window to Next Workspace" },
+        { key: "workspacemoveprev",  label: "Move Window to Prev Workspace" }
+    ]
+
     function _getBind(key) {
         switch(key) {
             case "drawer":        return BarConfig.bindDrawer
@@ -985,6 +1110,10 @@ Rectangle {
             case "wifi":          return BarConfig.bindWifi
             case "bluetooth":     return BarConfig.bindBluetooth
             case "workspacemenu": return BarConfig.bindWorkspaceMenu
+            case "workspacefocusnext": return BarConfig.bindWorkspaceFocusNext
+            case "workspacefocusprev": return BarConfig.bindWorkspaceFocusPrev
+            case "workspacemovenext":  return BarConfig.bindWorkspaceMoveNext
+            case "workspacemoveprev":  return BarConfig.bindWorkspaceMovePrev
         }
         return ""
     }
@@ -1000,6 +1129,10 @@ Rectangle {
             case "wifi":          BarConfig.bindWifi          = value; break
             case "bluetooth":     BarConfig.bindBluetooth     = value; break
             case "workspacemenu": BarConfig.bindWorkspaceMenu = value; break
+            case "workspacefocusnext": BarConfig.bindWorkspaceFocusNext = value; break
+            case "workspacefocusprev": BarConfig.bindWorkspaceFocusPrev = value; break
+            case "workspacemovenext":  BarConfig.bindWorkspaceMoveNext  = value; break
+            case "workspacemoveprev":  BarConfig.bindWorkspaceMovePrev  = value; break
         }
     }
 

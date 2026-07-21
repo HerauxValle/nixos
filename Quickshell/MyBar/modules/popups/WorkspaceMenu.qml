@@ -57,7 +57,7 @@ Rectangle {
             }
             MouseArea {
                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                onClicked: { Hyprland.dispatch("workspace " + root.wsId); BarConfig.closePopup() }
+                onClicked: { Hyprland.dispatch("hl.dsp.focus({ workspace = '" + root.wsId + "' })"); BarConfig.closePopup() }
             }
         }
 
@@ -76,7 +76,7 @@ Rectangle {
             }
             MouseArea {
                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                onClicked: { Hyprland.dispatch("movetoworkspace " + root.wsId); BarConfig.closePopup() }
+                onClicked: { Hyprland.dispatch("hl.dsp.window.move({ workspace = '" + root.wsId + "' })"); BarConfig.closePopup() }
             }
         }
 
@@ -95,7 +95,11 @@ Rectangle {
             }
             MouseArea {
                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                onClicked: { Hyprland.dispatch("movetoworkspacesilent " + root.wsId); Hyprland.dispatch("workspace " + root.wsId); BarConfig.closePopup() }
+                onClicked: {
+                    Hyprland.dispatch("hl.dsp.window.move({ workspace = '" + root.wsId + "', silent = true })")
+                    Hyprland.dispatch("hl.dsp.focus({ workspace = '" + root.wsId + "' })")
+                    BarConfig.closePopup()
+                }
             }
         }
     }

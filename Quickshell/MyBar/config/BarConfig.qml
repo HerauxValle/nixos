@@ -177,7 +177,11 @@ Singleton {
             "AETHERA_BIND_NOTIFICATIONS=" + bindNotifications + "\n" +
             "AETHERA_BIND_WIFI=" + bindWifi + "\n" +
             "AETHERA_BIND_BLUETOOTH=" + bindBluetooth + "\n" +
-            "AETHERA_BIND_WORKSPACEMENU=" + bindWorkspaceMenu + "\n"
+            "AETHERA_BIND_WORKSPACEMENU=" + bindWorkspaceMenu + "\n" +
+            "AETHERA_BIND_WSFOCUSNEXT=" + bindWorkspaceFocusNext + "\n" +
+            "AETHERA_BIND_WSFOCUSPREV=" + bindWorkspaceFocusPrev + "\n" +
+            "AETHERA_BIND_WSMOVENEXT=" + bindWorkspaceMoveNext + "\n" +
+            "AETHERA_BIND_WSMOVEPREV=" + bindWorkspaceMovePrev + "\n"
     }
     function _doSave() {
         if (!_ready) return
@@ -267,7 +271,11 @@ Singleton {
         "notifications": Quickshell.env("AETHERA_DEFAULT_NOTIFICATIONS") || "SUPER+SHIFT+N",
         "wifi":          Quickshell.env("AETHERA_DEFAULT_WIFI")          || "SUPER+SHIFT+W",
         "bluetooth":     Quickshell.env("AETHERA_DEFAULT_BLUETOOTH")     || "SUPER+SHIFT+B",
-        "workspacemenu": Quickshell.env("AETHERA_DEFAULT_WORKSPACEMENU") || "SUPER+Tab"
+        "workspacemenu": Quickshell.env("AETHERA_DEFAULT_WORKSPACEMENU") || "SUPER+Tab",
+        "workspacefocusnext": Quickshell.env("AETHERA_DEFAULT_WSFOCUSNEXT") || "SUPER+SHIFT+up",
+        "workspacefocusprev": Quickshell.env("AETHERA_DEFAULT_WSFOCUSPREV") || "SUPER+SHIFT+down",
+        "workspacemovenext":  Quickshell.env("AETHERA_DEFAULT_WSMOVENEXT")  || "SUPER+SHIFT+ALT+up",
+        "workspacemoveprev":  Quickshell.env("AETHERA_DEFAULT_WSMOVEPREV")  || "SUPER+SHIFT+ALT+down"
     })
 
     function _parseBind(env) {
@@ -284,6 +292,10 @@ Singleton {
     property string bindWifi:           _parseBind("AETHERA_BIND_WIFI")           || _bindDefaults["wifi"]
     property string bindBluetooth:      _parseBind("AETHERA_BIND_BLUETOOTH")      || _bindDefaults["bluetooth"]
     property string bindWorkspaceMenu:  _parseBind("AETHERA_BIND_WORKSPACEMENU")  || _bindDefaults["workspacemenu"]
+    property string bindWorkspaceFocusNext: _parseBind("AETHERA_BIND_WSFOCUSNEXT") || _bindDefaults["workspacefocusnext"]
+    property string bindWorkspaceFocusPrev: _parseBind("AETHERA_BIND_WSFOCUSPREV") || _bindDefaults["workspacefocusprev"]
+    property string bindWorkspaceMoveNext:  _parseBind("AETHERA_BIND_WSMOVENEXT")  || _bindDefaults["workspacemovenext"]
+    property string bindWorkspaceMovePrev:  _parseBind("AETHERA_BIND_WSMOVEPREV")  || _bindDefaults["workspacemoveprev"]
 
     // Tracks the last-applied bind string per action so we can unbind the OLD one
     property var _activeBinds: ({})
@@ -297,6 +309,10 @@ Singleton {
     onBindWifiChanged:           { _schedSave(); if (_ready) _updateBind("wifi",          bindWifi) }
     onBindBluetoothChanged:      { _schedSave(); if (_ready) _updateBind("bluetooth",     bindBluetooth) }
     onBindWorkspaceMenuChanged:  { _schedSave(); if (_ready) _updateBind("workspacemenu", bindWorkspaceMenu) }
+    onBindWorkspaceFocusNextChanged: { _schedSave(); if (_ready) _updateBind("workspacefocusnext", bindWorkspaceFocusNext) }
+    onBindWorkspaceFocusPrevChanged: { _schedSave(); if (_ready) _updateBind("workspacefocusprev", bindWorkspaceFocusPrev) }
+    onBindWorkspaceMoveNextChanged:  { _schedSave(); if (_ready) _updateBind("workspacemovenext",  bindWorkspaceMoveNext) }
+    onBindWorkspaceMovePrevChanged:  { _schedSave(); if (_ready) _updateBind("workspacemoveprev",  bindWorkspaceMovePrev) }
 
     readonly property string _qsPath: Quickshell.shellPath("")
 
@@ -344,7 +360,11 @@ Singleton {
             ["notifications", bindNotifications],
             ["wifi",          bindWifi],
             ["bluetooth",     bindBluetooth],
-            ["workspacemenu", bindWorkspaceMenu]
+            ["workspacemenu", bindWorkspaceMenu],
+            ["workspacefocusnext", bindWorkspaceFocusNext],
+            ["workspacefocusprev", bindWorkspaceFocusPrev],
+            ["workspacemovenext",  bindWorkspaceMoveNext],
+            ["workspacemoveprev",  bindWorkspaceMovePrev]
         ]
         let lua = ""
         for (const [action, bindStr] of actions) {
@@ -362,7 +382,11 @@ Singleton {
             "notifications": bindNotifications,
             "wifi":          bindWifi,
             "bluetooth":     bindBluetooth,
-            "workspacemenu": bindWorkspaceMenu
+            "workspacemenu": bindWorkspaceMenu,
+            "workspacefocusnext": bindWorkspaceFocusNext,
+            "workspacefocusprev": bindWorkspaceFocusPrev,
+            "workspacemovenext":  bindWorkspaceMoveNext,
+            "workspacemoveprev":  bindWorkspaceMovePrev
         }
     }
 

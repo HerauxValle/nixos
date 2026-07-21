@@ -114,7 +114,7 @@ Rectangle {
                             }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                onClicked: Hyprland.dispatch("workspace " + vWsItem.wsId)
+                                onClicked: Hyprland.dispatch("hl.dsp.focus({ workspace = '" + vWsItem.wsId + "' })")
                             }
                         }
                     }

@@ -737,7 +737,7 @@ PanelWindow {
                                                     }
                                                 }
                                             }
-                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Hyprland.dispatch("workspace " + wsTile.wsId) }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Hyprland.dispatch("hl.dsp.focus({ workspace = '" + wsTile.wsId + "' })") }
                                         }
                                     }
                                 }
