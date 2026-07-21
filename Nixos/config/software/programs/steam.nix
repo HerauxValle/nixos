@@ -4,7 +4,7 @@
 
 {
   config.vars.packages.programs.steam = {
-    enable = false;
+    enable = true;
     remotePlayOpenFirewall = true;
     localNetworkGameTransfersOpenFirewall = true;
   };

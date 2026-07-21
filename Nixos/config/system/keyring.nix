@@ -11,7 +11,7 @@
 # unlocks it automatically using the login password, so no extra prompt
 # is added to the login flow.
 {
-  services.gnome.gnome-keyring.enable = false;
+  services.gnome.gnome-keyring.enable = true;
   security.pam.services.sddm.enableGnomeKeyring = true;
 
   # Keeps the keyring's own master password in sync with the account

@@ -20,7 +20,7 @@ lib.mkIf (!config.vars.isoBuild) {
 
   boot.initrd.systemd = {
 
-    enable = false;
+    enable = true;
     # initrd only ships busybox's mount by default; the script below
     # needs the real util-linux mount to handle -o ro correctly.
     initrdBin = with pkgs; [ util-linux ];

@@ -3,5 +3,5 @@
 { ... }:
 
 {
-  config.vars.packages.programs.gamemode.enable = false;
+  config.vars.packages.programs.gamemode.enable = true;
 }

@@ -4,11 +4,11 @@
 
 {
   virtualisation.docker = {
-    enable = false;
+    enable = true;
 
     # Unused images/containers/build cache otherwise never get reclaimed on
     # their own -- default schedule (weekly) is fine, nothing to override.
-    autoPrune.enable = false;
+    autoPrune.enable = true;
 
     # Containers survive a `docker.service` restart instead of being killed
     # -- matters here specifically because any rebuild touching docker-

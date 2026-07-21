@@ -4,7 +4,7 @@
 
 {
   networking.hostName = config.vars.identity.hostName;
-  networking.networkmanager.enable = false;
+  networking.networkmanager.enable = true;
   # Pinned deliberately, not the hardware default -- see local notes for why.
   networking.interfaces.${config.vars.identity.networkInterface}.macAddress = null;
   time.timeZone = config.vars.identity.timeZone;

@@ -40,27 +40,27 @@
     replaceValues = [
       {
         file = "Nixos/config/config.nix";
-        find = ''username = "maxmustermann";'';
+        find = ''username = "herauxvalle";'';
         replaceWith = ''username = "maxmustermann";'';
       }
       {
         file = "Nixos/config/config.nix";
-        find = ''hostName = "nixos";'';
+        find = ''hostName = "herauxvalle";'';
         replaceWith = ''hostName = "nixos";'';
       }
       {
         file = "flake.nix";
-        find = ''description = "maxmustermann's NixOS config";'';
+        find = ''description = "herauxvalle's NixOS config";'';
         replaceWith = ''description = "maxmustermann's NixOS config";'';
       }
       {
         file = "flake.nix";
-        find = "nixosConfigurations.maxmustermann = inputs.nixpkgs.lib.nixosSystem";
+        find = "nixosConfigurations.herauxvalle = inputs.nixpkgs.lib.nixosSystem";
         replaceWith = "nixosConfigurations.maxmustermann = inputs.nixpkgs.lib.nixosSystem";
       }
       {
         file = "flake.nix";
-        find = "home-manager.users.maxmustermann = import ./Nixos/home.nix;";
+        find = "home-manager.users.herauxvalle = import ./Nixos/home.nix;";
         replaceWith = "home-manager.users.maxmustermann = import ./Nixos/home.nix;";
       }
       {
@@ -71,7 +71,7 @@
         # "herauxvalle", which isn't a substring of this one ("-iso ="
         # instead), so both entries match exactly one line each.
         file = "flake.nix";
-        find = "nixosConfigurations.maxmustermann-iso = inputs.nixpkgs.lib.nixosSystem";
+        find = "nixosConfigurations.herauxvalle-iso = inputs.nixpkgs.lib.nixosSystem";
         replaceWith = "nixosConfigurations.maxmustermann-iso = inputs.nixpkgs.lib.nixosSystem";
       }
 
@@ -102,29 +102,29 @@
       # of just the one meant here.
       {
         file = "Nixos/config/config.nix";
-        find = "usbRequired.enable = false;";
+        find = "usbRequired.enable = true;";
         replaceWith = "usbRequired.enable = false;";
       }
       {
         file = "Nixos/config/config.nix";
-        find = "sudoKeyfile.enable = false;";
+        find = "sudoKeyfile.enable = true;";
         replaceWith = "sudoKeyfile.enable = false;";
       }
       {
         file = "Nixos/config/config.nix";
-        find = ''usbKillswitch.killMode = "disabled";'';
+        find = ''usbKillswitch.killMode = "hard";'';
         replaceWith = ''usbKillswitch.killMode = "disabled";'';
       }
       {
         file = "Nixos/config/config.nix";
-        # Bare "enable = false;" is also a substring of
+        # Bare "enable = true;" is also a substring of
         # usbRequired.enable/sudoKeyfile.enable's lines above -- `line`
         # confines the swap to this one, so it can't corrupt (or, applied
         # after them, silently miss) those. Update this number if
         # config.nix's dotfilesBackup block ever moves.
-        find = "enable = false;";
+        find = "enable = true;";
         replaceWith = "enable = false;";
-        line = 44;
+        line = 37;
       }
     ];
   };

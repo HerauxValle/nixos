@@ -3,5 +3,5 @@
 { ... }:
 
 {
-  config.vars.packages.programs.gamescope.enable = false;
+  config.vars.packages.programs.gamescope.enable = true;
 }
