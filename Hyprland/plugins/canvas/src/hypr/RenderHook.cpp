@@ -67,6 +67,12 @@ void hkRenderWindow(Render::IHyprRenderer* thisptr, PHLWINDOW pWindow, PHLMONITO
                      bool standalone) {
     const auto original = (origRenderWindow)g_pHook->m_original;
 
+    {
+        static std::ofstream dbg2("/tmp/canvas-debug2.log", std::ios::app);
+        dbg2 << "hook called: win=" << (pWindow ? (void*)pWindow.get() : nullptr) << " mon=" << (pMonitor ? pMonitor->m_name : "null")
+             << " ws=" << (pWindow && pWindow->m_workspace ? std::to_string(pWindow->m_workspace->m_id) : "none") << std::endl;
+    }
+
     if (!pWindow || !pMonitor || !pWindow->m_workspace) {
         (*original)(thisptr, pWindow, pMonitor, time, decorate, mode, ignorePosition, standalone);
         return;
@@ -79,6 +85,9 @@ void hkRenderWindow(Render::IHyprRenderer* thisptr, PHLWINDOW pWindow, PHLMONITO
     // untouched, rather than double-transforming or transforming with the
     // wrong workspace's camera.
     if (it == g_states.end() || !it->second.active() || pWindow->m_workspace->m_monitor.lock() != pMonitor) {
+        static std::ofstream dbg3("/tmp/canvas-debug2.log", std::ios::app);
+        dbg3 << "  -> early return: inStates=" << (it != g_states.end()) << " active=" << (it != g_states.end() && it->second.active())
+             << " monMatch=" << (pWindow->m_workspace->m_monitor.lock() == pMonitor) << std::endl;
         (*original)(thisptr, pWindow, pMonitor, time, decorate, mode, ignorePosition, standalone);
         return;
     }
