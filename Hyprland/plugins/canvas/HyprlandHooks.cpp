@@ -29,7 +29,6 @@
 #include <hyprland/src/config/shared/actions/ConfigActions.hpp> // Config::Actions::floatWindow
 
 #include <linux/input-event-codes.h> // BTN_RIGHT
-#include <fstream> // TEMPORARY: dlog() debug logging, see below
 
 using PHLMONITOR   = SP<CMonitor>;
 using PHLWORKSPACE = SP<CWorkspace>;
@@ -43,17 +42,6 @@ using steady_tp     = std::chrono::steady_clock::time_point;
 using Render::GL::g_pHyprOpenGL;
 
 namespace {
-
-// TEMPORARY diagnostic logging -- writes to /home/herauxvalle/.cache/canvas-debug.log to get
-// ground-truth runtime values (screenshots/notifications have bad timing
-// for this) instead of guessing further. Remove once the top-left-zoom /
-// bar-still-scaling reports are resolved; see docs/claude/canvas-
-// continuation.md for precedent (this exact technique was used and then
-// removed in an earlier session).
-void dlog(const std::string& msg) {
-    std::ofstream f("/home/herauxvalle/.cache/canvas-debug.log", std::ios::app);
-    f << msg << "\n";
-}
 
 // --- modifier chord ---
 // HL_MODIFIER_SHIFT = 1<<0, HL_MODIFIER_META = 1<<6
@@ -103,8 +91,6 @@ struct SHooks {
 using onMouseWheelFn = void (*)(CInputManager*, IPointer::SAxisEvent, SP<IPointer>);
 
 void hkOnMouseWheel(CInputManager* self, IPointer::SAxisEvent e, SP<IPointer> pointer) {
-    dlog("wheel: active=" + std::to_string(g_pCanvas->m_active) + " chord=" + std::to_string(chordHeld()) + " axis=" + std::to_string(e.axis) +
-         " delta=" + std::to_string(e.delta) + " deltaDiscrete=" + std::to_string(e.deltaDiscrete));
     if (g_pCanvas->m_active && chordHeld() && e.axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
         // Direction: src/managers/KeybindManager.cpp:428-431 maps
         // `e.delta < 0` to "mouse_down" (scroll down) and `e.delta > 0` to
@@ -112,7 +98,13 @@ void hkOnMouseWheel(CInputManager* self, IPointer::SAxisEvent e, SP<IPointer> po
         // scroll down (delta<0) -> zoom IN and scroll up (delta>0) -> zoom
         // OUT -- the opposite of the first pass, which had it backwards.
         const double d = e.deltaDiscrete != 0 ? (double)e.deltaDiscrete : e.delta;
-        if (d != 0) {
+        // g_hooks.position can be null if the position() hook failed to
+        // install -- shouldn't happen since init() refuses to run half-
+        // hooked (see allHooked in CanvasHooks::init), but a crash here
+        // during a live scroll is exactly the failure mode a stale/null
+        // m_original would produce, so guard it explicitly rather than
+        // trust the invariant blindly.
+        if (d != 0 && g_hooks.position && g_hooks.position->m_original) {
             double newZoom = g_pCanvas->m_zoom * (d < 0 ? CCanvasState::ZOOM_STEP : (1.0 / CCanvasState::ZOOM_STEP));
 
             // Anchor at the cursor's *physical* position. Reading it through
@@ -123,9 +115,6 @@ void hkOnMouseWheel(CInputManager* self, IPointer::SAxisEvent e, SP<IPointer> po
             Vector2D cursorPhys  = rawPosition(g_pPointerManager.get());
 
             g_pCanvas->applyZoom(newZoom, cursorPhys);
-            dlog("  -> d=" + std::to_string(d) + " newZoom=" + std::to_string(newZoom) + " cursorPhys=(" + std::to_string(cursorPhys.x) + "," +
-                 std::to_string(cursorPhys.y) + ") resultZoom=" + std::to_string(g_pCanvas->m_zoom) + " resultOffset=(" + std::to_string(g_pCanvas->m_offset.x) +
-                 "," + std::to_string(g_pCanvas->m_offset.y) + ")");
             scheduleFrame();
             return; // consumed: don't fall through to normal scroll behavior
         }
@@ -350,13 +339,6 @@ void hkRenderAllClientsForWorkspace(Render::IHyprRenderer* self, PHLMONITOR pMon
         return;
     }
 
-    {
-        static int callCount = 0;
-        if (callCount++ % 60 == 0)
-            dlog("renderAllClientsForWorkspace: received translate=(" + std::to_string(translate.x) + "," + std::to_string(translate.y) +
-                 ") scale=" + std::to_string(scale) + " (call #" + std::to_string(callCount) + ")");
-    }
-
     g_pHyprRenderer->damageMonitor(pMonitor);
 
     const auto monSize = pMonitor->m_transformedSize;
@@ -416,13 +398,6 @@ void hkRenderWindow(Render::IHyprRenderer* self, PHLWINDOW pWindow, PHLMONITOR p
     if (!g_pCanvas->m_active) {
         original(self, pWindow, pMonitor, now, decorate, mode, ignorePosition, standalone);
         return;
-    }
-
-    {
-        static int callCount = 0;
-        if (callCount++ % 60 == 0)
-            dlog("renderWindow: title=\"" + (pWindow ? pWindow->m_title : "<null>") + "\" zoom=" + std::to_string(g_pCanvas->m_zoom) + " offset=(" +
-                 std::to_string(g_pCanvas->m_offset.x) + "," + std::to_string(g_pCanvas->m_offset.y) + ") (call #" + std::to_string(callCount) + ")");
     }
 
     // (pos + translate) * scale == (pos - offset) * zoom  =>  translate = -offset
@@ -519,7 +494,6 @@ void floatAllWindowsOnCurrentWorkspace() {
 
 void toggleCanvas() {
     g_pCanvas->toggle();
-    dlog("=== toggle: active=" + std::to_string(g_pCanvas->m_active) + " ===");
     if (g_pCanvas->m_active)
         floatAllWindowsOnCurrentWorkspace();
     HyprlandAPI::addNotification(PHANDLE, g_pCanvas->m_active ? "[canvas] on" : "[canvas] off", CHyprColor(0.6, 0.8, 1.0, 1.0), 1500);
@@ -592,7 +566,6 @@ CFunctionHook* hookByOwner(const std::string& name, const std::string& ownerMark
 bool CanvasHooks::init(HANDLE handle) {
     PHANDLE  = handle;
     g_pCanvas = std::make_unique<CCanvasState>();
-    { std::ofstream(("/home/herauxvalle/.cache/canvas-debug.log"), std::ios::trunc); } // TEMPORARY: fresh log per plugin (re)load
 
     g_hooks.mouseWheel        = hookOne("onMouseWheel", (void*)&hkOnMouseWheel);
     g_hooks.mouseButton       = hookOne("onMouseButton", (void*)&hkOnMouseButton);
