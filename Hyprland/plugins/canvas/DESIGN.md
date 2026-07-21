@@ -127,12 +127,20 @@ editing.
   (`"unset"`, not hardcoded back to enabled, in case a rule already disabled
   it) when turning a workspace back *off*.
 - **`WindowPlacement`**: subscribes to the stable `EventBus`
-  (`m_events.window.open`, `m_events.workspace.removed`) — no extra function
-  hook needed for this, the event bus is Hyprland's own sanctioned pub/sub
-  layer used throughout its codebase, not just by plugins. On `window.open`,
-  if the window's workspace is in canvas mode, it schedules a short
-  (50ms) deferred callback via `CEventLoopTimer` to float the window, disable
-  its decoration, and move it to the cursor's canvas position.
+  (`m_events.window.open`, `m_events.workspace.removed`,
+  `m_events.window.moveToWorkspace`) — no extra function hook needed for
+  this, the event bus is Hyprland's own sanctioned pub/sub layer used
+  throughout its codebase, not just by plugins. On `window.open`, if the
+  window's workspace is in canvas mode, it schedules a short (50ms) deferred
+  callback via `CEventLoopTimer` to float the window, disable its
+  decoration, and move it to the cursor's canvas position. On
+  `window.moveToWorkspace`, it re-syncs *just* the decoration override
+  (never position/floating — that would mean teleporting a window to the
+  cursor just because it got moved, not because it's genuinely new) to
+  match the destination workspace's canvas state, since a window carries a
+  decoration override with it across a plain move-to-workspace action and
+  neither `toggle`'s sweep nor `onWindowOpen` re-run for a window that's
+  already left the workspace they were scoped to.
 
 ### `Config::Actions` — direct C++ calls, not hyprctl strings
 
@@ -232,14 +240,13 @@ dependency on *when* Hyprland's own centering logic runs relative to the
 | `Config::Actions::floatWindow`/`move`/`setProp` | `ActionResult floatWindow(eTogglableAction, std::optional<PHLWINDOW>)`, `ActionResult move(const Vector2D&, bool, std::optional<PHLWINDOW>)`, `ActionResult setProp(const std::string&, const std::string&, std::optional<PHLWINDOW>)` | `hypr/Dispatchers.cpp`, `hypr/WindowPlacement.cpp` | Direct, config-mode-independent equivalents of the `setfloating`/`move`/`setprop` dispatchers — bypasses the Lua-config `dispatch` wrapper that broke `invokeHyprctlCommand` entirely on this system. `setProp("decorate", "0"/"unset", w)` is how canvas mode turns decoration off/on (see "Window decorations don't respect the canvas transform" above) | If these functions are renamed/restructured, floating/positioning/decoration-toggling stops working (each call already checks its `ActionResult` and is safe to no-op on failure); if `setProp`'s accepted `"decorate"` string or its `parsePropTrivial`/`truthy()` value parsing changes, decoration stops toggling silently | Re-check `src/config/shared/actions/ConfigActions.hpp` for the current function signatures; grep `ConfigActions.cpp`'s `setProp` for the current `"decorate"` branch |
 | Window decorations bypass the render-modifier pipeline | `CHyprBorderDecoration::draw`/`CHyprDropShadowDecoration::getRenderData` compute their box from real window geometry + `pMonitor->m_scale` only, never `SRenderModifData`/`m_renderData.renderModif` | n/a (worked around, not hooked — see "Window decorations don't respect the canvas transform" above) | Confirmed by reading `render/decorations/*.cpp` and `render/gl/GLElementRenderer.cpp` directly, not inferred | If a future Hyprland version *does* route decorations through `applyToBox`, `setDecorateOnCurrentWorkspace` turning decoration off entirely becomes an unnecessary workaround (harmless, just no longer needed) rather than a broken one | Grep `CHyprBorderDecoration::draw`/shadow `getRenderData` for `renderModif`/`applyToBox`; if present now, decoration-off could be replaced with a real transform |
 | Render-modifier push order (`SCALE` before `TRANSLATE`) | `SRenderModifData::applyToBox` applies `modifs` in insertion order (`box.scale()` then `box.translate()`, chained) | `hypr/RenderHook.cpp` | `Transform::cameraTransform`'s translate is pre-multiplied by scale (`-pan * scale`) — only correct if scale lands *before* translate; pushing translate first double-scales the pan term (confirmed by hand-deriving the math, then confirmed live via screenshot after fixing) | If `applyToBox`'s modifs application ever stops being pure left-to-right insertion order, or `Transform::cameraTransform`'s translate formula changes without updating this push order to match, pan silently drifts from the documented `screenPos = (canvasPos - pan) * scale` formula the further a workspace is zoomed out | Re-derive by hand against `Dispatchers.cpp`'s `zoomImpl` comment (the canonical formula) whenever either file changes |
+| `window.moveToWorkspace` event | `Event<PHLWINDOW, PHLWORKSPACE> moveToWorkspace` on `Event::bus()->m_events.window` | `hypr/WindowPlacement.cpp` | Only signal that a window's workspace changed via something *other* than open/close — needed to keep a canvas-applied decoration override from following a window forever once it leaves the workspace that applied it | If renamed/removed/resignatured, decoration desync returns for exactly this one case (moved windows) — silent, cosmetic-only, not a crash | Grep `event/EventBus.hpp`'s `window` struct for the current event list/signature |
 | Version guard | `__hyprland_api_get_hash()` vs `__hyprland_api_get_client_hash()` | `hypr/VersionGuard.cpp` | Official idiom (matches `csgo-vulkan-fix`) — Hyprland's own loader already gates on this hash via `dlsym` per `PluginAPI.hpp`'s comments, so this guard's value is a friendlier, visible failure mode, not a hole Hyprland otherwise leaves open | n/a — this is Hyprland's own mechanism | Confirm both functions still exist with this shape before assuming the guard compiles |
 
 ## Non-goals / explicitly deferred
 
 - **Click-to-focus / hit-testing while zoomed out**: clicking a window at its
-  shrunk/panned position should focus it. Not implemented — needs its own
-  investigation into how Hyprland resolves screen coordinates to a window
-  for input purposes, which wasn't scoped in this session. (The worse-than-
+  shrunk/panned position should focus it. Not implemented. (The worse-than-
   expected version of this — clicking near a visible edge resizing instead
   of moving, by a wildly disproportionate amount — was actually the window-
   decoration bug above: hit-testing was landing on a real, full-size,
@@ -247,6 +254,29 @@ dependency on *when* Hyprland's own centering logic runs relative to the
   off that specific confusion should be gone; genuine "click the small
   content rectangle itself" hit-testing is still this same unimplemented
   non-goal.)
+
+  Investigated properly in the bugfix follow-up session, not just deferred
+  on a hunch: the one plausible mechanism is the stable `EventBus`'s
+  `Cancellable<Vector2D> input.mouse.move` / `Cancellable<SButtonEvent>
+  input.mouse.button` signals (`CInputManager::onMouseMoveOverride`/
+  `onMouseButton` in `managers/input/InputManager.cpp`, traced against the
+  real source, not just headers). Both turn out to be **all-or-nothing
+  gates over the entire mouse pipeline**, not a scoped remap point: the
+  coordinate/event is emitted *before* any of Hyprland's own focus/hit-test
+  logic runs, and `SCallbackInfo::cancelled` is the only lever a listener
+  has — setting it skips constraint handling, DND, layer-surface focus,
+  resize-on-border detection, and `processMouseDownNormal`'s click routing
+  *for that event entirely*. There's no "let Hyprland's coordinate-to-window
+  resolution use a different point, then continue normally" — using this
+  safely would mean reimplementing that whole pipeline in the plugin.
+  Genuinely out of proportion to the payoff and a real risk to global input
+  if done imperfectly (stuck grabs, unresponsive windows, broken drag-resize
+  everywhere else) — recommended **not** to pursue this route. If this ever
+  gets revisited, the real question to answer first is whether Hyprland
+  exposes *any* narrower "coordinate → window" resolution function a plugin
+  could call standalone (to resolve a click against the canvas-space point
+  instead of the screen point, then dispatch focus manually) rather than
+  intercepting the live input event stream at all.
 - **Tiled-window canvas behavior**: canvas mode is floating-only by design
   (user's explicit choice, ComfyUI-style free placement). A workspace with
   tiled windows keeps them tiled/at their normal position when canvas mode
@@ -354,6 +384,29 @@ render-modifier-order fragility-ledger row above), then re-verified live via
   sweep).
 - `panDrag` and scroll-wheel zoom: still not exercised (still no keybinds
   wired — unchanged from before).
+
+A further robustness pass (not a reported symptom, found by reviewing the
+two fixes above for edge cases) turned up and fixed the
+`window.moveToWorkspace` decoration-orphaning gap described in
+`WindowPlacement`/the fragility ledger above:
+
+- The move mechanics themselves — confirmed via `hyprctl clients`: a test
+  window's `workspace:` field does change when moved via
+  `hl.dsp.window.move({workspace = ...})`.
+- The decoration-restore specifically — **not independently confirmed via
+  screenshot**. Blocked by `hyprctl`'s Lua-dispatch wrapper being finicky
+  about moving a window *off* a special workspace during this manual test
+  (a testing-tool/methodology limitation hit while constructing the test
+  case, not an error or crash from the plugin itself). The fix calls the
+  identical `Config::Actions::setProp("decorate", ..., w)` already
+  screenshot-verified working above, from the same `Event::bus()->m_events`
+  subscription pattern already proven for this plugin's other two
+  listeners, and compiled clean against the real Hyprland dev headers —
+  high confidence, but flagged here as the one change this session that
+  didn't get the same live pixel-level confirmation as the rest. Worth a
+  real screenshot check next time this plugin is touched: toggle canvas on
+  a workspace, open a window there, move it to a plain workspace with a
+  normal keybind, confirm the border visibly returns.
 
 ## Not yet done
 

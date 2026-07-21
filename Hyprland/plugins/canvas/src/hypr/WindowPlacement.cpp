@@ -52,12 +52,14 @@ void placeOnCanvas(PHLWINDOW pWindow) {
     // invokeHyprctlCommand's string-based route entirely).
     Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, pWindow);
     Config::Actions::move(target, false, pWindow);
-    // Border/shadow decorations never respect the canvas's render-time
-    // transform (see Dispatchers.cpp's setDecorateOnCurrentWorkspace comment
-    // for the full why) -- a window opened *while* canvas mode is already on
-    // needs this applied here too, since it never went through toggleImpl's
-    // sweep over pre-existing windows.
+    // Neither border/shadow decoration nor blur respect the canvas's
+    // render-time transform (see Dispatchers.cpp's
+    // setCanvasVisualsOnCurrentWorkspace comment for the full why on both)
+    // -- a window opened *while* canvas mode is already on needs this
+    // applied here too, since it never went through toggleImpl's sweep over
+    // pre-existing windows.
     Config::Actions::setProp("decorate", "0", pWindow);
+    Config::Actions::setProp("no_blur", "1", pWindow);
 }
 
 void onWindowOpen(PHLWINDOW pWindow) {
@@ -89,22 +91,25 @@ void onWorkspaceRemoved(PHLWORKSPACEREF wsRef) {
         RenderHook::forgetWorkspace(ws->m_id);
 }
 
-// A window carries a "decorate=0" override (set by toggle-on or
-// onWindowOpen above) with it if moved to a *different* workspace via a
+// A window carries its "decorate=0"/"no_blur=1" overrides (set by toggle-on
+// or onWindowOpen above) with it if moved to a *different* workspace via a
 // normal move-to-workspace action -- neither of those two call sites' sweep
 // logic re-runs for a window that has already left the workspace they were
-// scoped to, so without this it stays borderless forever, anywhere, once a
-// canvas workspace has ever touched it. Keeps the override in sync with
-// wherever the window actually ends up: on if the destination is itself a
-// canvas workspace, off (well, "unset" -- see setDecorateOnCurrentWorkspace)
-// otherwise. Deliberately only touches decoration, not position/floating --
-// moving a window to a workspace shouldn't teleport it to the cursor, that's
-// onWindowOpen's job for genuinely *new* windows only.
+// scoped to, so without this it stays borderless/unblurred forever,
+// anywhere, once a canvas workspace has ever touched it. Keeps both
+// overrides in sync with wherever the window actually ends up: on if the
+// destination is itself a canvas workspace, off (well, "unset" -- see
+// setCanvasVisualsOnCurrentWorkspace) otherwise. Deliberately only touches
+// these visuals, not position/floating -- moving a window to a workspace
+// shouldn't teleport it to the cursor, that's onWindowOpen's job for
+// genuinely *new* windows only.
 void onWindowMovedToWorkspace(PHLWINDOW pWindow, PHLWORKSPACE pNewWorkspace) {
     if (!pWindow || !pNewWorkspace)
         return;
 
-    Config::Actions::setProp("decorate", RenderHook::stateFor(pNewWorkspace->m_id).active() ? "0" : "unset", pWindow);
+    const bool canvas = RenderHook::stateFor(pNewWorkspace->m_id).active();
+    Config::Actions::setProp("decorate", canvas ? "0" : "unset", pWindow);
+    Config::Actions::setProp("no_blur", canvas ? "1" : "unset", pWindow);
 }
 }
 

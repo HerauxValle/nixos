@@ -93,18 +93,34 @@ void floatAllWindowsOnCurrentWorkspace() {
 // inner-glow are computed lazily from a separate code path). Turning
 // decoration off entirely for the duration of canvas mode sidesteps that
 // whole class of desync -- and fits the ComfyUI-node aesthetic this plugin
-// is going for anyway (bare content, no native window chrome). Uses the same
-// direct Config::Actions::setProp call hyprctl's own "setprop" dispatcher
-// resolves to (see Config::Actions::floatWindow's comment above for why
-// direct calls, not invokeHyprctlCommand, are this plugin's mechanism).
-// "unset" restores whatever decorate value config/window rules had before --
-// not hardcoding it back to enabled, in case a rule already disabled it.
-void setDecorateOnCurrentWorkspace(bool decorate) {
+// is going for anyway (bare content, no native window chrome).
+//
+// Blur has the exact same class of bug and gets the exact same treatment.
+// CSurfacePassElement::boundingBox() (what blur-region aggregation in
+// CRenderPass::simplify()/render() uses to decide what screen area to
+// sample/precompute blur for) returns getTexBox() -- the *real*,
+// untransformed box. The render-modifier only gets applied later, at the
+// actual texture draw call. So a blurred window's live/precomputed backdrop
+// samples the wrong (real-size, real-position) screen region while its
+// sharp content draws correctly scaled/moved -- a translucent, misaligned
+// "ghost" of the window's real bounds bleeding through, on top of whatever
+// border/shadow fix already handled. Confirmed live: reported as "the
+// window turns see-thru and the edges remain" even after decoration was
+// fixed -- this is why.
+//
+// Both use the same direct Config::Actions::setProp call hyprctl's own
+// "setprop" dispatcher resolves to (see Config::Actions::floatWindow's
+// comment above for why direct calls, not invokeHyprctlCommand, are this
+// plugin's mechanism). "unset" restores whatever value config/window rules
+// had before -- not hardcoding back to enabled, in case a rule already
+// disabled it.
+void setCanvasVisualsOnCurrentWorkspace(bool normal) {
     const auto id = currentWorkspaceID();
     for (auto& w : g_pCompositor->m_windows) {
         if (!w || !w->m_workspace || w->m_workspace->m_id != id)
             continue;
-        Config::Actions::setProp("decorate", decorate ? "unset" : "0", w);
+        Config::Actions::setProp("decorate", normal ? "unset" : "0", w);
+        Config::Actions::setProp("no_blur", normal ? "unset" : "1", w);
     }
 }
 
@@ -119,7 +135,7 @@ void toggleImpl() {
     state.toggle();
     if (state.active())
         floatAllWindowsOnCurrentWorkspace();
-    setDecorateOnCurrentWorkspace(!state.active());
+    setCanvasVisualsOnCurrentWorkspace(!state.active());
 
     // toggle() alone never touches zoom/pan, so at 1:1/no-pan it's a
     // no-visible-change identity transform -- easy to mistake for "the bind
