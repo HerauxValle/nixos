@@ -23,6 +23,10 @@ class CCanvas {
     // Apply zoom with cursor anchoring
     void applyZoom(double newZoom, const Vector2D& anchorScreen);
 
+    // Enable/disable toggle — off resets the viewport to identity
+    bool m_enabled = false;
+    void toggle();
+
     // Constants
     static constexpr double ZOOM_MIN  = 0.05;
     static constexpr double ZOOM_MAX  = 1.0;

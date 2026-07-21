@@ -48,7 +48,7 @@ typedef void (*onMouseWheelFn)(CInputManager*, IPointer::SAxisEvent, SP<IPointer
 static void hkOnMouseWheel(CInputManager* self, IPointer::SAxisEvent e, SP<IPointer> pointer) {
     const uint32_t mods = g_pInputManager->getModsFromAllKBs();
 
-    if ((mods & HL_MODIFIER_META) && g_pCanvas && e.axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
+    if ((mods & HL_MODIFIER_META) && (mods & HL_MODIFIER_SHIFT) && g_pCanvas && g_pCanvas->m_enabled && e.axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
         const double scrollDelta = (e.deltaDiscrete != 0) ? (double)e.deltaDiscrete : e.delta;
         if (scrollDelta != 0) {
             double newZoom = g_pCanvas->zoom;
@@ -79,9 +79,9 @@ static void hkOnMouseWheel(CInputManager* self, IPointer::SAxisEvent e, SP<IPoin
 typedef void (*onMouseButtonFn)(CInputManager*, IPointer::SButtonEvent);
 
 static void hkOnMouseButton(CInputManager* self, IPointer::SButtonEvent e) {
-    if (g_pCanvas && g_pCanvas->isTransformed() && e.button == BTN_LEFT) {
+    if (g_pCanvas && g_pCanvas->isTransformed() && e.button == BTN_RIGHT) {
         const uint32_t mods = g_pInputManager->getModsFromAllKBs();
-        if (mods & HL_MODIFIER_META) {
+        if ((mods & HL_MODIFIER_META) && (mods & HL_MODIFIER_SHIFT)) {
             if (e.state == WL_POINTER_BUTTON_STATE_PRESSED) {
                 // Only pan if clicking on empty desktop, not on a window
                 const auto coords = g_pInputManager->getMouseCoordsInternal();
@@ -97,7 +97,7 @@ static void hkOnMouseButton(CInputManager* self, IPointer::SButtonEvent e) {
     }
 
     // Release panning on button release
-    if (g_pCanvas && g_pCanvas->m_panning && e.button == BTN_LEFT && e.state == WL_POINTER_BUTTON_STATE_RELEASED) {
+    if (g_pCanvas && g_pCanvas->m_panning && e.button == BTN_RIGHT && e.state == WL_POINTER_BUTTON_STATE_RELEASED) {
         g_pCanvas->m_panning = false;
         logf("[hypr-canvas] pan stop\n");
         return;
@@ -356,10 +356,18 @@ CCanvas::CCanvas() {
     }
     m_renderHook      = hookByName("renderAllClientsForWorkspace", (void*)&hkRenderAllClientsForWorkspace);
     m_waylandToXWCoordHook = hookByName("waylandToXWaylandCoords", (void*)&hkWaylandToXWaylandCoords);
+
+    HyprlandAPI::addDispatcherV2(PHANDLE, "canvas:toggle", [](std::string) -> SDispatchResult {
+        if (g_pCanvas)
+            g_pCanvas->toggle();
+        return {};
+    });
+
     logf("[hypr-canvas] initialized\n");
 }
 
 CCanvas::~CCanvas() {
+    HyprlandAPI::removeDispatcher(PHANDLE, "canvas:toggle");
     if (m_mouseWheelHook)
         HyprlandAPI::removeFunctionHook(PHANDLE, m_mouseWheelHook);
     if (m_mouseButtonHook)
@@ -400,6 +408,21 @@ bool CCanvas::isTransformed() const {
     return std::abs(zoom - 1.0) > 0.001
         || std::abs(offset.x) > 0.5
         || std::abs(offset.y) > 0.5;
+}
+
+void CCanvas::toggle() {
+    m_enabled = !m_enabled;
+    if (!m_enabled) {
+        zoom     = 1.0;
+        offset   = {0, 0};
+        m_panning = false;
+    }
+    logf("[hypr-canvas] toggle -> %s\n", m_enabled ? "enabled" : "disabled");
+
+    auto mon = Desktop::focusState()->monitor();
+    if (mon)
+        g_pHyprRenderer->damageMonitor(mon);
+    scheduleFrame();
 }
 
 void CCanvas::applyZoom(double newZoom, const Vector2D& anchorScreen) {
