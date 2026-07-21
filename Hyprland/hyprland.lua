@@ -40,7 +40,6 @@ require("Config.Binds.laptop")                -- 6.3  Laptop MEDIA shortcuts
 require("Config.Binds.media")                 -- 6.5  Media control
 require("Config.Binds.system")                -- 6.5  System controls
 require("Config.Binds.plugins")               -- 6.6  Plugin binds
-require("Config.Binds.canvas")                -- 6.7  Canvas plugin binds
 
 -- 7.    Plugins
 require("Config.Plugins.easymotion")          -- 7.1  Easy motion plugin

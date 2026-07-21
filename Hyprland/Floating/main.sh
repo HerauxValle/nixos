@@ -127,12 +127,19 @@ fi
 # ── Dispatch ──────────────────────────────────────────────────────────────────
 case "$ACTION" in
     autostart)
-        # Always _float_enable (not float_enable) here: STATE_FILE lives in
-        # plain /tmp and survives across Hyprland restarts within the same
-        # boot, so on a genuine fresh compositor start it can be a stale
-        # leftover from the previous session -- but the new compositor has
-        # no windowrule applied yet regardless of what that marker says.
-        [[ "${AUTOSTART:-false}" == "true" ]] && _float_enable || true
+        # Always _float_enable/rm (not float_enable/disable) here: STATE_FILE
+        # lives in plain /tmp and survives across Hyprland restarts within
+        # the same boot, so on a genuine fresh compositor start it can be a
+        # stale leftover from the previous session -- but the new compositor
+        # has no windowrule applied yet regardless of what that marker says.
+        # Clearing it on the false branch keeps later same-session --restore
+        # calls (sourceMe.lua) from resurrecting a state AUTOSTART said not
+        # to apply.
+        if [[ "${AUTOSTART:-false}" == "true" ]]; then
+            _float_enable
+        else
+            rm -f "$STATE_FILE"
+        fi
         ;;
     restore)
         # re-apply windowrule after config reload based on current state

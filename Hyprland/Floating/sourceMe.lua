@@ -58,17 +58,33 @@ hl.on("window.open", function(data)
 end)
 
 -- ── Autostart ────────────────────────────────────────────────────────────────
-hl.on("hyprland.start", function()
-    local sig = os.getenv("HYPRLAND_INSTANCE_SIGNATURE") or "unknown"
-    local lock = "/tmp/hypr-floatwm-" .. sig
+local sig = os.getenv("HYPRLAND_INSTANCE_SIGNATURE") or "unknown"
+local lock = "/tmp/hypr-floatwm-" .. sig
+local function lockExists()
     local f = io.open(lock, "r")
-    if f then f:close(); return end
+    if f then f:close(); return true end
+    return false
+end
+
+-- This top-level script body runs synchronously during config parse, which
+-- happens BEFORE hyprland.start fires (that event exists specifically to
+-- run things after the compositor is ready) -- so on a genuine fresh start,
+-- the lock file below doesn't exist yet.
+local isFreshStart = not lockExists()
+
+hl.on("hyprland.start", function()
+    if lockExists() then return end
     io.open(lock, "w"):close()
     hl.exec_cmd(hyprfloat .. " --autostart")
 end)
 
--- restore runs on every reload to re-apply window rules
-hl.exec_cmd(hyprfloat .. " --restore")
+-- restore re-applies window rules on manual/config reloads within an
+-- already-running session. Skipped on a genuine fresh start so a stale
+-- STATE_FILE left in /tmp from a previous session can't override AUTOSTART
+-- -- --autostart (above) is solely responsible for the fresh-start decision.
+if not isFreshStart then
+    hl.exec_cmd(hyprfloat .. " --restore")
+end
 
 -- ── Global float mode ────────────────────────────────────────────────────────
 hl.bind(hfMod .. " + F", hl.dsp.exec_cmd(hyprfloat .. " --fullscreen"))

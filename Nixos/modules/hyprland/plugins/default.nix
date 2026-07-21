@@ -43,26 +43,6 @@
     # -------------------------------------------------------------------------
 
     {
-      # First-party: ComfyUI-style infinite pan/zoom canvas over windows
-      # (Meta+Shift+C toggles, Meta+Shift+Scroll zooms at the cursor,
-      # Meta+Shift+Right-Drag pans). Local source, not fetched -- see
-      # ../../../../Hyprland/plugins/canvas/DESIGN.md for the architecture
-      # and the prior art (aaronsb/hypr-canvas) this adapts.
-      name = "canvas";
-      src = ../../../../Hyprland/plugins/canvas;
-      version = "0-unstable-local";
-      libFile = "canvas.so"; # Makefile's OUT has no "lib" prefix
-      nativeBuildInputs = [ pkgs.pkg-config ]; # plain Makefile, no CMake
-      # The Makefile's own `install` target runs `hyprctl plugin load`,
-      # which needs a running compositor that doesn't exist in the Nix
-      # build sandbox (exactly the "nix-inappropriate install step" ./plugins.nix's
-      # mkPlugin doc comment warns about) -- override with a plain copy into
-      # $out/lib instead, matching what mkPlugin's xdg.dataFile wiring
-      # expects to find at "${drv}/lib/${libFile}".
-      installPhase = "mkdir -p $out/lib && cp hypr-canvas.so $out/lib/canvas.so";
-    }
-
-    {
       name = "scrolloverview";
       url = "https://github.com/yayuuu/hyprland-scroll-overview.git";
       rev = "8b6d2b6943f82067febc4ecd6b4a73cb9bf8b3ba";
