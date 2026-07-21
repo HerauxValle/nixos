@@ -114,11 +114,12 @@ hl.bind(mainMod .. " + SHIFT + ALT + up",   hl.dsp.window.move({ workspace = "e-
 hl.bind(mainMod .. " + SHIFT + ALT + down", hl.dsp.window.move({ workspace = "e+1" }))
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 -- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 13, bezier = "easeOut", style = "slidevert" })
--- 3.5ds = 350ms -- upper end of Material's "medium" band (250-400ms), since
--- a full workspace swap covers more screen area than a single window move
--- and needs a touch longer to read clearly; "standard" curve from theme.lua
--- since it's a symmetric back-and-forth motion, not a one-way enter/exit.
-hl.animation({ leaf = "workspaces", enabled = true, speed = 3.5, bezier = "standard", style = "slidevert" })
+-- old: hl.animation({ leaf = "workspaces", enabled = true, speed = 3.5, bezier = "standard", style = "slidevert" })
+-- Matches theme.lua's "windows" leaf (speed 3, bezier "standard", no style)
+-- exactly, so mod+shift+up/down (workspace e-1/e+1) reads as the same motion
+-- as the left/right window scroll within the scrolling layout, which is
+-- driven by that same "windows" leaf.
+hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "standard" })
 -- << END
 
 hl.config({
