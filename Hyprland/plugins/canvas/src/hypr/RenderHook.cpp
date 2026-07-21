@@ -86,8 +86,27 @@ void renderWithCanvasTransform(origRenderWorkspaceWindows original, Render::IHyp
         modif.modifs.emplace_back(Render::SRenderModifData::RMOD_TYPE_TRANSLATE, Vector2D{xf.translate.x, xf.translate.y});
 
     const bool hasModif = !modif.modifs.empty();
-    if (hasModif)
+    if (hasModif) {
         g_pHyprRenderer->m_renderPass.add(makeUnique<CRendererHintsPassElement>(CRendererHintsPassElement::SData{modif}));
+
+        // Belt-and-suspenders alongside the CRenderPass::render hook below
+        // (which fires later, at actual frame-render time): also expand
+        // damage/clear clip/disable simplify directly here, immediately,
+        // matching hypr-canvas's hkRenderAllClientsForWorkspace. The box is
+        // the canvas-space rectangle currently visible on screen -- pan to
+        // pan + monitorSize/scale -- which is exactly the coordinate range
+        // a window's real (monitor-relative, never-moved-by-scale) position
+        // needs to fall in to be considered "on screen" right now. Grows as
+        // scale shrinks (zooming out reveals more canvas space), unlike a
+        // fixed monitor-sized box, which is exactly the bug this fixes:
+        // confirmed live that a plain {0,0,monitorSize} box (this file's
+        // first attempt) never covered a window whose real position had
+        // drifted past the monitor's own real width.
+        const CBox virtualViewport{state.currentPan().x, state.currentPan().y, pMonitor->m_transformedSize.x / xf.scale, pMonitor->m_transformedSize.y / xf.scale};
+        g_pHyprRenderer->m_renderData.damage.add(virtualViewport);
+        g_pHyprRenderer->m_renderData.clipBox    = CBox();
+        g_pHyprRenderer->m_renderData.noSimplify = true;
+    }
 
     (*original)(thisptr, pMonitor, pWorkspace, time);
 
@@ -140,15 +159,29 @@ bool hkShouldRenderWindow(Render::IHyprRenderer* thisptr, PHLWINDOW pWindow, PHL
 // which for window content is CSurfacePassElement::getTexBox(), *also* the
 // real untransformed box, same story as shouldRenderWindow() above --
 // doesn't intersect this frame's damage region. Expanding the damage
-// argument to the whole monitor here, before render()/simplify() ever runs,
-// means that intersection can never fail to cover wherever our transform
-// actually ends up drawing content, whatever a window's real position is.
+// argument here, before render()/simplify() ever runs, to the canvas-space
+// rectangle currently visible on screen (pan to pan + monitorSize/scale --
+// same formula and reasoning as renderWithCanvasTransform's direct
+// m_renderData.damage expansion above, kept in sync with it) means that
+// intersection can never fail to cover wherever a window's real position
+// actually is, however far zoomed out. A fixed monitor-sized box here
+// (this file's first attempt) doesn't grow with zoom and silently stops
+// covering a window's real position once it's drifted past the monitor's
+// own real width -- confirmed live, that exact box left a second window
+// undiscovered by simplify() while a first, closer one rendered fine.
 CRegion hkRenderPassRender(Render::CRenderPass* thisptr, const CRegion& damage) {
     const auto original = (CRegion(*)(Render::CRenderPass*, const CRegion&))g_pPassRenderHook->m_original;
 
     const auto pMonitor = g_pHyprRenderer->m_renderData.pMonitor;
-    if (pMonitor && pMonitor->m_activeWorkspace && workspaceCanvasActive(pMonitor->m_activeWorkspace->m_id))
-        return (*original)(thisptr, CRegion{CBox{{0, 0}, pMonitor->m_transformedSize}});
+    if (pMonitor && pMonitor->m_activeWorkspace) {
+        const auto it = g_states.find(pMonitor->m_activeWorkspace->m_id);
+        if (it != g_states.end() && it->second.active()) {
+            const auto& state = it->second;
+            const CBox  virtualViewport{state.currentPan().x, state.currentPan().y, pMonitor->m_transformedSize.x / state.currentScale(),
+                                        pMonitor->m_transformedSize.y / state.currentScale()};
+            return (*original)(thisptr, CRegion{virtualViewport});
+        }
+    }
 
     return (*original)(thisptr, damage);
 }
