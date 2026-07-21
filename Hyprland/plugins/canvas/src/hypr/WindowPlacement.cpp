@@ -88,9 +88,28 @@ void onWorkspaceRemoved(PHLWORKSPACEREF wsRef) {
     if (const auto ws = wsRef.lock())
         RenderHook::forgetWorkspace(ws->m_id);
 }
+
+// A window carries a "decorate=0" override (set by toggle-on or
+// onWindowOpen above) with it if moved to a *different* workspace via a
+// normal move-to-workspace action -- neither of those two call sites' sweep
+// logic re-runs for a window that has already left the workspace they were
+// scoped to, so without this it stays borderless forever, anywhere, once a
+// canvas workspace has ever touched it. Keeps the override in sync with
+// wherever the window actually ends up: on if the destination is itself a
+// canvas workspace, off (well, "unset" -- see setDecorateOnCurrentWorkspace)
+// otherwise. Deliberately only touches decoration, not position/floating --
+// moving a window to a workspace shouldn't teleport it to the cursor, that's
+// onWindowOpen's job for genuinely *new* windows only.
+void onWindowMovedToWorkspace(PHLWINDOW pWindow, PHLWORKSPACE pNewWorkspace) {
+    if (!pWindow || !pNewWorkspace)
+        return;
+
+    Config::Actions::setProp("decorate", RenderHook::stateFor(pNewWorkspace->m_id).active() ? "0" : "unset", pWindow);
+}
 }
 
 void WindowPlacement::registerListeners(HANDLE) {
-    static auto P_OPEN    = Event::bus()->m_events.window.open.listen(onWindowOpen);
-    static auto P_REMOVED = Event::bus()->m_events.workspace.removed.listen(onWorkspaceRemoved);
+    static auto P_OPEN      = Event::bus()->m_events.window.open.listen(onWindowOpen);
+    static auto P_REMOVED   = Event::bus()->m_events.workspace.removed.listen(onWorkspaceRemoved);
+    static auto P_MOVED_WS  = Event::bus()->m_events.window.moveToWorkspace.listen(onWindowMovedToWorkspace);
 }
