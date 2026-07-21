@@ -1,9 +1,9 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
 # Structured privilege helper for high-risk container operations
 # No raw flags accepted; all commands constructed internally
 # Usage: sd-priv-iso <operation> <structured-input>...
 
-set -o pipefail
+set -e -o pipefail
 readonly RUNTIME_DIR="/var/lib/sd"
 
 # ============================================================================

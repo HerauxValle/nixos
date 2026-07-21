@@ -6,11 +6,13 @@ Item {
     implicitWidth: 22; implicitHeight: 22
 
     Text {
-        anchors.centerIn: parent
-        // Same story as the drawer hamburger glyph in BarContent.qml -- this
-        // icon's own vertical metrics sit higher in its em-box than its
-        // neighbors (tray/power), empirical nudge to visually match.
-        anchors.verticalCenterOffset: BarConfig.sp(1)
+        // Same story as the drawer hamburger glyph in BarContent.qml -- fill
+        // + AlignVCenter centers by the font's actual baseline metrics
+        // instead of this Text's implicit ascent/descent bounding box, which
+        // is what icon-font generators design glyphs against.
+        anchors.fill: parent
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
         text: "\uF013"
         font.family: "Symbols Nerd Font Mono"
         font.pixelSize: BarConfig.sp(13)

@@ -34,6 +34,14 @@ static inline int pivot_root(const char *new_root, const char *put_old) {
 /* Fail with error message */
 #define DIE(msg) do { perror(msg); exit(1); } while(0)
 
+/* Best-effort write: result deliberately unchecked (async-signal-safe
+ * paths can't handle a short write), but the `if` — not a (void) cast —
+ * is what actually satisfies glibc's fortified warn_unused_result across
+ * GCC versions. */
+static inline void write_ignore(int fd, const void *buf, size_t n) {
+    if (write(fd, buf, n) < 0) { /* nothing to do */ }
+}
+
 /* Global child PID for signal forwarding (PID 1 init) */
 static volatile sig_atomic_t child_pid = 0;
 
@@ -255,19 +263,19 @@ static void sigsys_handler(int sig __attribute__((unused)), siginfo_t *info, voi
     const char *prefix = "[SECCOMP] Blocked syscall: ";
     int prefix_len = sizeof("[SECCOMP] Blocked syscall: ") - 1;
 
-    write(STDERR_FILENO, prefix, prefix_len);
+    write_ignore(STDERR_FILENO, prefix, prefix_len);
 
     /* Defensive: check info validity (kernel hardening mindset) */
     if (info && info->si_syscall > 0) {
         char buf[16];
         int len;
         utoa(info->si_syscall, buf, &len);
-        write(STDERR_FILENO, buf, len);
+        write_ignore(STDERR_FILENO, buf, len);
     } else {
-        write(STDERR_FILENO, "unknown", 7);
+        write_ignore(STDERR_FILENO, "unknown", 7);
     }
 
-    write(STDERR_FILENO, "\n", 1);
+    write_ignore(STDERR_FILENO, "\n", 1);
     _exit(159);  /* _exit, not exit() — exit() is NOT async-safe */
 }
 
@@ -282,8 +290,8 @@ static void load_seccomp(void) {
 int main(int argc, char *argv[], char *envp[]) {
     /* Handle --version flag for install.sh verification */
     if (argc > 1 && strcmp(argv[1], "--version") == 0) {
-        write(STDOUT_FILENO, SD_INIT_VERSION, sizeof(SD_INIT_VERSION) - 1);
-        write(STDOUT_FILENO, "\n", 1);
+        write_ignore(STDOUT_FILENO, SD_INIT_VERSION, sizeof(SD_INIT_VERSION) - 1);
+        write_ignore(STDOUT_FILENO, "\n", 1);
         _exit(0);
     }
 

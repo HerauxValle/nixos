@@ -210,11 +210,16 @@ Rectangle {
             Item {
                 implicitWidth: BarConfig.sp(20); implicitHeight: BarConfig.sp(22)
                 Text {
-                    anchors.centerIn: parent
-                    // This glyph's own vertical metrics sit higher in its em-box
-                    // than the other icons here (gear/power etc., which don't
-                    // need this) -- small empirical nudge to visually match.
-                    anchors.verticalCenterOffset: 0.5
+                    // anchors.centerIn centers this Text's implicit bounding box
+                    // (font ascent+descent+leading), which for icon-font glyphs
+                    // patched in from different source sets doesn't match where
+                    // the glyph is actually drawn -- filling the container and
+                    // aligning by baseline metrics instead is what icon-font
+                    // generators actually design glyphs against, so it centers
+                    // correctly without a fudge-factor offset.
+                    anchors.fill: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                     text: "\uF0C9"
                     font.family: "Symbols Nerd Font Mono"; font.pixelSize: BarConfig.sp(12)
                     color: ShellState.drawerOpen ? Colors.primary : Colors.colOnSurfaceVariant

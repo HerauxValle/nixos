@@ -1,9 +1,9 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
 # Safe privilege helper for low-risk operations
 # Whitelist validation per operation; no raw flags accepted
 # Usage: sd-priv <operation> [structured-args...]
 
-set -o pipefail
+set -e -o pipefail
 readonly RUNTIME_DIR="/var/lib/sd"
 
 # ============================================================================
