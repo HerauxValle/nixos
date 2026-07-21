@@ -21,6 +21,7 @@ extern "C" {
 #include <chrono>
 #include <cstdlib>
 #include <format>
+#include <fstream>
 
 namespace {
 HANDLE g_handle = nullptr; // for the occasional user-facing warning notification
@@ -102,11 +103,17 @@ void setCanvasVisualsOnCurrentWorkspace(bool normal) {
 // scrolloverview plugin, since addDispatcherV2 alone isn't reachable from
 // Lua-authored binds here).
 void toggleImpl() {
-    auto& state = currentState();
+    const auto id    = currentWorkspaceID();
+    auto&      state = currentState();
     state.toggle();
     if (state.active())
         floatAllWindowsOnCurrentWorkspace();
     setCanvasVisualsOnCurrentWorkspace(!state.active());
+
+    {
+        static std::ofstream dbg("/tmp/canvas-toggle.log", std::ios::app);
+        dbg << "toggleImpl: workspace=" << id << " active=" << state.active() << std::endl;
+    }
 
     // toggle() alone never touches zoom/pan, so at 1:1/no-pan it's a
     // no-visible-change identity transform -- easy to mistake for "the bind
