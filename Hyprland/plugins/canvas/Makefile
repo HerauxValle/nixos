@@ -1,37 +1,32 @@
-# &desc: "Build rules for the canvas Hyprland plugin -- plain Makefile, no CMake (see DESIGN.md)."
+# &desc: "build recipe for the canvas plugin, mirrors the standard Hyprland out-of-tree plugin convention"
+PLUGIN_NAME = canvas
 
-# --no-gnu-unique avoids STB_GNU_UNIQUE symbol-binding issues across
-# dlopen'd plugins sharing inline globals with the host process (Hyprland's
-# own official plugins apply this same flag for g++, e.g. hyprland-plugins'
-# borders-plus-plus).
-ifeq ($(CXX),g++)
-    EXTRA_FLAGS = --no-gnu-unique
-else
-    EXTRA_FLAGS =
-endif
+CXX       = g++
+CXXFLAGS  = -shared -fPIC -std=c++2b -O2 -Wall -Wextra
+CXXFLAGS += $(shell pkg-config --cflags hyprland pixman-1 libdrm)
 
-CXXFLAGS ?= -O2
-CXXFLAGS += -shared -fPIC -std=c++2b
-
-SRC = src/main.cpp \
-      src/hypr/VersionGuard.cpp src/hypr/RenderHook.cpp src/hypr/Dispatchers.cpp src/hypr/WindowPlacement.cpp \
-      src/canvas/CanvasState.cpp src/canvas/Transform.cpp
-OUT = canvas.so
-
-# Nix's stdenv.mkDerivation exports $out for the sandboxed build; a
-# standalone `make install` outside Nix falls back to /usr/local.
-out ?= /usr/local
+SRC = main.cpp HyprlandHooks.cpp CanvasState.cpp
+OUT = $(PLUGIN_NAME).so
 
 all: $(OUT)
 
-$(OUT): $(SRC)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(EXTRA_FLAGS) $(SRC) -o $(OUT) `pkg-config --cflags hyprland lua`
+$(OUT): $(SRC) CanvasState.hpp HyprlandHooks.hpp
+	$(CXX) $(CXXFLAGS) $(SRC) -o $(OUT)
 
 install: $(OUT)
-	mkdir -p $(out)/lib
-	cp $(OUT) $(out)/lib/
+	hyprctl plugin load $(PWD)/$(OUT)
+
+unload:
+	hyprctl plugin unload $(PWD)/$(OUT)
+
+# bypasses the dynamic linker's dlopen cache while iterating on the plugin
+reload: $(OUT)
+	-hyprctl plugin unload $(PWD)/$(OUT)
+	-hyprctl plugin unload /tmp/$(PLUGIN_NAME)-live.so
+	cp $(PWD)/$(OUT) /tmp/$(PLUGIN_NAME)-live.so
+	hyprctl plugin load /tmp/$(PLUGIN_NAME)-live.so
 
 clean:
 	rm -f $(OUT)
 
-.PHONY: all install clean
+.PHONY: all install unload reload clean
