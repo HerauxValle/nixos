@@ -173,6 +173,20 @@
         };
         default = "2.0.0@obi";
       };
+
+      # Package/attribute is "seed" (matches the flake's own pname and
+      # bin/seed); "sd" is added as the short PATH alias via the same
+      # versions/"@alias" mechanism `cas`/`obi` above uses. Only puts the
+      # `sd` CLI on PATH -- the privilege helpers (sd-priv/sd-priv-iso/
+      # sd-init) still need install.sh --enable-root run by hand at
+      # least once, since the CLI hardcodes their path as
+      # /usr/local/lib/sd/priv (see Scripts/Seed/flake.nix's own comment).
+      seed = {
+        versions = {
+          "1.3.14@sd" = "";
+        };
+        default = "1.3.14@sd";
+      };
     };
 
     kde = {

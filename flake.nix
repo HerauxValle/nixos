@@ -43,6 +43,7 @@
     crun.url = "path:./Scripts/CRun";
     ltree.url = "path:./Scripts/LTree";
     casket.url = "path:./Scripts/Casket";
+    seed.url = "path:./Scripts/Seed";
 
     # ================================ INFO-ABOUT ================================
     # CLAUDE-DESKTOP | CLAUDE-COWORK
