@@ -79,6 +79,35 @@ void floatAllWindowsOnCurrentWorkspace() {
     }
 }
 
+// Window border/shadow decorations are drawn from a window's *real* geometry
+// and never consult Hyprland's render-modifier (SRenderModifData) pipeline
+// at all -- confirmed against the real source (CHyprBorderDecoration::draw,
+// CHyprDropShadowDecoration::getRenderData): only surface content
+// (CSurfacePassElement) respects it. So while a workspace is panned/zoomed,
+// a window's border/shadow render at full real size in the real (unscaled)
+// position while its content correctly shrinks and moves inside that outline
+// -- confirmed live via screenshot, looked exactly like a stray glass pane
+// with a small scaled screenshot floating inside it. Faking scale onto
+// decorations would need hooking multiple additional, deeper, more fragile
+// render internals (border boxes are baked eagerly at queue time; shadow and
+// inner-glow are computed lazily from a separate code path). Turning
+// decoration off entirely for the duration of canvas mode sidesteps that
+// whole class of desync -- and fits the ComfyUI-node aesthetic this plugin
+// is going for anyway (bare content, no native window chrome). Uses the same
+// direct Config::Actions::setProp call hyprctl's own "setprop" dispatcher
+// resolves to (see Config::Actions::floatWindow's comment above for why
+// direct calls, not invokeHyprctlCommand, are this plugin's mechanism).
+// "unset" restores whatever decorate value config/window rules had before --
+// not hardcoding it back to enabled, in case a rule already disabled it.
+void setDecorateOnCurrentWorkspace(bool decorate) {
+    const auto id = currentWorkspaceID();
+    for (auto& w : g_pCompositor->m_windows) {
+        if (!w || !w->m_workspace || w->m_workspace->m_id != id)
+            continue;
+        Config::Actions::setProp("decorate", decorate ? "unset" : "0", w);
+    }
+}
+
 // Actual behavior lives here, called from both addDispatcherV2 callbacks
 // (legacy bind = ... syntax, string-based) and addLuaFunction callbacks
 // (this system's Lua config calls hl.plugin.canvas.<name>(...) directly --
@@ -90,6 +119,7 @@ void toggleImpl() {
     state.toggle();
     if (state.active())
         floatAllWindowsOnCurrentWorkspace();
+    setDecorateOnCurrentWorkspace(!state.active());
 
     // toggle() alone never touches zoom/pan, so at 1:1/no-pan it's a
     // no-visible-change identity transform -- easy to mistake for "the bind

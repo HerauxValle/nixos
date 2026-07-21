@@ -52,6 +52,12 @@ void placeOnCanvas(PHLWINDOW pWindow) {
     // invokeHyprctlCommand's string-based route entirely).
     Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, pWindow);
     Config::Actions::move(target, false, pWindow);
+    // Border/shadow decorations never respect the canvas's render-time
+    // transform (see Dispatchers.cpp's setDecorateOnCurrentWorkspace comment
+    // for the full why) -- a window opened *while* canvas mode is already on
+    // needs this applied here too, since it never went through toggleImpl's
+    // sweep over pre-existing windows.
+    Config::Actions::setProp("decorate", "0", pWindow);
 }
 
 void onWindowOpen(PHLWINDOW pWindow) {
