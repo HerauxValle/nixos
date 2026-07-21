@@ -123,9 +123,15 @@ void renderWithCanvasTransform(origRenderWorkspaceWindows original, Render::IHyp
             const CBox realBox{w->m_realPosition->value().x - pMonitor->m_position.x, w->m_realPosition->value().y - pMonitor->m_position.y, w->m_realSize->value().x,
                                w->m_realSize->value().y};
             const bool contained = !realBox.intersection(virtualViewport).empty();
+            // Every early-return guard renderWindow() itself has, checked
+            // directly -- if any of these are unexpectedly true/zero, that's
+            // a real candidate for "gates pass, still nothing draws" that
+            // isn't visibleOnMonitor or damage/simplify at all.
             dbg << (contained ? "PASS " : "FAIL ") << "win=\"" << w->m_title << "\" real=(" << realBox.x << "," << realBox.y << " " << realBox.w << "x" << realBox.h << ") viewport=("
                 << virtualViewport.x << "," << virtualViewport.y << " " << virtualViewport.w << "x" << virtualViewport.h << ") pan=(" << state.currentPan().x << ","
-                << state.currentPan().y << ") scale=" << state.currentScale() << std::endl;
+                << state.currentPan().y << ") scale=" << state.currentScale() << " hidden=" << w->isHidden() << " mapped=" << w->m_isMapped << " alpha=" << w->effectiveAlpha()
+                << " fadingOut=" << w->m_fadingOut << " floating=" << w->m_isFloating << " pinned=" << w->m_pinned
+                << " decorate=" << w->m_ruleApplicator->decorate().valueOrDefault() << " noBlur=" << w->m_ruleApplicator->noBlur().valueOrDefault() << std::endl;
         }
     }
 
