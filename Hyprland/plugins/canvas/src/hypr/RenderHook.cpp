@@ -13,7 +13,10 @@
 #include <hyprland/src/desktop/view/Window.hpp>
 
 #include <chrono>
+#include <fstream>
 #include <unordered_map>
+
+#include <hyprland/src/Compositor.hpp>
 
 // First attempt hooked renderAllClientsForWorkspace and pushed the
 // translate/scale modifier around the *entire* call -- which also wraps
@@ -106,6 +109,24 @@ void renderWithCanvasTransform(origRenderWorkspaceWindows original, Render::IHyp
         g_pHyprRenderer->m_renderData.damage.add(virtualViewport);
         g_pHyprRenderer->m_renderData.clipBox    = CBox();
         g_pHyprRenderer->m_renderData.noSimplify = true;
+
+        // Ground-truth verification log -- reads real position + the exact
+        // viewport box directly from plugin state, no screenshot needed.
+        // Numeric PASS/FAIL per window per frame: grep/tail this file
+        // instead of eyeballing grim output. Only written while a canvas
+        // workspace is actually rendering (this branch), so it's silent the
+        // rest of the time.
+        static std::ofstream dbg("/tmp/canvas-verify.log", std::ios::app);
+        for (auto& w : g_pCompositor->m_windows) {
+            if (!w || !w->m_workspace || w->m_workspace != pWorkspace)
+                continue;
+            const CBox realBox{w->m_realPosition->value().x - pMonitor->m_position.x, w->m_realPosition->value().y - pMonitor->m_position.y, w->m_realSize->value().x,
+                               w->m_realSize->value().y};
+            const bool contained = !realBox.intersection(virtualViewport).empty();
+            dbg << (contained ? "PASS " : "FAIL ") << "win=\"" << w->m_title << "\" real=(" << realBox.x << "," << realBox.y << " " << realBox.w << "x" << realBox.h << ") viewport=("
+                << virtualViewport.x << "," << virtualViewport.y << " " << virtualViewport.w << "x" << virtualViewport.h << ") pan=(" << state.currentPan().x << ","
+                << state.currentPan().y << ") scale=" << state.currentScale() << std::endl;
+        }
     }
 
     (*original)(thisptr, pMonitor, pWorkspace, time);
