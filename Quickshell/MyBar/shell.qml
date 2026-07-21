@@ -65,21 +65,29 @@ ShellRoot {
     // hyprwm/Hyprland discussion #3828), so flipping e+1/e-1 here is what
     // actually reverses it while Workspaces.qml keeps displayed numbers
     // unchanged. Bound from Config/Reactive/windowMode.lua via "qs ipc call".
+    //
+    // This build's Hyprland parses every dispatch argument that reaches it
+    // (over the IPC socket, regardless of client -- hyprctl, Quickshell,
+    // anything) as a Lua expression unconditionally -- confirmed live:
+    // plain "workspace e+1" and even plain "workspace 5" both error with
+    // "hl.dispatch(workspace ...)) ')' expected". So Hyprland.dispatch(...)
+    // has to be given a full hl.dsp.* Lua call as its string, same form
+    // scrollMaximize.sh already uses from bash.
     IpcHandler {
         target: "workspacefocusnext"
-        function onMessage(message: string) { Hyprland.dispatch("workspace " + (BarConfig.invertWorkspaceIds ? "e-1" : "e+1")) }
+        function onMessage(message: string) { Hyprland.dispatch("hl.dsp.focus({ workspace = '" + (BarConfig.invertWorkspaceIds ? "e-1" : "e+1") + "' })") }
     }
     IpcHandler {
         target: "workspacefocusprev"
-        function onMessage(message: string) { Hyprland.dispatch("workspace " + (BarConfig.invertWorkspaceIds ? "e+1" : "e-1")) }
+        function onMessage(message: string) { Hyprland.dispatch("hl.dsp.focus({ workspace = '" + (BarConfig.invertWorkspaceIds ? "e+1" : "e-1") + "' })") }
     }
     IpcHandler {
         target: "workspacemovenext"
-        function onMessage(message: string) { Hyprland.dispatch("movetoworkspace " + (BarConfig.invertWorkspaceIds ? "e-1" : "e+1")) }
+        function onMessage(message: string) { Hyprland.dispatch("hl.dsp.window.move({ workspace = '" + (BarConfig.invertWorkspaceIds ? "e-1" : "e+1") + "' })") }
     }
     IpcHandler {
         target: "workspacemoveprev"
-        function onMessage(message: string) { Hyprland.dispatch("movetoworkspace " + (BarConfig.invertWorkspaceIds ? "e+1" : "e-1")) }
+        function onMessage(message: string) { Hyprland.dispatch("hl.dsp.window.move({ workspace = '" + (BarConfig.invertWorkspaceIds ? "e+1" : "e-1") + "' })") }
     }
 
     Connections {
