@@ -7,6 +7,10 @@ Item {
 
     Text {
         anchors.centerIn: parent
+        // Same story as the drawer hamburger glyph in BarContent.qml -- this
+        // icon's own vertical metrics sit higher in its em-box than its
+        // neighbors (tray/power), empirical nudge to visually match.
+        anchors.verticalCenterOffset: BarConfig.sp(1)
         text: "\uF013"
         font.family: "Symbols Nerd Font Mono"
         font.pixelSize: BarConfig.sp(13)
