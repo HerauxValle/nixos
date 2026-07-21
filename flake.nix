@@ -90,5 +90,30 @@
           ./Nixos/partitioning.nix
         ];
       };
+
+      # Live-install ISO -- the same real modules/config as above, minus
+      # ./Nixos/hardware-configuration.nix and partitioning.nix (both
+      # pinned to this exact physical disk, meaningless on live media),
+      # plus nixpkgs's own installer-cd base (isoImage/squashfs/boot
+      # mechanics) and Nixos/iso.nix (see that file's own comment for
+      # what it overrides and why). Built via `pacnix release`.
+      nixosConfigurations.maxmustermann-iso = inputs.nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = { inherit inputs; };
+        modules = [
+          "${inputs.nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
+          inputs.home-manager.nixosModules.home-manager
+          inputs.silent-sddm.nixosModules.default
+          ./Nixos/variables.nix
+          ./Nixos/modules
+          ./Nixos/config
+          ./Nixos/iso.nix
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.maxmustermann = import ./Nixos/home.nix;
+          }
+        ];
+      };
     };
 }

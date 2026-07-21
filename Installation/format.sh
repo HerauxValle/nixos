@@ -58,10 +58,26 @@ fi
 
 export DISKO_TARGET_DEVICE="$chosen"
 
+# Resolved instead of hardcoded "herauxvalle" -- this same script also
+# runs against the redacted flake embedded on the live-install ISO
+# (see Scripts/Pacnix/cmd/install.sh), where Nixos/config/github/
+# replacements.nix has renamed that attribute to a placeholder.
+# Filters out the "-iso" live-media output (nixosConfigurations.
+# herauxvalle-iso in flake.nix) so this always targets the real
+# installed-system config, never the live-boot one.
+echo ""
+echo "Resolving the installed-system flake attribute..."
+attr="$(nix eval --json --no-write-lock-file "$REPO_ROOT#nixosConfigurations" --apply builtins.attrNames \
+    | python3 -c 'import json, sys
+names = [n for n in json.load(sys.stdin) if not n.endswith("-iso")]
+assert len(names) == 1, f"expected exactly one non-iso nixosConfigurations attribute, found {names}"
+print(names[0])')"
+echo "Target: nixosConfigurations.$attr"
+
 echo ""
 echo "Building disko's format + mount scripts (nothing on disk touched yet)..."
-format_script="$(nix build --impure --no-link --print-out-paths "$REPO_ROOT#nixosConfigurations.herauxvalle.config.system.build.format")"
-mount_script="$(nix build --impure --no-link --print-out-paths "$REPO_ROOT#nixosConfigurations.herauxvalle.config.system.build.mount")"
+format_script="$(nix build --impure --no-link --print-out-paths "$REPO_ROOT#nixosConfigurations.$attr.config.system.build.format")"
+mount_script="$(nix build --impure --no-link --print-out-paths "$REPO_ROOT#nixosConfigurations.$attr.config.system.build.mount")"
 
 echo ""
 echo "Last chance: about to format $resolved."
@@ -76,5 +92,5 @@ fi
 
 echo ""
 echo "Disk formatted and mounted under /mnt."
-echo "Next: nixos-install --root /mnt --flake $REPO_ROOT#herauxvalle"
+echo "Next: nixos-install --root /mnt --flake $REPO_ROOT#$attr"
 echo "Then boot into it and run ./install.sh --setup."

@@ -35,7 +35,17 @@ let
       lib.mapAttrsToList (
         packageName: pkgCfg:
 
-        if pkgCfg.versions == { } then
+        # config.vars.isoBuild switches this whole list into allowlist
+        # mode -- see ../../iso.nix and each package entry's own
+        # `builtIn` option. False on the real machine, so this is a
+        # no-op there.
+        if config.vars.isoBuild && !pkgCfg.builtIn then
+          {
+            drvs = [ ];
+            manifestEntries = [ ];
+            aliasNames = [ ];
+          }
+        else if pkgCfg.versions == { } then
           {
             drvs = [ (helpers.resolveDefault { inherit sourceName packageName source; }) ];
             manifestEntries = [ ];

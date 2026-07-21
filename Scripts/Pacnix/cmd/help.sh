@@ -34,6 +34,20 @@ usage: pacnix <command> [args]
       flake still has every real value in it, so it can never fail that
       way itself.
 
+  release
+      Builds the live-install ISO from the published copy (same
+      cloned-and-redacted repo `published` validates), embedding that
+      exact clone at /dotfiles so `install` works fully offline. Drops
+      the built .iso in the current directory.
+
+  install
+      Run from inside the booted live-install ISO. Orchestrates the
+      embedded /dotfiles copy's own install.sh --format (unchanged --
+      still asks which disk, still requires typing WIPE) followed by
+      nixos-install onto the freshly formatted disk. Prints instructions
+      to reboot and run install.sh --setup afterward, same as running
+      install.sh --format manually would.
+
   optimise
       Hardlinks duplicate files across the store to save space
       (nix-store --optimise). Pure dedup, deletes nothing. Prints

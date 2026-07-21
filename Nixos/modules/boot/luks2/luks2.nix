@@ -1,13 +1,19 @@
 # &desc: "LUKS2 unlock logic -- adds usb_storage/uas/ext4 to initrd, mounts VirtualKeys USB read-only before cryptsetup-pre.target."
 
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   cfg = config.vars.boot.luks2;
 in
 
-# Unlock
-{
+# Unlock -- no enable option of its own (this machine always has a LUKS
+# root, so there was never a reason for one), gated here on
+# vars.isoBuild instead: the live ISO has no LUKS root to unlock, and
+# leaving this unconditional broke a real ISO build -- its initrdBin's
+# full pkgs.util-linux collided with the installer's own minimal build
+# of the same tool (both providing bin/addpart, a literal buildEnv
+# conflict since they're different derivations of "the same" package).
+lib.mkIf (!config.vars.isoBuild) {
   # usb_storage/uas: get the VirtualKeys USB drive recognized this early
   # in initrd. ext4: filesystem it's formatted with, needed to mount it.
   boot.initrd.kernelModules = [ "usb_storage" "uas" "ext4" ];
@@ -80,3 +86,5 @@ in
     keyFileSize = 4096;
   };
 }
+
+

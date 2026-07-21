@@ -63,6 +63,20 @@
                   non-empty (enforced by lib/validate.nix).
                 '';
               };
+
+              builtIn = lib.mkOption {
+                type = lib.types.bool;
+                default = false;
+
+                description = ''
+                  Included when building the live ISO
+                  (config.vars.isoBuild = true, see ../../iso.nix).
+                  Default false -- the ISO ships nothing from this list
+                  unless a package explicitly opts in. Ignored entirely
+                  on the real machine (every package is installed there
+                  regardless of this flag).
+                '';
+              };
             };
           }
         )

@@ -36,4 +36,16 @@
       then use config.vars.alias.ollamaHost anywhere instead of the long path.
     '';
   };
+
+  # Cross-cutting flag, false everywhere except nixosConfigurations.
+  # herauxvalle-iso (set true by ../iso.nix). Declared here rather than
+  # in iso.nix itself since modules/packages/packages/main.nix (shared
+  # by both the real and iso configs) needs to read it unconditionally
+  # -- an option only iso.nix declared wouldn't exist for the real
+  # machine's build at all.
+  options.vars.isoBuild = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "True only when building the live-install ISO (nixosConfigurations.herauxvalle-iso) -- switches modules/packages/packages/main.nix's package list into allowlist mode. Never set true for the real machine.";
+  };
 }

@@ -63,6 +63,17 @@
         find = "home-manager.users.maxmustermann = import ./Nixos/home.nix;";
         replaceWith = "home-manager.users.maxmustermann = import ./Nixos/home.nix;";
       }
+      {
+        # The live-ISO flake output -- same reasoning as the two entries
+        # above, just for the second nixosConfigurations attribute.
+        # Doesn't collide with the plain "nixosConfigurations.herauxvalle
+        # = ..." find above: that string has " = " right after
+        # "herauxvalle", which isn't a substring of this one ("-iso ="
+        # instead), so both entries match exactly one line each.
+        file = "flake.nix";
+        find = "nixosConfigurations.maxmustermann-iso = inputs.nixpkgs.lib.nixosSystem";
+        replaceWith = "nixosConfigurations.maxmustermann-iso = inputs.nixpkgs.lib.nixosSystem";
+      }
 
       {
         file = "Nixos/modules/system/networking.nix";

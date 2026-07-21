@@ -28,7 +28,8 @@
 #
 # Package values are empty attribute sets rather than booleans to leave
 # room for future per-package options (overrides, conditions, metadata,
-# platform restrictions, etc.) without changing the schema.
+# platform restrictions, etc.) without changing the schema. One such
+# option already exists: `builtIn` (see the "LIVE ISO" example below).
 #
 # NOT imported anywhere -- never evaluated, purely a copy-paste
 # reference. Copy a block (or a line out of one) into
@@ -156,6 +157,17 @@
   #           "ab.cd.e@somepkg5" = "AbcDef#sha256-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=";
   #         };
   #         default = "ab.cd.e@somepkg5"; # default must name the key in full, "@alias" included
+  #       };
+
+  #       # LIVE ISO: opt a package into nixosConfigurations.herauxvalle-iso
+  #       # (see flake.nix + Nixos/iso.nix). config.vars.isoBuild is only
+  #       # true there, and it switches this WHOLE packages list into
+  #       # allowlist mode -- every entry defaults to `builtIn = false` and
+  #       # is skipped for the ISO unless set true, regardless of versions/
+  #       # default. Ignored entirely on the real machine (every package
+  #       # installs there no matter what builtIn says).
+  #       somepkg-wanted-on-iso = {
+  #         builtIn = true;
   #       };
   #     };
 

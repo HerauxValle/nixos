@@ -201,3 +201,18 @@ through plain top-level `pkgs.<packageName>` in the imported nixpkgs,
 regardless of which `sourceName` (e.g. pkgs.kdePackages) the package
 was declared under. They don't know how to walk into non-pkgs
 sources — only the ""/"latest" branch respects the declared source.
+
+LIVE ISO (builtIn)
+
+  config.vars.packages.environment.packages.pkgs.firefox = {
+    builtIn = true;
+  };
+
+Every package entry also has a `builtIn` option, default `false`.
+Ignored entirely on the real machine — every declared package installs
+there regardless. Only matters for nixosConfigurations.herauxvalle-iso
+(see flake.nix + Nixos/iso.nix), which sets config.vars.isoBuild = true
+and switches this whole packages list into allowlist mode: nothing from
+it ships on the ISO unless a package sets `builtIn = true;` explicitly.
+Combines with `versions`/`default` normally — `builtIn` only gates
+whether the entry is resolved at all, not which version.
