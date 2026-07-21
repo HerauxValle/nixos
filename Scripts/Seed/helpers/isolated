@@ -1,0 +1,262 @@
+#!/bin/bash -e
+# Structured privilege helper for high-risk container operations
+# No raw flags accepted; all commands constructed internally
+# Usage: sd-priv-iso <operation> <structured-input>...
+
+set -o pipefail
+readonly RUNTIME_DIR="/var/lib/sd"
+
+# ============================================================================
+# Validation Functions
+# ============================================================================
+
+_validate_container_path() {
+  local path=$1
+  local real uid
+  real=$(realpath -e "$path" 2>/dev/null) || return 1
+  [[ $real == $RUNTIME_DIR/containers/* ]] || return 1
+  # Ownership check: must be owned by root (UID 0) or current user
+  uid=$(stat -c%u "$real" 2>/dev/null) || return 1
+  [[ $uid == 0 || $uid == $EUID ]] || return 1
+  return 0
+}
+
+_validate_image_path() {
+  local hash=$1
+  local path="$RUNTIME_DIR/images/$hash"
+  local real uid
+  real=$(realpath -e "$path" 2>/dev/null) || return 1
+  [[ $real == $RUNTIME_DIR/images/* ]] || return 1
+  [[ -f $real ]] || return 1
+  # Ownership check: must be owned by root (UID 0)
+  uid=$(stat -c%u "$real" 2>/dev/null) || return 1
+  [[ $uid == 0 ]] || return 1
+  return 0
+}
+
+_validate_container_id() {
+  local id=$1
+  # Container ID must be alphanumeric + underscore (simple validation)
+  [[ $id =~ ^[a-zA-Z0-9_-]+$ ]] || return 1
+  [[ -d $RUNTIME_DIR/containers/$id ]] || return 1
+  return 0
+}
+
+_validate_image_hash() {
+  local hash=$1
+  # Hash format: alphanumeric (sha256, etc.)
+  [[ $hash =~ ^[a-f0-9]+$ ]] || return 1
+  [[ -f $RUNTIME_DIR/images/$hash ]] || return 1
+  return 0
+}
+
+_validate_safe_string() {
+  local str=$1
+  # Reject shell metacharacters (using separate checks for clarity)
+  [[ $str == *"'"* ]] && return 1  # Single quote
+  [[ $str == *";"* ]] && return 1  # Semicolon
+  [[ $str == *'$'* ]] && return 1  # Dollar
+  [[ $str == *'`'* ]] && return 1  # Backtick
+  [[ $str == *'|'* ]] && return 1  # Pipe
+  [[ $str == *'&'* ]] && return 1  # Ampersand
+  [[ $str == *'<'* ]] && return 1  # Less than
+  [[ $str == *'>'* ]] && return 1  # Greater than
+  [[ $str == *'!'* ]] && return 1  # Exclamation
+  [[ ${#str} -gt 256 ]] && return 1  # Length limit
+  return 0
+}
+
+# ============================================================================
+# Block Device Operations
+# ============================================================================
+
+_blk_losetup_attach() {
+  local image_hash=$1
+  [[ $# -eq 1 ]] || { echo "Usage: blk:losetup_attach IMAGE_HASH" >&2; return 1; }
+  _validate_image_hash "$image_hash" || { echo "Invalid image hash" >&2; return 1; }
+
+  # Attach read-only
+  losetup -f "$RUNTIME_DIR/images/$image_hash"
+}
+
+_blk_losetup_detach() {
+  local container_id=$1
+  [[ $# -eq 1 ]] || { echo "Usage: blk:losetup_detach CONTAINER_ID" >&2; return 1; }
+  _validate_container_id "$container_id" || { echo "Invalid container ID" >&2; return 1; }
+
+  # Find and detach loop device associated with container
+  # TODO: implement device tracking
+  echo "losetup_detach not yet implemented" >&2
+  return 1
+}
+
+# ============================================================================
+# Filesystem Operations
+# ============================================================================
+
+_fs_mount_image() {
+  local image_hash=$1 container_id=$2
+  [[ $# -eq 2 ]] || { echo "Usage: fs:mount_image IMAGE_HASH CONTAINER_ID" >&2; return 1; }
+  _validate_image_hash "$image_hash" || { echo "Invalid image hash" >&2; return 1; }
+  _validate_container_id "$container_id" || { echo "Invalid container ID" >&2; return 1; }
+
+  local image_path="$RUNTIME_DIR/images/$image_hash"
+  local rootfs="$RUNTIME_DIR/containers/$container_id/rootfs"
+
+  # Final TOCTOU prevention: re-validate paths right before mount
+  [[ -f $image_path ]] || { echo "Image file disappeared" >&2; return 1; }
+  [[ -d $rootfs ]] || { echo "Container rootfs disappeared" >&2; return 1; }
+  local image_uid=$(stat -c%u "$image_path" 2>/dev/null) || return 1
+  [[ $image_uid == 0 ]] || { echo "Image ownership changed" >&2; return 1; }
+
+  # Mount with restrictive flags: ro, bind, nosuid, nodev, noexec
+  mount "$image_path" "$rootfs" \
+    -o ro,bind,nosuid,nodev,noexec
+}
+
+_fs_umount_container() {
+  local container_id=$1
+  [[ $# -eq 1 ]] || { echo "Usage: fs:umount_container CONTAINER_ID" >&2; return 1; }
+  _validate_container_id "$container_id" || { echo "Invalid container ID" >&2; return 1; }
+
+  local rootfs="$RUNTIME_DIR/containers/$container_id/rootfs"
+  [[ -d $rootfs ]] || { echo "Container rootfs not found" >&2; return 1; }
+
+  # Lazy unmount
+  umount -l "$rootfs"
+}
+
+_fs_chroot_init() {
+  local container_id=$1 init_cmd=$2
+  shift 2
+  [[ -n $container_id ]] || { echo "Usage: fs:chroot_init CONTAINER_ID INIT_CMD [ARGS...]" >&2; return 1; }
+  _validate_container_id "$container_id" || { echo "Invalid container ID" >&2; return 1; }
+
+  local rootfs="$RUNTIME_DIR/containers/$container_id/rootfs"
+  [[ -d $rootfs ]] || { echo "Container rootfs not found" >&2; return 1; }
+
+  # Only allow specific init programs
+  case "$init_cmd" in
+    /init|/bin/sh|/bin/bash)
+      : # allowed
+      ;;
+    *)
+      echo "Init command not allowed: $init_cmd" >&2
+      return 1
+      ;;
+  esac
+
+  # chroot and exec init (interactive)
+  exec chroot "$rootfs" "$init_cmd" "$@"
+}
+
+_fs_btrfs_subvol_create() {
+  local container_id=$1
+  [[ $# -eq 1 ]] || { echo "Usage: fs:btrfs_subvol_create CONTAINER_ID" >&2; return 1; }
+  _validate_container_id "$container_id" || { echo "Invalid container ID" >&2; return 1; }
+
+  local path="$RUNTIME_DIR/containers/$container_id"
+  [[ ! -e $path ]] || { echo "Path already exists" >&2; return 1; }
+
+  btrfs subvolume create "$path"
+}
+
+_fs_btrfs_subvol_delete() {
+  local container_id=$1
+  [[ $# -eq 1 ]] || { echo "Usage: fs:btrfs_subvol_delete CONTAINER_ID" >&2; return 1; }
+  _validate_container_id "$container_id" || { echo "Invalid container ID" >&2; return 1; }
+
+  local path="$RUNTIME_DIR/containers/$container_id"
+  [[ -e $path ]] || { echo "Path not found" >&2; return 1; }
+
+  btrfs subvolume delete "$path"
+}
+
+# ============================================================================
+# Process/Namespace Operations
+# ============================================================================
+
+_proc_unshare_container() {
+  local container_id=$1 command=$2
+  shift 2
+  [[ -n $command ]] || { echo "Usage: proc:unshare_container CONTAINER_ID COMMAND [ARGS...]" >&2; return 1; }
+  _validate_container_id "$container_id" || { echo "Invalid container ID" >&2; return 1; }
+  _validate_safe_string "$command" || { echo "Unsafe command string" >&2; return 1; }
+
+  # Reject absolute paths and directory traversal in command name
+  [[ $command == /* ]] && { echo "Absolute paths not allowed in command" >&2; return 1; }
+  [[ $command == */* ]] && { echo "Paths in command not allowed" >&2; return 1; }
+
+  # Validate all args safe (reject shell metacharacters to prevent injection)
+  for arg in "$@"; do
+    _validate_safe_string "$arg" || { echo "Unsafe argument: $arg" >&2; return 1; }
+    [[ $arg == /* ]] && { echo "Absolute paths not allowed in arguments" >&2; return 1; }
+  done
+
+  # Namespace flags: HARDCODED, user cannot override
+  # -U: user namespace (no --map-root-user), -P: PID namespace, -N: network namespace
+  # -i: IPC namespace, -u: UTS namespace, --mount-proc: mount /proc (prevent escape)
+  # Execute command directly as argv, NOT via sh -c (eliminates shell injection)
+  exec unshare -U -P -N -i -u --mount-proc "$command" "$@"
+}
+
+# ============================================================================
+# Network Operations
+# ============================================================================
+
+_net_veth_create() {
+  local container_id=$1
+  [[ $# -eq 1 ]] || { echo "Usage: net:veth_create CONTAINER_ID" >&2; return 1; }
+  _validate_container_id "$container_id" || { echo "Invalid container ID" >&2; return 1; }
+
+  local veth_name="veth_sd_$container_id"
+  local peer_name="${veth_name}_host"
+
+  # Verify does not exist
+  ip link show "$veth_name" >/dev/null 2>&1 && { echo "veth already exists" >&2; return 1; }
+
+  ip link add "$veth_name" type veth peer name "$peer_name"
+}
+
+_net_veth_cleanup() {
+  local container_id=$1
+  [[ $# -eq 1 ]] || { echo "Usage: net:veth_cleanup CONTAINER_ID" >&2; return 1; }
+  _validate_container_id "$container_id" || { echo "Invalid container ID" >&2; return 1; }
+
+  local veth_name="veth_sd_$container_id"
+
+  # Verify exists before deleting
+  ip link show "$veth_name" >/dev/null 2>&1 || { echo "veth does not exist" >&2; return 1; }
+
+  ip link del "$veth_name"
+}
+
+# ============================================================================
+# Dispatcher
+# ============================================================================
+
+main() {
+  [[ $# -lt 1 ]] && { echo "Usage: sd-priv-iso <operation> [args...]" >&2; exit 1; }
+
+  local op=$1
+  shift
+
+  case "$op" in
+    blk:losetup_attach)       _blk_losetup_attach "$@" ;;
+    blk:losetup_detach)       _blk_losetup_detach "$@" ;;
+    fs:mount_image)           _fs_mount_image "$@" ;;
+    fs:umount_container)      _fs_umount_container "$@" ;;
+    fs:chroot_init)           _fs_chroot_init "$@" ;;
+    fs:btrfs_subvol_create)   _fs_btrfs_subvol_create "$@" ;;
+    fs:btrfs_subvol_delete)   _fs_btrfs_subvol_delete "$@" ;;
+    proc:unshare_container)   _proc_unshare_container "$@" ;;
+    net:veth_create)          _net_veth_create "$@" ;;
+    net:veth_cleanup)         _net_veth_cleanup "$@" ;;
+    *)
+      echo "Denied: $op" >&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

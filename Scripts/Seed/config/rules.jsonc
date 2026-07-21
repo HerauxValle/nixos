@@ -1,0 +1,21 @@
+//#!rules
+{
+  // output mode: default / debug / live / plain
+  "DEFAULT_MODE": "table",
+
+  // table display: simple (static print) / responsive (rerenders on resize)
+  "TABLE_DISPLAY": "simple",
+
+  // table width: auto (fit content) / max (full terminal width)
+  "TABLE_SIZE": "auto",
+
+  // number of responsive tables to keep cached in .tmp/tables/
+  "TABLES_CACHED": 20,
+
+  // enable background daemon for sudo-free btrfs ops + continuous health checks
+  "ENABLE_DAEMON": false,
+
+  // path to external blueprints folder imported into imgs at run time
+  // "" = disabled, relative paths resolved from project root
+  "IMPORT_BLUEPRINTS": "blueprints"
+}

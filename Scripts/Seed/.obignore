@@ -1,0 +1,48 @@
+# .obignore — Control what syncs to vault
+# Default: Everything goes to vault. Use this file to exclude.
+# Format: +clone (both places), +here (project only), list (never vault)
+
+// === CODE & BINARIES (project only) ===
+*.pyc
+*.o
+*.so
+*.dll
+__pycache__/ +here
+*.egg-info/ +here
+
+// === BUILD & DEPENDENCIES (project only) ===
+node_modules/ +here
+venv/ +here
+.venv/ +here
+dist/ +here
+build/ +here
+*.egg-info/ +here
+
+// === CONFIG & SECRETS (project only, never vault) ===
+.env +here
+.env.local +here
+secrets/ +here
+credentials.json +here
+*.key +here
+
+// === VCS (project only) ===
+.git/ +here
+.gitignore +here
+.github/ +here
+
+// === IDE & LOCAL (project only) ===
+.vscode/ +here
+.idea/ +here
+*.swp +here
+*.swo +here
+*~ +here
+
+// === DOCUMENTATION (sync to BOTH places) ===
+README.md +clone
+CHANGELOG.md +clone
+DECISIONS.md +clone
+DESIGN.md +clone
+ARCHITECTURE.md +clone
+LICENSE.md +clone
+
+// === Everything else goes to vault by default ===

@@ -210,7 +210,12 @@ Rectangle {
             Item {
                 implicitWidth: BarConfig.sp(20); implicitHeight: BarConfig.sp(22)
                 Text {
-                    anchors.centerIn: parent; text: "\uF0C9"
+                    anchors.centerIn: parent
+                    // This glyph's own vertical metrics sit higher in its em-box
+                    // than the other icons here (gear/power etc., which don't
+                    // need this) -- small empirical nudge to visually match.
+                    anchors.verticalCenterOffset: BarConfig.sp(2)
+                    text: "\uF0C9"
                     font.family: "Symbols Nerd Font Mono"; font.pixelSize: BarConfig.sp(12)
                     color: ShellState.drawerOpen ? Colors.primary : Colors.colOnSurfaceVariant
                     Behavior on color { ColorAnimation { duration: 100 } }

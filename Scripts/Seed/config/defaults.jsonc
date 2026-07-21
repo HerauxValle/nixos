@@ -1,0 +1,75 @@
+//#!defaults
+{
+  "meta": {
+    "defaults": {
+      "sdc_version": 1,
+      "name":        "",
+      "author":      "",
+      "description": ""
+    },
+    "required": []
+  },
+
+  "general": {
+    "defaults": {
+      "rootfs": ""
+    },
+    "required": ["rootfs"]
+  },
+
+  "config": {
+    "defaults": {
+      "entrypoint":  "",
+      "port":        "",
+      "restart":     "no",
+      "restart_max": 0,
+      "user":        "",
+      "workdir":     "/",
+      "depends":     ""
+    },
+    "required": []
+  },
+
+  "resources": {
+    "defaults": {
+      "memory": "",
+      "cpu":    "",
+      "gpu":    0
+    },
+    "required": []
+  },
+
+  "isolation": {
+    "defaults": {
+      "network": true,
+      "pid":     true,
+      "mount":   true,
+      "uts":     true,
+      "ipc":     true,
+      "user":    true,
+      "capabilities": {
+        "net_bind_service": false,
+        "chown": false,
+        "dac_override": false,
+        "setfcap": false
+      }
+    },
+    "required": []
+  },
+
+  "health": {
+    "defaults": {
+      "port":     "",
+      "cmd":      "",
+      "interval": "5s",
+      "timeout":  "30s",
+      "retries":  3
+    },
+    "required": []
+  },
+
+  "env": {
+    "defaults": {},
+    "required": []
+  }
+}

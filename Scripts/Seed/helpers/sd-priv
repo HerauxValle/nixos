@@ -1,0 +1,117 @@
+#!/bin/bash -e
+# Safe privilege helper for low-risk operations
+# Whitelist validation per operation; no raw flags accepted
+# Usage: sd-priv <operation> [structured-args...]
+
+set -o pipefail
+readonly RUNTIME_DIR="/var/lib/sd"
+
+# ============================================================================
+# Validation Functions
+# ============================================================================
+
+_validate_path() {
+  local path=$1
+  local real
+  real=$(realpath -e "$path" 2>/dev/null) || return 1
+  [[ $real == $RUNTIME_DIR/* ]] || return 1
+  return 0
+}
+
+_validate_numeric() {
+  local val=$1
+  [[ $val =~ ^[0-9]+$ ]] || return 1
+  return 0
+}
+
+_validate_uid_gid() {
+  local uid=$1 gid=$2
+  _validate_numeric "$uid" || return 1
+  _validate_numeric "$gid" || return 1
+  return 0
+}
+
+# ============================================================================
+# Ownership Operations
+# ============================================================================
+
+_own_chown() {
+  local uid=$1 gid=$2 path=$3
+  [[ $# -eq 3 ]] || { echo "Usage: own:chown UID GID PATH" >&2; return 1; }
+  _validate_uid_gid "$uid" "$gid" || { echo "Invalid UID:GID" >&2; return 1; }
+  _validate_path "$path" || { echo "Invalid path" >&2; return 1; }
+
+  chown "$uid:$gid" "$path"
+}
+
+# ============================================================================
+# System Operations
+# ============================================================================
+
+_sys_mkdir() {
+  local path=$1
+  [[ $# -eq 1 ]] || { echo "Usage: sys:mkdir PATH" >&2; return 1; }
+  _validate_path "$path" || { echo "Invalid path" >&2; return 1; }
+
+  mkdir -p "$path"
+  chmod 755 "$path"
+}
+
+_sys_mv() {
+  local src=$1 dst=$2
+  [[ $# -eq 2 ]] || { echo "Usage: sys:mv SRC DST" >&2; return 1; }
+  _validate_path "$src" || { echo "Invalid source path" >&2; return 1; }
+  _validate_path "$dst" || { echo "Invalid dest path" >&2; return 1; }
+  [[ -e $src ]] || { echo "Source does not exist" >&2; return 1; }
+
+  mv "$src" "$dst"
+}
+
+# ============================================================================
+# Filesystem Read-Only Operations
+# ============================================================================
+
+_fs_findmnt() {
+  local path=$1
+  [[ $# -eq 1 ]] || { echo "Usage: fs:findmnt PATH" >&2; return 1; }
+  _validate_path "$path" || { echo "Invalid path" >&2; return 1; }
+
+  findmnt "$path"
+}
+
+# ============================================================================
+# Block Device Read-Only Operations
+# ============================================================================
+
+_blk_blkid() {
+  local device=$1
+  [[ $# -eq 1 ]] || { echo "Usage: blk:blkid DEVICE" >&2; return 1; }
+  [[ -b $device ]] || { echo "Not a block device" >&2; return 1; }
+
+  blkid "$device"
+}
+
+# ============================================================================
+# Dispatcher
+# ============================================================================
+
+main() {
+  [[ $# -lt 1 ]] && { echo "Usage: sd-priv <operation> [args...]" >&2; exit 1; }
+
+  local op=$1
+  shift
+
+  case "$op" in
+    own:chown)      _own_chown "$@" ;;
+    sys:mkdir)      _sys_mkdir "$@" ;;
+    sys:mv)         _sys_mv "$@" ;;
+    fs:findmnt)     _fs_findmnt "$@" ;;
+    blk:blkid)      _blk_blkid "$@" ;;
+    *)
+      echo "Denied: $op" >&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

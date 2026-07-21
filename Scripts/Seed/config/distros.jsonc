@@ -1,0 +1,70 @@
+//#!distros
+{
+  // Rootfs URLs per distro and version.
+  // "latest"    = always resolves to current stable upstream
+  // "versioned" = template for any version not listed -- {version} and {minor} are replaced
+  // Custom entries like "bookworm" or "22.04" = direct URL, takes priority over versioned template
+  // Add new distros or versions by adding a key-value here -- no code changes needed.
+
+  "distros": {
+
+    "ubuntu": {
+      "latest":    "https://cdimage.ubuntu.com/ubuntu-base/releases/latest/release/ubuntu-base-latest-base-amd64.tar.gz",
+      "versioned": "https://cdimage.ubuntu.com/ubuntu-base/releases/{version}/release/ubuntu-base-{version}-base-amd64.tar.gz",
+      "20.04":     "https://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release/ubuntu-base-20.04-base-amd64.tar.gz",
+      "22.04":     "https://cdimage.ubuntu.com/ubuntu-base/releases/22.04/release/ubuntu-base-22.04-base-amd64.tar.gz",
+      "24.04":     "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04-base-amd64.tar.gz",
+      "24.10":     "https://cdimage.ubuntu.com/ubuntu-base/releases/24.10/release/ubuntu-base-24.10-base-amd64.tar.gz",
+      "25.04":     "https://cdimage.ubuntu.com/ubuntu-base/releases/25.04/release/ubuntu-base-25.04-base-amd64.tar.gz",
+      "25.10":     "https://cdimage.ubuntu.com/ubuntu-base/releases/25.10/release/ubuntu-base-25.10-base-amd64.tar.gz"
+    },
+
+    "alpine": {
+      "latest":    "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/x86_64/alpine-minirootfs-latest-x86_64.tar.gz",
+      "versioned": "https://dl-cdn.alpinelinux.org/alpine/v{minor}/releases/x86_64/alpine-minirootfs-{version}-x86_64.tar.gz",
+      "3.17":      "https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/x86_64/alpine-minirootfs-3.17.0-x86_64.tar.gz",
+      "3.18":      "https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-minirootfs-3.18.0-x86_64.tar.gz",
+      "3.19":      "https://dl-cdn.alpinelinux.org/alpine/v3.19/releases/x86_64/alpine-minirootfs-3.19.0-x86_64.tar.gz",
+      "3.20":      "https://dl-cdn.alpinelinux.org/alpine/v3.20/releases/x86_64/alpine-minirootfs-3.20.0-x86_64.tar.gz",
+      "3.21":      "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/x86_64/alpine-minirootfs-3.21.0-x86_64.tar.gz"
+    },
+
+    "debian": {
+      "latest":    "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-amd64/stable/rootfs.tar.xz",
+      "versioned": "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-amd64/{version}/rootfs.tar.xz",
+      "bullseye":  "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-amd64/bullseye/rootfs.tar.xz",
+      "bookworm":  "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-amd64/bookworm/rootfs.tar.xz",
+      "trixie":    "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-amd64/trixie/rootfs.tar.xz",
+      "11":        "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-amd64/bullseye/rootfs.tar.xz",
+      "12":        "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-amd64/bookworm/rootfs.tar.xz",
+      "13":        "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-amd64/trixie/rootfs.tar.xz"
+    },
+
+    "arch": {
+      "latest":    "https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst",
+      "versioned": "https://archive.archlinux.org/iso/{version}/archlinux-bootstrap-{version}-x86_64.tar.zst"
+    },
+
+    "fedora": {
+      "latest":    "https://dl.fedoraproject.org/pub/fedora/linux/releases/41/Container/x86_64/images/Fedora-Container-Base-41-1.4.x86_64.tar.xz",
+      "versioned": "https://dl.fedoraproject.org/pub/fedora/linux/releases/{version}/Container/x86_64/images/Fedora-Container-Base-{version}-1.4.x86_64.tar.xz",
+      "39":        "https://dl.fedoraproject.org/pub/fedora/linux/releases/39/Container/x86_64/images/Fedora-Container-Base-39-1.2.x86_64.tar.xz",
+      "40":        "https://dl.fedoraproject.org/pub/fedora/linux/releases/40/Container/x86_64/images/Fedora-Container-Base-40-1.14.x86_64.tar.xz",
+      "41":        "https://dl.fedoraproject.org/pub/fedora/linux/releases/41/Container/x86_64/images/Fedora-Container-Base-41-1.4.x86_64.tar.xz"
+    },
+
+    "opensuse": {
+      "latest":    "https://download.opensuse.org/repositories/Cloud:/Images:/Leap_15.6/images/openSUSE-Leap-15.6-Container-Image.x86_64.tar.xz",
+      "versioned": "https://download.opensuse.org/repositories/Cloud:/Images:/Leap_{version}/images/openSUSE-Leap-{version}-Container-Image.x86_64.tar.xz",
+      "15.5":      "https://download.opensuse.org/repositories/Cloud:/Images:/Leap_15.5/images/openSUSE-Leap-15.5-Container-Image.x86_64.tar.xz",
+      "15.6":      "https://download.opensuse.org/repositories/Cloud:/Images:/Leap_15.6/images/openSUSE-Leap-15.6-Container-Image.x86_64.tar.xz"
+    },
+
+    "centos": {
+      "latest":    "https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-Container-Base-9-latest.x86_64.tar.xz",
+      "versioned": "https://cloud.centos.org/centos/{version}-stream/x86_64/images/CentOS-Stream-Container-Base-{version}-latest.x86_64.tar.xz",
+      "9":         "https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-Container-Base-9-latest.x86_64.tar.xz"
+    }
+
+  }
+}

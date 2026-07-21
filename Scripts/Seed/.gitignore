@@ -1,0 +1,57 @@
+# --- your base rules ---
+.ssh/
+.cache/
+.local/
+*.log
+*.tmp
+__pycache__/
+*.pyc
+.claude
+
+# --- VSCode / Code-OSS caches ---
+**/Code - OSS/Cache/
+**/Code - OSS/CachedData/
+**/Code - OSS/Code Cache/
+**/Code - OSS/GPUCache/
+**/Code - OSS/Dawn*
+**/Code - OSS/CachedConfigurations/
+**/Code - OSS/CachedExtensionVSIXs/
+**/Code - OSS/CachedProfilesData/
+**/Code - OSS/Shared Dictionary/cache/
+
+# --- generic cache dirs ---
+**/Cache/
+**/cache/
+
+# --- logs / temp ---
+**/log/
+**/logs/
+history.txt
+
+# --- system junk ---
+Boot/
+
+# --- misc ---
+*.csv
+
+# --- Claude runtime junk ---
+
+# locks
+Claude/**/*.lock
+
+# sqlite / db files
+Claude/**/*.db
+
+# transient logs / event streams
+Claude/**/*-events.md
+Claude/**/*.jsonl
+
+# shell snapshots
+Claude/**/shell-snapshots/
+
+# optional: tmp-like patterns
+Claude/**/*.tmp
+
+# claudeignore
+.claudeignore
+.claude

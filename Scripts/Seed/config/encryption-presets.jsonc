@@ -1,0 +1,39 @@
+//#!encryption-presets
+{
+  "light": {
+    "name": "light",
+    "builtin": true,
+    "pbkdf": "argon2id",
+    "argon2-memory": 33554432,
+    "argon2-time": 4,
+    "argon2-parallel": 1,
+    "description": "Minimal security (32MB, 4 iter, 1 thread) — fast unlock, development only"
+  },
+  "medium": {
+    "name": "medium",
+    "builtin": true,
+    "pbkdf": "argon2id",
+    "argon2-memory": 268435456,
+    "argon2-time": 4,
+    "argon2-parallel": 2,
+    "description": "Balanced (256MB, 4 iter, 2 threads) — ~250ms unlock, recommended default"
+  },
+  "strong": {
+    "name": "strong",
+    "builtin": true,
+    "pbkdf": "argon2id",
+    "argon2-memory": 536870912,
+    "argon2-time": 5,
+    "argon2-parallel": 4,
+    "description": "High-security (512MB, 5 iter, 4 threads) — ~1s unlock"
+  },
+  "extreme": {
+    "name": "extreme",
+    "builtin": true,
+    "pbkdf": "argon2id",
+    "argon2-memory": 1073741824,
+    "argon2-time": 6,
+    "argon2-parallel": null,
+    "description": "Maximum security (1GB, 6 iter, all cores) — ~4s unlock, high security"
+  }
+}
