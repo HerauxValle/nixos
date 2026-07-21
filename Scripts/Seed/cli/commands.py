@@ -85,7 +85,7 @@ SCHEMA = {
     "db":   cmd("name", func=lambda a: db_show(a.name)),
 
     # Resource-first model (primary)
-    "image":      cmd("action", "path?", flags="-name/-n -size/-s -ext -c/flag -d/int=3 -all/flag", dispatch=IMAGE_ACTIONS),
+    "image":      cmd("action", "path?", flags="-name/-n -size/-s -ext -compress/-c/flag -d/int=3 -all/flag", dispatch=IMAGE_ACTIONS),
     "container":  cmd("action", "name?", flags="-all/flag -f/flag -lines/int=50 -cmd...", dispatch=CONTAINER_ACTIONS),
     "blueprint":  cmd("action", "path?", flags="-name/-n -ext -e -all/flag", dispatch=BLUEPRINT_ACTIONS),
     "format":     cmd("action", "path?", flags="-name/-n -e -all/flag", dispatch=FORMAT_ACTIONS),
