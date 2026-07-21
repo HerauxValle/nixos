@@ -40,7 +40,11 @@ echo "OK: published repo ($httpsUrl#$branch, nixosConfigurations.$attr) evaluate
 if [ -n "$isoAttr" ]; then
     echo ""
     echo "building .#nixosConfigurations.$isoAttr.config.system.build.isoImage (dry-run)..."
-    nix build --dry-run --no-write-lock-file ".#nixosConfigurations.$isoAttr.config.system.build.isoImage"
+    # --impure: Nixos/iso.nix reads the embedded flake's source path via
+    # builtins.getEnv (ISO_DOTFILES_SOURCE), same as cmd/release.sh --
+    # this check doesn't need a real embedded copy, just something that
+    # exists, so it points at the clone itself.
+    ISO_DOTFILES_SOURCE="$tmpdir/repo" nix build --impure --dry-run --no-write-lock-file ".#nixosConfigurations.$isoAttr.config.system.build.isoImage"
     echo "OK: published repo's live-ISO output (nixosConfigurations.$isoAttr) evaluates and resolves cleanly."
 else
     echo "" >&2
