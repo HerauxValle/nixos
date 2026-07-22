@@ -25,9 +25,7 @@ hl.on("hyprland.start", function()
     -- path, so this keeps working no matter where the repo itself lives.
     -- MyBar's own notifserver owns the notification D-Bus name, so swaync
     -- is intentionally not started here (they'd fight over it).
-    hl.exec_cmd("bash ~/.config/quickshell/MyBar/main.sh --launch")
-    hl.exec_cmd("pypr")
-    hl.exec_cmd("mpd")
+    hl.exec_cmd(SCRIPTS_DIR .. "/Reload/qsr.sh")
 
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QUICK_CONTROLS_STYLE")
     hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QUICK_CONTROLS_STYLE")
