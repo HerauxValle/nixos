@@ -10,6 +10,18 @@
 # and gets walked into a real forced override by the fold underneath.
 # Works for both config.vars.* options and raw NixOS options uniformly.
 {
+  # GitHub release identity for this ISO -- see Scripts/Pacnix/cmd/
+  # release.sh's publish step (`pacnix release <path>`). A fixed name
+  # (not versioned) is deliberate: publish always wipes whatever release
+  # already has this tag before creating the new one, so there's only
+  # ever one ISO's worth of assets live on GitHub at a time, not one
+  # multi-GB release per build piling up forever.
+  options.vars.iso.releaseName = lib.mkOption {
+    type = lib.types.str;
+    default = "nixos-live-installer";
+    description = "GitHub release tag/name pacnix release publishes this ISO under. Fixed, not versioned -- each publish replaces the previous one.";
+  };
+
   config = lib.mkMerge [
     (
       let

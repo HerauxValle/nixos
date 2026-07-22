@@ -24,16 +24,35 @@ publish_iso() {
         echo "no classic token -- run 'secrets github add classic' then 'pacnix rebuild'" >&2
         exit 1
     fi
-    local token githubRepo tag payload response release_id chunkDir part partName http_code respFile
+    local token githubRepo tag existing existing_id sha256 body payload response release_id chunkDir part partName http_code respFile
 
     token="$(cat "$tokenFile")"
     githubRepo="$(nix eval --raw "$FLAKE#nixosConfigurations.$HOST.config.vars.backup.dotfilesBackup.githubRepo")"
-    tag="$(basename "$isoFile" .iso)"
+    # vars.iso.releaseName only exists on the -iso attribute (iso.nix is
+    # never imported by the real machine), so this reads that one
+    # specifically -- unlike remoteUrl/githubRepo above, which are
+    # shared and read off $HOST.
+    tag="$(nix eval --raw "$FLAKE#nixosConfigurations.${HOST}-iso.config.vars.iso.releaseName")"
+
+    # Fixed, non-versioned tag -- wipe whatever release/tag already
+    # holds it before creating the new one, so published ISO storage
+    # never grows past one build's worth (~5GB total is normal GitHub
+    # usage; N un-deleted multi-GB releases piling up is not).
+    existing="$(curl -sS -H "Authorization: token $token" "https://api.github.com/repos/$githubRepo/releases/tags/$tag")"
+    existing_id="$(jq -r '.id // empty' <<< "$existing")"
+    if [ -n "$existing_id" ]; then
+        echo "removing previous '$tag' release (id $existing_id)..."
+        curl -sS -X DELETE -H "Authorization: token $token" "https://api.github.com/repos/$githubRepo/releases/$existing_id" >/dev/null
+        curl -sS -X DELETE -H "Authorization: token $token" "https://api.github.com/repos/$githubRepo/git/refs/tags/$tag" >/dev/null
+    fi
+
+    echo "hashing $(basename "$isoFile")..."
+    sha256="$(sha256sum "$isoFile" | cut -d' ' -f1)"
 
     echo "publishing $(basename "$isoFile") to $githubRepo as release '$tag'..."
 
-    payload="$(jq -n --arg tag "$tag" \
-        --arg body "Live-install ISO, split into parts under ~2GB (GitHub's per-asset limit). Reassemble with: cat ${tag}.part-* > ${tag}.iso" \
+    body="$(printf 'Live-install ISO, split into <2GB parts.\n\n```\ncat %s.part-* > %s.iso\nsha256sum -c %s.sha256\n```' "$tag" "$tag" "$tag")"
+    payload="$(jq -n --arg tag "$tag" --arg body "$body" \
         '{tag_name:$tag, name:$tag, body:$body, draft:false, prerelease:false}')"
 
     response="$(curl -sS -X POST \
@@ -51,11 +70,17 @@ publish_iso() {
     cleanupDirs+=("$chunkDir")
     respFile="$chunkDir/.upload-response.json"
     split -b 1900M -d -a 2 "$isoFile" "$chunkDir/${tag}.part-"
+    printf '%s  %s.iso\n' "$sha256" "$tag" > "$chunkDir/${tag}.sha256"
 
-    for part in "$chunkDir/${tag}.part-"*; do
+    for part in "$chunkDir/${tag}.part-"* "$chunkDir/${tag}.sha256"; do
         partName="$(basename "$part")"
         echo "uploading $partName ($(du -h "$part" | cut -f1))..."
+        # --speed-limit/-time: abort and fail loudly if the transfer
+        # stalls under 5KB/s for 60s straight, instead of hanging
+        # silently forever with zero output (what happened the first
+        # time this ran, on a network stall -- see conversation history).
         http_code="$(curl -sS -o "$respFile" -w '%{http_code}' \
+            --connect-timeout 30 --speed-limit 5120 --speed-time 60 \
             -X POST -H "Authorization: token $token" \
             -H "Content-Type: application/octet-stream" \
             --data-binary "@$part" \
