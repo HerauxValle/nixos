@@ -9,17 +9,13 @@ nixos-rebuild switch --flake /etc/nixos#herauxvalle
 
 ## Live-install ISO (no NixOS needed)
 
-Anyone with the [Nix package manager](https://nixos.org/download) installed (flakes enabled, `x86_64-linux`) can build the live-install ISO straight from this repo -- no NixOS, no personal config, no account needed:
+Anyone with the [Nix package manager](https://nixos.org/download) installed (flakes enabled, `x86_64-linux`) can build the live-install ISO -- no NixOS, no personal config, no account, no prior clone needed:
 
 ```
-git clone https://github.com/HerauxValle/nixos.git
-cd nixos
-export ISO_DOTFILES_SOURCE="$PWD"   # the ISO embeds a snapshot of this exact clone at /dotfiles
-nix build --impure --extra-experimental-features 'nix-command flakes' \
-  '.#nixosConfigurations.maxmustermann-iso.config.system.build.isoImage'
+curl -fsSL https://raw.githubusercontent.com/HerauxValle/nixos/main/install.sh | bash -s -- --build-iso
 ```
 
-The built `.iso` lands under `result/iso/`. Boot it (USB, VM) to try the desktop live or run the installer.
+Clones the repo into a tmp dir, builds, and drops the finished `.iso` in `~/Downloads`. (Already have this repo cloned? `./install.sh --build-iso` does the same thing.)
 
 ## Layout
 
