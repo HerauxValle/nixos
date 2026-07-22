@@ -36,7 +36,6 @@
     backup.dotfilesBackup = {
       enable = false;
       remoteUrl = "git@github.com:HerauxValle/nixos.git";
-      githubRepo = "HerauxValle/nixos";
       useRepoCache = true;
     };
   };
