@@ -27,6 +27,11 @@ sleep 0.3
 command -v pypr >/dev/null 2>&1 && pypr &
 command -v mpc  >/dev/null 2>&1 && mpc update &
 
+# Regenerate fastfetch theme -- run from the real Dotfiles checkout (not the
+# ~/.config/scripts symlinked copy) so theme.py's relative path lands in the
+# actual writable Fastfetch/ dir, not the read-only Nix store.
+[ -f ~/Dotfiles/Scripts/Reload/theme.py ] && python3 ~/Dotfiles/Scripts/Reload/theme.py &
+
 # Launch custom bar -- via the XDG config path (home-manager symlinks
 # Dotfiles/Quickshell -> ~/.config/quickshell), not the Dotfiles repo path,
 # so this keeps working no matter where the repo itself lives/moves.
