@@ -34,17 +34,11 @@ usage: pacnix <command> [args]
       flake still has every real value in it, so it can never fail that
       way itself.
 
-  release [<path to iso>]
-      No path given: builds the live-install ISO from the published copy
-      (same cloned-and-redacted repo `published` validates), embedding
-      that exact clone at /dotfiles so `install` works fully offline.
-      Drops the built .iso in the current directory.
-
-      Path given: skips the build and instead publishes that ISO as a
-      real GitHub Release (tag + release + chunked assets, ~2GB each)
-      on the repo Nix-configured at
-      vars.backup.dotfilesBackup.githubRepo. Requires a classic token
-      (`secrets github add classic`).
+  release
+      Builds the live-install ISO from the published copy (same
+      cloned-and-redacted repo `published` validates), embedding that
+      exact clone at /dotfiles so `install` works fully offline. Drops
+      the built .iso in the current directory.
 
   install
       Run from inside the booted live-install ISO. Orchestrates the
