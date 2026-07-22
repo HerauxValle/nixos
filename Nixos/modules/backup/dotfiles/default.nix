@@ -37,6 +37,16 @@
       description = "Git remote the snapshot is pushed to.";
     };
 
+    # "owner/repo" form of remoteUrl, for the GitHub REST API (releases,
+    # etc.) -- kept as its own explicit value rather than parsed out of
+    # remoteUrl, same reasoning as modules/packages/repos' per-entry
+    # githubRepo field. No sensible generic default, same as remoteUrl --
+    # its one real definition lives in Nixos/config/config.nix.
+    githubRepo = lib.mkOption {
+      type = lib.types.str;
+      description = "\"owner/repo\" form of remoteUrl, used for GitHub API calls (e.g. pacnix release's ISO publish step).";
+    };
+
     branch = lib.mkOption {
       type = lib.types.str;
       default = "main";
