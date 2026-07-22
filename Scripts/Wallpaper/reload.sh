@@ -6,7 +6,7 @@ set -euo pipefail
 # Configuration
 # ==============================================================================
 
-WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
+WALLPAPER_DIR="$HOME/.config/hypr/.wallpaper"
 DEFAULT_INTERVAL=60
 PIDFILE="${XDG_RUNTIME_DIR:-/tmp}/wallpaper-cycle.pid"
 

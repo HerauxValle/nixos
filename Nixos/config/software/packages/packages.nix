@@ -12,8 +12,12 @@
       }; # live ISO: browser, essential for a real install session
 
       # Development
-      git = { };
-      neovim = { };
+      git = {
+        builtIn = true;
+      }; # live ISO: github cli for cloning
+      neovim = {
+        builtIn = true;
+      }; # live ISO: terminal editor to setup the OS
       kopia = { };
       kopia-ui = { };
 

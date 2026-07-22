@@ -38,6 +38,14 @@
           "vars.security.sudoKeyfile.enable" = false;
           "vars.system.mountpoints.enabled" = false; # single master switch
 
+          # installation-cd-minimal.nix force-disables fontconfig at
+          # mkOverride 500 to save space, which silently drops
+          # modules/desktop/theming.nix's fonts.packages (nerd-fonts,
+          # for MyBar's icon glyphs) from the closure entirely --
+          # confirmed absent from a real built ISO's squashfs. Re-enable
+          # it so MyBar doesn't render tofu boxes on the live session.
+          "fonts.fontconfig.enable" = true;
+
           # Switches modules/packages/packages/main.nix's ~100-entry list
           # into allowlist mode -- nothing from it ships unless a package
           # explicitly opts in with `builtIn = true;` (see that module's

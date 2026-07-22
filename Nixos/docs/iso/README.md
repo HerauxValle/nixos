@@ -22,8 +22,16 @@ build/download normally on first `nixos-rebuild switch` after a real
 install anyway. Final result: **4.3 GiB**, confirmed via a real build,
 not an estimate.
 
+## Continuing this in a new session?
+
+Read **[handoff.md](handoff.md)** first -- exact current state, what's
+built vs. stale, and the immediate next steps in order. This README is
+background; that file is "start here."
+
 ## Where things are
 
+- **[handoff.md](handoff.md)** -- current state and next steps, read
+  this first if picking the work back up.
 - **[design-decisions.md](design-decisions.md)** -- the override-list
   mechanism, why it doesn't touch `replacements.nix`, the `builtIn`
   allowlist model for packages, why SDDM/login is deliberately left
