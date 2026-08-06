@@ -111,6 +111,9 @@
       youtube-tui = { };
       freetube = { };
 
+      # Peripherals
+      polychromatic = { }; # Razer button/macro/lighting GUI, driven by hardware.openrazer's daemon (modules/system/openrazer.nix)
+
       # Security & Filesystems
       mkpasswd = { };
       seahorse = { };
