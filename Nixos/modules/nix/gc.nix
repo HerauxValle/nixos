@@ -1,6 +1,6 @@
 # &desc: "Automatic nix garbage collection -- removes orphaned store paths, preserves generation history/rollback."
 
-{ config, pkgs, ... }:
+{ ... }:
 
 {
   # Removes orphaned store paths (unreferenced by any current or past
