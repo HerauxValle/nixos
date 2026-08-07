@@ -1,29 +1,29 @@
 {
     "colors": {
-        "AlternateBase": "#2e2e2e",
-        "Base": "#2c2c2c",
+        "AlternateBase": "#ffffff10",
+        "Base": "#0000006e",
         "BrightText": "#ffffff",
-        "Button": "#4d4d4d",
-        "ButtonText": "#dfdfdf",
-        "Highlight": "#12608a",
-        "HighlightedText": "#efefef",
-        "Link": "#0057ae",
-        "Text": "#dfdfdf",
-        "ToolTipBase": "#2c2c2c",
-        "ToolTipText": "#efefef",
-        "Window": "#2c2c2c",
-        "WindowText": "#dfdfdf",
+        "Button": "#f6f6f6",
+        "ButtonText": "#ffffff",
+        "Highlight": "#5294e2",
+        "HighlightedText": "#ffffff",
+        "Link": "#4aaff7",
+        "Text": "#ffffff",
+        "ToolTipBase": "#121212",
+        "ToolTipText": "#ffffff",
+        "Window": "#121212",
+        "WindowText": "#ffffff",
         "fadeAmount": 0.5,
-        "fadeColor": "#2e2e2e"
+        "fadeColor": "#121212"
     },
     "logColors": {
         "Launcher": "#e040fb",
         "Error": "#da4453",
         "Warning": "#f67400",
-        "Debug": "#12608a",
+        "Debug": "#5294e2",
         "FatalHighlight": "#da4453",
-        "Fatal": "#2c2c2c"
+        "Fatal": "#121212"
     },
     "name": "Dolphin",
-    "widgets": "Breeze"
+    "widgets": "kvantum"
 }

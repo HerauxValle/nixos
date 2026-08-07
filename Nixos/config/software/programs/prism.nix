@@ -23,14 +23,27 @@
     # in buildInputs, so wrapQtAppsHook's QT_PLUGIN_PATH never gets a
     # styles/ dir at all -- Prism can only ever fall back to Qt's built-in
     # Fusion, no matter what theme.json says, without this. Adding
-    # kdePackages.breeze to buildInputs is enough: wrapQtAppsHook's
-    # qtHostPathHook env-hook (qt-6/hooks/wrap-qt-apps-hook.sh) fires
-    # automatically for every buildInput at build time and appends
-    # <pkg>/lib/qt-6/plugins to QT_PLUGIN_PATH on its own -- no manual
-    # wrapProgram/makeWrapper needed, this is the same mechanism qtbase
-    # itself uses to register its own plugins.
+    # kdePackages.qtstyleplugin-kvantum to buildInputs is enough:
+    # wrapQtAppsHook's qtHostPathHook env-hook
+    # (qt-6/hooks/wrap-qt-apps-hook.sh) fires automatically for every
+    # buildInput at build time and appends <pkg>/lib/qt-6/plugins to
+    # QT_PLUGIN_PATH on its own -- no manual wrapProgram/makeWrapper
+    # needed, this is the same mechanism qtbase itself uses to register
+    # its own plugins.
+    #
+    # Kvantum, not Breeze: Dolphin/Gwenview's actual look (rounded
+    # corners, translucent blur, teal accent/glow) is a Kvantum SVG theme
+    # (Fluent-Dark, see ../../../../Themes/Kvantum/Fluent-Dark), not a
+    # QPalette recolor of a QStyle -- confirmed by ~/.config/qt6ct's
+    # style=kvantum-dark and Kvantum's own kvantum.kvconfig
+    # [Applications] override for dolphin/gwenview. Breeze (tried first)
+    # only ever reproduces Breeze's own shapes with different colors, it
+    # was never going to match. "prismlauncher" is added to that same
+    # [Applications] line in ../../../../Themes/Kvantum/kvantum.kvconfig
+    # so Kvantum's plugin picks Fluent-Dark for it specifically, same as
+    # it does for dolphin/gwenview, instead of the system-wide default.
     package = pkgs.prismlauncher.overrideAttrs (old: {
-      buildInputs = old.buildInputs ++ [ pkgs.kdePackages.breeze ];
+      buildInputs = old.buildInputs ++ [ pkgs.kdePackages.qtstyleplugin-kvantum ];
     });
 
     # settings is controlled impurity, not a full declarative config: its
@@ -50,13 +63,16 @@
     # `themes."Dolphin"` entry below, whose name matches the theme dir.
     settings.ApplicationTheme = "Dolphin";
 
-    # Colors lifted directly from Dolphin's actual live palette --
-    # ../../../../Themes/QT/qt6ct/style-colors.conf (Base #2c2c2c, Text
-    # #dfdfdf, Accent #12608a) -- not from Gwenview's BreezeDarkTransparent,
-    # which is a different KColorScheme file that only happens to look
-    # similar. Kept as its own repo dir (Themes/Prism/) rather than inline
-    # attrs so it's easy to diff against qt6ct's file by eye if that palette
-    # ever changes.
+    # Colors lifted from Kvantum Fluent-Dark's own [GeneralColors]
+    # (../../../../Themes/Kvantum/Fluent-Dark/Fluent-Dark.kvconfig) --
+    # window #121212, highlight/accent #5294e2, link #4aaff7 -- not
+    # qt6ct's style-colors.conf, which is a different, mostly-unused
+    # QPalette that Kvantum's SVG rendering ignores for almost everything
+    # it draws itself. This QPalette still matters for whatever Kvantum's
+    # theme doesn't skin directly, so it's kept close to Fluent-Dark's own
+    # values rather than left at Qt defaults. Kept as its own repo dir
+    # (Themes/Prism/) rather than inline attrs so it's easy to diff
+    # against Fluent-Dark.kvconfig by eye if that theme ever changes.
     themes."Dolphin" = ../../../../Themes/Prism;
   };
 }
