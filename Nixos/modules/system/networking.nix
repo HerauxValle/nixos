@@ -21,10 +21,12 @@
 
   services.resolved = {
     enable = false;
-    dnssec = "true";
-    domains = [ "~." ];
     settings = {
-      Resolve.DNSOverTLS = "yes";
+      Resolve = {
+        DNSSEC = "true";
+        Domains = [ "~." ];
+        DNSOverTLS = "yes";
+      };
     };
   };
 
