@@ -1,6 +1,6 @@
 # &desc: "Prism Launcher program config -- Minecraft mod/modpack/instance launcher with real Modrinth integration, home-manager only."
 
-{ config, ... }:
+{ config, pkgs, ... }:
 
 {
   # Home-manager-only programs.* (not a NixOS system option, so it can't go
@@ -18,6 +18,20 @@
   # module).
   config.home-manager.users.${config.vars.identity.username}.programs.prismlauncher = {
     enable = false;
+
+    # Upstream's package only ships qtbase/qtimageformats/qtsvg/qtwayland
+    # in buildInputs, so wrapQtAppsHook's QT_PLUGIN_PATH never gets a
+    # styles/ dir at all -- Prism can only ever fall back to Qt's built-in
+    # Fusion, no matter what theme.json says, without this. Adding
+    # kdePackages.breeze to buildInputs is enough: wrapQtAppsHook's
+    # qtHostPathHook env-hook (qt-6/hooks/wrap-qt-apps-hook.sh) fires
+    # automatically for every buildInput at build time and appends
+    # <pkg>/lib/qt-6/plugins to QT_PLUGIN_PATH on its own -- no manual
+    # wrapProgram/makeWrapper needed, this is the same mechanism qtbase
+    # itself uses to register its own plugins.
+    package = pkgs.prismlauncher.overrideAttrs (old: {
+      buildInputs = old.buildInputs ++ [ pkgs.kdePackages.breeze ];
+    });
 
     # settings is controlled impurity, not a full declarative config: its
     # activation script (impureConfigMerger, upstream prismlauncher.nix)
