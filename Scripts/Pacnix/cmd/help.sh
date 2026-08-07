@@ -16,6 +16,12 @@ usage: pacnix <command> [args]
       Evaluate the flake for errors (nix flake check) -- fast, catches
       syntax/type mistakes without building anything.
 
+  update [input...]
+      Updates the flake lock (nix flake update). No args updates every
+      input; name one or more (e.g. pacnix update nixpkgs) to bump just
+      those, leaving the rest pinned. Only touches flake.lock -- run
+      `pacnix rebuild` afterward to actually build and switch to it.
+
   test-build
       Actually builds the full system closure (nix build, no switch) --
       catches real build failures without touching your running
