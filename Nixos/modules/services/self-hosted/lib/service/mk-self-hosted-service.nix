@@ -78,6 +78,31 @@
 , limitNoFile ? null
 }:
 let
+  # Reproduces systemd-escape's path -> unit-name mapping for the plain-
+  # alphanumeric-segment paths every requireMounts entry on this machine
+  # actually is (SelfHosted, Storage, ... -- no spaces/dots/other
+  # specials) -- NOT the fully generic algorithm (no \xHH hex-escaping of
+  # special characters), so a future requireMounts path with something
+  # unusual in it would need this extended first. Needed because
+  # RequiresMountsFor alone doesn't reliably wait: confirmed live on a
+  # real reboot that it only adds After= (ordering), never Requires=
+  # (an actual wait/dependency), for any mount not declared in
+  # /etc/fstab -- this vault's mount unit is created dynamically by the
+  # vault-unlock tooling, so systemd has no fstab entry to derive a real
+  # Requires= from. Real symptom: self-hosted-searxng tried and
+  # permanently failed (start-limit-hit) at the exact same second boot
+  # started, a full 6 seconds before home-herauxvalle-Images-SelfHosted.
+  # mount itself even reached "active" -- After= alone had nothing to
+  # order against yet, so systemd just started the service unconstrained.
+  # Adding Requires= on this exact same unit name (below) closes that
+  # gap for real.
+  mountUnitName = path:
+    let
+      trimmed = lib.removeSuffix "/" (lib.removePrefix "/" path);
+      escaped = lib.concatStringsSep "-" (lib.splitString "/" trimmed);
+    in
+    "${escaped}.mount";
+
   mountChecks = map
     (path: ''
       mountpoint -q "${path}" || {
@@ -167,6 +192,7 @@ lib.mkMerge [
       # to order against (e.g. a bind mount systemd doesn't track).
       unitConfig = lib.optionalAttrs (requireMounts != [ ]) {
         RequiresMountsFor = requireMounts;
+        Requires = map mountUnitName requireMounts;
       } // {
         # Companion to RequiresMountsFor above -- that only covers the
         # *startup* race (don't start until mounted). This covers the
