@@ -76,9 +76,16 @@
       }
 
       {
+        # Commented out (disabled, not live) in networking.nix itself, and
+        # nested inside `networking = { ... };` -- no "networking." prefix
+        # on the line there, unlike this entry's own name. `find` still has
+        # to match verbatim including the leading "# " and 4-space indent:
+        # a commented-out line is still plain text in the published repo,
+        # so the real MAC would still leak through as a comment if left
+        # unredacted, even though it's inert as code.
         file = "Nixos/modules/system/networking.nix";
-        find = ''networking.interfaces.''${config.vars.identity.networkInterface}.macAddress = "A8:E6:21:92:2C:E1";'';
-        replaceWith = "networking.interfaces.\${config.vars.identity.networkInterface}.macAddress = null;";
+        find = ''    # interfaces.''${config.vars.identity.networkInterface}.macAddress = "A8:E6:21:92:2C:E1";'';
+        replaceWith = "    # interfaces.\${config.vars.identity.networkInterface}.macAddress = null;";
       }
 
       {
