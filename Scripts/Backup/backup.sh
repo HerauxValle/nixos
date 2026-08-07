@@ -44,6 +44,13 @@ declare -A BACKUPS=(
     ["mybar-theme.env"]="$HOME/.config/mybar/theme.env"
     ["mybar-custom"]="$HOME/.config/mybar/custom"
 
+    # Global launcher prefs. Nix (config/software/programs/prism.nix) only
+    # pins whatever keys are listed in programs.prismlauncher.settings via a
+    # live crudini merge -- everything else in this file (and everything
+    # under instances/, deliberately not backed up here) is pure runtime
+    # state with no Nix/git tracking otherwise.
+    ["prismlauncher.cfg"]="${XDG_DATA_HOME:-$HOME/.local/share}/PrismLauncher/prismlauncher.cfg"
+
     # Media scraper -- lives on the Storage drive, not under Dotfiles, so
     # it's otherwise untracked/unbacked-up.
     ["scrape.py"]="$HOME/Drives/Storage/Scraped/scrape.py"

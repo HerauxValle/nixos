@@ -1,0 +1,29 @@
+{
+    "colors": {
+        "AlternateBase": "#2e2e2e",
+        "Base": "#2c2c2c",
+        "BrightText": "#ffffff",
+        "Button": "#4d4d4d",
+        "ButtonText": "#dfdfdf",
+        "Highlight": "#12608a",
+        "HighlightedText": "#efefef",
+        "Link": "#0057ae",
+        "Text": "#dfdfdf",
+        "ToolTipBase": "#2c2c2c",
+        "ToolTipText": "#efefef",
+        "Window": "#2c2c2c",
+        "WindowText": "#dfdfdf",
+        "fadeAmount": 0.5,
+        "fadeColor": "#2e2e2e"
+    },
+    "logColors": {
+        "Launcher": "#e040fb",
+        "Error": "#da4453",
+        "Warning": "#f67400",
+        "Debug": "#12608a",
+        "FatalHighlight": "#da4453",
+        "Fatal": "#2c2c2c"
+    },
+    "name": "Dolphin",
+    "widgets": "Fusion"
+}
