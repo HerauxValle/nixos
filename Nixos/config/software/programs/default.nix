@@ -19,6 +19,7 @@
     ./fresh-editor.nix
     ./gamemode.nix
     ./gamescope.nix
+    ./minecraft
     ./prism.nix
     ./silent-sddm.nix
     ./steam.nix

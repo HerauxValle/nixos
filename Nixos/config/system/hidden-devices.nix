@@ -17,5 +17,6 @@
     "28dcfdfb-9e78-41a2-910a-4a132617e7b9" # SelfHosted vault -- raw LUKS container
     "1912efe3-08fc-4ef3-8c36-40b6ea629c1b" # Modrinth vault -- raw LUKS container
     "e8db5655-bafc-450e-8fb1-bfdc983c3ea5" # Media vault -- raw LUKS container
+    "4d682358-35a6-47c0-81e1-4f538c2942d7" # Minecraft vault -- raw LUKS container (the .img duplicate)
   ];
 }

@@ -38,6 +38,15 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Multi-instance Minecraft server module -- nixpkgs' own
+    # services.minecraft-server is singular (one global server, one
+    # dataDir), no servers.<name> support at all. This is what actually
+    # backs config/software/programs/minecraft/'s servers.hardcore/
+    # servers.testworld.
+    nix-minecraft = {
+      url = "github:Infinidoge/nix-minecraft";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # ================================ LOCAL-ONLY ================================
     crun.url = "path:./Scripts/CRun";
@@ -63,8 +72,11 @@
           inputs.home-manager.nixosModules.home-manager
           inputs.silent-sddm.nixosModules.default
           inputs.disko.nixosModules.disko
+          inputs.nix-minecraft.nixosModules.minecraft-servers
           ./Nixos/partitioning.nix
           {
+            nixpkgs.overlays = [ inputs.nix-minecraft.overlay ];
+
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.maxmustermann = import ./Nixos/home.nix;

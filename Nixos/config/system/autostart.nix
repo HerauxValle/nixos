@@ -1,4 +1,4 @@
-# &desc: "Boot-time systemd jobs from old smg manifest -- 6 Casket vault unlocks with PIN, clean LUKS close on shutdown via execStop."
+# &desc: "Boot-time systemd jobs from old smg manifest -- 7 Casket vault unlocks with PIN, clean LUKS close on shutdown via execStop."
 
 { ... }:
 
@@ -100,6 +100,24 @@
         execStop.cmd = ''
           cd /home/herauxvalle/Images || exit 1
           cas SelfHosted close --no-log
+        '';
+      };
+
+      # New vault, not yet created -- `cas Minecraft create` + `cas
+      # Minecraft 2fa on` (writing the keyfile to the same
+      # VirtualKeys/vaults/ path every other vault's keyfile lives at)
+      # both still need to be run by hand before this job can actually
+      # unlock anything. Holds services.minecraft-servers.dataDir
+      # (servers/) plus, later, Prism Launcher config (prism/) -- see
+      # config/software/programs/minecraft/.
+      minecraft = {
+        execStart.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          printf %s "314159265" | cas Minecraft open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Minecraft.key --no-log
+        '';
+        execStop.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          cas Minecraft close --no-log
         '';
       };
     };

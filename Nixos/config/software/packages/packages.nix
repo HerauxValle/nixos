@@ -124,6 +124,9 @@
       btrfs-progs = { };
       tpm2-tools = { };
 
+      # Servers
+      mcrcon = { }; # RCON client, for remote-administering the Minecraft servers
+
       # Virtualization
       qemu = { };
       virtiofsd = { };
