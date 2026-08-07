@@ -49,7 +49,22 @@ def main():
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
 
     print(f"[mdns] advertising {', '.join(names)} -> {ip}", flush=True)
-    announce(sock, names, ip, "startup announce")
+    # Several announces a beat apart, not just one -- avahi-daemon shares
+    # this same multicast socket (SO_REUSEPORT) as the nss-mdns delegate
+    # every *.local lookup on this host actually goes through, and the
+    # kernel hands each individual packet to only one member of that
+    # group, never all of them (confirmed live -- see ./default.nix's own
+    # top comment for the full story). A single startup announce landing
+    # on some OTHER member instead of avahi means avahi's cache stays
+    # cold, and the next real lookup has to risk a live wire round-trip
+    # that can just as easily miss again. A handful of announces in
+    # short succession costs nothing (a few extra UDP packets, once,
+    # at startup) and makes it overwhelmingly likely at least one of
+    # them lands on avahi and warms its cache well before anyone
+    # actually tries to use these names.
+    for _ in range(5):
+        announce(sock, names, ip, "startup announce")
+        time.sleep(0.5)
 
     last_announce = time.monotonic()
     sock.settimeout(1.0)
