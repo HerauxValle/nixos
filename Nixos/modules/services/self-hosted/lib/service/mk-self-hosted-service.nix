@@ -152,6 +152,22 @@ lib.mkMerge [
       # remember this themselves.
       path = packages ++ lib.optionals (requireMounts != [ ]) [ pkgs.util-linux ];
       inherit environment;
+      # Native systemd wait, not just a preStart check -- RequiresMountsFor
+      # orders this unit after the mount unit for each path and holds the
+      # start queued until it's actually active, instead of firing
+      # immediately and failing (which is what the mountpoint check in
+      # preStart alone does). Found the hard way: a vault-backed service
+      # starting on boot before the Casket vault unlocks fails 3x inside
+      # systemd's default 10s restart window, hits start-limit-hit, and
+      # then sits dead forever even once the vault mounts moments later --
+      # nothing retries it. This turns "race and permanently fail" into
+      # "wait for the mount, then start normally." preStart's mountpoint
+      # check stays as a belt-and-braces guard for the manual
+      # `systemctl start` case where the path was never a real mount unit
+      # to order against (e.g. a bind mount systemd doesn't track).
+      unitConfig = lib.optionalAttrs (requireMounts != [ ]) {
+        RequiresMountsFor = requireMounts;
+      };
       serviceConfig = {
         User = user;
         ExecStartPre = lib.imap0
