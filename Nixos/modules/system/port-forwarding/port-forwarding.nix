@@ -237,6 +237,55 @@ lib.mkIf config.vars.system.ports.enabled {
   services.avahi.nssmdns4 = lib.mkIf (localEntries != { }) true;
   services.nscd.enableNsncd = lib.mkIf (localEntries != { }) false;
 
+  # mDNS actually works now (../lib/mdns/'s own single-responder rewrite +
+  # ../../networking.nix's MulticastDNS=no both fix real bugs there), but
+  # it can never be made instant for THIS machine's own use: nss-mdns's
+  # gethostbyname3_r genuinely does succeed, confirmed live with a raw
+  # ctypes call straight into libnss_mdns4_minimal.so.2 -- just not
+  # inside any timeout a browser or a person will sit through (12s+,
+  # not <1s), because avahi-daemon itself permanently shares UDP :5353
+  # (SO_REUSEPORT) with anything else that binds it -- confirmed live
+  # that a running browser's OWN mDNS stack (Vivaldi, bound to
+  # 224.0.0.251:5353 the same as avahi) is enough on its own to make
+  # avahi refuse to register even its native static-hosts file
+  # (avahi_server_add_address failure: Not permitted, logged the instant
+  # avahi detects "another IPv4 mDNS stack" -- gone, not flaky, the whole
+  # time a competing stack is present), independent of anything this
+  # module does. Not fixable from here -- there's no lever over what a
+  # third-party browser binds.
+  #
+  # mDNS's actual value is resolving a name for some OTHER device on the
+  # LAN, which this machine's own browser accessing this machine's own
+  # services was never doing in the first place. For that specific,
+  # extremely common case, a plain /etc/hosts entry is instant,
+  # deterministic, and entirely immune to every failure mode above --
+  # skips mDNS/avahi/the responder/the browser's own stack completely.
+  # 127.0.0.1, not the LAN IP -- ../lib/router/ already listens on
+  # 0.0.0.0:80, so loopback reaches it exactly the same as the LAN
+  # address does, without ever leaving this host. Remote LAN devices
+  # (the case mDNS actually exists for) still go through the now-genuinely-
+  # improved wire mechanism above; this is purely a fast path for this
+  # one machine's own use of its own names.
+  networking.hosts = lib.mkIf (localEntries != { }) { "127.0.0.1" = localDnsNames; };
+
+  # "files" (/etc/hosts) is currently NOT first in the hosts NSS chain on
+  # this system -- confirmed live: /etc/nsswitch.conf reads "mymachines
+  # mdns4_minimal [NOTFOUND=return] resolve [!UNAVAIL=return] files
+  # myhostname dns", i.e. mdns4_minimal (order 500, ../../networking.nix's
+  # avahi-daemon.nix's own mkBefore) and resolve (order 501) both already
+  # sit ahead of files' own default order 998. Without this, the
+  # networking.hosts entry above would still be checked EVENTUALLY, just
+  # after paying mdns4_minimal's own up-to-12s cost first on every single
+  # lookup -- pointless, since the whole reason for adding a static entry
+  # was to skip that. order 100 (below mdns4_minimal's 500) puts files
+  # first for every hostname lookup on this system, not just these -- a
+  # deliberately larger scope than just this module's own names, but a
+  # standard, common nsswitch order (plenty of systems default to "files
+  # dns" with files always first) and harmless for the vast majority of
+  # lookups that have no /etc/hosts entry at all: one fast local file
+  # check, then falls through to the exact same chain as before.
+  system.nssDatabases.hosts = lib.mkIf (localEntries != { }) (lib.mkOrder 100 [ "files" ]);
+
 
   systemd.services = lib.mkMerge (
     [ (mdnsService localDnsNames).systemd.services or { } ]
