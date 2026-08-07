@@ -1,4 +1,4 @@
-# &desc: "Scripts exposed as PATH commands -- qsr (reload), wallpaper, hyprfloat (window manager), run (launcher), secrets (vault dispatcher)."
+# &desc: "Scripts exposed as PATH commands -- qsr (reload), wallpaper, hyprfloat (window manager), run (launcher), secrets (vault dispatcher), mac (temporary MAC spoofing)."
 
 { ... }:
 
@@ -55,6 +55,15 @@
       dir = ../../../../Scripts/Secrets;
       include = {
         "secrets.sh" = "secrets";
+      };
+    }
+
+    {
+      # Temporary MAC spoofing (ip link, not nmcli) -- presets live at the
+      # top of mac.sh. `default` restores the interface's permanent address.
+      dir = ../../../../Scripts/Mac;
+      include = {
+        "mac.sh" = "mac";
       };
     }
 

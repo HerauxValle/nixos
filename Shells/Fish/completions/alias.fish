@@ -22,6 +22,8 @@ alias fwm="~/Projects/FloatingWM/main.sh"                               #&help:"
 alias doc="man"                                                          #&help:"Alias for man pages"
 alias backup="~/Dotfiles/Scripts/Backup/backup.sh"                      #&help:"Snapshot/restore live config not managed by Nix (--restore to restore)"
 alias ytv="mpv --ytdl-format='bestvideo[height<=1080]+bestaudio/best'"  #&help:"Play a URL in mpv at best 1080p video+audio"
+alias maclexa="mac preset alexa"                                        #&help:"Temporarily spoof MAC to the 'alexa' preset"
+alias macdis="mac default"                                              #&help:"Restore original MAC address"
 
 # SERVICES
 
