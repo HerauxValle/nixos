@@ -44,7 +44,13 @@ case "$1" in
         set_mac "$IFACE" "$PERM_MAC"
         ;;
     preset)
-        [[ -z "$2" ]] && usage
+        if [[ -z "$2" ]]; then
+            echo "Presets:"
+            for name in "${!PRESETS[@]}"; do
+                echo "  $name = ${PRESETS[$name]}"
+            done
+            exit 0
+        fi
         ADDR="${PRESETS[$2]}"
         [[ -z "$ADDR" ]] && { echo "No preset named '$2' (have: $PRESET_NAMES)"; exit 1; }
         echo "$IFACE: spoofing to preset '$2' ($ADDR)"
