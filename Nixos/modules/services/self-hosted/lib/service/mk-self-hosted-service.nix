@@ -167,6 +167,22 @@ lib.mkMerge [
       # to order against (e.g. a bind mount systemd doesn't track).
       unitConfig = lib.optionalAttrs (requireMounts != [ ]) {
         RequiresMountsFor = requireMounts;
+      } // {
+        # Companion to RequiresMountsFor above -- that only covers the
+        # *startup* race (don't start until mounted). This covers the
+        # *runtime* one: a vault-backed service that's already running
+        # fine and then the mount drops out from under it (drive blip,
+        # vault locked by hand while serving) crashes, and
+        # Restart=on-failure fires again instantly. Systemd's default
+        # restart-limit window (5 starts / 10s, no delay between tries)
+        # burns out in under a second against a mount that takes even a
+        # few seconds to come back, landing right back in the same
+        # permanent start-limit-hit dead-end the startup race did.
+        # 12x/120s with a 5s gap between each retry gives a slow
+        # unlock/remount real room to finish before the budget runs out,
+        # without waiting forever on a genuinely broken service.
+        StartLimitIntervalSec = 120;
+        StartLimitBurst = 12;
       };
       serviceConfig = {
         User = user;
@@ -178,6 +194,7 @@ lib.mkMerge [
           (i: cmd: "${pkgs.writeShellScript "self-hosted-${name}-poststart-${toString i}" cmd}")
           postStart;
         Restart = "on-failure";
+        RestartSec = 5;
         # systemd's default 90s start timeout applies to ExecStartPre
         # too -- found the hard way on ComfyUI's first real venv install
         # (a multi-GB CUDA download): systemd killed it mid-download
