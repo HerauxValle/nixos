@@ -112,20 +112,6 @@
       freetube = { };
       pulsemixer = { };
 
-      # Gaming
-      # modrinth-app (the wrapped package) currently fails to build on this
-      # nixpkgs pin -- confirmed live, real upstream bug in wrapGAppsHook's
-      # own setup-hook (`wrapGAppsHookHasRunForOutput: bad array subscript`),
-      # not this build's fault. modrinth-app-unwrapped -- same binary, same
-      # build, everything up to that one wrapping step -- already built
-      # successfully on the exact same pin. Using that instead: no GTK env-
-      # var injection (wrapGAppsHook's whole job), so native file dialogs/
-      # icon theming may be rougher than the wrapped build would give, but
-      # it runs. Switch back to plain `modrinth-app = { };` once upstream
-      # fixes the wrap bug -- no programs.modrinth NixOS or home-manager
-      # module exists either way (checked both).
-      modrinth-app-unwrapped = { };
-
       # Peripherals
       polychromatic = { }; # Razer button/macro/lighting GUI, driven by hardware.openrazer's daemon (modules/system/openrazer.nix)
 
