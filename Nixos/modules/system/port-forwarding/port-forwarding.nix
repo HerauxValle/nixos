@@ -239,7 +239,7 @@ lib.mkIf config.vars.system.ports.enabled {
 
 
   systemd.services = lib.mkMerge (
-    (lib.mapAttrsToList (key: e: (mdnsService key e).systemd.services) localEntries)
+    [ (mdnsService localDnsNames).systemd.services or { } ]
     ++ (lib.mapAttrsToList (key: e: (bridgeService key e).systemd.services) ipv6Entries)
     ++ (lib.mapAttrsToList (key: e: (tunnelService key e config.vars.identity.username tunnelHost).systemd.services) publicEntries)
     ++ [
@@ -575,7 +575,7 @@ CHECKING STATUS
   Nothing here replaces pmg's own `pmg list`/`pmg status` with a
   single command -- each entry's exposure is a set of ordinary systemd
   units instead, inspect them directly:
-    systemctl status port-forwarding-mdns-<key>        # mode.local
+    systemctl status port-forwarding-mdns             # mode.local (one consolidated service, every entry)
     systemctl status port-forwarding-bridge6-<key>     # net.ipv6
     systemctl status port-forwarding-tunnel-<key>      # mode.public
     systemctl status port-forwarding-router{,-https}   # resolveUrl

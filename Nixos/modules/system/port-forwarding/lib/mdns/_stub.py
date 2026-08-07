@@ -9,7 +9,7 @@
 MCAST_GRP: str
 MCAST_PORT: int
 TTL: int
-NAME: str
+NAMES: "list[str]"
 
 
 def build_response(query_id: int, name: str, ip: str) -> bytes: ...
