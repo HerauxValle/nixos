@@ -1,19 +1,36 @@
-# &desc: "Minecraft world creation logic -- groups config.vars.minecraft.worlds entries by server, generates each server's extraStartPre (trash dimensions dropped from the declaration) and extraStartPost (world creation, gamemode/perm grants) scripts plus a Skript-based permadeath script for hardcore = true dimensions."
+# &desc: "Minecraft world creation logic -- groups config.vars.minecraft.worlds entries by server, generates each server's extraStartPre (trash dimensions dropped from the declaration) and extraStartPost (world creation, gamemode/perm grants) scripts plus a Skript-based permadeath script for hardcore = true dimensions and Multiverse spawn config from config.vars.minecraft.servers.*.startIn/loginIn."
 
 { config, lib, pkgs, ... }:
 
 let
   worlds = config.vars.minecraft.worlds;
   ops = config.vars.minecraft.ops;
+  spawnCfg = config.vars.minecraft.servers;
 
   byServer = lib.groupBy (e: e.value.server) (
     lib.mapAttrsToList (name: value: { inherit name value; }) worlds
   );
 
-  # OP is server-wide, not tied to any world -- a server can have ops
-  # declared with no worlds entries at all (or vice versa), so this is
-  # every server name mentioned by either, not just dimsByServer's keys.
-  allServerNames = lib.unique ((lib.attrNames byServer) ++ (lib.attrNames ops));
+  # OP/spawn are server-wide, not tied to any world -- a server can have
+  # ops/startIn/loginIn declared with no worlds entries at all (or vice
+  # versa), so this is every server name mentioned by any of the three,
+  # not just dimsByServer's keys.
+  allServerNames = lib.unique ((lib.attrNames byServer) ++ (lib.attrNames ops) ++ (lib.attrNames spawnCfg));
+
+  # "hub" -> "hub" (plain world-name destination). "hub 0 65 0" ->
+  # "e:hub:0,65,0" (Multiverse's own EXACT destination-type syntax, same
+  # one /mvtp accepts). Exactly a name plus 0 or 3 extra tokens is valid;
+  # anything else is a config mistake best caught at eval time.
+  parseDestination =
+    str:
+    let
+      tokens = lib.filter (t: t != "") (lib.splitString " " str);
+      name = lib.head tokens;
+      coords = lib.tail tokens;
+    in
+    assert lib.assertMsg (coords == [ ] || lib.length coords == 3)
+      "vars.minecraft.servers.*.startIn/loginIn: \"${str}\" must be \"<world>\" or \"<world> x y z\"";
+    if coords == [ ] then name else "e:${name}:${lib.concatStringsSep "," coords}";
 
   mkOpsCmds =
     serverName: ''
@@ -193,25 +210,18 @@ let
   creativeDimsByServer = lib.mapAttrs (
     _: dims: map (d: d.dimName) (lib.filter (d: d.gamemode == "creative") dims)
   ) dimsByServer;
-
-  # First (only, by convention -- see world-type.nix's own comment)
-  # defaultSpawn = true group's name per server, or null if none set it.
-  defaultSpawnByServer = lib.mapAttrs (
-    _: entries:
-    let
-      matches = lib.filter (e: e.value.defaultSpawn) entries;
-    in
-    if matches == [ ] then null else (lib.head matches).name
-  ) byServer;
 in
 {
-  config = lib.mkIf (worlds != { } || ops != { }) {
+  config = lib.mkIf (worlds != { } || ops != { } || spawnCfg != { }) {
     services.minecraft-servers.servers = lib.mapAttrs (
       serverName: dims:
       let
         hardcoreDims = hardcoreDimsByServer.${serverName};
         creativeDims = creativeDimsByServer.${serverName};
-        defaultSpawnWorld = defaultSpawnByServer.${serverName} or null;
+        spawn = spawnCfg.${serverName} or {
+          startIn = null;
+          loginIn = null;
+        };
       in
       let
         extraSymlinks =
@@ -234,9 +244,12 @@ in
               mkHardcoreScript hardcoreDims
             );
           }
-          // lib.optionalAttrs (defaultSpawnWorld != null) {
-            # first-spawn-override (not join-destination) -- only a
-            # player's very first-ever join lands here, not every join.
+          // lib.optionalAttrs (spawn.startIn != null || spawn.loginIn != null) {
+            # startIn -> first-spawn-override (only ever the player's
+            # very first join). loginIn -> join-destination (every join
+            # after that, forever). Either unset means Multiverse's own
+            # default for that case (server.properties spawn on first
+            # join; last logout location on every subsequent one).
             # safe-location search radius set to 0 to bypass Multiverse's
             # safe-location veto entirely, since a void/flat world (no
             # solid ground under the exact spawn point) otherwise fails
@@ -244,10 +257,15 @@ in
             # location the player last logged out from -- confirmed in
             # the wild 2026-08-09 with hub's void floor.
             "plugins/Multiverse-Core/config.yml".value = {
-              spawn = {
-                first-spawn-override = true;
-                first-spawn-location = defaultSpawnWorld;
-              };
+              spawn =
+                lib.optionalAttrs (spawn.startIn != null) {
+                  first-spawn-override = true;
+                  first-spawn-location = parseDestination spawn.startIn;
+                }
+                // lib.optionalAttrs (spawn.loginIn != null) {
+                  enable-join-destination = true;
+                  join-destination = parseDestination spawn.loginIn;
+                };
               teleport = {
                 safe-location-horizontal-search-radius = 0;
                 safe-location-vertical-search-radius = 0;

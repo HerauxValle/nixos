@@ -16,7 +16,6 @@
       seed = "0";
       gamemode = "creative"; # so you can fly instead of falling into the void
       regenerate = false;
-      defaultSpawn = true; # every join lands here, not just the first ever one
       # No nether/end -- overworld-only lobby.
     };
 

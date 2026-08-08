@@ -35,4 +35,46 @@
       command per player, appended to that server's extraStartPost.
     '';
   };
+
+  options.vars.minecraft.servers = lib.mkOption {
+    type = lib.types.attrsOf (
+      lib.types.submodule {
+        options = {
+          startIn = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = ''
+              Where a player lands on their very first-ever join, and
+              never again after that. "<world>" or "<world> x y z" (space
+              separated, exact coordinates within that world). null/unset
+              means Multiverse's own default (server.properties'
+              spawn point) -- not "last location", since there's no last
+              location yet on a first join.
+            '';
+          };
+          loginIn = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = ''
+              Where a player lands on every join after their first,
+              forever. Same "<world>" or "<world> x y z" format as
+              startIn. null/unset means the player's last logout
+              location, i.e. normal vanilla behavior.
+            '';
+          };
+        };
+      }
+    );
+    default = { };
+    description = ''
+      Per-server join-spawn behavior, keyed by
+      services.minecraft-servers.servers.<name> (e.g.
+      config.vars.minecraft.servers.creative.startIn = "hub"). Backed by
+      Multiverse-Core's first-spawn-override/join-destination -- see
+      minecraft-worlds.nix's mkSpawnConfig. Also disables Multiverse's
+      safe-location veto entirely (search radius 0) whenever either is
+      set, since a void/flat world spawn point otherwise fails with
+      "UNSAFE_LOCATION" and silently falls back to last location.
+    '';
+  };
 }
