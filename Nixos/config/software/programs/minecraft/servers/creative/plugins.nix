@@ -60,17 +60,16 @@
     };
 
     "plugins/AxiomPaper.jar" = pkgs.fetchurl {
-      # The 26.2 build (Ow8CJ6pP) enables fine on the server but rejects
-      # every client with "Incompatible data version detected (client
-      # 4790, server 4903)" -- Axiom's own internal protocol version, not
-      # the Paper server version, and it's pinned to whatever Axiom
-      # Fabric mod build your 100+ mod 26.1.2 pack bundles. This 26.1
-      # build (igh8dKkm, same 5.0.4 plugin version, just built against
-      # the 26.1.x line) carries the matching data version instead --
-      # the Paper server itself stays on 26.2 regardless, only this one
-      # plugin jar changed.
-      url = "https://cdn.modrinth.com/data/evkiwA7V/versions/igh8dKkm/AxiomPaperPlugin-5.0.4-for-MC26.1.jar";
-      hash = "sha256-4e3reXKgCSKbJ6xHvaQ3JqSpnCxXfUsfDGPa8qHGwC4=";
+      # 2026-08-09: client was on a 26.1.2 modpack (Axiom-5.4.2-for-MC26.1.jar)
+      # while this ran the 26.2 build -- data version mismatch (client 4790,
+      # server 4903), since AxiomPaper's version numbers don't track the
+      # closed-source Axiom client mod's at all. Tried swapping the server
+      # to the 26.1 build to match; still mismatched (same 5.0.4 plugin
+      # version, same data version regardless of MC-target build). Resolved
+      # by moving the *client* to 26.2 instead -- this 26.2 build is correct
+      # again now.
+      url = "https://cdn.modrinth.com/data/evkiwA7V/versions/Ow8CJ6pP/AxiomPaper-5.0.4-for-MC26.2.jar";
+      hash = "sha256-PWA0Lb03g0M37MTcQ5MexwCSzxuGsEt7l4jfGIR55CI=";
     };
     "plugins/HeadDB.jar" = pkgs.fetchurl {
       # No 26.2 build exists yet either (still capped at 1.21.11) --
