@@ -1,4 +1,4 @@
-# &desc: "Minecraft world creation logic -- groups config.vars.minecraft.worlds entries by server, generates each server's extraStartPost script plus a Skript-based permadeath script for any hardcore = true dimensions."
+# &desc: "Minecraft world creation logic -- groups config.vars.minecraft.worlds entries by server, generates each server's extraStartPost script plus a Skript-based permadeath script for hardcore = true dimensions and LuckPerms gamemode-switch grants for gamemode = \"creative\" dimensions."
 
 { config, lib, pkgs, ... }:
 
@@ -100,12 +100,29 @@ let
       		ban player due to "Hardcore permadeath"
     '';
 
+  # Anyone in a gamemode = "creative" world gets the ability to actually
+  # flip their own gamemode (F3+F4 client-side is just a keybind for the
+  # same /gamemode command, gated by the same permission) -- Multiverse's
+  # enforce-gamemode only forces the *initial* switch on world-change, it
+  # doesn't grant the player any lasting permission of their own.
+  # LuckPerms' per-world context ("world=<name>") is what scopes this to
+  # exactly the creative worlds, not server-wide.
+  mkGamemodePermCmds =
+    dimName: ''
+      send "lp group default permission set minecraft.command.gamemode true world=${dimName}"
+      sleep 1
+    '';
+
   dimsByServer = lib.mapAttrs (
     _: serverWorlds: lib.concatMap (e: mkGroupCmds e.name e.value) serverWorlds
   ) byServer;
 
   hardcoreDimsByServer = lib.mapAttrs (
     _: dims: map (d: d.dimName) (lib.filter (d: d.hardcore) dims)
+  ) dimsByServer;
+
+  creativeDimsByServer = lib.mapAttrs (
+    _: dims: map (d: d.dimName) (lib.filter (d: d.gamemode == "creative") dims)
   ) dimsByServer;
 in
 {
@@ -114,9 +131,12 @@ in
       serverName: dims:
       let
         hardcoreDims = hardcoreDimsByServer.${serverName};
+        creativeDims = creativeDimsByServer.${serverName};
       in
       {
-        extraStartPost = mkServerScript serverName dims;
+        extraStartPost =
+          mkServerScript serverName dims
+          + lib.concatMapStringsSep "\n" mkGamemodePermCmds creativeDims;
       }
       // lib.optionalAttrs (hardcoreDims != [ ]) {
         symlinks."plugins/Skript.jar" = pkgs.fetchurl {
@@ -126,6 +146,12 @@ in
         files."plugins/Skript/scripts/hardcore-permadeath.sk" = pkgs.writeText "hardcore-permadeath.sk" (
           mkHardcoreScript hardcoreDims
         );
+      }
+      // lib.optionalAttrs (creativeDims != [ ]) {
+        symlinks."plugins/LuckPerms.jar" = pkgs.fetchurl {
+          url = "https://cdn.modrinth.com/data/Vebnzrzj/versions/b0mk8uS6/LuckPerms-Bukkit-5.5.71.jar";
+          hash = "sha256-Sc7LZvof0ioTMDmkkOnB5QlaI4581m650qFv5siXVQ0=";
+        };
       }
     ) dimsByServer;
   };
