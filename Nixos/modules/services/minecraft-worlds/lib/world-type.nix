@@ -115,5 +115,17 @@ lib.types.submodule {
         consequence, but works for any number of worlds, not just one.
       '';
     };
+
+    defaultSpawn = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Make this group's overworld Multiverse-Core's join-destination --
+        every player lands here on every join, not just their first ever
+        one. At most one group per server should set this true; if
+        several do, whichever one Nix happens to iterate last wins (no
+        error, just an ambiguous result), so pick exactly one.
+      '';
+    };
   };
 }

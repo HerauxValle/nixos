@@ -14,16 +14,10 @@
     # Shown in the client's multiplayer server list -- must be exactly 64x64.
     files."server-icon.png" = ../../icons/hardcore.png;
 
-    # Always spawn in the void "hub" world on every join (not just first
-    # ever join) -- a native Multiverse-Core feature, no extra plugin
-    # needed. Partial override: Multiverse backfills every other key in
-    # this file with its own defaults on load, same as BlueMap's
-    # core.conf above.
+    # The spawn.join-destination keys here come from worlds.nix's
+    # defaultSpawn = true (see modules/services/minecraft-worlds), not
+    # this file -- Nix merges both into the same config.yml.
     files."plugins/Multiverse-Core/config.yml".value = {
-      spawn = {
-        enable-join-destination = true;
-        join-destination = "hub";
-      };
       # "disable_console" (not "disable") -- players still get the usual
       # /mv confirm prompt for their own destructive commands, only
       # minecraft-worlds.nix's extraStartPost script (running over the

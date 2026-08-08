@@ -193,6 +193,16 @@ let
   creativeDimsByServer = lib.mapAttrs (
     _: dims: map (d: d.dimName) (lib.filter (d: d.gamemode == "creative") dims)
   ) dimsByServer;
+
+  # First (only, by convention -- see world-type.nix's own comment)
+  # defaultSpawn = true group's name per server, or null if none set it.
+  defaultSpawnByServer = lib.mapAttrs (
+    _: entries:
+    let
+      matches = lib.filter (e: e.value.defaultSpawn) entries;
+    in
+    if matches == [ ] then null else (lib.head matches).name
+  ) byServer;
 in
 {
   config = lib.mkIf (worlds != { } || ops != { }) {
@@ -201,6 +211,7 @@ in
       let
         hardcoreDims = hardcoreDimsByServer.${serverName};
         creativeDims = creativeDimsByServer.${serverName};
+        defaultSpawnWorld = defaultSpawnByServer.${serverName} or null;
       in
       let
         extraSymlinks =
@@ -217,11 +228,20 @@ in
             };
           };
 
-        extraFiles = lib.optionalAttrs (hardcoreDims != [ ]) {
-          "plugins/Skript/scripts/hardcore-permadeath.sk" = pkgs.writeText "hardcore-permadeath.sk" (
-            mkHardcoreScript hardcoreDims
-          );
-        };
+        extraFiles =
+          lib.optionalAttrs (hardcoreDims != [ ]) {
+            "plugins/Skript/scripts/hardcore-permadeath.sk" = pkgs.writeText "hardcore-permadeath.sk" (
+              mkHardcoreScript hardcoreDims
+            );
+          }
+          // lib.optionalAttrs (defaultSpawnWorld != null) {
+            "plugins/Multiverse-Core/config.yml".value = {
+              spawn = {
+                enable-join-destination = true;
+                join-destination = defaultSpawnWorld;
+              };
+            };
+          };
       in
       {
         extraStartPre = mkTrashScript (map (d: d.dimName) dims);
