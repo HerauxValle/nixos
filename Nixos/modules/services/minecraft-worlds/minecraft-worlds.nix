@@ -1,4 +1,4 @@
-# &desc: "Minecraft world creation logic -- groups config.vars.minecraft.worlds entries by server, generates each server's extraStartPost script."
+# &desc: "Minecraft world creation logic -- groups config.vars.minecraft.worlds entries by server, generates each server's extraStartPost script (overworld plus its own nether/end)."
 
 { config, lib, pkgs, ... }:
 
@@ -9,11 +9,25 @@ let
     lib.mapAttrsToList (name: value: { inherit name value; }) worlds
   );
 
-  mkCreateCmd =
+  mkOverworldCmd =
     name: w:
-    "mv create ${name} ${w.environment}"
+    "mv create ${name} normal"
     + lib.optionalString (w.worldType != null) " --world-type ${w.worldType}"
     + lib.optionalString (w.generatorSettings != null) " --generator-settings ${w.generatorSettings}";
+
+  # One { name; cmd; } per dimension this group actually wants -- the
+  # overworld always, nether/end only if that group's flag is set.
+  mkGroupCmds =
+    name: w:
+    [ { inherit name; cmd = mkOverworldCmd name w; } ]
+    ++ lib.optional w.nether {
+      name = "${name}_nether";
+      cmd = "mv create ${name}_nether nether";
+    }
+    ++ lib.optional w.end {
+      name = "${name}_the_end";
+      cmd = "mv create ${name}_the_end the_end";
+    };
 
   # A fixed sleep instead of polling the log for "Done (" -- tried that
   # first, but latest.log's rotation timing (old file -> dated .log.gz,
@@ -35,11 +49,11 @@ let
       sleep 20
     ''
     + lib.concatMapStringsSep "\n" (
-      e: ''
-        [ -d ${lib.escapeShellArg e.name} ] || send ${lib.escapeShellArg (mkCreateCmd e.name e.value)}
+      d: ''
+        [ -d ${lib.escapeShellArg d.name} ] || send ${lib.escapeShellArg d.cmd}
         sleep 3
       ''
-    ) serverWorlds;
+    ) (lib.concatMap (e: mkGroupCmds e.name e.value) serverWorlds);
 in
 {
   config = lib.mkIf (worlds != { }) {

@@ -90,31 +90,35 @@
   };
 
   # Declarative world creation -- schema + logic in
-  # modules/services/minecraft-worlds/, generates each entry's /mv create
-  # console command into services.minecraft-servers.servers.<server>.
-  # extraStartPost. world/world_nether/world_end (hardcore's own) aren't
-  # listed here -- those are vanilla-auto-generated at first boot and
-  # Multiverse just auto-imports them, nothing to declare.
+  # modules/services/minecraft-worlds/, generates each group's /mv create
+  # console command(s) into services.minecraft-servers.servers.<server>.
+  # extraStartPost, one entry per world-group (not per dimension) --
+  # nether/end are just flags on the group they belong to.
   vars.minecraft.worlds = {
+    # The original hardcore world -- vanilla auto-generates "world"/
+    # "world_nether"/"world_end" at first boot regardless of this entry
+    # (Multiverse just auto-imports them), but it's listed here too for
+    # symmetry with the other groups; the idempotent [ -d ... ] guard
+    # makes it a harmless no-op either way.
+    world = {
+      server = "hardcore";
+      nether = true;
+      end = true;
+    };
+
     creative = {
       server = "hardcore";
-      environment = "normal";
       worldType = "flat";
       generatorSettings = ''{"layers":[{"block":"minecraft:white_stained_glass","height":1}],"biome":"minecraft:plains"}'';
+      nether = true;
+      end = true;
     };
-    creative_nether = {
-      server = "hardcore";
-      environment = "nether";
-    };
-    creative_the_end = {
-      server = "hardcore";
-      environment = "the_end";
-    };
+
     hub = {
       server = "hardcore";
-      environment = "normal";
       worldType = "flat";
       generatorSettings = ''{"layers":[],"biome":"the_void"}'';
+      # No nether/end -- overworld-only lobby, per the original design.
     };
   };
 
