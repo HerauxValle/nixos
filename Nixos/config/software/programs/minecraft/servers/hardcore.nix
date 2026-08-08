@@ -74,6 +74,57 @@
         url = "https://cdn.modrinth.com/data/vtawPsTo/versions/RRa80eDI/multiverse-netherportals-5.1.0.jar";
         hash = "sha256-pLN1CXC1txCqlCuq/weo/O9WgCzyhrnc2n5p3ZBEksw=";
       };
+
+      # Building tools requested 2026-08-08. Server stays pinned to
+      # 26.1.2 (matches the Prism client, see the version-mismatch note
+      # a few plugins below), so several of these are best-effort --
+      # confirmed-compatible ones use the exact 26.1.2 build where one
+      # exists (FAWE, WorldGuard, FastAsyncVoxelSniper, BuildersUtilities).
+
+      "plugins/FastAsyncWorldEdit.jar" = pkgs.fetchurl {
+        url = "https://cdn.modrinth.com/data/z4HZZnLr/versions/wDzcK7Sn/FastAsyncWorldEdit-Bukkit-2.15.3.jar";
+        hash = "sha256-89T9rzOWWINCjI+SFn1dtnMGmhtfm0t+q+fVwMglqNw=";
+      };
+      "plugins/WorldGuard.jar" = pkgs.fetchurl {
+        # Depends on a WorldEdit-API-compatible plugin -- FAWE above satisfies that.
+        url = "https://cdn.modrinth.com/data/DKY9btbd/versions/btHBavWa/worldguard-bukkit-7.0.18.jar";
+        hash = "sha256-CPPvWLxSHGNdjHiu2sqW8VHS05fnzYAYWElV3XRo6wU=";
+      };
+      "plugins/FastAsyncVoxelSniper.jar" = pkgs.fetchurl {
+        # The actual maintained VoxelSniper fork (same IntellectualSites
+        # team as FAWE) -- plain "VoxelSniper" is unmaintained/Forge-only forks now.
+        url = "https://cdn.modrinth.com/data/D7XBSI1y/versions/n77tXMjA/fastasyncvoxelsniper-3.2.4.jar";
+        hash = "sha256-k1qgEacp/UDLh/0+Nxwg3UWBMDVH1PksMcvGCOfl7LM=";
+      };
+      "plugins/BuildersUtilities.jar" = pkgs.fetchurl {
+        url = "https://cdn.modrinth.com/data/5GTPKiuo/versions/eqxlPPvN/BuildersUtilities-1.9.1.jar";
+        hash = "sha256-cvPXZV13SGIFp2fJF5HfJwab/KJyhwLr/Zvpd30uzpM=";
+      };
+
+      # BEST-EFFORT, no 26.1.2 build exists yet (only 26.2/1.21.11) --
+      # verify these actually load, check the server log for errors.
+      "plugins/AxiomPaper.jar" = pkgs.fetchurl {
+        url = "https://cdn.modrinth.com/data/evkiwA7V/versions/Ow8CJ6pP/AxiomPaper-5.0.4-for-MC26.2.jar";
+        hash = "sha256-PWA0Lb03g0M37MTcQ5MexwCSzxuGsEt7l4jfGIR55CI=";
+      };
+      "plugins/HeadDB.jar" = pkgs.fetchurl {
+        url = "https://cdn.modrinth.com/data/cRS8VY4i/versions/KeAgbpca/HeadDB-6.0.1.jar";
+        hash = "sha256-3EBA6y8RHPFd9fl0k6ycr1wIeYSIP4Oy7yJe9d9eFv8=";
+      };
+
+      # From your Patreon-mirror link -- flagged as "Arceon-Plugin-
+      # 1.21.4.jar" (an OLD build, likely a stale mirror copy, not the
+      # current "Arceon x Axiom 0.16" from the actual post). Real risk
+      # it doesn't load at all on 26.1.2 -- check the log.
+      "plugins/Arceon.jar" = pkgs.fetchurl {
+        url = "https://dl2.cdn9mc.com/index.php?act=download&id=1756531916&hash=6a7797b74a86c";
+        hash = "sha256-a5SfVwBYWGm44tYYGZ57WqPWTfY8zKluQ9n7IFrXf2s=";
+      };
+
+      # SKIPPED: ezEdits (Patreon/Discord-supporter gated, no public URL
+      # -- you said skip), Schematic Brush Reborn 2 (SpigotMC direct
+      # download is behind a Cloudflare bot-challenge, couldn't fetch it
+      # programmatically -- get me a direct file/URL if you still want it).
     };
 
     files."plugins/BlueMap/core.conf" = {
@@ -171,6 +222,14 @@
       # No nether/end -- overworld-only lobby, per the original design.
     };
   };
+
+  # OP is server-wide (not scoped to hub/creative like the LuckPerms
+  # grants above) -- see modules/services/minecraft-worlds/default.nix's
+  # own comment on why no per-world equivalent exists. Left empty
+  # deliberately: adding yourself here would give admin rights inside
+  # "world" too, undoing the whole point of it being real permadeath
+  # survival. Add player names here only if you actually want that.
+  vars.minecraft.ops.hardcore = [ ];
 
   # openFirewall above only opens serverProperties.server-port (25565) --
   # BlueMap's own web server (core.conf webserver.port, default 8100) needs

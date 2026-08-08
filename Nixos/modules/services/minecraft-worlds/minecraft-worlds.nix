@@ -4,10 +4,24 @@
 
 let
   worlds = config.vars.minecraft.worlds;
+  ops = config.vars.minecraft.ops;
 
   byServer = lib.groupBy (e: e.value.server) (
     lib.mapAttrsToList (name: value: { inherit name value; }) worlds
   );
+
+  # OP is server-wide, not tied to any world -- a server can have ops
+  # declared with no worlds entries at all (or vice versa), so this is
+  # every server name mentioned by either, not just dimsByServer's keys.
+  allServerNames = lib.unique ((lib.attrNames byServer) ++ (lib.attrNames ops));
+
+  mkOpsCmds =
+    serverName: ''
+      ${lib.concatMapStringsSep "\n" (n: ''
+        send "op ${n}"
+        sleep 1
+      '') (ops.${serverName} or [ ])}
+    '';
 
   mkOverworldCmd =
     name: w:
@@ -132,9 +146,9 @@ let
     sleep 1
   '';
 
-  dimsByServer = lib.mapAttrs (
-    _: serverWorlds: lib.concatMap (e: mkGroupCmds e.name e.value) serverWorlds
-  ) byServer;
+  dimsByServer = lib.genAttrs allServerNames (
+    name: lib.concatMap (e: mkGroupCmds e.name e.value) (byServer.${name} or [ ])
+  );
 
   hardcoreDimsByServer = lib.mapAttrs (
     _: dims: map (d: d.dimName) (lib.filter (d: d.hardcore) dims)
@@ -145,7 +159,7 @@ let
   ) dimsByServer;
 in
 {
-  config = lib.mkIf (worlds != { }) {
+  config = lib.mkIf (worlds != { } || ops != { }) {
     services.minecraft-servers.servers = lib.mapAttrs (
       serverName: dims:
       let
@@ -177,7 +191,8 @@ in
         extraStartPost =
           mkServerScript serverName dims
           + lib.concatMapStringsSep "\n" mkGamemodePermCmds creativeDims
-          + lib.optionalString (creativeDims != [ ]) mkTeleportPermCmd;
+          + lib.optionalString (creativeDims != [ ]) mkTeleportPermCmd
+          + mkOpsCmds serverName;
       }
       // lib.optionalAttrs (extraSymlinks != { }) { symlinks = extraSymlinks; }
       // lib.optionalAttrs (extraFiles != { }) { files = extraFiles; }
