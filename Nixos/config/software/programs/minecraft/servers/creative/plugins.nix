@@ -72,13 +72,14 @@
       hash = "sha256-PWA0Lb03g0M37MTcQ5MexwCSzxuGsEt7l4jfGIR55CI=";
     };
 
-    "plugins/CoreProtect.jar" = pkgs.fetchurl {
-      # No 26.2 build yet (latest targets 26.1.x) -- simple block-logging
-      # plugin, no Paper API surface risky enough to expect a hard block.
-      # Verify it actually enables after a rebuild.
-      url = "https://cdn.modrinth.com/data/Lu3KuzdV/versions/Kma0kBsY/CoreProtect-CE-24.0.jar";
-      hash = "sha256-Zs02IIm7hDDloBjud+m0M78NyeZVkNXxoEOnjWBBVpY=";
-    };
+    # REMOVED: CoreProtect -- version 24.0 (latest, targets 26.1.x) hard
+    # version-gates: "Minecraft 26.2 is not supported.", self-disables on
+    # enable. Worse, AxiomPaper's own CoreProtect integration probe
+    # (com.moulberry.axiom.integration.coreprotect) still tries to load
+    # its class regardless of enabled state and throws
+    # NoClassDefFoundError, which crashed AxiomPaper's own onEnable
+    # entirely -- confirmed in the wild 2026-08-09. Revisit once
+    # CoreProtect ships a real 26.2 build.
     "plugins/Chunky.jar" = pkgs.fetchurl {
       # Same story -- no 26.2 build yet, latest targets 26.1.x.
       url = "https://cdn.modrinth.com/data/fALzjamp/versions/MdY6JATr/Chunky-Bukkit-1.5.3.jar";
