@@ -101,15 +101,20 @@ let
     '';
 
   # Anyone in a gamemode = "creative" world gets the ability to actually
-  # flip their own gamemode (F3+F4 client-side is just a keybind for the
-  # same /gamemode command, gated by the same permission) -- Multiverse's
-  # enforce-gamemode only forces the *initial* switch on world-change, it
-  # doesn't grant the player any lasting permission of their own.
-  # LuckPerms' per-world context ("world=<name>") is what scopes this to
-  # exactly the creative worlds, not server-wide.
+  # flip their own gamemode -- Multiverse's enforce-gamemode only forces
+  # the *initial* switch on world-change, it doesn't grant the player any
+  # lasting permission of their own. LuckPerms' per-world context
+  # ("world=<name>") is what scopes this to exactly the creative worlds,
+  # not server-wide. Two separate nodes needed: minecraft.command.gamemode
+  # for the actual /gamemode text command, f3nperm.use for the F3+F4 GUI
+  # shortcut specifically -- that one checks vanilla OP status directly,
+  # bypassing Bukkit permissions entirely, unless F3NPerm (see hardcore.nix)
+  # is installed to make it respect this node instead.
   mkGamemodePermCmds =
     dimName: ''
       send "lp group default permission set minecraft.command.gamemode true world=${dimName}"
+      sleep 1
+      send "lp group default permission set f3nperm.use true world=${dimName}"
       sleep 1
     '';
 

@@ -54,6 +54,17 @@
         url = "https://cdn.modrinth.com/data/swbUV1cr/versions/K5U1ASjn/bluemap-5.23-paper.jar";
         hash = "sha256-M5VU11ztqzVON2Z3z8cwjEmZUpFYSejimUcY5KFT1k4=";
       };
+      # F3+F4's gamemode switcher GUI checks vanilla OP status directly,
+      # bypassing Bukkit's permission system entirely -- this makes it
+      # respect the actual /gamemode permission instead (f3nperm.use),
+      # letting the same LuckPerms per-world grant that already covers
+      # the text command also cover the keybind. Last build only claims
+      # support through 1.21.5 (its underlying sendOpLevel API reportedly
+      # changed in 1.21.6) -- untested on 26.1.2, verify in-game.
+      "plugins/F3NPerm.jar" = pkgs.fetchurl {
+        url = "https://cdn.modrinth.com/data/mGZ550y3/versions/UcHVPYYQ/F3NPerm-3.6.1.jar";
+        hash = "sha256-KLv6jyu2XPRRK7eKMbhkAnqEifEc2Wvb6HjF9W9SA/I=";
+      };
       # Auto-links each world-group's own nether/end by naming convention
       # (world -> world_nether/world_end, creative -> creative_nether/
       # creative_the_end, etc.) -- no per-world config needed, since a
