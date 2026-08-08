@@ -87,40 +87,35 @@
       };
     };
 
-    # Declarative world creation -- guarded by checking each world's
-    # folder on disk, so this is a no-op after the first successful run
-    # (world data itself persists in dataDir like any other save, this
-    # is only what recreates it if the vault were ever wiped). Runs
-    # inside the same service unit as the server itself (WorkingDirectory
-    # = dataDir/hardcore already, ProtectHome/PrivateUsers already
-    # relaxed below), sent over the same tmux console socket used for
-    # `/mv` commands live during initial setup.
-    #
-    # A fixed sleep instead of polling the log for "Done (" -- tried that
-    # first, but latest.log's rotation timing (old file -> dated .log.gz,
-    # fresh empty file) races against ExecStartPost's own start (fires the
-    # instant the tmux-wrapped start script *returns*, near-instant under
-    # Type=forking, well before Paper/Multiverse actually finish booting
-    # inside that session). Capturing a line-count offset before rotation
-    # lands means the offset never gets reached again, so the poll just
-    # burns its full timeout every time. Not worth chasing further: Paper
-    # boots in ~8s in practice and Multiverse's own create command is
-    # idempotent (harmlessly logs "already exists" if this fires early on
-    # a world that's already there), so a generous flat sleep is simpler
-    # and just as correct.
-    extraStartPost = ''
-      SOCK="/run/minecraft/hardcore.sock"
-      send() { ${pkgs.tmux}/bin/tmux -S "$SOCK" send-keys "$1" Enter; }
-      sleep 20
+  };
 
-      [ -d creative ] || send 'mv create creative normal -t flat --generator-settings {"layers":[{"block":"minecraft:white_stained_glass","height":1}],"biome":"minecraft:plains"}'
-      sleep 3
-      [ -d creative_nether ] || send "mv create creative_nether nether"
-      sleep 3
-      [ -d creative_the_end ] || send "mv create creative_the_end the_end"
-      sleep 3
-      [ -d hub ] || send 'mv create hub normal -t flat --generator-settings {"layers":[],"biome":"the_void"}'
-    '';
+  # Declarative world creation -- schema + logic in
+  # modules/services/minecraft-worlds/, generates each entry's /mv create
+  # console command into services.minecraft-servers.servers.<server>.
+  # extraStartPost. world/world_nether/world_end (hardcore's own) aren't
+  # listed here -- those are vanilla-auto-generated at first boot and
+  # Multiverse just auto-imports them, nothing to declare.
+  vars.minecraft.worlds = {
+    creative = {
+      server = "hardcore";
+      environment = "normal";
+      worldType = "flat";
+      generatorSettings = ''{"layers":[{"block":"minecraft:white_stained_glass","height":1}],"biome":"minecraft:plains"}'';
+    };
+    creative_nether = {
+      server = "hardcore";
+      environment = "nether";
+    };
+    creative_the_end = {
+      server = "hardcore";
+      environment = "the_end";
+    };
+    hub = {
+      server = "hardcore";
+      environment = "normal";
+      worldType = "flat";
+      generatorSettings = ''{"layers":[],"biome":"the_void"}'';
+    };
   };
 
   # openFirewall above only opens serverProperties.server-port (25565) --

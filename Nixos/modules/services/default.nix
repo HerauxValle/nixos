@@ -1,7 +1,10 @@
-# &desc: "Services module root -- imports self-hosted services framework."
+# &desc: "Services module root -- imports self-hosted services framework and Minecraft world creation schema."
 
 { ... }:
 
 {
-  imports = [ ./self-hosted ];
+  imports = [
+    ./minecraft-worlds
+    ./self-hosted
+  ];
 }
