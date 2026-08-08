@@ -82,15 +82,21 @@
         hash = "sha256-pLN1CXC1txCqlCuq/weo/O9WgCzyhrnc2n5p3ZBEksw=";
       };
 
-      # Building tools requested 2026-08-08. Server stays pinned to
-      # 26.1.2 (matches the Prism client, see the version-mismatch note
-      # a few plugins below), so several of these are best-effort --
-      # confirmed-compatible ones use the exact 26.1.2 build where one
-      # exists (FAWE, WorldGuard, FastAsyncVoxelSniper, BuildersUtilities).
+      # Building tools requested 2026-08-08. Server bumped to 26.2 for
+      # these (see package comment above) -- Prism client stays on
+      # 26.1.2, bridged via ViaFabricPlus client-side.
 
       "plugins/FastAsyncWorldEdit.jar" = pkgs.fetchurl {
-        url = "https://cdn.modrinth.com/data/z4HZZnLr/versions/wDzcK7Sn/FastAsyncWorldEdit-Bukkit-2.15.3.jar";
-        hash = "sha256-89T9rzOWWINCjI+SFn1dtnMGmhtfm0t+q+fVwMglqNw=";
+        # 2.15.2, not the latest 2.15.3 -- 2.15.3 has a genuine bug
+        # (confirmed on both 26.1.2 and 26.2, so not a version-compat
+        # issue): throws ArrayIndexOutOfBoundsException/
+        # NoSuchElementException in WorldEditPlugin.setupWorldData during
+        # WorldInitEvent, which also cascade-breaks FastAsyncVoxelSniper
+        # (depends on FAWE's BlockTypes registry) and likely WorldGuard's
+        # actual functionality too (loads without erroring, but silently
+        # depends on the same broken registry).
+        url = "https://cdn.modrinth.com/data/z4HZZnLr/versions/gHUCKiVD/FastAsyncWorldEdit-Bukkit-2.15.2.jar";
+        hash = "sha256-Hn5PruKbtI9J4mATv3HKyjcfVcTW062vYRj0ZeB/3d8=";
       };
       "plugins/WorldGuard.jar" = pkgs.fetchurl {
         # Depends on a WorldEdit-API-compatible plugin -- FAWE above satisfies that.
