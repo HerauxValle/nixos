@@ -39,5 +39,12 @@
         hash = "sha256-M5VU11ztqzVON2Z3z8cwjEmZUpFYSejimUcY5KFT1k4=";
       };
     };
+
+    files."plugins/BlueMap/core.conf" = {
+      format = pkgs.formats.json { };
+      value = {
+        accept-download = true;
+      };
+    };
   };
 }
