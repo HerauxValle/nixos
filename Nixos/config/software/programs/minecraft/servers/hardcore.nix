@@ -94,25 +94,24 @@
     # inside the same service unit as the server itself (WorkingDirectory
     # = dataDir/hardcore already, ProtectHome/PrivateUsers already
     # relaxed below), sent over the same tmux console socket used for
-    # `/mv` commands live during initial setup. Waits for "Done (" in the
-    # log first -- ExecStartPost fires once the tmux-wrapped start script
-    # *returns* (near-instant, Type=forking), well before the actual
-    # Paper/Multiverse boot inside that session finishes.
+    # `/mv` commands live during initial setup.
+    #
+    # A fixed sleep instead of polling the log for "Done (" -- tried that
+    # first, but latest.log's rotation timing (old file -> dated .log.gz,
+    # fresh empty file) races against ExecStartPost's own start (fires the
+    # instant the tmux-wrapped start script *returns*, near-instant under
+    # Type=forking, well before Paper/Multiverse actually finish booting
+    # inside that session). Capturing a line-count offset before rotation
+    # lands means the offset never gets reached again, so the poll just
+    # burns its full timeout every time. Not worth chasing further: Paper
+    # boots in ~8s in practice and Multiverse's own create command is
+    # idempotent (harmlessly logs "already exists" if this fires early on
+    # a world that's already there), so a generous flat sleep is simpler
+    # and just as correct.
     extraStartPost = ''
       SOCK="/run/minecraft/hardcore.sock"
-      LOG="logs/latest.log"
       send() { ${pkgs.tmux}/bin/tmux -S "$SOCK" send-keys "$1" Enter; }
-
-      # tail from the line count *at script start*, not the whole file --
-      # otherwise a stale "Done (" from the previous boot (still sitting
-      # in latest.log if this script's poll starts before log4j's rotation
-      # actually lands) passes the check instantly, sending commands
-      # before Multiverse-Core has even finished loading this time around.
-      START_LINE=$(wc -l < "$LOG" 2>/dev/null || echo 0)
-      for _ in $(seq 1 120); do
-        tail -n "+$((START_LINE + 1))" "$LOG" 2>/dev/null | grep -q "Done (" && break
-        sleep 1
-      done
+      sleep 20
 
       [ -d creative ] || send 'mv create creative normal -t flat --generator-settings {"layers":[{"block":"minecraft:white_stained_glass","height":1}],"biome":"minecraft:plains"}'
       sleep 3
