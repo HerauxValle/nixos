@@ -106,9 +106,20 @@
 
     # /hub as a manual way back, on top of the automatic every-join spawn
     # above -- aliases to Multiverse-Core's own self-teleport command.
+    # /survival, /creative, /spectator, /adventure are shorthand for
+    # /gamemode <x> -- still gated by the same per-world LuckPerms grant
+    # as the underlying command (see minecraft-worlds.nix's
+    # mkGamemodePermCmds), aliasing doesn't bypass that. /world <name>
+    # is /mvtp $1 -- <name> is whatever key you used under
+    # vars.minecraft.worlds (e.g. /world creative, /world hub).
     files."commands.yml".value = {
       aliases = {
         hub = [ "mvtp hub" ];
+        survival = [ "gamemode survival" ];
+        creative = [ "gamemode creative" ];
+        spectator = [ "gamemode spectator" ];
+        adventure = [ "gamemode adventure" ];
+        world = [ "mvtp $1" ];
       };
     };
 
