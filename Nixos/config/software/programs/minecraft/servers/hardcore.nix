@@ -34,9 +34,9 @@
         url = "https://github.com/Multiverse/Multiverse-Core/releases/download/5.7.3/multiverse-core-5.7.3.jar";
         hash = "sha256-yRp8LCWtfYeCV7CMmAOB6LX/uo32P69AIkK/tWoFiIQ=";
       };
-      "plugins/Dynmap.jar" = pkgs.fetchurl {
-        url = "https://cdn.modrinth.com/data/fRQREgAc/versions/ImNNT17B/Dynmap-3.7-beta-8-spigot.jar";
-        hash = "sha256-h8YDXCy3O/Ivw0ynOMshotuJq18wvRBxzYCQgCoceLw=";
+      "plugins/BlueMap.jar" = pkgs.fetchurl {
+        url = "https://cdn.modrinth.com/data/swbUV1cr/versions/K5U1ASjn/bluemap-5.23-paper.jar";
+        hash = "sha256-M5VU11ztqzVON2Z3z8cwjEmZUpFYSejimUcY5KFT1k4=";
       };
     };
   };
