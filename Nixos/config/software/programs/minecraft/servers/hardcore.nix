@@ -87,11 +87,12 @@
       # 26.1.2, bridged via ViaFabricPlus client-side.
 
       "plugins/FastAsyncWorldEdit.jar" = pkgs.fetchurl {
-        # 2.15.1 -- both 2.15.2 and 2.15.3 (latest) hit the exact same
-        # ArrayIndexOutOfBoundsException/NoSuchElementException in
-        # WorldEditPlugin.setupWorldData during WorldInitEvent, on both
-        # 26.1.2 and 26.2 (so not a version-compat issue, a genuine
-        # regression). Trying the earliest 26.x-claiming build instead.
+        # KNOWN BROKEN: 2.15.1, 2.15.2, and 2.15.3 (latest three releases)
+        # all hit the identical ArrayIndexOutOfBoundsException/
+        # NoSuchElementException in WorldEditPlugin.setupWorldData during
+        # WorldInitEvent, on both 26.1.2 and 26.2 -- confirmed via
+        # in-game testing 2026-08-08. Kept installed anyway per request;
+        # revisit if a newer build ever fixes it.
         url = "https://cdn.modrinth.com/data/z4HZZnLr/versions/Dx0x0kQW/FastAsyncWorldEdit-Bukkit-2.15.1.jar";
         hash = "sha256-PXZSI0nORW/W2sd9VGCns/yLbsf1IG+qPWy86Y6cgMM=";
       };
@@ -101,8 +102,8 @@
         hash = "sha256-CPPvWLxSHGNdjHiu2sqW8VHS05fnzYAYWElV3XRo6wU=";
       };
       "plugins/FastAsyncVoxelSniper.jar" = pkgs.fetchurl {
-        # The actual maintained VoxelSniper fork (same IntellectualSites
-        # team as FAWE) -- plain "VoxelSniper" is unmaintained/Forge-only forks now.
+        # KNOWN BROKEN too, cascades from FAWE's crashed BlockTypes
+        # registry above.
         url = "https://cdn.modrinth.com/data/D7XBSI1y/versions/n77tXMjA/fastasyncvoxelsniper-3.2.4.jar";
         hash = "sha256-k1qgEacp/UDLh/0+Nxwg3UWBMDVH1PksMcvGCOfl7LM=";
       };
