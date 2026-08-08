@@ -58,7 +58,7 @@ in
       # specifically than that.
       packages = [ pkgs.ffmpeg ];
       ensureDataDir = true; # dataDir itself is plain now, safe to auto-create
-      inherit (cfg) dataDir storage autoStart environment requireMounts teardownPaths;
+      inherit (cfg) dataDir storage autoStart environment requireMounts afterUnits teardownPaths;
     })
     (selfHosted.mkActionService {
       name = "stash";

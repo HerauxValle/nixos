@@ -53,6 +53,15 @@
       config.vars.system.mountpoints.device.storage.path
     ];
 
+    # Only the vault needs this -- Storage is a real fstab-declared mount
+    # (config.vars.system.mountpoints), which RequiresMountsFor already
+    # handles correctly on its own (a real Requires=, not just After=,
+    # since systemd derives it straight from /etc/fstab). The vault's
+    # mount is dynamically created by autostart@selfHosted.service
+    # instead, which is what actually needs the explicit ordering -- see
+    # searxng.nix's own afterUnits comment for the full story.
+    afterUnits = [ "autostart@selfHosted.service" ];
+
     # Empty -- dataDir holds nothing but the storage symlink itself, so
     # the default "everything but storage" teardown (when enabled =
     # false) is safe as-is; no need to scope it down further.

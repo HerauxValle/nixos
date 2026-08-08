@@ -144,6 +144,12 @@
       description = "Paths that must already be mountpoints before this service (or any of its preStart) runs. See modules/services/self-hosted/self-hosted.nix's mkSelfHostedService.";
     };
 
+    afterUnits = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = "Other systemd units this service's start should be ordered after -- see mkSelfHostedService's own afterUnits comment for why RequiresMountsFor alone isn't enough for a vault-backed dataDir.";
+    };
+
     teardownPaths = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];

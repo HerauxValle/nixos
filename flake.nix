@@ -116,11 +116,14 @@
           "${inputs.nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
           inputs.home-manager.nixosModules.home-manager
           inputs.silent-sddm.nixosModules.default
+          inputs.nix-minecraft.nixosModules.minecraft-servers
           ./Nixos/variables.nix
           ./Nixos/modules
           ./Nixos/config
           ./Nixos/iso.nix
           {
+            nixpkgs.overlays = [ inputs.nix-minecraft.overlay ];
+
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.maxmustermann = import ./Nixos/home.nix;

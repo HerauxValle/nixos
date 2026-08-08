@@ -76,33 +76,29 @@
   # "$JELLYFIN_FD_LIMIT"` before exec, real behavior for large media
   # libraries (many files watched/scanned at once), not speculative.
 , limitNoFile ? null
+  # Names of other systemd units this service's start should wait on --
+  # generic, knows nothing about Casket/vaults/autostart specifically,
+  # same reasoning as requireMounts. Real motivating case: a vault-backed
+  # service ordered only via RequiresMountsFor's own auto-added After=
+  # against the vault's *mount* unit still raced on a real reboot and,
+  # worse than the original bug, silently never started at all -- a
+  # dynamically-created (non-fstab) mount unit doesn't exist yet at the
+  # moment systemd computes the boot transaction, so an explicit
+  # `Requires=<that mount unit>` (tried first) couldn't be resolved and
+  # systemd just dropped the whole start job from the transaction, no
+  # error, no log line, confirmed live via a real reboot (Result=success,
+  # zero state-change timestamps ever, zero journal entries for the
+  # unit). Ordering against the vault-*unlock* service instead
+  # (autostart@selfHosted.service, a real, statically-known unit from
+  # early boot -- not the mount it produces) sidesteps that "doesn't
+  # exist yet" problem entirely: `After=` on an always-present unit is
+  # exactly what systemd's transaction computation handles correctly.
+  # RequiresMountsFor (below) stays as the actual wait/gate; this is
+  # just what makes sure the transaction is even computed with the right
+  # ordering in the first place.
+, afterUnits ? [ ]
 }:
 let
-  # Reproduces systemd-escape's path -> unit-name mapping for the plain-
-  # alphanumeric-segment paths every requireMounts entry on this machine
-  # actually is (SelfHosted, Storage, ... -- no spaces/dots/other
-  # specials) -- NOT the fully generic algorithm (no \xHH hex-escaping of
-  # special characters), so a future requireMounts path with something
-  # unusual in it would need this extended first. Needed because
-  # RequiresMountsFor alone doesn't reliably wait: confirmed live on a
-  # real reboot that it only adds After= (ordering), never Requires=
-  # (an actual wait/dependency), for any mount not declared in
-  # /etc/fstab -- this vault's mount unit is created dynamically by the
-  # vault-unlock tooling, so systemd has no fstab entry to derive a real
-  # Requires= from. Real symptom: self-hosted-searxng tried and
-  # permanently failed (start-limit-hit) at the exact same second boot
-  # started, a full 6 seconds before home-herauxvalle-Images-SelfHosted.
-  # mount itself even reached "active" -- After= alone had nothing to
-  # order against yet, so systemd just started the service unconstrained.
-  # Adding Requires= on this exact same unit name (below) closes that
-  # gap for real.
-  mountUnitName = path:
-    let
-      trimmed = lib.removeSuffix "/" (lib.removePrefix "/" path);
-      escaped = lib.concatStringsSep "-" (lib.splitString "/" trimmed);
-    in
-    "${escaped}.mount";
-
   mountChecks = map
     (path: ''
       mountpoint -q "${path}" || {
@@ -169,6 +165,7 @@ lib.mkMerge [
       # hand (`systemctl start self-hosted-<name>`), it just isn't
       # pulled in on boot/rebuild.
       wantedBy = lib.optionals autoStart [ "multi-user.target" ];
+      after = afterUnits;
       # util-linux (mountpoint) only when requireMounts actually needs
       # it -- found via a real failure: "mountpoint: command not
       # found" on ComfyUI's live-service mount check. Not on a bare
@@ -192,7 +189,6 @@ lib.mkMerge [
       # to order against (e.g. a bind mount systemd doesn't track).
       unitConfig = lib.optionalAttrs (requireMounts != [ ]) {
         RequiresMountsFor = requireMounts;
-        Requires = map mountUnitName requireMounts;
       } // {
         # Companion to RequiresMountsFor above -- that only covers the
         # *startup* race (don't start until mounted). This covers the

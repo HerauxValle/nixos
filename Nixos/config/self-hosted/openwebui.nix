@@ -32,6 +32,9 @@
     # Independent fact, not derived from storage above.
     requireMounts = [ "${config.vars.identity.homeDirectory}/Images/SelfHosted" ];
 
+    # See searxng.nix's own afterUnits comment for the full story.
+    afterUnits = [ "autostart@selfHosted.service" ];
+
     # Empty -- dataDir holds nothing but the storage symlink itself, so
     # the default "everything but storage" teardown (when enabled =
     # false) is safe as-is; no need to scope it down further.

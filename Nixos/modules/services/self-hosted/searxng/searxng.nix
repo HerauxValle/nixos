@@ -155,7 +155,7 @@ in
       # preStart shell outside it).
       packages = [ pkgs.git ];
       ensureDataDir = true; # dataDir itself is plain, safe to auto-create
-      inherit (cfg) dataDir storage autoStart requireMounts teardownPaths;
+      inherit (cfg) dataDir storage autoStart requireMounts afterUnits teardownPaths;
       inherit environment;
       venvDir = cfg.venvDir;
     })

@@ -98,7 +98,7 @@ in
         venvEnsureScript
       ];
       ensureDataDir = true;
-      inherit (cfg) dataDir storage autoStart requireMounts teardownPaths;
+      inherit (cfg) dataDir storage autoStart requireMounts afterUnits teardownPaths;
       venvDir = cfg.venvDir;
       inherit environment;
     })

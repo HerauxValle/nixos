@@ -60,6 +60,17 @@
       "${config.vars.identity.homeDirectory}/Images/SelfHosted"
     ];
 
+    # The SelfHosted vault's own unlock service -- RequiresMountsFor above
+    # only reliably waits for a mount unit that already exists at boot-
+    # transaction-computation time; this vault's mount is created
+    # dynamically by autostart@selfHosted.service itself, so ordering
+    # After= that real, always-known unit (not the mount it produces) is
+    # what actually closes the startup race. See mk-self-hosted-service.
+    # nix's own afterUnits comment for the full story (confirmed live on
+    # a real reboot: without this, the service silently never started at
+    # all, no error, no log line).
+    afterUnits = [ "autostart@selfHosted.service" ];
+
     # Empty -- dataDir holds nothing but the settings.yml symlink itself,
     # so the default "everything but storage" teardown (when enabled =
     # false) is safe as-is.
