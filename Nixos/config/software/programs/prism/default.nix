@@ -73,6 +73,6 @@
     # values rather than left at Qt defaults. Kept as its own repo dir
     # (Themes/Prism/) rather than inline attrs so it's easy to diff
     # against Fluent-Dark.kvconfig by eye if that theme ever changes.
-    themes."Dolphin" = ../../../../Themes/Prism;
+    themes."Dolphin" = ../../../../../Themes/Prism;
   };
 }

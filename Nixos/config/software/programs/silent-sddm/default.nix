@@ -5,6 +5,6 @@
 {
   config.vars.packages.programs.silentSDDM = {
     enable = false;
-    wallpaper = ../../../../Scripts/Wallpaper/wallpaper.jpg;
+    wallpaper = ../../../../../Scripts/Wallpaper/wallpaper.jpg;
   };
 }

@@ -27,7 +27,10 @@ in
       localNetworkGameTransfers.openFirewall = cfg.steam.localNetworkGameTransfersOpenFirewall;
     };
 
-    gamemode.enable = cfg.gamemode.enable;
+    gamemode = {
+      enable = cfg.gamemode.enable;
+      settings = cfg.gamemodeSettings;
+    };
     gamescope.enable = cfg.gamescope.enable;
 
     silentSDDM = {
@@ -58,6 +61,12 @@ in
       enable = cfg.freshEditor.enable;
       defaultEditor = cfg.freshEditor.defaultEditor;
       extraPackages = cfg.freshEditor.extraPackages;
+    };
+
+    mangohud = {
+      enable = cfg.mangohud.enable;
+      enableSessionWide = cfg.mangohud.enableSessionWide;
+      settings = cfg.mangohud.settings;
     };
   };
 }

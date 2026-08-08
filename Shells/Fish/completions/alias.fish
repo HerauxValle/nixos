@@ -21,6 +21,7 @@ alias vlt="cd ~/Images && printf %s "314159265" | cas Vaults toggle --pass 31415
 alias fwm="~/Projects/FloatingWM/main.sh"                               #&help:"Launch FloatingWM"
 alias doc="man"                                                          #&help:"Alias for man pages"
 alias backup="~/Dotfiles/Scripts/Backup/backup.sh"                      #&help:"Snapshot/restore live config not managed by Nix (--restore to restore)"
+alias moddoctor="~/Dotfiles/Scripts/Prism/modDoctor.sh"                 #&help:"Diagnose Prism Launcher mod crash (entrypoint/API mismatch)"
 alias ytv="mpv --ytdl-format='bestvideo[height<=1080]+bestaudio/best'"  #&help:"Play a URL in mpv at best 1080p video+audio"
 alias maclexa="mac preset alexa"                                        #&help:"Temporarily spoof MAC to the 'alexa' preset"
 alias macdis="mac default"                                              #&help:"Restore original MAC address"

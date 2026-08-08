@@ -15,14 +15,15 @@
 # app -- same reasoning as config/self-hosted's per-service split.
 {
   imports = [
-    ./dconf.nix
-    ./fresh-editor.nix
-    ./gamemode.nix
-    ./gamescope.nix
+    ./dconf
+    ./fresh-editor
+    ./gamemode
+    ./gamescope
+    ./mangohud
     ./minecraft
-    ./prism.nix
-    ./silent-sddm.nix
-    ./steam.nix
+    ./prism
+    ./silent-sddm
+    ./steam
     ./vscode
   ];
 }

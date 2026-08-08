@@ -68,6 +68,12 @@ hl.bind(mainMod .. " + ALT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" 
 -- lives in a script instead of inline Lua.
 hl.bind(mainMod .. " + F", hl.dsp.exec_cmd(SCRIPTS_DIR .. "/scrollMaximize.sh"))
 
+-- Native maximize toggle, confirmed still broken under scrolling layout as
+-- of Hyprland 0.55.4 (resizes on first press, but internal fullscreen state
+-- never registers it, so a second press doesn't undo it). Kept bound here
+-- deliberately for comparison/testing against scrollMaximize.sh above.
+hl.bind(mainMod .. " + CTRL + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
+
 -- ALT + Tab is the scrolloverview trigger (Config/Binds/plugins.lua); kept
 -- here only as reverse-cycle since it doesn't collide with that.
 hl.bind("ALT + SHIFT + Tab", hl.dsp.window.cycle_next({ prev = true }))

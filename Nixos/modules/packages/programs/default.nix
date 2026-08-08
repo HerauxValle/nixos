@@ -99,6 +99,37 @@
       description = "programs.gamescope.enable.";
     };
 
+    # /etc/gamemode.ini -- gpu/cpu tuning applied while gamemoded is active.
+    gamemodeSettings = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
+      default = { };
+      description = "programs.gamemode.settings -- see gamemoded(8) for available keys.";
+    };
+
+    # Home-manager-only, mirrors fresh-editor further down this file.
+    mangohud = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "home-manager programs.mangohud.enable.";
+      };
+      enableSessionWide = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "home-manager programs.mangohud.enableSessionWide -- sets MANGOHUD=1 globally instead of per-launch-option.";
+      };
+      settings = lib.mkOption {
+        type = lib.types.attrsOf (lib.types.oneOf [
+          lib.types.bool
+          lib.types.int
+          lib.types.float
+          lib.types.str
+        ]);
+        default = { };
+        description = "home-manager programs.mangohud.settings -- written to MangoHud.conf.";
+      };
+    };
+
     silentSDDM = {
       enable = lib.mkOption {
         type = lib.types.bool;
