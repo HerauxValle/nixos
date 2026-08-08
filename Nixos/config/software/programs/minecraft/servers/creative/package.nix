@@ -11,6 +11,14 @@
   systemd.services.minecraft-server-creative = {
     restartIfChanged = lib.mkForce false;
     stopIfChanged = lib.mkForce false;
+    # Type=forking only reports "active" once ExecStartPost fully exits --
+    # with 4 world-groups (10 dimensions total) that script runs a 40s
+    # startup-race-safety sleep (see minecraft-worlds.nix's mkServerScript)
+    # plus ~3-4s per dimension for /mv create, easily 80s+ end to end.
+    # The default 90s TimeoutStartSec was too tight for that: confirmed
+    # in the wild 2026-08-08, it killed ExecStartPost mid-run and
+    # Restart=always looped the server through repeated failed boots.
+    serviceConfig.TimeoutStartSec = lib.mkForce "5min";
   };
 
   services.minecraft-servers.servers.creative = {
