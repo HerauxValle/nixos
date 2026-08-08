@@ -97,14 +97,18 @@
       # 26.1.2, bridged via ViaFabricPlus client-side.
 
       "plugins/FastAsyncWorldEdit.jar" = pkgs.fetchurl {
-        # KNOWN BROKEN: 2.15.1, 2.15.2, and 2.15.3 (latest three releases)
-        # all hit the identical ArrayIndexOutOfBoundsException/
-        # NoSuchElementException in WorldEditPlugin.setupWorldData during
-        # WorldInitEvent, on both 26.1.2 and 26.2 -- confirmed via
-        # in-game testing 2026-08-08. Kept installed anyway per request;
-        # revisit if a newer build ever fixes it.
-        url = "https://cdn.modrinth.com/data/z4HZZnLr/versions/Dx0x0kQW/FastAsyncWorldEdit-Bukkit-2.15.1.jar";
-        hash = "sha256-PXZSI0nORW/W2sd9VGCns/yLbsf1IG+qPWy86Y6cgMM=";
+        # 2.15.1/2.15.2/2.15.3 (every released build) crash with
+        # ArrayIndexOutOfBoundsException/NoSuchElementException in
+        # BlockTypes init during WorldInitEvent -- root cause is
+        # IntellectualSites/FastAsyncWorldEdit#3602 (registry entries
+        # missing for newer 1.21.x block types), fixed upstream in
+        # commit a7c959f right after the 2.15.3 tag. Not in any Modrinth
+        # release yet, so pulling straight from their Jenkins CI:
+        # 2.15.4-SNAPSHOT build #1362 (https://ci.athion.net/job/FastAsyncWorldEdit/1362/).
+        # Jenkins build artifacts aren't permanent -- if this URL 404s
+        # later, check for a proper 2.15.4 release on Modrinth first.
+        url = "https://ci.athion.net/job/FastAsyncWorldEdit/1362/artifact/artifacts/FastAsyncWorldEdit-Paper-2.15.4-SNAPSHOT-1362.jar";
+        hash = "sha256-yW0ddZRwSOP9VvKtL8letvRg0vvUxnf9tKc7qT6rd44=";
       };
       "plugins/WorldGuard.jar" = pkgs.fetchurl {
         # Depends on a WorldEdit-API-compatible plugin -- FAWE above satisfies that.
@@ -112,8 +116,8 @@
         hash = "sha256-CPPvWLxSHGNdjHiu2sqW8VHS05fnzYAYWElV3XRo6wU=";
       };
       "plugins/FastAsyncVoxelSniper.jar" = pkgs.fetchurl {
-        # KNOWN BROKEN too, cascades from FAWE's crashed BlockTypes
-        # registry above.
+        # Only ever crashed as a cascade from FAWE's broken BlockTypes
+        # registry above -- should come up clean now that FAWE is fixed.
         url = "https://cdn.modrinth.com/data/D7XBSI1y/versions/n77tXMjA/fastasyncvoxelsniper-3.2.4.jar";
         hash = "sha256-k1qgEacp/UDLh/0+Nxwg3UWBMDVH1PksMcvGCOfl7LM=";
       };
