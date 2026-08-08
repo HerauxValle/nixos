@@ -66,6 +66,26 @@
 
     # Shown in the client's multiplayer server list -- must be exactly 64x64.
     files."server-icon.png" = ../icons/hardcore.png;
+
+    # Always spawn in the void "hub" world on every join (not just first
+    # ever join) -- a native Multiverse-Core feature, no extra plugin
+    # needed. Partial override: Multiverse backfills every other key in
+    # this file with its own defaults on load, same as BlueMap's
+    # core.conf above.
+    files."plugins/Multiverse-Core/config.yml".value = {
+      spawn = {
+        enable-join-destination = true;
+        join-destination = "hub";
+      };
+    };
+
+    # /hub as a manual way back, on top of the automatic every-join spawn
+    # above -- aliases to Multiverse-Core's own self-teleport command.
+    files."commands.yml".value = {
+      aliases = {
+        hub = [ "mvtp hub" ];
+      };
+    };
   };
 
   # openFirewall above only opens serverProperties.server-port (25565) --
