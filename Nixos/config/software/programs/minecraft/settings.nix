@@ -11,6 +11,7 @@
 # can hold Prism Launcher config alongside it later.
 {
   services.minecraft-servers = {
+    enable = false;
     eula = true;
     dataDir = "/home/herauxvalle/Images/Minecraft/servers";
   };
