@@ -60,5 +60,10 @@ in
     # list stays intact).
     // lib.genAttrs (map (n: "minecraft-server-${n}") enabledServers) (_: {
       serviceConfig.ProtectHome = lib.mkForce false;
+      # Also disable: a private UID namespace can stop the named-user ACL
+      # entry above (u:minecraft:--x on ~herauxvalle) from resolving
+      # correctly, since the kernel's ACL check may see a remapped/unmapped
+      # UID rather than minecraft's real one.
+      serviceConfig.PrivateUsers = lib.mkForce false;
     });
 }
