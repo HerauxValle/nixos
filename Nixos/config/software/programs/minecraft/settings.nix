@@ -15,4 +15,12 @@
     eula = true;
     dataDir = "/home/herauxvalle/Images/Minecraft/servers";
   };
+
+  # ~herauxvalle is 0700, so the minecraft system user can't traverse into
+  # it to reach dataDir above, even though everything below is already
+  # world-readable/minecraft-owned. Grant traverse-only (no read) via ACL
+  # instead of loosening the home dir's mode bit for everyone.
+  systemd.tmpfiles.rules = [
+    "a+ /home/herauxvalle - - - - u:minecraft:X"
+  ];
 }
