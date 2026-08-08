@@ -54,6 +54,7 @@ HASHEOF
       "qbittorrent"
       "kvm" # Claude Desktop's Cowork feature spins up a local KVM sandbox
       "docker" # run docker/docker compose without sudo
+      "minecraft" # browse/edit servers/ in the Minecraft vault (group is 770)
     ];
 
     # initialPassword = "changeme";  # one-time bootstrap only, from before
