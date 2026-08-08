@@ -54,6 +54,9 @@
         accept-download = true;
       };
     };
+
+    # Shown in the client's multiplayer server list -- must be exactly 64x64.
+    files."server-icon.png" = ../icons/hardcore.png;
   };
 
   # openFirewall above only opens serverProperties.server-port (25565) --
