@@ -10,7 +10,14 @@
 
     # The minecraft module itself does not expose anything above v1.21.9
     # nix-minecraft is essential to play the latest version here!
-    package = pkgs.paperServers.paper-26_1_2;
+    #
+    # Bumped from 26.1.2 -- several plugins (Axiom, HeadDB's newest, this
+    # server's plugin ecosystem generally) increasingly only target 26.2.
+    # Your Prism client stays pinned to 26.1.2 -- bridge the gap with
+    # ViaFabricPlus client-side (its actual intended purpose: connecting
+    # to a server on a different protocol version), not by updating the
+    # whole 100+ mod pack.
+    package = pkgs.paperServers.paper-26_2;
 
     # Enabled for non-local access from the same network
     openFirewall = true;
@@ -101,26 +108,24 @@
         hash = "sha256-cvPXZV13SGIFp2fJF5HfJwab/KJyhwLr/Zvpd30uzpM=";
       };
 
-      # BEST-EFFORT, no 26.1.2 build exists yet (only 26.2/1.21.11) --
-      # verify these actually load, check the server log for errors.
       "plugins/AxiomPaper.jar" = pkgs.fetchurl {
         url = "https://cdn.modrinth.com/data/evkiwA7V/versions/Ow8CJ6pP/AxiomPaper-5.0.4-for-MC26.2.jar";
         hash = "sha256-PWA0Lb03g0M37MTcQ5MexwCSzxuGsEt7l4jfGIR55CI=";
       };
       "plugins/HeadDB.jar" = pkgs.fetchurl {
+        # No 26.2 build exists yet either (still capped at 1.21.11) --
+        # best-effort, verify it still loads after the bump.
         url = "https://cdn.modrinth.com/data/cRS8VY4i/versions/KeAgbpca/HeadDB-6.0.1.jar";
         hash = "sha256-3EBA6y8RHPFd9fl0k6ycr1wIeYSIP4Oy7yJe9d9eFv8=";
       };
 
-      # From your Patreon-mirror link -- flagged as "Arceon-Plugin-
-      # 1.21.4.jar" (an OLD build, likely a stale mirror copy, not the
-      # current "Arceon x Axiom 0.16" from the actual post). Real risk
-      # it doesn't load at all on 26.1.2 -- check the log.
-      "plugins/Arceon.jar" = pkgs.fetchurl {
-        url = "https://dl2.cdn9mc.com/index.php?act=download&id=1756531916&hash=6a7797b74a86c";
-        hash = "sha256-a5SfVwBYWGm44tYYGZ57WqPWTfY8zKluQ9n7IFrXf2s=";
-      };
-
+      # REMOVED: Arceon -- your mirror link's file self-identified as
+      # sourced from black-minecraft.com (a plugin piracy mirror), and
+      # the jar refused to run with an internal "re-download from the
+      # official site" error. Not reinstalling this from that source;
+      # get me a legitimate link (your own Patreon download) if you
+      # still want it.
+      #
       # SKIPPED: ezEdits (Patreon/Discord-supporter gated, no public URL
       # -- you said skip), Schematic Brush Reborn 2 (SpigotMC direct
       # download is behind a Cloudflare bot-challenge, couldn't fetch it
