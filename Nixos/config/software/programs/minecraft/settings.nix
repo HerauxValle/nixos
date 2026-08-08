@@ -36,17 +36,29 @@ in
   # thing creating dataDir/<server>. This oneshot does the same job by
   # hand instead, scoped only to servers/ and below -- never touches the
   # mount point itself.
-  systemd.services."minecraft-servers-dirs" = {
-    description = "Create per-server directories under the Minecraft dataDir";
-    after = [ "home-herauxvalle-Images-Minecraft.mount" ];
-    requires = [ "home-herauxvalle-Images-Minecraft.mount" ];
-    before = map (n: "minecraft-server-${n}.service") enabledServers;
-    wantedBy = map (n: "minecraft-server-${n}.service") enabledServers;
-    serviceConfig.Type = "oneshot";
-    script = lib.concatMapStringsSep "\n" (n: ''
-      mkdir -p "${cfg.dataDir}/${n}"
-      chown ${cfg.user}:${cfg.group} "${cfg.dataDir}/${n}"
-      chmod 0770 "${cfg.dataDir}/${n}"
-    '') enabledServers;
-  };
+  systemd.services =
+    {
+      "minecraft-servers-dirs" = {
+        description = "Create per-server directories under the Minecraft dataDir";
+        after = [ "home-herauxvalle-Images-Minecraft.mount" ];
+        requires = [ "home-herauxvalle-Images-Minecraft.mount" ];
+        before = map (n: "minecraft-server-${n}.service") enabledServers;
+        wantedBy = map (n: "minecraft-server-${n}.service") enabledServers;
+        serviceConfig.Type = "oneshot";
+        script = lib.concatMapStringsSep "\n" (n: ''
+          mkdir -p "${cfg.dataDir}/${n}"
+          chown ${cfg.user}:${cfg.group} "${cfg.dataDir}/${n}"
+          chmod 0770 "${cfg.dataDir}/${n}"
+        '') enabledServers;
+      };
+    }
+    # nix-minecraft hardens every minecraft-server-<name>.service with
+    # ProtectHome = true, which makes all of /home invisible to the unit --
+    # unrelated to and stronger than any filesystem permission/ACL, and fatal
+    # here since dataDir lives under /home/herauxvalle. Relax it back to
+    # false for just these units (everything else in the module's hardening
+    # list stays intact).
+    // lib.genAttrs (map (n: "minecraft-server-${n}") enabledServers) (_: {
+      serviceConfig.ProtectHome = lib.mkForce false;
+    });
 }
