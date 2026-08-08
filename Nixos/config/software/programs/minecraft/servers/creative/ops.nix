@@ -3,5 +3,5 @@
 { ... }:
 
 {
-  vars.minecraft.ops.creative = [ ];
+  vars.minecraft.ops.creative = [ "HerauxValle" ];
 }

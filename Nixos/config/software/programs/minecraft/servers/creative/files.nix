@@ -40,11 +40,16 @@
     # mkGamemodePermCmds), aliasing doesn't bypass that. /world <name> is
     # /mvtp $1 -- <name> is whatever key you used under worlds.nix (e.g.
     # /world redstone, /world hub).
+    #
+    # --unsafe skips Multiverse's safe-location scan (hub's void floor and
+    # any custom flat world can otherwise fail with "location deemed
+    # unsafe!", confirmed 2026-08-09) -- --silent drops its own "Teleported
+    # you to X" chat message on top of that.
     files."commands.yml".value = {
       aliases = {
-        hub = [ "mvtp hub" ];
+        hub = [ "mvtp hub --unsafe --silent" ];
         creative = [ "gamemode creative" ];
-        world = [ "mvtp $$1" ]; # $$ instead of $ -- fails cleanly on /world with no argument
+        world = [ "mvtp $$1 --unsafe --silent" ]; # $$ instead of $ -- fails cleanly on /world with no argument
       };
     };
   };
