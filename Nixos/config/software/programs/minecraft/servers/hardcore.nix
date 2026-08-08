@@ -54,17 +54,17 @@
         url = "https://cdn.modrinth.com/data/swbUV1cr/versions/K5U1ASjn/bluemap-5.23-paper.jar";
         hash = "sha256-M5VU11ztqzVON2Z3z8cwjEmZUpFYSejimUcY5KFT1k4=";
       };
-      # F3+F4's gamemode switcher GUI checks vanilla OP status directly,
-      # bypassing Bukkit's permission system entirely -- this makes it
-      # respect the actual /gamemode permission instead (f3nperm.use),
-      # letting the same LuckPerms per-world grant that already covers
-      # the text command also cover the keybind. Last build only claims
-      # support through 1.21.5 (its underlying sendOpLevel API reportedly
-      # changed in 1.21.6) -- untested on 26.1.2, verify in-game.
-      "plugins/F3NPerm.jar" = pkgs.fetchurl {
-        url = "https://cdn.modrinth.com/data/mGZ550y3/versions/UcHVPYYQ/F3NPerm-3.6.1.jar";
-        hash = "sha256-KLv6jyu2XPRRK7eKMbhkAnqEifEc2Wvb6HjF9W9SA/I=";
-      };
+      # TRIED, DOESN'T WORK: F3NPerm (last build only claims support
+      # through 1.21.5, and its NMS reflection provider guesses wrong on
+      # 26.1.2 -- "Could not recognize server version", picks
+      # ReflectionProvider_1_21_3). F3+F4's gamemode switcher GUI checks
+      # vanilla OP status directly, bypassing Bukkit's permission system
+      # entirely, and no other plugin fills this gap -- documented "won't
+      # fix" in Paper's own issue tracker (#4986/#13489). No server-side
+      # fix exists on this version. Use the actual /gamemode command
+      # instead -- that IS correctly scoped per world via LuckPerms (see
+      # modules/services/minecraft-worlds/minecraft-worlds.nix's
+      # mkGamemodePermCmds).
       # Auto-links each world-group's own nether/end by naming convention
       # (world -> world_nether/world_end, creative -> creative_nether/
       # creative_the_end, etc.) -- no per-world config needed, since a
