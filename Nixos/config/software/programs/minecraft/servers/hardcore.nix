@@ -15,6 +15,14 @@
     # Enabled for non-local access from the same network
     openFirewall = true;
 
+    # Paper caps the number of plugin channels a client can register in
+    # one handshake -- with a 100+ mod Fabric client (many of which
+    # register their own Fabric API networking channels), that cap gets
+    # exceeded, and Paper kicks with "Invalid custom payload payload!"
+    # on join (confirmed: reproduced with zero server plugins too, so it
+    # wasn't Multiverse-Core/BlueMap). This flag removes the cap.
+    jvmOpts = "-Xmx2G -Xms1G -Dpaper.disableChannelLimit=true";
+
     serverProperties = {
       server-port = 25565;
       gamemode = "survival"; # fallback/default world gamemode
