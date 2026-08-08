@@ -1,8 +1,18 @@
 # &desc: "Hardcore Minecraft server -- survival, one life, port 25565. Disabled until the Minecraft vault exists (see autostart.nix)."
 
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 {
+  # Rebuilds must never touch the running server on their own -- a plugin
+  # jar edit changes this unit's derivation, and without this NixOS would
+  # stop (world save across 8 worlds, 30-60s+) then restart it on every
+  # single `pacnix rebuild`. Only explicit `systemctl start/stop
+  # minecraft-server-hardcore` should ever do that now.
+  systemd.services.minecraft-server-hardcore = {
+    restartIfChanged = lib.mkForce false;
+    stopIfChanged = lib.mkForce false;
+  };
+
   services.minecraft-servers.servers.hardcore = {
 
     # Toggled on as its active at this point in time
