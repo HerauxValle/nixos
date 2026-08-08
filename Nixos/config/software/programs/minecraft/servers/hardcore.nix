@@ -27,7 +27,15 @@
       server-port = 25565;
       gamemode = "survival"; # fallback/default world gamemode
       difficulty = "hard"; # fallback difficulty
-      hardcore = false; # DO NOT set true here — Multiverse sets it per-world instead
+      # Only affects the ONE vanilla-bootstrapped default world ("world")
+      # at first-ever boot -- Multiverse-created worlds (hub, creative)
+      # go through a different code path entirely and are never affected
+      # by this, regardless of its value. Multiverse-Core 5.x also has no
+      # "hardcore" world property of its own to set this per-world after
+      # the fact (checked: not in its 25-field world-properties list),
+      # so this global flag is genuinely the only way to get it onto
+      # "world" specifically.
+      hardcore = true;
       motd = "...";
       level-name = "world"; # your default/hub world
       online-mode = true; # keep true unless you have a specific reason not to
@@ -77,6 +85,12 @@
         enable-join-destination = true;
         join-destination = "hub";
       };
+      # "disable_console" (not "disable") -- players still get the usual
+      # /mv confirm prompt for their own destructive commands, only the
+      # extraStartPost script below (running over the server console, not
+      # as a player) skips it, needed for regenerate = true worlds' /mv
+      # delete to run unattended.
+      command.confirm-mode = "disable_console";
     };
 
     # /hub as a manual way back, on top of the automatic every-join spawn
@@ -104,6 +118,18 @@
       server = "hardcore";
       nether = true;
       end = true;
+      # gamemode left null -- Multiverse's own default (survival), and
+      # enforce-gamemode/enforce-flight (both true by default) mean
+      # there's simply no creative/flight access here at all.
+      #
+      # hardcore = true here is the REAL enforcement (Skript ban-on-death,
+      # see world-type.nix) -- serverProperties.hardcore = true above is
+      # belt-and-suspenders on top of it (locks difficulty to hard,
+      # vanilla's own spectator-lock-on-death for whichever world happens
+      # to be the server's bootstrap default), not load-bearing by
+      # itself. Unlike that server-wide flag, this one works on any
+      # number of worlds, not just the one bootstrap default.
+      hardcore = true;
     };
 
     creative = {
@@ -112,12 +138,14 @@
       generatorSettings = ''{"layers":[{"block":"minecraft:white_stained_glass","height":1}],"biome":"minecraft:plains"}'';
       nether = true;
       end = true;
+      gamemode = "creative";
     };
 
     hub = {
       server = "hardcore";
       worldType = "flat";
       generatorSettings = ''{"layers":[],"biome":"the_void"}'';
+      gamemode = "creative"; # so you can fly instead of falling into the void
       # No nether/end -- overworld-only lobby, per the original design.
     };
   };

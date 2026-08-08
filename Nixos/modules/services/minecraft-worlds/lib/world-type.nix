@@ -56,5 +56,64 @@ lib.types.submodule {
         convention as `nether` above.
       '';
     };
+
+    seed = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = ''
+        Applies to this group's overworld only -- passed to /mv create's
+        --seed flag. null omits the flag (random seed).
+      '';
+    };
+
+    gamemode = lib.mkOption {
+      type = lib.types.nullOr (
+        lib.types.enum [
+          "survival"
+          "creative"
+          "adventure"
+          "spectator"
+        ]
+      );
+      default = null;
+      description = ''
+        Applies to every dimension in this group (overworld + nether/end
+        if enabled) via /mv modify set gamemode -- combined with
+        Multiverse-Core's config.yml enforce-gamemode/enforce-flight
+        (both true by default), this is what actually grants/denies
+        creative-mode access per world, no separate permissions plugin
+        needed. null leaves Multiverse's own default (survival) alone.
+      '';
+    };
+
+    regenerate = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        false (default) -- normal idempotent behavior, only created once,
+        left alone forever after (guarded by checking the world's folder
+        on disk). true -- unconditionally deletes and recreates every
+        dimension in this group on EVERY server start, forever, until
+        set back to false. Only meant for disposable/testing worlds --
+        never leave this true on a world you actually want to keep
+        progress in.
+      '';
+    };
+
+    hardcore = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Simulated permadeath for every dimension in this group -- NOT
+        vanilla's real hardcore world flag (Multiverse-created worlds
+        can't have that; it only ever applies to the one
+        vanilla-bootstrapped default world per server, see
+        serverProperties.hardcore in the server's own config). true
+        installs Skript (if not already present from another entry) and
+        generates a small script that bans the player on death in any
+        dimension across every hardcore = true group -- same practical
+        consequence, but works for any number of worlds, not just one.
+      '';
+    };
   };
 }

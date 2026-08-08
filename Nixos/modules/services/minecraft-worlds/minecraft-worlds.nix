@@ -1,4 +1,4 @@
-# &desc: "Minecraft world creation logic -- groups config.vars.minecraft.worlds entries by server, generates each server's extraStartPost script (overworld plus its own nether/end)."
+# &desc: "Minecraft world creation logic -- groups config.vars.minecraft.worlds entries by server, generates each server's extraStartPost script plus a Skript-based permadeath script for any hardcore = true dimensions."
 
 { config, lib, pkgs, ... }:
 
@@ -13,21 +13,55 @@ let
     name: w:
     "mv create ${name} normal"
     + lib.optionalString (w.worldType != null) " --world-type ${w.worldType}"
-    + lib.optionalString (w.generatorSettings != null) " --generator-settings ${w.generatorSettings}";
+    + lib.optionalString (w.generatorSettings != null) " --generator-settings ${w.generatorSettings}"
+    + lib.optionalString (w.seed != null) " --seed ${w.seed}";
 
-  # One { name; cmd; } per dimension this group actually wants -- the
-  # overworld always, nether/end only if that group's flag is set.
+  # One { dimName; createCmd; regenerate; gamemode; hardcore; } per
+  # dimension this group actually wants -- the overworld always,
+  # nether/end only if that group's flag is set. regenerate/gamemode/
+  # hardcore are the same for every dimension in a group (whole-group
+  # settings, not per-dimension).
   mkGroupCmds =
     name: w:
-    [ { inherit name; cmd = mkOverworldCmd name w; } ]
-    ++ lib.optional w.nether {
-      name = "${name}_nether";
-      cmd = "mv create ${name}_nether nether";
-    }
-    ++ lib.optional w.end {
-      name = "${name}_the_end";
-      cmd = "mv create ${name}_the_end the_end";
-    };
+    let
+      dims =
+        [
+          {
+            dimName = name;
+            createCmd = mkOverworldCmd name w;
+          }
+        ]
+        ++ lib.optional w.nether {
+          dimName = "${name}_nether";
+          createCmd = "mv create ${name}_nether nether";
+        }
+        ++ lib.optional w.end {
+          dimName = "${name}_the_end";
+          createCmd = "mv create ${name}_the_end the_end";
+        };
+    in
+    map (d: d // { inherit (w) regenerate gamemode hardcore; }) dims;
+
+  mkDimScript =
+    d:
+    (
+      if d.regenerate then
+        ''
+          send "mv delete ${d.dimName}"
+          sleep 3
+          send ${lib.escapeShellArg d.createCmd}
+          sleep 3
+        ''
+      else
+        ''
+          [ -d ${lib.escapeShellArg d.dimName} ] || send ${lib.escapeShellArg d.createCmd}
+          sleep 3
+        ''
+    )
+    + lib.optionalString (d.gamemode != null) ''
+      send ${lib.escapeShellArg "mv modify set gamemode ${d.gamemode} ${d.dimName}"}
+      sleep 1
+    '';
 
   # A fixed sleep instead of polling the log for "Done (" -- tried that
   # first, but latest.log's rotation timing (old file -> dated .log.gz,
@@ -42,23 +76,57 @@ let
   # a world that's already there), so a generous flat sleep is simpler
   # and just as correct.
   mkServerScript =
-    serverName: serverWorlds:
+    serverName: dims:
     ''
       SOCK="/run/minecraft/${serverName}.sock"
       send() { ${pkgs.tmux}/bin/tmux -S "$SOCK" send-keys "$1" Enter; }
       sleep 20
     ''
-    + lib.concatMapStringsSep "\n" (
-      d: ''
-        [ -d ${lib.escapeShellArg d.name} ] || send ${lib.escapeShellArg d.cmd}
-        sleep 3
-      ''
-    ) (lib.concatMap (e: mkGroupCmds e.name e.value) serverWorlds);
+    + lib.concatMapStringsSep "\n" mkDimScript dims;
+
+  # Skript, not vanilla's real hardcore flag -- Multiverse-created worlds
+  # can't have that (see world-type.nix's own comment on `hardcore` for
+  # why). Bans the player on death in any dimension across every
+  # hardcore = true group, for however many such worlds exist.
+  mkHardcoreScript =
+    hardcoreDimNames:
+    let
+      condition = lib.concatMapStringsSep " or " (n: ''world of player is "${n}"'') hardcoreDimNames;
+    in
+    ''
+      on death of player:
+      	if ${condition}:
+      		kick player due to "&c&lPERMADEATH&r&c - you died in a hardcore world"
+      		ban player due to "Hardcore permadeath"
+    '';
+
+  dimsByServer = lib.mapAttrs (
+    _: serverWorlds: lib.concatMap (e: mkGroupCmds e.name e.value) serverWorlds
+  ) byServer;
+
+  hardcoreDimsByServer = lib.mapAttrs (
+    _: dims: map (d: d.dimName) (lib.filter (d: d.hardcore) dims)
+  ) dimsByServer;
 in
 {
   config = lib.mkIf (worlds != { }) {
-    services.minecraft-servers.servers = lib.mapAttrs (serverName: serverWorlds: {
-      extraStartPost = mkServerScript serverName serverWorlds;
-    }) byServer;
+    services.minecraft-servers.servers = lib.mapAttrs (
+      serverName: dims:
+      let
+        hardcoreDims = hardcoreDimsByServer.${serverName};
+      in
+      {
+        extraStartPost = mkServerScript serverName dims;
+      }
+      // lib.optionalAttrs (hardcoreDims != [ ]) {
+        symlinks."plugins/Skript.jar" = pkgs.fetchurl {
+          url = "https://cdn.modrinth.com/data/xFNYAvMk/versions/9s2QlgIA/Skript-2.16.1.jar";
+          hash = "sha256-g1ejSLJ82KLPdJmY5K0UvR3KMWACa9MELW0Xz7TJinA=";
+        };
+        files."plugins/Skript/scripts/hardcore-permadeath.sk" = pkgs.writeText "hardcore-permadeath.sk" (
+          mkHardcoreScript hardcoreDims
+        );
+      }
+    ) dimsByServer;
   };
 }
