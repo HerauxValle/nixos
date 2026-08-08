@@ -71,6 +71,19 @@
       url = "https://cdn.modrinth.com/data/evkiwA7V/versions/Ow8CJ6pP/AxiomPaper-5.0.4-for-MC26.2.jar";
       hash = "sha256-PWA0Lb03g0M37MTcQ5MexwCSzxuGsEt7l4jfGIR55CI=";
     };
+
+    "plugins/CoreProtect.jar" = pkgs.fetchurl {
+      # No 26.2 build yet (latest targets 26.1.x) -- simple block-logging
+      # plugin, no Paper API surface risky enough to expect a hard block.
+      # Verify it actually enables after a rebuild.
+      url = "https://cdn.modrinth.com/data/Lu3KuzdV/versions/Kma0kBsY/CoreProtect-CE-24.0.jar";
+      hash = "sha256-Zs02IIm7hDDloBjud+m0M78NyeZVkNXxoEOnjWBBVpY=";
+    };
+    "plugins/Chunky.jar" = pkgs.fetchurl {
+      # Same story -- no 26.2 build yet, latest targets 26.1.x.
+      url = "https://cdn.modrinth.com/data/fALzjamp/versions/MdY6JATr/Chunky-Bukkit-1.5.3.jar";
+      hash = "sha256-Uw0sdDCpajmVc5G3CIvhRNqjEI92ZYltHCOqjdSvMvM=";
+    };
     "plugins/HeadDB.jar" = pkgs.fetchurl {
       # No 26.2 build exists yet either (still capped at 1.21.11) --
       # best-effort, verify it still loads after the bump.
