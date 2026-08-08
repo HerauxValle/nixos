@@ -1,6 +1,6 @@
 # &desc: "Minecraft settings -- eula acceptance, dataDir inside the Minecraft Casket vault's servers/ subdir."
 
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   cfg = config.services.minecraft-servers;
@@ -21,14 +21,6 @@ in
     dataDir = "/home/herauxvalle/Images/Minecraft/servers";
   };
 
-  # ~herauxvalle is 0700, so the minecraft system user can't traverse into
-  # it to reach dataDir above, even though everything below is already
-  # world-readable/minecraft-owned. Grant traverse-only (no read) via ACL
-  # instead of loosening the home dir's mode bit for everyone.
-  systemd.tmpfiles.rules = [
-    "a+ /home/herauxvalle - - - - u:minecraft:X,m::x"
-  ];
-
   # dataDir's parent (the vault mount point) is deliberately root-owned,
   # which makes it a root-owned dir nested under herauxvalle-owned Images/
   # -- systemd-tmpfiles refuses to manage ("unsafe path transition") any
@@ -36,6 +28,15 @@ in
   # thing creating dataDir/<server>. This oneshot does the same job by
   # hand instead, scoped only to servers/ and below -- never touches the
   # mount point itself.
+  #
+  # It also (re-)sets the ACL on ~herauxvalle itself (0700, so the
+  # minecraft user otherwise can't even traverse into it to reach dataDir)
+  # every time this runs, rather than via a one-off systemd.tmpfiles rule:
+  # NixOS's own tmpfiles rules reset ~herauxvalle back to 0700 on every
+  # boot, and that chmod silently zeroes the ACL's mask entry (even though
+  # the named-user entry itself survives), so a static tmpfiles-time ACL
+  # doesn't stay effective. Reapplying it last, right before the server
+  # starts, sidesteps the ordering problem entirely.
   systemd.services =
     {
       "minecraft-servers-dirs" = {
@@ -45,7 +46,11 @@ in
         before = map (n: "minecraft-server-${n}.service") enabledServers;
         wantedBy = map (n: "minecraft-server-${n}.service") enabledServers;
         serviceConfig.Type = "oneshot";
-        script = lib.concatMapStringsSep "\n" (n: ''
+        path = [ pkgs.acl ];
+        script = ''
+          setfacl -m u:${cfg.user}:x,m::x /home/herauxvalle
+        ''
+        + lib.concatMapStringsSep "\n" (n: ''
           mkdir -p "${cfg.dataDir}/${n}"
           chown ${cfg.user}:${cfg.group} "${cfg.dataDir}/${n}"
           chmod 0770 "${cfg.dataDir}/${n}"
