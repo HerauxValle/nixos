@@ -119,7 +119,7 @@
         creative = [ "gamemode creative" ];
         spectator = [ "gamemode spectator" ];
         adventure = [ "gamemode adventure" ];
-        world = [ "mvtp $1" ];
+        world = [ "mvtp $$1" ]; # $$ instead of $ -- fails cleanly on /world with no argument
       };
     };
 
