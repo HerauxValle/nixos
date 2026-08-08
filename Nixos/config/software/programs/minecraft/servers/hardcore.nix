@@ -63,9 +63,19 @@
   # 80/443 (see modules/system/port-forwarding/lib/router/), which
   # doesn't apply to Minecraft's raw TCP protocol. The MC client still
   # needs the port typed explicitly: hardcore.local:25565.
+  #
+  # net.ipv6 = false is required, not optional: the default IPv6 bridge
+  # (lib/ipv6-bridge/) defaults to tls.mode = "http/s", an HTTP-aware
+  # relay that parses request lines/TLS-sniffs the stream -- it silently
+  # corrupted Minecraft's raw binary handshake ("Invalid custom payload
+  # payload!" on connect) whenever a client happened to reach it over
+  # IPv6. Disabling the bridge leaves ipv4 as a plain firewall ACCEPT
+  # with no protocol inspection at all, which is what a raw TCP service
+  # like this actually needs.
   vars.system.ports.entries.hardcore = {
     port = 25565;
     service = "minecraft-server-hardcore.service";
     mode.local.name = "hardcore";
+    net.ipv6 = false;
   };
 }
