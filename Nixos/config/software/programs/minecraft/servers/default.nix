@@ -1,10 +1,10 @@
-# &desc: "Minecraft server imports -- hardcore + creative testworld."
+# &desc: "Minecraft server imports -- creative building server + creative testworld."
 
 { ... }:
 
 {
   imports = [
-    ./hardcore.nix
+    ./creative
     ./testworld.nix
   ];
 }

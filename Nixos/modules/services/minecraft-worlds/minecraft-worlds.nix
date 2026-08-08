@@ -1,4 +1,4 @@
-# &desc: "Minecraft world creation logic -- groups config.vars.minecraft.worlds entries by server, generates each server's extraStartPost script plus a Skript-based permadeath script for hardcore = true dimensions and LuckPerms gamemode-switch grants for gamemode = \"creative\" dimensions."
+# &desc: "Minecraft world creation logic -- groups config.vars.minecraft.worlds entries by server, generates each server's extraStartPre (trash dimensions dropped from the declaration) and extraStartPost (world creation, gamemode/perm grants) scripts plus a Skript-based permadeath script for hardcore = true dimensions."
 
 { config, lib, pkgs, ... }:
 
@@ -150,6 +150,38 @@ let
     name: lib.concatMap (e: mkGroupCmds e.name e.value) (byServer.${name} or [ ])
   );
 
+  # Dimensions we created (per manifest of a previous run) that are no
+  # longer declared get moved aside instead of deleted -- runs in
+  # extraStartPre, before Multiverse/Paper touch the world folders.
+  # Foreign/unmanaged directories (e.g. vanilla's own bootstrap
+  # level-name world, if that name is never declared here) are never
+  # in the manifest, so they're never touched by this.
+  mkTrashScript =
+    dimNames:
+    let
+      declared = lib.concatStringsSep " " dimNames;
+      # Known at eval time -- write it verbatim, no runtime jq needed for
+      # the write side (only the read side, comparing a previous run's
+      # manifest, needs jq).
+      manifestJson = builtins.toJSON dimNames;
+    in
+    ''
+      MANIFEST=".managed-worlds.json"
+      DECLARED=${lib.escapeShellArg declared}
+      mkdir -p trash
+      if [ -f "$MANIFEST" ]; then
+        for prev in $(${pkgs.jq}/bin/jq -r '.[]' "$MANIFEST"); do
+          case " $DECLARED " in
+            *" $prev "*) ;;
+            *) [ -d "$prev" ] && mv "$prev" "trash/$(date +%s)-$prev" ;;
+          esac
+        done
+      fi
+      cat > "$MANIFEST" <<'MANIFEST_EOF'
+      ${manifestJson}
+      MANIFEST_EOF
+    '';
+
   hardcoreDimsByServer = lib.mapAttrs (
     _: dims: map (d: d.dimName) (lib.filter (d: d.hardcore) dims)
   ) dimsByServer;
@@ -188,6 +220,7 @@ in
         };
       in
       {
+        extraStartPre = mkTrashScript (map (d: d.dimName) dims);
         extraStartPost =
           mkServerScript serverName dims
           + lib.concatMapStringsSep "\n" mkGamemodePermCmds creativeDims
