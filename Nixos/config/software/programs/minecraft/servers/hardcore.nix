@@ -21,7 +21,7 @@
     # exceeded, and Paper kicks with "Invalid custom payload payload!"
     # on join (confirmed: reproduced with zero server plugins too, so it
     # wasn't Multiverse-Core/BlueMap). This flag removes the cap.
-    jvmOpts = "-Xmx2G -Xms1G -Dpaper.disableChannelLimit=true";
+    jvmOpts = "-Xmx8G -Xms1G -Dpaper.disableChannelLimit=true";
 
     serverProperties = {
       server-port = 25565;
