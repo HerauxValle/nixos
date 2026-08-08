@@ -47,4 +47,9 @@
       };
     };
   };
+
+  # openFirewall above only opens serverProperties.server-port (25565) --
+  # BlueMap's own web server (core.conf webserver.port, default 8100) needs
+  # a separate opening to be reachable from other devices on the LAN.
+  networking.firewall.allowedTCPPorts = [ 8100 ];
 }
