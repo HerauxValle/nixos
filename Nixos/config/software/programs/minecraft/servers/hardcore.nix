@@ -57,4 +57,15 @@
     service = "minecraft-server-hardcore.service";
     mode.local.name = "bluemap";
   };
+
+  # mDNS name only -- the module's resolveUrl port-stripping (bare
+  # http://name.local with no port) is an HTTP-only reverse proxy on
+  # 80/443 (see modules/system/port-forwarding/lib/router/), which
+  # doesn't apply to Minecraft's raw TCP protocol. The MC client still
+  # needs the port typed explicitly: hardcore.local:25565.
+  vars.system.ports.entries.hardcore = {
+    port = 25565;
+    service = "minecraft-server-hardcore.service";
+    mode.local.name = "hardcore";
+  };
 }
