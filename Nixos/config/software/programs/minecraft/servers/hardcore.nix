@@ -46,6 +46,15 @@
         url = "https://cdn.modrinth.com/data/swbUV1cr/versions/K5U1ASjn/bluemap-5.23-paper.jar";
         hash = "sha256-M5VU11ztqzVON2Z3z8cwjEmZUpFYSejimUcY5KFT1k4=";
       };
+      # Auto-links each world-group's own nether/end by naming convention
+      # (world -> world_nether/world_end, creative -> creative_nether/
+      # creative_the_end, etc.) -- no per-world config needed, since a
+      # player-built portal in "creative" should never send them to
+      # hardcore's nether, and vice versa.
+      "plugins/Multiverse-NetherPortals.jar" = pkgs.fetchurl {
+        url = "https://cdn.modrinth.com/data/vtawPsTo/versions/RRa80eDI/multiverse-netherportals-5.1.0.jar";
+        hash = "sha256-pLN1CXC1txCqlCuq/weo/O9WgCzyhrnc2n5p3ZBEksw=";
+      };
     };
 
     files."plugins/BlueMap/core.conf" = {
