@@ -87,16 +87,13 @@
       # 26.1.2, bridged via ViaFabricPlus client-side.
 
       "plugins/FastAsyncWorldEdit.jar" = pkgs.fetchurl {
-        # 2.15.2, not the latest 2.15.3 -- 2.15.3 has a genuine bug
-        # (confirmed on both 26.1.2 and 26.2, so not a version-compat
-        # issue): throws ArrayIndexOutOfBoundsException/
-        # NoSuchElementException in WorldEditPlugin.setupWorldData during
-        # WorldInitEvent, which also cascade-breaks FastAsyncVoxelSniper
-        # (depends on FAWE's BlockTypes registry) and likely WorldGuard's
-        # actual functionality too (loads without erroring, but silently
-        # depends on the same broken registry).
-        url = "https://cdn.modrinth.com/data/z4HZZnLr/versions/gHUCKiVD/FastAsyncWorldEdit-Bukkit-2.15.2.jar";
-        hash = "sha256-Hn5PruKbtI9J4mATv3HKyjcfVcTW062vYRj0ZeB/3d8=";
+        # 2.15.1 -- both 2.15.2 and 2.15.3 (latest) hit the exact same
+        # ArrayIndexOutOfBoundsException/NoSuchElementException in
+        # WorldEditPlugin.setupWorldData during WorldInitEvent, on both
+        # 26.1.2 and 26.2 (so not a version-compat issue, a genuine
+        # regression). Trying the earliest 26.x-claiming build instead.
+        url = "https://cdn.modrinth.com/data/z4HZZnLr/versions/Dx0x0kQW/FastAsyncWorldEdit-Bukkit-2.15.1.jar";
+        hash = "sha256-PXZSI0nORW/W2sd9VGCns/yLbsf1IG+qPWy86Y6cgMM=";
       };
       "plugins/WorldGuard.jar" = pkgs.fetchurl {
         # Depends on a WorldEdit-API-compatible plugin -- FAWE above satisfies that.
