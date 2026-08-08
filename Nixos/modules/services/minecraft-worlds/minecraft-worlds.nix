@@ -119,6 +119,19 @@ let
       sleep 1
     '';
 
+  # /hub and /world <name> (see hardcore.nix's commands.yml) are both
+  # aliases for Multiverse-Core's own self-teleport command (/mvtp) --
+  # config.yml's use-finer-teleport-permissions = true (Multiverse's own
+  # default) means that needs a specific permission node per destination
+  # type, not the older blanket "can teleport at all" node. Granted
+  # server-wide (no per-world context, unlike the gamemode grants above)
+  # since world-travel is meant to work from anywhere, not just certain
+  # worlds.
+  mkTeleportPermCmd = ''
+    send "lp group default permission set multiverse.teleport.self.w.* true"
+    sleep 1
+  '';
+
   dimsByServer = lib.mapAttrs (
     _: serverWorlds: lib.concatMap (e: mkGroupCmds e.name e.value) serverWorlds
   ) byServer;
@@ -163,7 +176,8 @@ in
       {
         extraStartPost =
           mkServerScript serverName dims
-          + lib.concatMapStringsSep "\n" mkGamemodePermCmds creativeDims;
+          + lib.concatMapStringsSep "\n" mkGamemodePermCmds creativeDims
+          + lib.optionalString (creativeDims != [ ]) mkTeleportPermCmd;
       }
       // lib.optionalAttrs (extraSymlinks != { }) { symlinks = extraSymlinks; }
       // lib.optionalAttrs (extraFiles != { }) { files = extraFiles; }
