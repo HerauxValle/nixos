@@ -86,6 +86,36 @@
         hub = [ "mvtp hub" ];
       };
     };
+
+    # Declarative world creation -- guarded by checking each world's
+    # folder on disk, so this is a no-op after the first successful run
+    # (world data itself persists in dataDir like any other save, this
+    # is only what recreates it if the vault were ever wiped). Runs
+    # inside the same service unit as the server itself (WorkingDirectory
+    # = dataDir/hardcore already, ProtectHome/PrivateUsers already
+    # relaxed below), sent over the same tmux console socket used for
+    # `/mv` commands live during initial setup. Waits for "Done (" in the
+    # log first -- ExecStartPost fires once the tmux-wrapped start script
+    # *returns* (near-instant, Type=forking), well before the actual
+    # Paper/Multiverse boot inside that session finishes.
+    extraStartPost = ''
+      SOCK="/run/minecraft/hardcore.sock"
+      LOG="logs/latest.log"
+      send() { ${pkgs.tmux}/bin/tmux -S "$SOCK" send-keys "$1" Enter; }
+
+      for _ in $(seq 1 120); do
+        grep -q "Done (" "$LOG" 2>/dev/null && break
+        sleep 1
+      done
+
+      [ -d creative ] || send 'mv create creative normal -t flat --generator-settings {"layers":[{"block":"minecraft:white_stained_glass","height":1}],"biome":"minecraft:plains"}'
+      sleep 3
+      [ -d creative_nether ] || send "mv create creative_nether nether"
+      sleep 3
+      [ -d creative_the_end ] || send "mv create creative_the_end the_end"
+      sleep 3
+      [ -d hub ] || send 'mv create hub normal -t flat --generator-settings {"layers":[],"biome":"the_void"}'
+    '';
   };
 
   # openFirewall above only opens serverProperties.server-port (25565) --
