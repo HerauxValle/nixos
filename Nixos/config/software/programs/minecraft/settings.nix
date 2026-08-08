@@ -21,6 +21,6 @@
   # world-readable/minecraft-owned. Grant traverse-only (no read) via ACL
   # instead of loosening the home dir's mode bit for everyone.
   systemd.tmpfiles.rules = [
-    "a+ /home/herauxvalle - - - - u:minecraft:X"
+    "a+ /home/herauxvalle - - - - u:minecraft:X,m::x"
   ];
 }
