@@ -94,7 +94,11 @@ let
     ''
       SOCK="/run/minecraft/${serverName}.sock"
       send() { ${pkgs.tmux}/bin/tmux -S "$SOCK" send-keys "$1" Enter; }
-      sleep 20
+      # Paper boots in ~20-22s in practice -- 20s left ~0 margin and the
+      # very first /mv create command raced Multiverse's command-context
+      # setup (CommandSourceStack.getLevel() NPE, confirmed in the wild
+      # 2026-08-08 on a fresh multi-world boot). 40s gives real headroom.
+      sleep 40
     ''
     + lib.concatMapStringsSep "\n" mkDimScript dims;
 
