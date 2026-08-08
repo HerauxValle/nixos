@@ -59,7 +59,7 @@ let
         ''
     )
     + lib.optionalString (d.gamemode != null) ''
-      send ${lib.escapeShellArg "mv modify set gamemode ${d.gamemode} ${d.dimName}"}
+      send ${lib.escapeShellArg "mv modify ${d.dimName} set gamemode ${d.gamemode}"}
       sleep 1
     '';
 
