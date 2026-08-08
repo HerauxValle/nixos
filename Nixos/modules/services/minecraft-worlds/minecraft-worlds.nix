@@ -133,26 +133,34 @@ in
         hardcoreDims = hardcoreDimsByServer.${serverName};
         creativeDims = creativeDimsByServer.${serverName};
       in
+      let
+        extraSymlinks =
+          lib.optionalAttrs (hardcoreDims != [ ]) {
+            "plugins/Skript.jar" = pkgs.fetchurl {
+              url = "https://cdn.modrinth.com/data/xFNYAvMk/versions/9s2QlgIA/Skript-2.16.1.jar";
+              hash = "sha256-g1ejSLJ82KLPdJmY5K0UvR3KMWACa9MELW0Xz7TJinA=";
+            };
+          }
+          // lib.optionalAttrs (creativeDims != [ ]) {
+            "plugins/LuckPerms.jar" = pkgs.fetchurl {
+              url = "https://cdn.modrinth.com/data/Vebnzrzj/versions/b0mk8uS6/LuckPerms-Bukkit-5.5.71.jar";
+              hash = "sha256-Sc7LZvof0ioTMDmkkOnB5QlaI4581m650qFv5siXVQ0=";
+            };
+          };
+
+        extraFiles = lib.optionalAttrs (hardcoreDims != [ ]) {
+          "plugins/Skript/scripts/hardcore-permadeath.sk" = pkgs.writeText "hardcore-permadeath.sk" (
+            mkHardcoreScript hardcoreDims
+          );
+        };
+      in
       {
         extraStartPost =
           mkServerScript serverName dims
           + lib.concatMapStringsSep "\n" mkGamemodePermCmds creativeDims;
       }
-      // lib.optionalAttrs (hardcoreDims != [ ]) {
-        symlinks."plugins/Skript.jar" = pkgs.fetchurl {
-          url = "https://cdn.modrinth.com/data/xFNYAvMk/versions/9s2QlgIA/Skript-2.16.1.jar";
-          hash = "sha256-g1ejSLJ82KLPdJmY5K0UvR3KMWACa9MELW0Xz7TJinA=";
-        };
-        files."plugins/Skript/scripts/hardcore-permadeath.sk" = pkgs.writeText "hardcore-permadeath.sk" (
-          mkHardcoreScript hardcoreDims
-        );
-      }
-      // lib.optionalAttrs (creativeDims != [ ]) {
-        symlinks."plugins/LuckPerms.jar" = pkgs.fetchurl {
-          url = "https://cdn.modrinth.com/data/Vebnzrzj/versions/b0mk8uS6/LuckPerms-Bukkit-5.5.71.jar";
-          hash = "sha256-Sc7LZvof0ioTMDmkkOnB5QlaI4581m650qFv5siXVQ0=";
-        };
-      }
+      // lib.optionalAttrs (extraSymlinks != { }) { symlinks = extraSymlinks; }
+      // lib.optionalAttrs (extraFiles != { }) { files = extraFiles; }
     ) dimsByServer;
   };
 }
