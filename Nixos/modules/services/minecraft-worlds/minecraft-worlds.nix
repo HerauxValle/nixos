@@ -235,10 +235,22 @@ in
             );
           }
           // lib.optionalAttrs (defaultSpawnWorld != null) {
+            # first-spawn-override (not join-destination) -- only a
+            # player's very first-ever join lands here, not every join.
+            # safe-location search radius set to 0 to bypass Multiverse's
+            # safe-location veto entirely, since a void/flat world (no
+            # solid ground under the exact spawn point) otherwise fails
+            # with "UNSAFE_LOCATION" and silently falls back to whatever
+            # location the player last logged out from -- confirmed in
+            # the wild 2026-08-09 with hub's void floor.
             "plugins/Multiverse-Core/config.yml".value = {
               spawn = {
-                enable-join-destination = true;
-                join-destination = defaultSpawnWorld;
+                first-spawn-override = true;
+                first-spawn-location = defaultSpawnWorld;
+              };
+              teleport = {
+                safe-location-horizontal-search-radius = 0;
+                safe-location-vertical-search-radius = 0;
               };
             };
           };
