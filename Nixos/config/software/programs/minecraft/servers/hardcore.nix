@@ -29,23 +29,27 @@
       simulation-distance = 12;
     };
 
-    symlinks = {
-      "plugins/Multiverse-Core.jar" = pkgs.fetchurl {
-        url = "https://github.com/Multiverse/Multiverse-Core/releases/download/5.7.3/multiverse-core-5.7.3.jar";
-        hash = "sha256-yRp8LCWtfYeCV7CMmAOB6LX/uo32P69AIkK/tWoFiIQ=";
-      };
-      "plugins/BlueMap.jar" = pkgs.fetchurl {
-        url = "https://cdn.modrinth.com/data/swbUV1cr/versions/K5U1ASjn/bluemap-5.23-paper.jar";
-        hash = "sha256-M5VU11ztqzVON2Z3z8cwjEmZUpFYSejimUcY5KFT1k4=";
-      };
-    };
-
-    files."plugins/BlueMap/core.conf" = {
-      format = pkgs.formats.json { };
-      value = {
-        accept-download = true;
-      };
-    };
+    # TEMP: both plugins commented out to isolate "Invalid custom payload
+    # payload!" on join -- suspect one of them is corrupting the vanilla
+    # minecraft:register plugin-channel handshake on this very new MC
+    # version. Re-enable once confirmed innocent/guilty.
+    # symlinks = {
+    #   "plugins/Multiverse-Core.jar" = pkgs.fetchurl {
+    #     url = "https://github.com/Multiverse/Multiverse-Core/releases/download/5.7.3/multiverse-core-5.7.3.jar";
+    #     hash = "sha256-yRp8LCWtfYeCV7CMmAOB6LX/uo32P69AIkK/tWoFiIQ=";
+    #   };
+    #   "plugins/BlueMap.jar" = pkgs.fetchurl {
+    #     url = "https://cdn.modrinth.com/data/swbUV1cr/versions/K5U1ASjn/bluemap-5.23-paper.jar";
+    #     hash = "sha256-M5VU11ztqzVON2Z3z8cwjEmZUpFYSejimUcY5KFT1k4=";
+    #   };
+    # };
+    #
+    # files."plugins/BlueMap/core.conf" = {
+    #   format = pkgs.formats.json { };
+    #   value = {
+    #     accept-download = true;
+    #   };
+    # };
   };
 
   # openFirewall above only opens serverProperties.server-port (25565) --
