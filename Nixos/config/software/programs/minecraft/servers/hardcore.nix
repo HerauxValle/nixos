@@ -103,8 +103,14 @@
       LOG="logs/latest.log"
       send() { ${pkgs.tmux}/bin/tmux -S "$SOCK" send-keys "$1" Enter; }
 
+      # tail from the line count *at script start*, not the whole file --
+      # otherwise a stale "Done (" from the previous boot (still sitting
+      # in latest.log if this script's poll starts before log4j's rotation
+      # actually lands) passes the check instantly, sending commands
+      # before Multiverse-Core has even finished loading this time around.
+      START_LINE=$(wc -l < "$LOG" 2>/dev/null || echo 0)
       for _ in $(seq 1 120); do
-        grep -q "Done (" "$LOG" 2>/dev/null && break
+        tail -n "+$((START_LINE + 1))" "$LOG" 2>/dev/null | grep -q "Done (" && break
         sleep 1
       done
 
