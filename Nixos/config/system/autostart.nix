@@ -1,4 +1,4 @@
-# &desc: "Boot-time systemd jobs from old smg manifest -- 7 Casket vault unlocks with PIN, clean LUKS close on shutdown via execStop."
+# &desc: "Boot-time systemd jobs from old smg manifest -- 6 Casket vault unlocks with PIN, clean LUKS close on shutdown via execStop."
 
 { ... }:
 
@@ -70,17 +70,6 @@
         '';
       };
 
-      modrinth = {
-        execStart.cmd = ''
-          cd /home/herauxvalle/Images || exit 1
-          printf %s "314159265" | cas Modrinth open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Modrinth.key --no-log
-        '';
-        execStop.cmd = ''
-          cd /home/herauxvalle/Images || exit 1
-          cas Modrinth close --no-log
-        '';
-      };
-
       tor = {
         execStart.cmd = ''
           cd /home/herauxvalle/Images || exit 1
@@ -103,13 +92,12 @@
         '';
       };
 
-      # New vault, not yet created -- `cas Minecraft create` + `cas
-      # Minecraft 2fa on` (writing the keyfile to the same
-      # VirtualKeys/vaults/ path every other vault's keyfile lives at)
-      # both still need to be run by hand before this job can actually
-      # unlock anything. Holds services.minecraft-servers.dataDir
-      # (servers/) plus, later, Prism Launcher config (prism/) -- see
-      # config/software/programs/minecraft/.
+      # Holds services.minecraft-servers.dataDir (servers/), Prism
+      # Launcher's portable data dir (modrinth/, prism/ -- see
+      # config/software/programs/minecraft/), and the old,
+      # no-longer-maintained Modrinth vault's migrated content
+      # (modrinth/, folded in here since it never got its own autostart
+      # job worth keeping once that vault was deleted).
       minecraft = {
         execStart.cmd = ''
           cd /home/herauxvalle/Images || exit 1

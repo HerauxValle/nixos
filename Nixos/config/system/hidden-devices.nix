@@ -15,7 +15,6 @@
     "3f6f7485-0ac4-49f1-aafb-5430bc39d21f" # Davinci vault -- raw LUKS container
     "35b91a19-68aa-4856-8538-df295e12ab1d" # Tor vault -- raw LUKS container
     "28dcfdfb-9e78-41a2-910a-4a132617e7b9" # SelfHosted vault -- raw LUKS container
-    "1912efe3-08fc-4ef3-8c36-40b6ea629c1b" # Modrinth vault -- raw LUKS container
     "e8db5655-bafc-450e-8fb1-bfdc983c3ea5" # Media vault -- raw LUKS container
     "4d682358-35a6-47c0-81e1-4f538c2942d7" # Minecraft vault -- raw LUKS container (the .img duplicate)
   ];

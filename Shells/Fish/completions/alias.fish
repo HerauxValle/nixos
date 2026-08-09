@@ -55,7 +55,6 @@ alias kbdx-cli="keepassxc-cli open /run/media/herauxvalle/VirtualKeys/keepassxc/
 # APPLICATIONS
 
 alias celshell="pkill qs; qs -c ~/Projects/Caelestia &"                  #&help:"Restart QS with Caelestia config"
-alias modrinth="~/Scripts/Shell/Vaults/modrinth.sh"                     #&help:"Open Modrinth vault"
 
 # PACMAN AND YAY
 
