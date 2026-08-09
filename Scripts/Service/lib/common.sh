@@ -30,20 +30,24 @@ RED='\033[31m'; GREEN='\033[32m'; YELLOW='\033[33m'; CYAN='\033[36m'; MAGENTA='\
 # Same spinner as mcli's own lib/common.sh (Scripts/Minecraft) -- kept as
 # a separate copy rather than a shared file since these are two
 # independent Scripts/ projects, same as everywhere else in this repo.
-# Runs "$@" in the background with a spinner in front of $msg (" <frame>
-# <msg>", spinner+text in $color while running). `sudo -v` upfront so a
+# Runs "$@" in the background with a spinner in front of $msg and a
+# growing/cycling "." ".." "..." trail after it (" <frame> <msg><dots>",
+# spinner+text+dots in $color while running). `sudo -v` upfront so a
 # password prompt (if the cached ticket already expired) happens cleanly
-# before the spinner starts overwriting the line, not interleaved with it.
+# before the spinner starts overwriting the line, not interleaved with
+# it. Each redraw ends in \033[K (erase to end of line) since the dot
+# trail's length changes every frame -- without it, a shorter redraw
+# leaves stray characters from the previous, longer one behind.
 run_with_spinner() {
     local color="$1" msg="$2"
     shift 2
     sudo -v || return $?
 
     "$@" &
-    local pid=$! frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
+    local pid=$! frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' dot_frames=("" "." ".." "...") i=0
     tput civis 2>/dev/null || true
     while kill -0 "$pid" 2>/dev/null; do
-        printf '\r %b%s %s%b' "$color" "${frames:i%${#frames}:1}" "$msg" "$RESET"
+        printf '\r %b%s %s%s%b\033[K' "$color" "${frames:i%${#frames}:1}" "$msg" "${dot_frames[i / 3 % 4]}" "$RESET"
         i=$((i + 1))
         sleep 0.1
     done
@@ -52,9 +56,9 @@ run_with_spinner() {
     tput cnorm 2>/dev/null || true
 
     if [ "$status" -eq 0 ]; then
-        printf '\r %b✓ %s%b\n' "$GREEN" "$msg" "$RESET"
+        printf '\r %b✓ %s%b\033[K\n' "$GREEN" "$msg" "$RESET"
     else
-        printf '\r %b✗ %s%b\n' "$RED" "$msg" "$RESET"
+        printf '\r %b✗ %s%b\033[K\n' "$RED" "$msg" "$RESET"
     fi
     return "$status"
 }
