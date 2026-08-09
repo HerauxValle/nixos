@@ -97,28 +97,31 @@
     # instead of a Nix path literal, so ln -sf gets this literal path
     # rather than a store-copied one.
     #
-    # Tested all 3 local builds against this Paper 26.2 server
-    # (2026-08-09), none work:
-    #   0.5.6 (current) -- crashes enabling: NumberFormatException:
-    #     For input string: "craftbukkit", thrown from Arceon's own
-    #     server-version parsing choking on this build's name string.
-    #   0.5.5 -- same crash, same exception.
-    #   0.5.4 -- no crash, but self-disables cleanly:
-    #     "This version is not supported for Arceon!"
-    # None of Arceon's version-detection logic recognizes Paper 26.2.
+    # All 3 stock local builds crash/self-disable against this Paper
+    # 26.2 server (2026-08-09): 0.5.6 and 0.5.5 throw
+    # NumberFormatException: For input string: "craftbukkit" while
+    # enabling, 0.5.4 self-disables ("This version is not supported
+    # for Arceon!"). Root cause in 0.5.6's obfuscated
+    # com/arceon/core/h/n.class: modern Paper's unversioned
+    # "org.bukkit.craftbukkit" package name (no more "v1_20_R1"-style
+    # suffix) breaks the version-string parsing that feeds a
+    # server-version-gate check, which then tries to Integer.parseInt
+    # the literal string "craftbukkit" and throws.
     #
-    # Also tried binary-patching 0.5.6's obfuscated version-detection
-    # class (com/arceon/core/h/n.class) directly -- got past the
-    # crashing check, but hit a second bug one layer down: the
-    # server-version-string branch that actually gets taken on this
-    # build (2-dot-part case) updates fields c/d but never rewrites
-    # field a, which a *different* method later re-parses by
-    # splitting on "_" and crashes on the same stale "craftbukkit"
-    # value regardless. Fixing that needs inserting bytecode (shifts
-    # every later offset + the StackMapTable -- needs a real
-    # assembler like ASM, not raw hex patching), so stopped there.
-    # Check Patreon for a build newer than 0.5.6 before re-testing.
-    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.6-1.20+-patched.jar"; # TESTING binary patch attempt 4
+    # -1.20+-patched.jar is a hand-patched copy of the stock 0.5.6 jar
+    # (built from a copy in this repo's scratchpad, not committed --
+    # regenerate if lost): the crashing method's `getstatic a` at
+    # bytecode offset 2009 was changed to `getstatic b`. Field b is a
+    # separate, hardcoded, always-valid "v26_1_99" string set
+    # unconditionally at the very top of the class's static
+    # initializer -- untouched by the broken branch that leaves field
+    # a stale as "craftbukkit". A pure constant-pool-index edit (one
+    # byte), no bytecode length change, no new branches, so no
+    # StackMapTable frame issues. Confirmed working end-to-end
+    # (loads, enables, loads config/fonts, no errors) 2026-08-09.
+    # Re-patch against a newer Arceon release if Patreon ships one --
+    # this exact byte offset is 0.5.6-specific.
+    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.6-1.20+-patched.jar";
 
     # NOT server-side: "Arceon x Axiom" is a Fabric CLIENT mod
     # (fabric.mod.json, "client"-only entrypoint, requires
