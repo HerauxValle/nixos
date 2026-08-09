@@ -71,7 +71,7 @@ fn unlock_and_mount(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &Meta) -> Res
     btrfs::set_label(&vault.mnt, &vault.name, size_mb);
     udisks::udev_retrigger(&dev);
 
-    udisks::chown_to_real_user(&vault.mnt)?;
+    udisks::chown_to_vault_owner(&vault.mnt, &vault.img)?;
     maybe_auto_backup(ctx, vault, meta);
     logf!(ctx, "[✓] '{}' is open at {}", vault.name, vault.mnt.display());
     Ok(())

@@ -27,6 +27,24 @@ pub fn chown_to_real_user(path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Same as `chown_to_real_user`, but for callers (boot-time systemd units)
+/// where `cas` runs as root directly instead of self-elevating via sudo --
+/// SUDO_UID/GID are never set there, so falling back to our own uid just
+/// re-chowns to root. `img` (the vault's .img file, always owned by the
+/// real user from `cas create`) is a reliable stand-in for "who actually
+/// owns this vault" in both the sudo and bare-root invocation cases.
+pub fn chown_to_vault_owner(path: &Path, img: &Path) -> Result<()> {
+    let (uid, gid) = if std::env::var("SUDO_UID").is_ok() {
+        real_user_ids()
+    } else {
+        use std::os::unix::fs::MetadataExt;
+        let meta = std::fs::metadata(img)?;
+        (meta.uid(), meta.gid())
+    };
+    std::os::unix::fs::chown(path, Some(uid), Some(gid))?;
+    Ok(())
+}
+
 /// Run `program` as the real user instead of root — needed for
 /// udisksctl/lsblk calls that must see *that* user's udisks session
 /// (mounts made under a root shell aren't visible to a plain root lsblk).
