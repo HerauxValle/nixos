@@ -33,4 +33,16 @@
     mode.local.name = "creative";
     net.ipv6 = false;
   };
+
+  # RCON -- same raw-binary-framing reasoning as the main port above
+  # (net.ipv6 = false: the default IPv6 bridge is HTTP-aware and would
+  # corrupt RCON's handshake same as it did Minecraft's own). Password
+  # lives in server.nix; see its own comment for why it's pinned there
+  # instead of a separate secrets file.
+  vars.system.ports.entries.creativeRcon = {
+    port = 25575;
+    service = "minecraft-server-creative.service";
+    mode.local.name = "creative-rcon";
+    net.ipv6 = false;
+  };
 }

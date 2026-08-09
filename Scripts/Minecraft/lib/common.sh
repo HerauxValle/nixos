@@ -9,6 +9,12 @@
 unit_name() { echo "minecraft-server-${1}.service"; }
 sock_path() { echo "/run/minecraft/${1}.sock"; }
 
+# dataDir is config.software.programs.minecraft.settings.nix's
+# services.minecraft-servers.dataDir -- hardcoded here same as sock_path's
+# /run/minecraft above, since both are this repo's own fixed choice, not
+# something nix-minecraft lets you look up at runtime.
+server_properties_path() { echo "/home/herauxvalle/Images/Minecraft/servers/${1}/server.properties"; }
+
 require_name() {
     if [ -z "${1:-}" ]; then
         echo "usage: mcli ${cmd_usage:-<command>} <name>" >&2

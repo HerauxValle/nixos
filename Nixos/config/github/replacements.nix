@@ -133,6 +133,18 @@
         replaceWith = "enable = false;";
         line = 37;
       }
+
+      {
+        # The creative server's real RCON password -- see server.nix's own
+        # comment for why it's pinned in plain Nix instead of an external
+        # file. Whole-line `find` (not `key`): the attr name itself
+        # contains a literal dot ("rcon.password"), which would collide
+        # with `key`'s dotted-path-into-config resolution (it'd try to
+        # walk into a nested `rcon`.`password`, not this flat attr).
+        file = "Nixos/config/software/programs/minecraft/servers/creative/server.nix";
+        find = ''"rcon.password" = "changeme";'';
+        replaceWith = ''"rcon.password" = "changeme";'';
+      }
     ];
   };
 }

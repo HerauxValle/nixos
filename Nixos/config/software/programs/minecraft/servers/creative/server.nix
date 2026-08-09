@@ -20,5 +20,24 @@
     pvp = false;
     view-distance = 32;
     simulation-distance = 12;
+
+    # RCON -- lets `mcli rcon creative` (Scripts/Minecraft) and mcrcon
+    # send console commands without attaching to the tmux console. Port
+    # opened via ports.nix, same mechanism as BlueMap's own port.
+    #
+    # The password below is real and genuinely secret (unlike this file's
+    # other values) -- it's plaintext here only because pinning it in Nix
+    # is the one way to set it without --impure breaking a plain `pacnix
+    # rebuild` (an external, non-flake file read requires that flag).
+    # config/github/replacements.nix has a matching entry that swaps this
+    # exact line for a placeholder in the copy `dotfiles-backup` actually
+    # pushes to GitHub -- same mechanism already used for the MAC address
+    # and gitCommitEmail. Rotate by editing both this line and that one
+    # together; `mcli rcon` reads the live value straight out of the
+    # rendered server.properties, not a separate copy, so nothing else
+    # needs updating.
+    enable-rcon = true;
+    "rcon.port" = 25575;
+    "rcon.password" = "changeme";
   };
 }
