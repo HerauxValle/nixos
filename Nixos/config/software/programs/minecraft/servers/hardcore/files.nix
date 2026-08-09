@@ -43,6 +43,13 @@
     "plugins/BlueMap/maps/world.conf" = {
       format = pkgs.formats.json { };
       value = {
+        # Required -- without this, BlueMap can't associate the map
+        # entry with an actual world at all and disables itself
+        # entirely ("no valid maps configured"), confirmed on first
+        # boot 2026-08-10 (my original config only set the two options
+        # below, missing this).
+        world = "world";
+        dimension = "minecraft:overworld";
         min-inhabited-time = 1;
         remove-caves-below-y = 10000;
       };
