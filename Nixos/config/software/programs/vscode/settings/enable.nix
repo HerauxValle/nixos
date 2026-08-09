@@ -7,7 +7,7 @@
   # through config.vars.packages.programs -> modules/packages/programs/programs.nix
   # like the rest of this directory).
   config.home-manager.users.${config.vars.identity.username}.programs.vscode = {
-    enable = false;
+    enable = true;
     # Extensions are fully declared in ../extensions -- don't let VS Code's
     # own UI install/mutate extensions outside of Nix.
     mutableExtensionsDir = false;

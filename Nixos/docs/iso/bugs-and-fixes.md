@@ -108,10 +108,10 @@ Flipping `Nixos/config/config.nix`'s `grub.hidden` back to `true`
 deleted a 6-line comment block along with the value change, shifting
 every line number below it. `Nixos/config/github/replacements.nix` has
 one entry pinned to `line = 44` specifically to redact
-`dotfilesBackup.enable = true` (a bare `enable = false;` search would
+`dotfilesBackup.enable = true` (a bare `enable = true;` search would
 also match `usbRequired`/`sudoKeyfile`'s lines, hence the line pin).
 The next `pacnix rebuild` printed a real warning (`replaceValues find
-text 'enable = false;' does not currently appear on line 44 ... stale
+text 'enable = true;' does not currently appear on line 44 ... stale
 entry?`) that would otherwise have been easy to miss -- the redaction
 silently stopped applying, meaning the *first* push after this session's
 grub-hidden edit had `dotfilesBackup.enable = true` (not the intended

@@ -6,7 +6,7 @@
   # Core Polkit privilege escalation framework backend. Required to handle local
   # administrative permissions validation seamlessly in a non-monolithic desktop
   # environment without falling back to raw command-line sudo interception.
-  security.polkit.enable = false;
+  security.polkit.enable = true;
 
   # Graphical session agent configuration. Manages user-level authentication
   # challenges for high-privilege system and service operations.

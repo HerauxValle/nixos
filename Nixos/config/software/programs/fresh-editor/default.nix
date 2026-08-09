@@ -24,7 +24,7 @@
   # still only spawns the first time you open a matching file, same as
   # any other fresh install.
   config.vars.packages.programs.freshEditor = {
-    enable = false;
+    enable = true;
     extraPackages = with pkgs; [
       rust-analyzer # lsp.rust
       gopls # lsp.go

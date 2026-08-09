@@ -9,5 +9,5 @@
   # GTK/GIO dialog wrappers fail to look up user preference paths, falling back
   # to raw un-themed white default layouts rather than honoring global systemd
   # environment settings or customized dark-mode themes.
-  config.vars.packages.programs.dconf.enable = false;
+  config.vars.packages.programs.dconf.enable = true;
 }

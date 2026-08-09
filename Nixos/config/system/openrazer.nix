@@ -3,5 +3,5 @@
 { ... }:
 
 {
-  config.vars.system.openrazer.enable = false;
+  config.vars.system.openrazer.enable = true;
 }

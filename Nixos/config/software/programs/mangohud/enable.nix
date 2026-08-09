@@ -4,7 +4,7 @@
 
 {
   config.vars.packages.programs.mangohud = {
-    enable = false;
+    enable = true;
     # Off globally so it doesn't attach to every Vulkan/OpenGL app (e.g.
     # the desktop compositor) -- opt in per launch command instead:
     # `mangohud %command%` in Steam, or `mangohud gamemoderun %command%`

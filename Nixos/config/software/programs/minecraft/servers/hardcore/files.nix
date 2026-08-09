@@ -90,23 +90,55 @@
     # existed -- this file is what actually makes MCPanel itself listen
     # on the right port).
     #
-    # Real auth credentials, not the "admin"/"admin" default the plugin
-    # ships with -- that default plus its own hardcoded default
-    # jwt-secret would be a live admin-console login sitting on
-    # well-known credentials once this port is forwarded. jwt-secret
-    # still generated fresh (never given, no reason to reuse the
-    # plugin's own hardcoded default either). config/github/
-    # replacements.nix has the matching redaction entry, same mechanism
-    # as server.nix's RCON password.
+    # config.yml's own "auth" block turned out to be a dead/legacy path
+    # -- confirmed by testing the login API directly (2026-08-10): it
+    # authenticates fine but grants a "custom" role with EVERY
+    # permission false (console/dashboard/management all denied), which
+    # is why login looked like it was failing. jwt-secret here is still
+    # real (used for signing regardless of which login path is active).
     "plugins/MCPanel/config.yml" = {
       format = pkgs.formats.yaml { };
       value = {
         panel.port = 8091;
         panel.host = "0.0.0.0";
-        auth.username = "maxmustermann";
-        auth.password = "changeme";
         auth.jwt-secret = "changeme";
         auth.token-hours = 24;
+      };
+    };
+
+    # The REAL account system -- plugin generates its own users.json on
+    # first boot with a hardcoded "admin"/"admin" full-permission
+    # account (confirmed by testing that exact login directly, it works
+    # and returns role: admin with every permission true). That's the
+    # actual live security hole, worse than config.yml's dead auth
+    # block ever was. This replaces it outright with a real account --
+    # nix-minecraft's file management overwrites this file every boot,
+    # so the plugin's own auto-generated "admin" entry never persists.
+    # passwordHash is a real bcrypt hash (cost 10) of the same password
+    # used elsewhere, computed and verified locally with `python3
+    # -c "import bcrypt; ..."` (bcrypt.checkpw confirmed a match) --
+    # never sent anywhere. config/github/replacements.nix has the
+    # matching redaction entries for both this and the password itself
+    # documented in this file's history.
+    "plugins/MCPanel/users.json" = {
+      format = pkgs.formats.json { };
+      value = {
+        herauxvalle = {
+          passwordHash = "changeme";
+          role = "admin";
+          permissions = {
+            console = true;
+            management_files = true;
+            management = true;
+            players = true;
+            management_plugins = true;
+            players_interact = true;
+            dashboard_console = true;
+            management_users = true;
+            dashboard = true;
+            management_settings = true;
+          };
+        };
       };
     };
 

@@ -14,19 +14,19 @@
   environment.etc."xdg/menus/applications.menu".source =
     "${pkgs.garcon}/etc/xdg/menus/xfce-applications.menu";
 
-  services.udisks2.enable = false;
-  security.polkit.enable = false;
-  services.gvfs.enable = false;
+  services.udisks2.enable = true;
+  security.polkit.enable = true;
+  services.gvfs.enable = true;
 
   # PipeWire audio stack -- no prior audio config existed in this repo at
   # all. rtkit is required for realtime scheduling (glitch-free audio);
   # pulse/alsa compat lets non-PipeWire-native apps keep working.
-  security.rtkit.enable = false;
+  security.rtkit.enable = true;
   services.pipewire = {
-    enable = false;
-    alsa.enable = false;
+    enable = true;
+    alsa.enable = true;
     alsa.support32Bit = true;
-    pulse.enable = false;
+    pulse.enable = true;
   };
 
   # Per-game Steam launch options, e.g.:

@@ -19,7 +19,7 @@ in
   vars.minecraft.premiumAddons = "/home/herauxvalle/Images/Minecraft/premium";
 
   services.minecraft-servers = {
-    enable = false;
+    enable = true;
     eula = true;
     dataDir = config.vars.minecraft.dataDir;
   };

@@ -381,8 +381,8 @@
             description = "Literal text substituted in place of whatever `find`/`key` resolves to.";
           };
           # A single int or a list of ints, both accepted by the same
-          # option -- `enable = false;` is a legitimate example: it's a
-          # substring of `usbRequired.enable = false;`/`sudoKeyfile.enable
+          # option -- `enable = true;` is a legitimate example: it's a
+          # substring of `usbRequired.enable = true;`/`sudoKeyfile.enable
           # = true;` elsewhere in the same config.nix, so an unscoped
           # `find` there would also corrupt those, or (if applied after
           # them) find nothing left to match and misreport itself as

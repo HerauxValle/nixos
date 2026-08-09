@@ -116,7 +116,7 @@ in
       mountCheckUnits = [ "qbittorrent" ];
       extraConfig = {
         services.qbittorrent = {
-          enable = false;
+          enable = true;
           inherit (cfg) profileDir webuiPort;
           inherit serverConfig;
         }
