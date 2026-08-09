@@ -35,7 +35,7 @@ fn on(ctx: &Ctx, vault: &Vault, pw: &str) -> Result<()> {
 
     // Respects the encryption=off autokey shortcut the same way `open`
     // does — no prompt needed if the vault is already unlocked-by-default.
-    let (old_secret, _) = get_secret(ctx, &vault.img, pw, None, Some(meta.clone()))?;
+    let (old_secret, _) = get_secret(ctx, &vault.img, pw, None, None, Some(meta.clone()))?;
 
     let kf_path = vault.base().join(format!("{}.key", vault.name));
     let mut key_bytes = [0u8; 64];

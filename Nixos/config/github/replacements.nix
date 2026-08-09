@@ -145,6 +145,14 @@
         find = ''"rcon.password" = "changeme";'';
         replaceWith = ''"rcon.password" = "changeme";'';
       }
+
+      {
+        # Same reasoning as the creative entry above, for hardcore's own
+        # (separate, freshly generated) RCON password.
+        file = "Nixos/config/software/programs/minecraft/servers/hardcore/server.nix";
+        find = ''"rcon.password" = "changeme";'';
+        replaceWith = ''"rcon.password" = "changeme";'';
+      }
     ];
   };
 }

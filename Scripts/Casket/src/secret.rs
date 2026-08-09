@@ -83,6 +83,7 @@ pub fn get_secret(
     img: &Path,
     pw: &str,
     kf_override: Option<&Path>,
+    kf_cache_hint: Option<&Path>,
     meta: Option<Meta>,
 ) -> Result<(Vec<u8>, Meta)> {
     let mut meta = meta.unwrap_or_else(|| Meta::read(img));
@@ -121,8 +122,19 @@ pub fn get_secret(
         die!("keyfile is not a file: {}", kf_path.display());
     }
 
-    if kf_path.to_string_lossy() != cached {
-        meta.keyfile = Some(kf_path.to_string_lossy().into_owned());
+    // Cache the *logical* source path (e.g. the removable drive's
+    // /run/media/.../*.key location), never `kf_path` itself when the
+    // caller staged it first -- `kf_path` may be a throwaway temp copy
+    // (see keyfile_mount.rs's `ensure_keyfile_mounted`, which reads a
+    // removable drive's keyfile via raw block access and stages the
+    // bytes into a mode-0600 temp file deleted on drop). Caching that
+    // ephemeral path used to poison `meta.keyfile` with a path that was
+    // already gone by the next session, permanently breaking the
+    // removable-drive auto-recovery `ensure_keyfile_mounted` exists to
+    // provide -- confirmed in the wild 2026-08-09.
+    let to_cache = kf_cache_hint.unwrap_or(&kf_path);
+    if to_cache.to_string_lossy() != cached {
+        meta.keyfile = Some(to_cache.to_string_lossy().into_owned());
     }
 
     let kf_bytes = std::fs::read(&kf_path)?;
