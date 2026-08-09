@@ -48,25 +48,49 @@
       };
     };
 
-    # lodStreamRadius nerfed way down from the plugin's 256-chunk
-    # (4096-block) default -- 64 chunks (1024 blocks) is still double
-    # the maxed-out 32-chunk simulation-distance (server.nix), so it
-    # extends visual range meaningfully beyond what vanilla ever shows,
-    # without turning it into a "see the whole map before you've earned
-    # it" tool. No structure-specific filter exists in this plugin --
-    # whatever falls inside this radius (villages, temples, etc.
-    # included) streams as real LOD data, real chunk gen, same seed.
-    #
-    # CAVEAT: the plugin also exposes a client-side "personal LOD stream
-    # radius" preference (0 = use this server default) -- I found no
-    # confirmation this server-side value acts as a hard ceiling
-    # independent of that client override, so treat this as the
-    # *default*, not a guaranteed cap, until verified against the
-    # actual running plugin.
+    # `lodDistanceChunks` (NOT `lodStreamRadius` -- that key doesn't
+    # exist in this plugin version at all; confirmed by reading the
+    # actual generated config after first boot 2026-08-10, where an
+    # earlier version of this file's wrong key silently did nothing and
+    # the plugin ran at its own 512-chunk/8192-block default instead).
+    # Nerfed to 64 chunks (1024 blocks) -- still double the maxed-out
+    # 32-chunk simulation-distance (server.nix), so it extends visual
+    # range meaningfully beyond what vanilla ever shows, without turning
+    # it into a "see the whole map before you've earned it" tool. No
+    # structure-specific filter exists in this plugin -- whatever falls
+    # inside this radius (villages, temples, etc. included) streams as
+    # real LOD data, real chunk gen, same seed.
     "plugins/VoxyServerSide/vss-server-config.json" = {
       format = pkgs.formats.json { };
       value = {
-        lodStreamRadius = 64;
+        lodDistanceChunks = 64;
+      };
+    };
+
+    # Port 8091, not MCPanel's default 8090 -- filebrowser (self-hosted)
+    # already owns 8090 on this host, confirmed as a real collision risk
+    # on first boot 2026-08-10 (MCPanel was still binding 8090 despite
+    # ports.nix's forward already being 8091, since only the port-forward
+    # existed -- this file is what actually makes MCPanel itself listen
+    # on the right port).
+    #
+    # Real auth credentials, not the "admin"/"admin" default the plugin
+    # ships with -- that default plus its own hardcoded default
+    # jwt-secret would be a live admin-console login sitting on
+    # well-known credentials once this port is forwarded. jwt-secret
+    # still generated fresh (never given, no reason to reuse the
+    # plugin's own hardcoded default either). config/github/
+    # replacements.nix has the matching redaction entry, same mechanism
+    # as server.nix's RCON password.
+    "plugins/MCPanel/config.yml" = {
+      format = pkgs.formats.yaml { };
+      value = {
+        panel.port = 8091;
+        panel.host = "0.0.0.0";
+        auth.username = "maxmustermann";
+        auth.password = "changeme";
+        auth.jwt-secret = "changeme";
+        auth.token-hours = 24;
       };
     };
   };

@@ -1,4 +1,4 @@
-# &desc: "Hardcore server's plugin jars -- Chunky (pre-gen), BlueMap (fog-of-war config, see files.nix), GrimAC (movement anti-cheat, pure protection), ClearLaggEnhanced (periodic item/entity cleanup), PlayTimeManager (pure stats), VoxyServerSide (nerfed lodStreamRadius, see files.nix), MCPanel (web console, port 8090 -- see ports.nix). DiscordSRV commented out (not currently wanted). Spark is bundled with Paper 1.21+ already, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
+# &desc: "Hardcore server's plugin jars -- Chunky (pre-gen), BlueMap (fog-of-war config, see files.nix), GrimAC (movement anti-cheat, pure protection), ClearLaggEnhanced (periodic item/entity cleanup), PlayTimeManager (pure stats), VoxyServerSide (nerfed lodStreamRadius, see files.nix), MCPanel (web console, port 8091 -- see ports.nix). DiscordSRV commented out (not currently wanted). Spark is bundled with Paper 1.21+ already, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
 
 { pkgs, ... }:
 
@@ -13,9 +13,15 @@
     #   url = "https://cdn.modrinth.com/data/UmLGoGij/versions/ATlquwiT/DiscordSRV-Build-1.30.5.jar";
     #   hash = "sha256-7y+h8usUbHx3QStxkKfdM/H8kSgmg/5FQHc5VUyK7+8=";
     # };
+    # PAPER build, not Spigot -- the Spigot jar caused BlueMap to fail
+    # world-detection entirely and disable itself ("no valid maps
+    # configured") on first boot 2026-08-10, confirmed via its own log
+    # warning ("you are using the SPIGOT version of BlueMap ... Things
+    # will likely not work correctly!"). Same hash as creative's own
+    # BlueMap entry -- confirms this is the right jar.
     "plugins/BlueMap.jar" = pkgs.fetchurl {
-      url = "https://cdn.modrinth.com/data/swbUV1cr/versions/g7xgp4Xr/bluemap-5.23-spigot.jar";
-      hash = "sha256-NZpG20Tj4WbH8RTxuWYwONsL1bX8NXJlF/nh2z6oCew=";
+      url = "https://cdn.modrinth.com/data/swbUV1cr/versions/K5U1ASjn/bluemap-5.23-paper.jar";
+      hash = "sha256-M5VU11ztqzVON2Z3z8cwjEmZUpFYSejimUcY5KFT1k4=";
     };
     # Detects/reverts illegal movement (noclip/fly/speed) -- pure
     # protection against actual client-side cheats or desync glitches,
@@ -41,10 +47,9 @@
 
     # Streams real generated (not fake/synthetic) chunk data as LODs
     # beyond simulation-distance -- a genuine foreknowledge advantage if
-    # left at its default 256-chunk radius (structures included, since
-    # it's real chunk data). lodStreamRadius in files.nix's
-    # vss-server-config.json is the only real nerf knob -- see that
-    # file's own comment for the caveat about client-side override.
+    # left at its default 512-chunk radius (structures included, since
+    # it's real chunk data). lodDistanceChunks in files.nix's
+    # vss-server-config.json is the only real nerf knob.
     "plugins/VoxyServerSide.jar" = pkgs.fetchurl {
       url = "https://cdn.modrinth.com/data/84zcagOb/versions/zI7Q9rlu/voxy-server-side-paper.jar";
       hash = "sha256-QLM8ASeYLZrW1zzCKjCNpwsxO9C5+agfMc043cnj3Ds=";

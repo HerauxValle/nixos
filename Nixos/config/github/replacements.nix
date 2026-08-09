@@ -153,6 +153,22 @@
         find = ''"rcon.password" = "changeme";'';
         replaceWith = ''"rcon.password" = "changeme";'';
       }
+
+      {
+        # Hardcore's MCPanel web console admin password -- see files.nix's
+        # own comment for why it's pinned in plain Nix instead of an
+        # external file.
+        file = "Nixos/config/software/programs/minecraft/servers/hardcore/files.nix";
+        find = ''auth.password = "*A.B*LuS@LiS364@mcpanel";'';
+        replaceWith = ''auth.password = "changeme";'';
+      }
+
+      {
+        # Same MCPanel config -- the JWT signing secret.
+        file = "Nixos/config/software/programs/minecraft/servers/hardcore/files.nix";
+        find = ''auth.jwt-secret = "changeme";'';
+        replaceWith = ''auth.jwt-secret = "changeme";'';
+      }
     ];
   };
 }
