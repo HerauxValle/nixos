@@ -97,13 +97,17 @@
     # instead of a Nix path literal, so ln -sf gets this literal path
     # rather than a store-copied one.
     #
-    # Loads but crashes on enable: NumberFormatException: For input
-    # string: "craftbukkit", thrown from Arceon's own server-version
-    # parsing while trying to Integer.parseInt a token out of this
-    # Paper 26.2 build's name -- looks like 0.5.6 doesn't recognize
-    # this build string. Check Patreon for a newer build before
-    # re-testing; not fixable from this end.
-    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.5-1.20+.jar"; # TESTING 0.5.5
+    # Tested all 3 local builds against this Paper 26.2 server
+    # (2026-08-09), none work:
+    #   0.5.6 (current) -- crashes enabling: NumberFormatException:
+    #     For input string: "craftbukkit", thrown from Arceon's own
+    #     server-version parsing choking on this build's name string.
+    #   0.5.5 -- same crash, same exception.
+    #   0.5.4 -- no crash, but self-disables cleanly:
+    #     "This version is not supported for Arceon!"
+    # None of Arceon's version-detection logic recognizes Paper 26.2.
+    # Check Patreon for a build newer than 0.5.6 before re-testing.
+    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.6-1.20+.jar";
 
     # NOT server-side: "Arceon x Axiom" is a Fabric CLIENT mod
     # (fabric.mod.json, "client"-only entrypoint, requires
