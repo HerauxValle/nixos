@@ -77,6 +77,16 @@
       };
     }
 
+    {
+      # self-hosted-* systemctl lifecycle dispatcher -- same main.sh/cmd/
+      # /lib pattern as Pacnix/mcli, and the same self-hosted- prefix
+      # logic `pacnix logs` already uses.
+      dir = ../../../../Scripts/Service;
+      include = {
+        "main.sh" = "service";
+      };
+    }
+
     # {
     #   dir = ../../../../Projects/Path;
     #   include = { "bin" = "path"; };
