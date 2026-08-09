@@ -1,4 +1,4 @@
-# &desc: "Hardcore server's plugin jars -- Chunky (pre-gen), BlueMap (fog-of-war config, see files.nix), GrimAC (movement anti-cheat), ClearLaggEnhanced (cleanup), PlayTimeManager (stats), VoxyServerSide (nerfed lodStreamRadius, see files.nix), MCPanel (web console, port 8091), LuckPerms (permissions), SentientMobs (AI-only difficulty increase, no stats/farm impact). DiscordSRV + Skript commented out (not currently wanted/no use case yet). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
+# &desc: "Hardcore server's plugin jars -- Chunky (pre-gen), BlueMap (fog-of-war config, see files.nix), GrimAC (movement anti-cheat), ClearLaggEnhanced (cleanup), PlayTimeManager (stats), VoxyServerSide (nerfed lodStreamRadius, see files.nix), MCPanel (web console, port 8091), LuckPerms (permissions). DiscordSRV + Skript + SentientMobs commented out/rejected (see inline comments for why). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
 
 { pkgs, ... }:
 
@@ -78,19 +78,13 @@
       hash = "sha256-Sc7LZvof0ioTMDmkkOnB5QlaI4581m650qFv5siXVQ0=";
     };
 
-    # Genuine difficulty increase, zero-advantage-to-player, zero-farm-
-    # impact -- confirmed via its own description: AI/behavior only
-    # (dynamic combat, adaptive pathfinding, coordinated hostile mobs),
-    # explicitly no stat/health/damage changes, no new items. Removing
-    # this plugin restores stock vanilla mob behavior with nothing left
-    # behind. (Considered "Brutal Nightmare" too -- rejected, it
-    # explicitly breaks mob farms via block-breaking zombies and changed
-    # spawn/jockey mechanics, fails your bar even though it's also
-    # stat-free.)
-    "plugins/SentientMobs.jar" = pkgs.fetchurl {
-      url = "https://cdn.modrinth.com/data/8no5Rtgr/versions/hjxOufyx/sentientmobs-2.3.2.1.jar";
-      hash = "sha256-hF8Sz7sB49dnZxdjB7MnP+bkxisk2vQWGjjSyyFCyek=";
-    };
+    # NOT added: SentientMobs -- looked like pure combat-AI difficulty on
+    # the surface, but its real config has an entire villager economy
+    # (labor-trade, profession-work, farmer-work, community chests, an
+    # auto-spawning golem defender) nested under `villager.*` and still
+    # active regardless of the plugin's own top-level (decoy/legacy)
+    # toggles for the same things. Not worth the complexity/removal risk
+    # for what we actually wanted (harder combat only).
 
     # Commented out -- no alias in mind yet. Simple command ALIASING
     # (shortcut to an existing command, e.g. /hub -> /mvtp hub) needs no
