@@ -5,6 +5,7 @@
 {
   imports = [
     ./minecraft-worlds
+    ./minecraft-prism
     ./self-hosted
   ];
 }
