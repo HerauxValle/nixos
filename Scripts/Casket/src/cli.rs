@@ -89,8 +89,16 @@ pub fn run() -> Result<()> {
         let name = p.file_stem().unwrap_or_default().to_string_lossy().into_owned();
         let base = p.parent().unwrap_or(Path::new(".")).to_path_buf();
         let vault = Vault::resolve(&base, &name);
-        let kfm = ensure_keyfile_mounted(&ctx, opts.keyfile.as_deref().map(Path::new));
-        return commands::toggle::run(&ctx, &vault, opts.pass.as_deref(), kfm.path.as_deref());
+        let meta = Meta::read(&vault.img);
+        let effective_kf = opts.keyfile.clone().or_else(|| meta.keyfile.clone());
+        let kfm = ensure_keyfile_mounted(&ctx, effective_kf.as_deref().map(Path::new));
+        return commands::toggle::run(
+            &ctx,
+            &vault,
+            opts.pass.as_deref(),
+            kfm.path.as_deref(),
+            effective_kf.as_deref().map(Path::new),
+        );
     }
 
     if args.len() < 2 {
@@ -125,10 +133,10 @@ pub fn run() -> Result<()> {
             let effective_kf = opts.keyfile.clone().or_else(|| meta.keyfile.clone());
             let kfm = ensure_keyfile_mounted(&ctx, effective_kf.as_deref().map(Path::new));
             if meta.is_encryption_bypassed() {
-                commands::open::run(&ctx, &vault, "", kfm.path.as_deref())
+                commands::open::run(&ctx, &vault, "", kfm.path.as_deref(), effective_kf.as_deref().map(Path::new))
             } else {
                 let pw = prompt::get_pw(&ctx, opts.pass.as_deref())?;
-                commands::open::run(&ctx, &vault, &pw, kfm.path.as_deref())
+                commands::open::run(&ctx, &vault, &pw, kfm.path.as_deref(), effective_kf.as_deref().map(Path::new))
             }
         }
 
@@ -144,8 +152,16 @@ pub fn run() -> Result<()> {
 
         "toggle" => {
             let vault = Vault::find(&vault_name, path_ref)?;
-            let kfm = ensure_keyfile_mounted(&ctx, opts.keyfile.as_deref().map(Path::new));
-            commands::toggle::run(&ctx, &vault, opts.pass.as_deref(), kfm.path.as_deref())
+            let meta = Meta::read(&vault.img);
+            let effective_kf = opts.keyfile.clone().or_else(|| meta.keyfile.clone());
+            let kfm = ensure_keyfile_mounted(&ctx, effective_kf.as_deref().map(Path::new));
+            commands::toggle::run(
+                &ctx,
+                &vault,
+                opts.pass.as_deref(),
+                kfm.path.as_deref(),
+                effective_kf.as_deref().map(Path::new),
+            )
         }
 
         "info" => {

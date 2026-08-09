@@ -48,9 +48,9 @@ in
       extraConfig = lib.mkMerge [
         {
           services.immich = {
-            enable = false;
-            database.enable = false;
-            redis.enable = false;
+            enable = true;
+            database.enable = true;
+            redis.enable = true;
             mediaLocation = cfg.mediaLocation;
             environment = cfg.environment;
             machine-learning.enable = cfg.enableMachineLearning;

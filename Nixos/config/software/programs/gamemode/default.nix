@@ -4,7 +4,7 @@
 
 {
   config.vars.packages.programs = {
-    gamemode.enable = false;
+    gamemode.enable = true;
 
     # /etc/gamemode.ini -- gpu tuning is opt-in per gamemoded(8) ("accept-responsibility"),
     # left conservative here since it can void warranties on some cards.

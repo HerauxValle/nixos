@@ -12,7 +12,7 @@
     };
 
     # Shown in the client's multiplayer server list -- must be exactly 64x64.
-    files."server-icon.png" = ../../icons/hardcore.png;
+    files."server-icon.png" = ../../icons/creative.png;
 
     # The spawn.join-destination keys here come from worlds.nix's
     # defaultSpawn = true (see modules/services/minecraft-worlds), not

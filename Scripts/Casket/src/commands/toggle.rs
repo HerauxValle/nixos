@@ -8,17 +8,23 @@ use crate::meta::Meta;
 use crate::prompt;
 use crate::vault::Vault;
 
-pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>, kf_override: Option<&Path>) -> Result<()> {
+pub fn run(
+    ctx: &Ctx,
+    vault: &Vault,
+    pw: Option<&str>,
+    kf_override: Option<&Path>,
+    kf_cache_hint: Option<&Path>,
+) -> Result<()> {
     if vault.is_mount() {
         return close::run(ctx, vault);
     }
     let meta = Meta::read(&vault.img);
     if meta.is_encryption_bypassed() {
-        return open::run(ctx, vault, "", kf_override);
+        return open::run(ctx, vault, "", kf_override, kf_cache_hint);
     }
     let pw = match pw {
         Some(p) if !p.is_empty() => p.to_string(),
         _ => prompt::ask_secret(ctx, "passphrase")?,
     };
-    open::run(ctx, vault, &pw, kf_override)
+    open::run(ctx, vault, &pw, kf_override, kf_cache_hint)
 }

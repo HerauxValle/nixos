@@ -14,9 +14,9 @@
   environment.etc."xdg/menus/applications.menu".source =
     "${pkgs.garcon}/etc/xdg/menus/xfce-applications.menu";
 
-  services.udisks2.enable = false;
-  security.polkit.enable = false;
-  services.gvfs.enable = false;
+  services.udisks2.enable = true;
+  security.polkit.enable = true;
+  services.gvfs.enable = true;
 
   # Per-game Steam launch options, e.g.:
   #   gamemoderun gamescope -f -r 144 -- mangohud %command%

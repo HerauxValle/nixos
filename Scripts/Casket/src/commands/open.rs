@@ -12,7 +12,13 @@ use crate::secret::{decode_autokey, get_secret};
 use crate::udisks;
 use crate::vault::Vault;
 
-pub fn run(ctx: &Ctx, vault: &Vault, pw: &str, kf_override: Option<&Path>) -> Result<()> {
+pub fn run(
+    ctx: &Ctx,
+    vault: &Vault,
+    pw: &str,
+    kf_override: Option<&Path>,
+    kf_cache_hint: Option<&Path>,
+) -> Result<()> {
     if vault.is_mount() {
         logf!(ctx, "[i] '{}' is already open at {}", vault.name, vault.mnt.display());
         return Ok(());
@@ -35,7 +41,8 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: &str, kf_override: Option<&Path>) -> Re
         return unlock_and_mount(ctx, vault, &secret, &meta);
     }
 
-    let (secret, new_meta) = get_secret(ctx, &vault.img, pw, kf_override, Some(meta.clone()))?;
+    let (secret, new_meta) =
+        get_secret(ctx, &vault.img, pw, kf_override, kf_cache_hint, Some(meta.clone()))?;
     let updated_meta = new_meta != meta;
     logf!(ctx, "[cas] opening '{}' ...", vault.name);
     unlock_and_mount(ctx, vault, &secret, &new_meta)?;

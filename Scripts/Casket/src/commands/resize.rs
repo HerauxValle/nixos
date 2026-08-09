@@ -31,7 +31,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, new_mb: u64, pw: &str) -> Result<()> {
     }
 
     let meta = Meta::read(&vault.img);
-    let (secret, meta) = get_secret(ctx, &vault.img, pw, None, Some(meta))?;
+    let (secret, meta) = get_secret(ctx, &vault.img, pw, None, None, Some(meta))?;
     vault.close_mapper(); // clear a stale mapper from a previous crashed resize
     Meta::strip(&vault.img)?;
 
