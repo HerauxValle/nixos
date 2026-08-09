@@ -112,7 +112,6 @@
       youtube-tui = { };
       freetube = { };
       pulsemixer = { };
-      playerctl = { }; # MPRIS CLI, smn-toast Minecraft mod reads it for now-playing info
 
       # Peripherals
       polychromatic = { }; # Razer button/macro/lighting GUI, driven by hardware.openrazer's daemon (modules/system/openrazer.nix)
