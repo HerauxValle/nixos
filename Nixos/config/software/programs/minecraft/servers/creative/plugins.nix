@@ -103,7 +103,7 @@
     # Paper 26.2 build's name -- looks like 0.5.6 doesn't recognize
     # this build string. Check Patreon for a newer build before
     # re-testing; not fixable from this end.
-    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.4_1.20+.jar"; # TESTING 0.5.4
+    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.5-1.20+.jar"; # TESTING 0.5.5
 
     # NOT server-side: "Arceon x Axiom" is a Fabric CLIENT mod
     # (fabric.mod.json, "client"-only entrypoint, requires
