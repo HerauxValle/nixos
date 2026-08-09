@@ -22,7 +22,7 @@
     # own documented G1GC tuning) below -Xmx/-Xms -- Xms matches Xmx
     # (Aikar's own recommendation) so the heap never has to resize mid-run,
     # which is half the point of this tuning.
-    jvmOpts = "-Xmx8G -Xms8G -Dpaper.disableChannelLimit=true "
+    jvmOpts = "-Xmx4G -Xms4G -Dpaper.disableChannelLimit=true "
       + "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 "
       + "-XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch "
       + "-XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M "

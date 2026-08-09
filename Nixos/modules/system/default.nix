@@ -1,4 +1,4 @@
-# &desc: "System module schema -- imports autostart, storage mounts, networking, port forwarding, device hiding, openrazer, and users submodules."
+# &desc: "System module schema -- imports autostart, storage mounts, networking, port forwarding, device hiding, openrazer, swap, and users submodules."
 
 { config, pkgs, ... }:
 
@@ -10,6 +10,7 @@
     ./networking.nix
     ./openrazer.nix
     ./port-forwarding
+    ./swap
     ./users
   ];
 }

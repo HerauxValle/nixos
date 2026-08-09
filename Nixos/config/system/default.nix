@@ -1,4 +1,4 @@
-# &desc: "System config imports -- autostart jobs, hidden devices, keyring setup, mountpoints, openrazer, and port forwarding."
+# &desc: "System config imports -- autostart jobs, hidden devices, keyring setup, mountpoints, openrazer, port forwarding, and swap."
 
 { ... }:
 
@@ -10,5 +10,6 @@
     ./mountpoints.nix
     ./openrazer.nix
     ./ports.nix
+    ./swap.nix
   ];
 }
