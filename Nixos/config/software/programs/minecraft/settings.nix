@@ -15,10 +15,13 @@ in
 # before enabling any server), under servers/ specifically so prism/
 # can hold Prism Launcher config alongside it later.
 {
+  vars.minecraft.dataDir = "/home/herauxvalle/Images/Minecraft/servers";
+  vars.minecraft.premiumAddons = "/home/herauxvalle/Images/Minecraft/premium";
+
   services.minecraft-servers = {
     enable = false;
     eula = true;
-    dataDir = "/home/herauxvalle/Images/Minecraft/servers";
+    dataDir = config.vars.minecraft.dataDir;
   };
 
   # dataDir's parent (the vault mount point) is deliberately root-owned,

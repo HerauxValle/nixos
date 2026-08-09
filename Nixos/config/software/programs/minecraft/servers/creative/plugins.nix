@@ -1,6 +1,6 @@
 # &desc: "Creative server's plugin jars -- Multiverse (worlds/nether-end linking), BlueMap, and the building-tool stack (FAWE/WorldGuard/Axiom/etc)."
 
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 {
   services.minecraft-servers.servers.creative.symlinks = {
@@ -92,13 +92,14 @@
       hash = "sha256-3EBA6y8RHPFd9fl0k6ycr1wIeYSIP4Oy7yJe9d9eFv8=";
     };
 
-    # REMOVED: Arceon -- your mirror link's file self-identified as
-    # sourced from black-minecraft.com (a plugin piracy mirror), and
-    # the jar refused to run with an internal "re-download from the
-    # official site" error. Not reinstalling this from that source;
-    # get me a legitimate link (your own Patreon download) if you
-    # still want it.
-    #
+    # Premium plugins from Patreon, kept out of the Nix store (these
+    # are paid downloads, not redistributable) -- string interpolation
+    # here instead of a Nix path literal, so ln -sf gets this literal
+    # path rather than a store-copied one. Newest version of each
+    # picked from what's on disk.
+    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.6-1.20+.jar";
+    "plugins/ArceonXAxiom.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon-x-axiom/Arceon x Axiom 0.1.3 - for MC 26.1.2.jar";
+
     # SKIPPED: ezEdits (Patreon/Discord-supporter gated, no public URL
     # -- you said skip), Schematic Brush Reborn 2 (SpigotMC direct
     # download is behind a Cloudflare bot-challenge, couldn't fetch it

@@ -5,6 +5,27 @@
 {
   imports = [ ./minecraft-worlds.nix ];
 
+  options.vars.minecraft.dataDir = lib.mkOption {
+    type = lib.types.str;
+    description = ''
+      Single source of truth for services.minecraft-servers.dataDir --
+      set once here and wired into that option by
+      config/software/programs/minecraft/settings.nix, so anything
+      needing to reference or compute a path relative to it has one
+      place to read it from instead of a hardcoded duplicate.
+    '';
+  };
+
+  options.vars.minecraft.premiumAddons = lib.mkOption {
+    type = lib.types.str;
+    description = ''
+      Where paid/Patreon plugin and mod jars are kept on disk, outside
+      the Nix store (not redistributable). Set once in
+      config/software/programs/minecraft/settings.nix; servers/creative/plugins.nix
+      symlinks straight into here.
+    '';
+  };
+
   options.vars.minecraft.worlds = lib.mkOption {
     type = lib.types.attrsOf (import ./lib/world-type.nix { inherit lib; });
     default = { };
