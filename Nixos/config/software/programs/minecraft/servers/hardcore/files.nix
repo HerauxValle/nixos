@@ -22,10 +22,19 @@
       format = pkgs.formats.json { };
       value = {
         accept-download = true;
-        # Default 8100 collides with creative's BlueMap on this same
-        # host -- ports.nix's bluemapHardcore entry forwards this same
-        # 8101.
-        webserver.port = 8101;
+      };
+    };
+
+    # The actual webserver port lives in a SEPARATE webserver.conf file,
+    # not core.conf's "webserver.port" (that key doesn't do anything --
+    # confirmed on first boot 2026-08-10, BlueMap kept binding 8100
+    # despite core.conf having webserver.port: 8101 set correctly).
+    # Default 8100 collides with creative's BlueMap on this same host --
+    # ports.nix's bluemapHardcore entry forwards this same 8101.
+    "plugins/BlueMap/webserver.conf" = {
+      format = pkgs.formats.json { };
+      value = {
+        port = 8101;
       };
     };
 
