@@ -1,4 +1,4 @@
-# &desc: "Creative server's join-spawn behavior -- first-ever join lands in hub, every join after that keeps last location."
+# &desc: "Creative server's join-spawn behavior -- first-ever join lands in hub, every join after that keeps last location. Also autostart=false explicit -- server must be started manually."
 
 { ... }:
 
@@ -12,4 +12,8 @@
   # loginIn left unset -- every join after the first keeps last location.
   # Would use the exact same "<world>" / "<world> x y z" syntax as
   # startIn above if set.
+
+  # Explicit, not just relying on the default -- no auto-start on boot,
+  # start it yourself with `systemctl start minecraft-server-creative`.
+  vars.minecraft.servers.creative.autostart = false;
 }

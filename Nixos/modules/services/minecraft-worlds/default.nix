@@ -83,19 +83,37 @@
               location, i.e. normal vanilla behavior.
             '';
           };
+          autostart = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = ''
+              false (default) -- the server is built/enabled but does
+              NOT start on boot; you have to start it yourself
+              (systemctl start minecraft-server-<name>). true --
+              WantedBy=multi-user.target, same as leaving this unset
+              used to mean before this option existed (the base
+              services.minecraft-servers module sets that automatically
+              whenever a server's `enable = true`; this option
+              overrides it per-server). Deliberately opt-in, not
+              opt-out, since a server auto-starting is a much bigger
+              surprise than one you have to remember to start.
+            '';
+          };
         };
       }
     );
     default = { };
     description = ''
-      Per-server join-spawn behavior, keyed by
+      Per-server join-spawn behavior + autostart, keyed by
       services.minecraft-servers.servers.<name> (e.g.
-      config.vars.minecraft.servers.creative.startIn = "hub"). Backed by
-      Multiverse-Core's first-spawn-override/join-destination -- see
-      minecraft-worlds.nix's mkSpawnConfig. Also disables Multiverse's
-      safe-location veto entirely (search radius 0) whenever either is
-      set, since a void/flat world spawn point otherwise fails with
-      "UNSAFE_LOCATION" and silently falls back to last location.
+      config.vars.minecraft.servers.creative.startIn = "hub"). startIn/
+      loginIn are backed by Multiverse-Core's first-spawn-override/
+      join-destination -- see minecraft-worlds.nix's mkSpawnConfig, also
+      disables Multiverse's safe-location veto entirely (search radius
+      0) whenever either is set, since a void/flat world spawn point
+      otherwise fails with "UNSAFE_LOCATION" and silently falls back to
+      last location. autostart is unrelated to Multiverse -- see its own
+      description above.
     '';
   };
 }

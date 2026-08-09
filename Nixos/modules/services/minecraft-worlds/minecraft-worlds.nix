@@ -257,6 +257,7 @@ in
         spawn = spawnCfg.${serverName} or {
           startIn = null;
           loginIn = null;
+          autostart = false;
         };
         # The multiverse=false entry for this server, if any -- world-
         # type.nix guarantees at most one (nonMvByServerChecked's own
@@ -335,5 +336,22 @@ in
         serverProperties.level-seed = nonMv.value.seed;
       }
     ) dimsByServer;
+
+    # Overrides the base services.minecraft-servers module's own
+    # WantedBy=multi-user.target (set automatically whenever a server's
+    # enable = true) with vars.minecraft.servers.<name>.autostart's
+    # opt-in default instead. Every server named anywhere in this module
+    # (worlds/ops/spawn) gets an explicit entry -- mkForce so a bare
+    # `enable = true` with no autostart declared actually ends up
+    # NOT auto-starting, not just falling back to the base module's own
+    # always-on default.
+    systemd.services = lib.listToAttrs (
+      map (serverName: {
+        name = "minecraft-server-${serverName}";
+        value.wantedBy = lib.mkForce (
+          lib.optional (spawnCfg.${serverName}.autostart or false) "multi-user.target"
+        );
+      }) allServerNames
+    );
   };
 }

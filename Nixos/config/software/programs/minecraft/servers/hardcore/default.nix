@@ -11,5 +11,6 @@
     ./ops.nix
     ./ports.nix
     ./worlds.nix
+    ./spawn.nix
   ];
 }
