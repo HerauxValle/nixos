@@ -1,4 +1,4 @@
-# &desc: "Hardcore server's plugin jars -- Chunky (pre-gen), BlueMap (fog-of-war config, see files.nix), GrimAC (movement anti-cheat, pure protection), ClearLaggEnhanced (periodic item/entity cleanup), PlayTimeManager (pure stats), VoxyServerSide (nerfed lodStreamRadius, see files.nix), MCPanel (web console, port 8091 -- see ports.nix). DiscordSRV commented out (not currently wanted). Spark is bundled with Paper 1.21+ already, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
+# &desc: "Hardcore server's plugin jars -- Chunky (pre-gen), BlueMap (fog-of-war config, see files.nix), GrimAC (movement anti-cheat), ClearLaggEnhanced (cleanup), PlayTimeManager (stats), VoxyServerSide (nerfed lodStreamRadius, see files.nix), MCPanel (web console, port 8091), LuckPerms (permissions), SentientMobs (AI-only difficulty increase, no stats/farm impact). DiscordSRV + Skript commented out (not currently wanted/no use case yet). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
 
 { pkgs, ... }:
 
@@ -76,6 +76,20 @@
     "plugins/LuckPerms.jar" = pkgs.fetchurl {
       url = "https://cdn.modrinth.com/data/Vebnzrzj/versions/b0mk8uS6/LuckPerms-Bukkit-5.5.71.jar";
       hash = "sha256-Sc7LZvof0ioTMDmkkOnB5QlaI4581m650qFv5siXVQ0=";
+    };
+
+    # Genuine difficulty increase, zero-advantage-to-player, zero-farm-
+    # impact -- confirmed via its own description: AI/behavior only
+    # (dynamic combat, adaptive pathfinding, coordinated hostile mobs),
+    # explicitly no stat/health/damage changes, no new items. Removing
+    # this plugin restores stock vanilla mob behavior with nothing left
+    # behind. (Considered "Brutal Nightmare" too -- rejected, it
+    # explicitly breaks mob farms via block-breaking zombies and changed
+    # spawn/jockey mechanics, fails your bar even though it's also
+    # stat-free.)
+    "plugins/SentientMobs.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/8no5Rtgr/versions/hjxOufyx/sentientmobs-2.3.2.1.jar";
+      hash = "sha256-hF8Sz7sB49dnZxdjB7MnP+bkxisk2vQWGjjSyyFCyek=";
     };
 
     # Commented out -- no alias in mind yet. Simple command ALIASING

@@ -142,6 +142,20 @@
       };
     };
 
+    # Keeping only the combat-AI difficulty part of SentientMobs --
+    # community-chest and auto-golem-spawn are a passive-resource/
+    # defense feature that arguably crosses into "advantage" territory
+    # (free accumulating loot, free extra defenders), unlike the pure
+    # combat-behavior changes. Everything else (zombie/skeleton/raid-mob/
+    # golem combat AI) stays at plugin defaults, untouched.
+    "plugins/SentientMobs/config.yml" = {
+      format = pkgs.formats.yaml { };
+      value = {
+        village-community-chest.enabled = false;
+        golem-auto-spawn.enabled = false;
+      };
+    };
+
     # Commented out -- no alias in mind yet. Native Paper feature, no
     # plugin needed at all (creative/files.nix uses this exact mechanism
     # for /hub, /creative, /world). Each entry maps a new command name to
