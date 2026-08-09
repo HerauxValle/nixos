@@ -118,7 +118,7 @@
     # every later offset + the StackMapTable -- needs a real
     # assembler like ASM, not raw hex patching), so stopped there.
     # Check Patreon for a build newer than 0.5.6 before re-testing.
-    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.6-1.20+.jar";
+    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.6-1.20+-patched.jar"; # TESTING binary patch attempt 4
 
     # NOT server-side: "Arceon x Axiom" is a Fabric CLIENT mod
     # (fabric.mod.json, "client"-only entrypoint, requires
