@@ -1,16 +1,12 @@
-# &desc: "Creative server's package/version pin, enable/firewall toggles, and the restartIfChanged/stopIfChanged override so plugin-jar edits never restart the running server on rebuild."
+# &desc: "Creative server's package/version pin, enable/firewall toggles, and the TimeoutStartSec bump for its slow multi-world ExecStartPost."
 
 { pkgs, lib, ... }:
 
 {
-  # Rebuilds must never touch the running server on their own -- a plugin
-  # jar edit changes this unit's derivation, and without this NixOS would
-  # stop (world save across every world, 30-60s+) then restart it on every
-  # single `pacnix rebuild`. Only explicit `systemctl start/stop
-  # minecraft-server-creative` should ever do that now.
+  # restartIfChanged/stopIfChanged = false is now generic across every
+  # server (settings.nix's genAttrs block) instead of duplicated per
+  # server here -- see that file's own comment.
   systemd.services.minecraft-server-creative = {
-    restartIfChanged = lib.mkForce false;
-    stopIfChanged = lib.mkForce false;
     # Type=forking only reports "active" once ExecStartPost fully exits --
     # with 4 world-groups (10 dimensions total) that script runs a 40s
     # startup-race-safety sleep (see minecraft-worlds.nix's mkServerScript)

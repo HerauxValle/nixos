@@ -70,5 +70,21 @@ in
       # correctly, since the kernel's ACL check may see a remapped/unmapped
       # UID rather than minecraft's real one.
       serviceConfig.PrivateUsers = lib.mkForce false;
+
+      # A rebuild must never touch a running server on its own -- any
+      # config/plugin-jar edit changes that unit's derivation, and
+      # without this NixOS would stop (world save across every world,
+      # 30-60s+) then restart it on every single `pacnix rebuild`.
+      # Generic across every current and future server (genAttrs over
+      # enabledServers, not one flag per server/package.nix) so this
+      # can't quietly go missing the next time a server gets added --
+      # `mcli start/stop/restart/fail <name>` (Scripts/Minecraft) are the
+      # only things that should ever start/stop/restart these units now.
+      # The unit FILE itself still gets rewritten by every rebuild same
+      # as always -- this only stops systemd from acting on that change
+      # by itself; `mcli restart <name>` (or a real reboot) is still what
+      # actually picks up a changed unit.
+      restartIfChanged = lib.mkForce false;
+      stopIfChanged = lib.mkForce false;
     });
 }
