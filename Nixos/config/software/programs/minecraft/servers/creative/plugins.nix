@@ -107,7 +107,7 @@
     #     "This version is not supported for Arceon!"
     # None of Arceon's version-detection logic recognizes Paper 26.2.
     # Check Patreon for a build newer than 0.5.6 before re-testing.
-    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.6-1.20+.jar";
+    "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.6-1.20+-patched.jar"; # TESTING binary patch
 
     # NOT server-side: "Arceon x Axiom" is a Fabric CLIENT mod
     # (fabric.mod.json, "client"-only entrypoint, requires
