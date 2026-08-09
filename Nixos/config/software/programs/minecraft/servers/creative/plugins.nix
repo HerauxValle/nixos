@@ -92,13 +92,26 @@
       hash = "sha256-3EBA6y8RHPFd9fl0k6ycr1wIeYSIP4Oy7yJe9d9eFv8=";
     };
 
-    # Premium plugins from Patreon, kept out of the Nix store (these
-    # are paid downloads, not redistributable) -- string interpolation
-    # here instead of a Nix path literal, so ln -sf gets this literal
-    # path rather than a store-copied one. Newest version of each
-    # picked from what's on disk.
+    # Premium plugin from Patreon, kept out of the Nix store (paid
+    # download, not redistributable) -- string interpolation here
+    # instead of a Nix path literal, so ln -sf gets this literal path
+    # rather than a store-copied one.
+    #
+    # Loads but crashes on enable: NumberFormatException: For input
+    # string: "craftbukkit", thrown from Arceon's own server-version
+    # parsing while trying to Integer.parseInt a token out of this
+    # Paper 26.2 build's name -- looks like 0.5.6 doesn't recognize
+    # this build string. Check Patreon for a newer build before
+    # re-testing; not fixable from this end.
     "plugins/Arceon.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon/Arceon-0.5.6-1.20+.jar";
-    "plugins/ArceonXAxiom.jar" = "${config.vars.minecraft.premiumAddons}/plugins/arceon-x-axiom/Arceon x Axiom 0.1.3 - for MC 26.1.2.jar";
+
+    # NOT server-side: "Arceon x Axiom" is a Fabric CLIENT mod
+    # (fabric.mod.json, "client"-only entrypoint, requires
+    # fabricloader) -- it's the client half of Axiom's Arceon
+    # integration, meant for your Fabric/Prism modpack alongside
+    # Axiom's own client mod, not Paper's plugins/. Paper's loader
+    # correctly refuses it ("does not contain a paper-plugin.yml or
+    # plugin.yml"). Install it client-side instead if you want it.
 
     # SKIPPED: ezEdits (Patreon/Discord-supporter gated, no public URL
     # -- you said skip), Schematic Brush Reborn 2 (SpigotMC direct
