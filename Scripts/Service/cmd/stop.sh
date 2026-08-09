@@ -6,6 +6,7 @@ source "$DIR/lib/common.sh"
 
 cmd_usage="stop"
 require_name "${1:-}"
-unit="$(unit_name "$1")"
+name="$1"
+unit="$(unit_name "$name")"
 
-exec sudo systemctl stop "$unit"
+run_with_spinner "stopping $name ..." sudo systemctl stop "$unit"

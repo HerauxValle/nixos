@@ -24,3 +24,34 @@ require_name() {
         exit 1
     fi
 }
+
+# Same spinner as mcli's own lib/common.sh (Scripts/Minecraft) -- kept as
+# a separate copy rather than a shared file since these are two
+# independent Scripts/ projects, same as everywhere else in this repo.
+# `sudo -v` upfront so a password prompt (if the cached ticket already
+# expired) happens cleanly before the spinner starts overwriting the
+# line, not interleaved with it.
+run_with_spinner() {
+    local msg="$1"
+    shift
+    sudo -v || return $?
+
+    "$@" &
+    local pid=$! frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
+    tput civis 2>/dev/null || true
+    while kill -0 "$pid" 2>/dev/null; do
+        printf '\r%s %s' "$msg" "${frames:i%${#frames}:1}"
+        i=$((i + 1))
+        sleep 0.1
+    done
+    wait "$pid"
+    local status=$?
+    tput cnorm 2>/dev/null || true
+
+    if [ "$status" -eq 0 ]; then
+        printf '\r%s done ✓\n' "$msg"
+    else
+        printf '\r%s failed ✗\n' "$msg"
+    fi
+    return "$status"
+}

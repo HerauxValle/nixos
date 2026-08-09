@@ -6,6 +6,7 @@ source "$DIR/lib/common.sh"
 
 cmd_usage="start"
 require_name "${1:-}"
-unit="$(unit_name "$1")"
+name="$1"
+unit="$(unit_name "$name")"
 
-exec sudo systemctl start "$unit"
+run_with_spinner "starting $name ..." sudo systemctl start "$unit"

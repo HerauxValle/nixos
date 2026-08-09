@@ -21,3 +21,35 @@ require_name() {
         exit 1
     fi
 }
+
+# Runs "$@" in the background with a spinner next to $msg so
+# start/stop/restart/fail don't just sit on a silent blinking cursor for
+# however long systemctl takes (Type=forking units in particular -- the
+# creative server's own ExecStartPost can run 80s+, see package.nix).
+# `sudo -v` upfront so a password prompt (if the cached ticket already
+# expired) happens cleanly before the spinner starts overwriting the
+# line, not interleaved with it.
+run_with_spinner() {
+    local msg="$1"
+    shift
+    sudo -v || return $?
+
+    "$@" &
+    local pid=$! frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
+    tput civis 2>/dev/null || true
+    while kill -0 "$pid" 2>/dev/null; do
+        printf '\r%s %s' "$msg" "${frames:i%${#frames}:1}"
+        i=$((i + 1))
+        sleep 0.1
+    done
+    wait "$pid"
+    local status=$?
+    tput cnorm 2>/dev/null || true
+
+    if [ "$status" -eq 0 ]; then
+        printf '\r%s done ✓\n' "$msg"
+    else
+        printf '\r%s failed ✗\n' "$msg"
+    fi
+    return "$status"
+}
