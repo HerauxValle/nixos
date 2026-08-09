@@ -18,6 +18,17 @@
   security.polkit.enable = false;
   services.gvfs.enable = false;
 
+  # PipeWire audio stack -- no prior audio config existed in this repo at
+  # all. rtkit is required for realtime scheduling (glitch-free audio);
+  # pulse/alsa compat lets non-PipeWire-native apps keep working.
+  security.rtkit.enable = false;
+  services.pipewire = {
+    enable = false;
+    alsa.enable = false;
+    alsa.support32Bit = true;
+    pulse.enable = false;
+  };
+
   # Per-game Steam launch options, e.g.:
   #   gamemoderun gamescope -f -r 144 -- mangohud %command%
 

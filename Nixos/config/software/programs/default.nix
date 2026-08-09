@@ -16,6 +16,7 @@
 {
   imports = [
     ./dconf
+    ./easyeffects
     ./fresh-editor
     ./gamemode
     ./gamescope

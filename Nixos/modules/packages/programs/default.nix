@@ -151,6 +151,15 @@
       };
     };
 
+    # Home-manager-only, PipeWire effects (EQ/noise-suppression/etc.) --
+    # needs services.pipewire.enable + security.rtkit.enable too, see
+    # modules/desktop/desktop.nix.
+    easyeffects.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "home-manager services.easyeffects.enable.";
+    };
+
     dconf.enable = lib.mkOption {
       type = lib.types.bool;
       default = false;

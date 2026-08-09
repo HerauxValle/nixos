@@ -65,5 +65,32 @@
       url = "https://hangarcdn.papermc.io/plugins/VenDooM/MC-Server-Admin-Panel/versions/1.2.4/PAPER/MCPanel-1.2.4.jar";
       hash = "sha256-jiOzvdawid0TnFnPzLKC8KPeAeNYrGZwrwrTgasa+So=";
     };
+
+    # Permissions plugin -- fixes PlayTimeManager's "LuckPerms plugin
+    # configured but not found" warning, and lets you grant fine-grained
+    # command permissions to non-op players (e.g. for command-alias/
+    # logic plugins below) without giving full op. NOT wired to grant
+    # any gameplay-affecting permission node by default -- op status
+    # (gamemode/etc.) stays exactly as restricted as before (ops.nix).
+    # Same jar/hash as creative's own LuckPerms entry.
+    "plugins/LuckPerms.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/Vebnzrzj/versions/b0mk8uS6/LuckPerms-Bukkit-5.5.71.jar";
+      hash = "sha256-Sc7LZvof0ioTMDmkkOnB5QlaI4581m650qFv5siXVQ0=";
+    };
+
+    # Commented out -- no alias in mind yet. Simple command ALIASING
+    # (shortcut to an existing command, e.g. /hub -> /mvtp hub) needs no
+    # plugin at all -- see files.nix's commented commands.yml block.
+    # This is only for actual NEW commands with their own logic/tab-
+    # completion. Skript is the example here since it's already a known
+    # dependency elsewhere in this repo (minecraft-worlds.nix's hardcore
+    # permadeath script) -- same jar/hash, so uncommenting this is a
+    # known-good starting point, not unresearched. Tell me what you want
+    # the command(s) to actually do and I'll help write the script +
+    # grant the right (non-cheat) LuckPerms permission node for it.
+    # "plugins/Skript.jar" = pkgs.fetchurl {
+    #   url = "https://cdn.modrinth.com/data/xFNYAvMk/versions/9s2QlgIA/Skript-2.16.1.jar";
+    #   hash = "sha256-g1ejSLJ82KLPdJmY5K0UvR3KMWACa9MELW0Xz7TJinA=";
+    # };
   };
 }

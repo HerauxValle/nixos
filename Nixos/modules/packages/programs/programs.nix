@@ -56,17 +56,21 @@ in
   # Some programs.* options only exist under home-manager, not as NixOS
   # system options -- reached through home-manager.users.<name>.programs
   # instead, same as packages/shells/shells.nix does elsewhere.
-  home-manager.users.${config.vars.identity.username}.programs = {
-    fresh-editor = {
-      enable = cfg.freshEditor.enable;
-      defaultEditor = cfg.freshEditor.defaultEditor;
-      extraPackages = cfg.freshEditor.extraPackages;
+  home-manager.users.${config.vars.identity.username} = {
+    programs = {
+      fresh-editor = {
+        enable = cfg.freshEditor.enable;
+        defaultEditor = cfg.freshEditor.defaultEditor;
+        extraPackages = cfg.freshEditor.extraPackages;
+      };
+
+      mangohud = {
+        enable = cfg.mangohud.enable;
+        enableSessionWide = cfg.mangohud.enableSessionWide;
+        settings = cfg.mangohud.settings;
+      };
     };
 
-    mangohud = {
-      enable = cfg.mangohud.enable;
-      enableSessionWide = cfg.mangohud.enableSessionWide;
-      settings = cfg.mangohud.settings;
-    };
+    services.easyeffects.enable = cfg.easyeffects.enable;
   };
 }

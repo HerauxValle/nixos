@@ -109,5 +109,16 @@
         auth.token-hours = 24;
       };
     };
+
+    # Commented out -- no alias in mind yet. Native Paper feature, no
+    # plugin needed at all (creative/files.nix uses this exact mechanism
+    # for /hub, /creative, /world). Each entry maps a new command name to
+    # a list of real commands it sends -- e.g. aliasing /home to an
+    # actual teleport command once you have one in mind.
+    # "commands.yml".value = {
+    #   aliases = {
+    #     # example = [ "some real command here" ];
+    #   };
+    # };
   };
 }
