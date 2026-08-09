@@ -67,6 +67,16 @@
       };
     }
 
+    {
+      # Minecraft server console/lifecycle dispatcher -- same main.sh/cmd/
+      # /lib pattern as Pacnix. tmux attach for the console needs `tmux`
+      # itself on PATH too, see packages.nix.
+      dir = ../../../../Scripts/Minecraft;
+      include = {
+        "main.sh" = "mcli";
+      };
+    }
+
     # {
     #   dir = ../../../../Projects/Path;
     #   include = { "bin" = "path"; };

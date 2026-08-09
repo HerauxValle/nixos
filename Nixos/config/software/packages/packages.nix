@@ -10,6 +10,7 @@
       vivaldi = {
         builtIn = true;
       }; # live ISO: browser, essential for a real install session
+      tor-browser = { };
 
       # Development
       git = {
@@ -126,6 +127,7 @@
 
       # Servers
       mcrcon = { }; # RCON client, for remote-administering the Minecraft servers
+      tmux = { }; # attaches to the Minecraft servers' live console (mcli log <name>) -- nix-minecraft's own management system, not a terminal-multiplexing pick
 
       # Virtualization
       qemu = { };
