@@ -9,6 +9,31 @@ lib.types.submodule {
       description = "services.minecraft-servers.servers.<name> this world group belongs to.";
     };
 
+    multiverse = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        true (default) -- this group is Multiverse-managed: worldType,
+        generatorSettings, nether, end, gamemode, and this schema's
+        simulated `hardcore` all apply, via /mv create console commands
+        in the target server's extraStartPost (existing behavior,
+        unchanged).
+
+        false -- no Multiverse plugin on the target server. This becomes
+        that server's one real default world instead of an
+        additional Multiverse-created one: worldType, generatorSettings,
+        nether, end, gamemode, and `hardcore` are all no-ops (a vanilla
+        server has exactly one world, and vanilla's real hardcore flag
+        -- see serverProperties.hardcore in the server's own config --
+        already covers permadeath for it directly, not this schema's
+        Skript-simulated version). Only `seed` (-> serverProperties.
+        level-seed) and `regenerate` (-> unconditionally archives the
+        server's actual level-name folder into trash/ on every start,
+        letting vanilla rebootstrap fresh against that seed) do anything
+        in this mode.
+      '';
+    };
+
     worldType = lib.mkOption {
       type = lib.types.nullOr (
         lib.types.enum [

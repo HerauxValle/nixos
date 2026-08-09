@@ -7,15 +7,51 @@ let
   ops = config.vars.minecraft.ops;
   spawnCfg = config.vars.minecraft.servers;
 
-  byServer = lib.groupBy (e: e.value.server) (
-    lib.mapAttrsToList (name: value: { inherit name value; }) worlds
-  );
+  allWorldEntries = lib.mapAttrsToList (name: value: { inherit name value; }) worlds;
+
+  # multiverse=false entries (world-type.nix) never touch mkGroupCmds/
+  # mkDimScript/mkServerScript below -- byServer only ever sees
+  # Multiverse-managed groups, so that whole pipeline (and every existing
+  # creative/ world) is completely unchanged by their existence.
+  byServer = lib.groupBy (e: e.value.server) (lib.filter (e: e.value.multiverse) allWorldEntries);
+
+  # At most one multiverse=false entry per server -- a vanilla server has
+  # exactly one default world, so more than one declared for the same
+  # `server` is a config mistake, caught here instead of silently
+  # picking one.
+  nonMvByServer = lib.groupBy (e: e.value.server) (lib.filter (e: !e.value.multiverse) allWorldEntries);
+  nonMvByServerChecked = lib.mapAttrs (
+    serverName: entries:
+    assert lib.assertMsg (lib.length entries <= 1)
+      "vars.minecraft.worlds: server '${serverName}' has ${toString (lib.length entries)} multiverse=false entries -- a vanilla server can only have one default world, only one is allowed.";
+    lib.head entries
+  ) nonMvByServer;
+
+  # Archives the server's *actual* level-name folder (read from its own
+  # serverProperties, not this entry's own attr-set key -- the two are
+  # unrelated identifiers) into trash/ unconditionally on every start.
+  # Vanilla rebootstraps a fresh world against serverProperties.level-seed
+  # (set below) the moment it finds that folder gone. Same trash-not-
+  # delete convention as mkTrashScript.
+  mkRegenScript =
+    levelName: ''
+      mkdir -p trash
+      ts=$(date +%s)
+      for d in ${lib.escapeShellArg levelName} ${lib.escapeShellArg "${levelName}_nether"} ${lib.escapeShellArg "${levelName}_the_end"}; do
+        [ -d "$d" ] && mv "$d" "trash/''${ts}-$d"
+      done
+    '';
 
   # OP/spawn are server-wide, not tied to any world -- a server can have
   # ops/startIn/loginIn declared with no worlds entries at all (or vice
-  # versa), so this is every server name mentioned by any of the three,
+  # versa), so this is every server name mentioned by any of the four,
   # not just dimsByServer's keys.
-  allServerNames = lib.unique ((lib.attrNames byServer) ++ (lib.attrNames ops) ++ (lib.attrNames spawnCfg));
+  allServerNames = lib.unique (
+    (lib.attrNames byServer)
+    ++ (lib.attrNames ops)
+    ++ (lib.attrNames spawnCfg)
+    ++ (lib.attrNames nonMvByServerChecked)
+  );
 
   # "hub" -> "hub" (plain world-name destination). "hub 0 65 0" ->
   # "e:hub:0,65,0" (Multiverse's own EXACT destination-type syntax, same
@@ -222,6 +258,16 @@ in
           startIn = null;
           loginIn = null;
         };
+        # The multiverse=false entry for this server, if any -- world-
+        # type.nix guarantees at most one (nonMvByServerChecked's own
+        # assert). null means this server has no such entry, same as
+        # every server before this feature existed.
+        nonMv = nonMvByServerChecked.${serverName} or null;
+        # Read, not written -- level-name lives wherever that server's
+        # own server.nix sets it (server.properties' actual on-disk
+        # world folder name), which has nothing to do with this vars.
+        # minecraft.worlds entry's own attr-set key.
+        levelName = config.services.minecraft-servers.servers.${serverName}.serverProperties.level-name or "world";
       in
       let
         extraSymlinks =
@@ -274,7 +320,9 @@ in
           };
       in
       {
-        extraStartPre = mkTrashScript (map (d: d.dimName) dims);
+        extraStartPre =
+          mkTrashScript (map (d: d.dimName) dims)
+          + lib.optionalString (nonMv != null && nonMv.value.regenerate) (mkRegenScript levelName);
         extraStartPost =
           mkServerScript serverName dims
           + lib.concatMapStringsSep "\n" mkGamemodePermCmds creativeDims
@@ -283,6 +331,9 @@ in
       }
       // lib.optionalAttrs (extraSymlinks != { }) { symlinks = extraSymlinks; }
       // lib.optionalAttrs (extraFiles != { }) { files = extraFiles; }
+      // lib.optionalAttrs (nonMv != null && nonMv.value.seed != null) {
+        serverProperties.level-seed = nonMv.value.seed;
+      }
     ) dimsByServer;
   };
 }
