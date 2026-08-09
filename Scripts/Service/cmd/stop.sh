@@ -9,4 +9,4 @@ require_name "${1:-}"
 name="$1"
 unit="$(unit_name "$name")"
 
-run_with_spinner "stopping $name ..." sudo systemctl stop "$unit"
+run_with_spinner "$RED" "stopping $name" sudo systemctl stop "$unit"

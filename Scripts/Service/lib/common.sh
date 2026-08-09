@@ -25,22 +25,25 @@ require_name() {
     fi
 }
 
+RED='\033[31m'; GREEN='\033[32m'; YELLOW='\033[33m'; CYAN='\033[36m'; MAGENTA='\033[35m'; RESET='\033[0m'
+
 # Same spinner as mcli's own lib/common.sh (Scripts/Minecraft) -- kept as
 # a separate copy rather than a shared file since these are two
 # independent Scripts/ projects, same as everywhere else in this repo.
-# `sudo -v` upfront so a password prompt (if the cached ticket already
-# expired) happens cleanly before the spinner starts overwriting the
-# line, not interleaved with it.
+# Runs "$@" in the background with a spinner in front of $msg (" <frame>
+# <msg>", spinner+text in $color while running). `sudo -v` upfront so a
+# password prompt (if the cached ticket already expired) happens cleanly
+# before the spinner starts overwriting the line, not interleaved with it.
 run_with_spinner() {
-    local msg="$1"
-    shift
+    local color="$1" msg="$2"
+    shift 2
     sudo -v || return $?
 
     "$@" &
     local pid=$! frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
     tput civis 2>/dev/null || true
     while kill -0 "$pid" 2>/dev/null; do
-        printf '\r%s %s' "$msg" "${frames:i%${#frames}:1}"
+        printf '\r %b%s %s%b' "$color" "${frames:i%${#frames}:1}" "$msg" "$RESET"
         i=$((i + 1))
         sleep 0.1
     done
@@ -49,9 +52,9 @@ run_with_spinner() {
     tput cnorm 2>/dev/null || true
 
     if [ "$status" -eq 0 ]; then
-        printf '\r%s done ✓\n' "$msg"
+        printf '\r %b✓ %s%b\n' "$GREEN" "$msg" "$RESET"
     else
-        printf '\r%s failed ✗\n' "$msg"
+        printf '\r %b✗ %s%b\n' "$RED" "$msg" "$RESET"
     fi
     return "$status"
 }

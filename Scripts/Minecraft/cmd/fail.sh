@@ -24,5 +24,5 @@ if ! systemctl is-failed --quiet "$unit"; then
     exit 1
 fi
 
-run_with_spinner "unsticking $name ..." sudo bash -c 'systemctl reset-failed "$1" && systemctl start "$1"' -- "$unit"
+run_with_spinner "$MAGENTA" "unsticking $name" sudo bash -c 'systemctl reset-failed "$1" && systemctl start "$1"' -- "$unit"
 systemctl status --no-pager "$unit"
