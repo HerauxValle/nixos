@@ -11,4 +11,9 @@ sock="$(sock_path "$name")"
 
 [ -S "$sock" ] || { echo "no console socket at $sock -- is '$name' running? (mcli start $name)" >&2; exit 1; }
 
-exec tmux -S "$sock" attach
+# sudo, not a plain attach: nix-minecraft's tmux hook (server-access -aw
+# nobody, see the PrivateUsers comment in servers/creative/package.nix)
+# only grants access to root/the namespace-mapped "nobody" identity --
+# any other real user, including this one, gets "access not allowed"
+# confirmed live even with the right group membership and socket perms.
+exec sudo tmux -S "$sock" attach
