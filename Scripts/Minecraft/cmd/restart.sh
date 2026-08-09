@@ -5,8 +5,13 @@ DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
 source "$DIR/lib/common.sh"
 
 cmd_usage="restart"
-require_name "${1:-}"
-name="$1"
+parse_args "$@"
+require_name "${ARGS[0]:-}"
+name="${ARGS[0]}"
 unit="$(unit_name "$name")"
 
-run_with_spinner "$YELLOW" "restarting $name" sudo systemctl restart "$unit"
+if [ "$SILENT" -eq 1 ]; then
+    run_silent "$YELLOW" "restarting $name" sudo systemctl restart "$unit"
+else
+    run_with_spinner "$YELLOW" "restarting $name" sudo systemctl restart "$unit"
+fi

@@ -5,8 +5,9 @@ DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
 source "$DIR/lib/common.sh"
 
 cmd_usage="fail"
-require_name "${1:-}"
-name="$1"
+parse_args "$@"
+require_name "${ARGS[0]:-}"
+name="${ARGS[0]}"
 unit="$(unit_name "$name")"
 
 # Same unstick-a-failed-unit fix as `mcli fail` (Scripts/Minecraft) --
@@ -20,5 +21,9 @@ if ! systemctl is-failed --quiet "$unit"; then
     exit 1
 fi
 
-run_with_spinner "$MAGENTA" "unsticking $name" sudo bash -c 'systemctl reset-failed "$1" && systemctl start "$1"' -- "$unit"
-systemctl status --no-pager "$unit"
+if [ "$SILENT" -eq 1 ]; then
+    run_silent "$MAGENTA" "unsticking $name" sudo bash -c 'systemctl reset-failed "$1" && systemctl start "$1"' -- "$unit"
+else
+    run_with_spinner "$MAGENTA" "unsticking $name" sudo bash -c 'systemctl reset-failed "$1" && systemctl start "$1"' -- "$unit"
+    systemctl status --no-pager "$unit"
+fi

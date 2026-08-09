@@ -5,8 +5,13 @@ DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
 source "$DIR/lib/common.sh"
 
 cmd_usage="stop"
-require_name "${1:-}"
-name="$1"
+parse_args "$@"
+require_name "${ARGS[0]:-}"
+name="${ARGS[0]}"
 unit="$(unit_name "$name")"
 
-run_with_spinner "$RED" "stopping $name" sudo systemctl stop "$unit"
+if [ "$SILENT" -eq 1 ]; then
+    run_silent "$RED" "stopping $name" sudo systemctl stop "$unit"
+else
+    run_with_spinner "$RED" "stopping $name" sudo systemctl stop "$unit"
+fi

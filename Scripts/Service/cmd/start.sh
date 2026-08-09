@@ -5,8 +5,13 @@ DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
 source "$DIR/lib/common.sh"
 
 cmd_usage="start"
-require_name "${1:-}"
-name="$1"
+parse_args "$@"
+require_name "${ARGS[0]:-}"
+name="${ARGS[0]}"
 unit="$(unit_name "$name")"
 
-run_with_spinner "$CYAN" "starting $name" sudo systemctl start "$unit"
+if [ "$SILENT" -eq 1 ]; then
+    run_silent "$CYAN" "starting $name" sudo systemctl start "$unit"
+else
+    run_with_spinner "$CYAN" "starting $name" sudo systemctl start "$unit"
+fi

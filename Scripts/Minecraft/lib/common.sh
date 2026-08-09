@@ -17,12 +17,41 @@ server_properties_path() { echo "/home/herauxvalle/Images/Minecraft/servers/${1}
 
 require_name() {
     if [ -z "${1:-}" ]; then
-        echo "usage: mcli ${cmd_usage:-<command>} <name>" >&2
+        echo "usage: mcli ${cmd_usage:-<command>} <name> [--silent]" >&2
         exit 1
     fi
 }
 
 RED='\033[31m'; GREEN='\033[32m'; YELLOW='\033[33m'; CYAN='\033[36m'; MAGENTA='\033[35m'; RESET='\033[0m'
+
+# Strips a --silent flag out of "$@" (in any position) into $SILENT
+# (0/1) and leaves the rest in the $ARGS array -- start/stop/restart/
+# fail all take just <name> [--silent], so this is shared instead of
+# each one hand-rolling its own arg scan.
+parse_args() {
+    SILENT=0
+    ARGS=()
+    local a
+    for a in "$@"; do
+        case "$a" in
+            --silent) SILENT=1 ;;
+            *) ARGS+=("$a") ;;
+        esac
+    done
+}
+
+# --silent's counterpart to run_with_spinner: fires "$@" fully detached
+# (own subshell, not this script's job table -- survives the script
+# exiting, no [1]+ Done noise) and returns immediately instead of
+# blocking on it. Same `sudo -v` upfront reasoning -- a password prompt
+# from inside the detached subshell would be invisible/unanswerable.
+run_silent() {
+    local color="$1" msg="$2"
+    shift 2
+    sudo -v || return $?
+    ( "$@" >/dev/null 2>&1 & )
+    printf ' %b→ %s (backgrounded)%b\n' "$color" "$msg" "$RESET"
+}
 
 # Runs "$@" in the background with a spinner in front of $msg and a
 # growing/cycling "." ".." "..." trail after it (" <frame> <msg><dots>",
