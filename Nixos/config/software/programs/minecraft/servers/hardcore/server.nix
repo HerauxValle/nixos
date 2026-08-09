@@ -12,8 +12,13 @@
     online-mode = true;
     white-list = false;
     pvp = false; # solo play
+    # Both maxed out (32 is vanilla's actual ceiling for each) -- these
+    # are just the server-side cap, not what you'll actually render.
+    # Your client's own render-distance setting decides the effective
+    # distance below that ceiling, and switching that is instant
+    # (no server restart) unlike changing these.
     view-distance = 32;
-    simulation-distance = 12;
+    simulation-distance = 32;
 
     # RCON -- same purpose as creative's (mcli rcon / mcrcon). Password
     # generated fresh for this server, not reused from creative -- see

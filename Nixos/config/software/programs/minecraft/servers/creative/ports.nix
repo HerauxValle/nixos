@@ -10,7 +10,7 @@
   vars.system.ports.entries.bluemap = {
     port = 8100;
     service = "minecraft-server-creative.service";
-    mode.local.name = "bluemap";
+    mode.local.name = "bluemap.creative";
   };
 
   # mDNS name only -- the module's resolveUrl port-stripping (bare
