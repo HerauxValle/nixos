@@ -26,8 +26,8 @@
     online-mode = true; # keep true unless you have a specific reason not to
     white-list = false; # or true if you want to gate join access
     pvp = false;
-    view-distance = 32;
-    simulation-distance = 12;
+    view-distance = 8;
+    simulation-distance = 5;
 
     # RCON -- lets `mcli rcon creative` (Scripts/Minecraft) and mcrcon
     # send console commands without attaching to the tmux console. Port
