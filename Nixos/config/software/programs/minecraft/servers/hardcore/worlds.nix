@@ -14,12 +14,12 @@
     # Random test seed -- swap for a researched one whenever, no
     # downside to changing it later: regenerate just wipes and
     # rebootstraps against whatever's here at the time.
-    seed = "3008458520959580222";
+    seed = "6230727955490815653";
 
     # true + rebuild wipes the world (archived to trash/, not deleted)
     # on every single start until set back to false -- flip it on,
     # rebuild once to get a fresh attempt, then flip back off so normal
     # restarts stop wiping progress.
-    regenerate = false;
+    regenerate = true;
   };
 }
