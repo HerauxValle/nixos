@@ -101,6 +101,20 @@ in
       hash = "sha256-efNudSvfb7na79Nat1OHu2ce+U829a7eNraXpOFLsS8=";
     };
 
+    # Live /vdt commands to change view/simulation-distance without a
+    # restart -- purely a server-performance knob, same for every
+    # player, no advantage/mechanic change. Default config ships with
+    # auto-adjust (TPS-based dynamic scaling) OFF, so installing this
+    # changes nothing on its own -- server.properties' 32/32 stays the
+    # real, restart-persistent value. A manual /vdt set only changes the
+    # live in-memory value via Paper's own World#setViewDistance API, it
+    # doesn't touch server.properties or this plugin's own config, so it
+    # reverts back to 32/32 on the next restart.
+    "plugins/ViewDistanceTweaks.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/X7x1kZUF/versions/Uorl1raS/view-distance-tweaks-2.6-RELEASE.jar";
+      hash = "sha256-cP+P8d0B3ziLlcGhyozE7iLfwgN6CdKGBZSFZgG+sFA=";
+    };
+
     # NOT added: AntiXray -- Paper's own paper-world-defaults.yml already
     # ships anti-xray enabled by default (anticheat.anti-xray.enabled:
     # true, engine-mode: 2), confirmed via PaperMC's own docs. A plugin

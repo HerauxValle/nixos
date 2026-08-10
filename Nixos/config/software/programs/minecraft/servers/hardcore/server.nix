@@ -12,13 +12,16 @@
     online-mode = true;
     white-list = false;
     pvp = false; # solo play
-    # Both maxed out (32 is vanilla's actual ceiling for each) -- these
-    # are just the server-side cap, not what you'll actually render.
-    # Your client's own render-distance setting decides the effective
-    # distance below that ceiling, and switching that is instant
-    # (no server restart) unlike changing these.
-    view-distance = 32;
-    simulation-distance = 32;
+    # Lowered from vanilla's 32/32 ceiling after a GPU hang (Xid 31/109
+    # MMU faults) while running Iris + a heavy shaderpack at max shadow
+    # distance against this server's original 32-chunk cap -- these are
+    # just the server-side cap, not what you'll actually render. Your
+    # client's own render-distance setting can go lower than this
+    # freely (instant, no restart); it just can't go higher.
+    # ViewDistanceTweaks (plugins.nix) can override these live via /vdt
+    # without a restart -- reverts to these values on the next restart.
+    view-distance = 8;
+    simulation-distance = 5;
 
     # Pure bandwidth optimization -- compresses packets above this size,
     # zero gameplay effect. From the "6 config files performance" video

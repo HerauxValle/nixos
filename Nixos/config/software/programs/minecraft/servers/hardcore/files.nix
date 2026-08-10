@@ -227,5 +227,44 @@
     #     # example = [ "some real command here" ];
     #   };
     # };
+
+    # Commented out -- ViewDistanceTweaks (plugins.nix) ships with this
+    # OFF by default, so not present here changes nothing; this is just
+    # a ready-to-enable reference matching the plugin's own real schema
+    # (confirmed against its published config.yml). "mixed" combines
+    # proactive (targets a global ticking-chunk-count budget) and
+    # reactive (TPS/MSPT-threshold) adjustment, same for every player,
+    # no advantage -- it can only ever move within the world-defaults
+    # range below, itself capped at server.nix's static 8/5 ceiling.
+    # "plugins/ViewDistanceTweaks/config.yml" = {
+    #   format = pkgs.formats.yaml { };
+    #   value = {
+    #     version = 7;
+    #     enabled = true;
+    #     adjustment-mode = "mixed";
+    #     proactive = {
+    #       global-ticking-chunk-count-target = 5780;
+    #       global-non-ticking-chunk-count-target = 6720;
+    #     };
+    #     reactive = {
+    #       increase-tps-threshold = 19.9;
+    #       decrease-tps-threshold = 18.0;
+    #       collection-period-ticks = 1200;
+    #     };
+    #     world-defaults = {
+    #       simulation-distance = {
+    #         min = 3;
+    #         max = 5;
+    #       };
+    #       view-distance = {
+    #         min = 6;
+    #         max = 8;
+    #       };
+    #       chunk-weight = 1.0;
+    #     };
+    #     check-interval-ticks = 600;
+    #     startup-delay-ticks = 2400;
+    #   };
+    # };
   };
 }
