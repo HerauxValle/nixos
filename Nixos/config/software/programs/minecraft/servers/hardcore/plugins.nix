@@ -1,6 +1,6 @@
 # &desc: "Hardcore server's plugin jars and world/datapacks/ -- Chunky, BlueMap, GrimAC, ClearLaggEnhanced, PlayTimeManager, AdvancedServerList, AntiPopup, VoxyServerSide, MCPanel, LuckPerms, GSit, FastLeafDecay (plugins); Geophilic, AMH, More Mobs, Tool Trims, Dynamic Lights, Spawn Animations, Vanilla Refresh + its whitelist-enforcement override (datapacks). DiscordSRV + Skript + SentientMobs + OmniCut commented out/rejected (see inline comments for why). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
 
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 let
   # TRUE whitelist -- every known Vanilla Refresh feature forced off
@@ -68,10 +68,15 @@ in
       url = "https://cdn.modrinth.com/data/LJNGWSvH/versions/fbt7nJt5/grimac-bukkit-2.3.74-2614909.jar";
       hash = "sha256-viF0HZxw9RJBGCgdAJsagxZaIR9TrxDa1LMZb/U8l+0=";
     };
-    "plugins/ClearLaggEnhanced.jar" = pkgs.fetchurl {
-      url = "https://cdn.modrinth.com/data/KAaZvh09/versions/nlLigbcJ/ClearLaggEnhanced-26.8.0.jar";
-      hash = "sha256-MdLk5dxwwix8ssPNA/n3+M839a3aZJ+ZAHIPc4/L4Pk=";
-    };
+    # Commented out -- can't do manual-only clearing with zero automatic
+    # (its /lagg clear refuses to run unless the module's enabled, and
+    # enabling the module always starts its auto-scheduler too, no
+    # escape hatch). Not worth it for a private/effectively-solo server.
+    # "plugins/ClearLaggEnhanced.jar" = pkgs.fetchurl {
+    #   url = "https://cdn.modrinth.com/data/KAaZvh09/versions/nlLigbcJ/ClearLaggEnhanced-26.8.0.jar";
+    #   hash = "sha256-MdLk5dxwwix8ssPNA/n3+M839a3aZJ+ZAHIPc4/L4Pk=";
+    # };
+
     # Pure stats -- /playtime and friends, no gameplay effect.
     "plugins/PlayTimeManager.jar" = pkgs.fetchurl {
       url = "https://cdn.modrinth.com/data/OzCiibPq/versions/C0SSVnbh/PlayTimeManager-3.6.5.jar";
@@ -281,4 +286,32 @@ in
     #   hash = "sha256-g1ejSLJ82KLPdJmY5K0UvR3KMWACa9MELW0Xz7TJinA=";
     # };
   };
+
+  # Declares the LuckPerms grants that were originally applied by hand via
+  # RCON 2026-08-10 to let non-op players use /vdt, /vd, /sd -- moved here
+  # so they survive a wiped/regenerated LuckPerms data dir instead of only
+  # living in its H2 database, and onto the "default" group (everyone),
+  # not just one user. Same tmux-send mechanism minecraft-worlds.nix uses
+  # for its own LuckPerms grants (mkGamemodePermCmds/mkOpsCmds) --
+  # extraStartPost is `types.lines`, so this merges with (doesn't replace)
+  # whatever that module already sets for this server. `lp` commands are
+  # idempotent -- harmless to resend every boot.
+  services.minecraft-servers.servers.hardcore.extraStartPost =
+    let
+      SOCK = "/run/minecraft/hardcore.sock";
+      send = cmd: ''
+        ${pkgs.tmux}/bin/tmux -S "${SOCK}" send-keys ${lib.escapeShellArg cmd} Enter
+        sleep 1
+      '';
+    in
+    lib.concatMapStrings send [
+      "lp group default permission set viewdistancetweaks.command.vdt true"
+      "lp group default permission set viewdistancetweaks.vdt.command.viewdistance true"
+      "lp group default permission set viewdistancetweaks.vdt.command.simulationdistance true"
+      "lp group default permission set viewdistancetweaks.vdt.command.status true"
+      # ClearLaggEnhanced commented out above -- these two would no-op
+      # without it anyway.
+      # "lp group default permission set CLE.clear true"
+      # "lp group default permission set CLE.clearstatus true"
+    ];
 }

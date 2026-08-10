@@ -6,6 +6,51 @@
   services.minecraft-servers.servers.hardcore.files = {
     "server-icon.png" = ../../icons/hardcore.png;
 
+    # Commented out -- ClearLaggEnhanced itself commented out in
+    # plugins.nix (see its comment for why).
+    # "plugins/ClearLaggEnhanced/config.yml" = {
+    #   format = pkgs.formats.yaml { };
+    #   value = {
+    #     database = {
+    #       enabled = true;
+    #       type = "sqlite";
+    #       file = "clearlagg.db";
+    #       mysql = {
+    #         host = "localhost";
+    #         port = 3306;
+    #         database = "clearlagg";
+    #         username = "root";
+    #         password = "password";
+    #         ssl-mode = "PREFERRED";
+    #         properties = { };
+    #       };
+    #       pool = {
+    #         maximum-pool-size = 10;
+    #         minimum-idle = 2;
+    #         connection-timeout-ms = 10000;
+    #         idle-timeout-ms = 600000;
+    #         max-lifetime-ms = 1800000;
+    #         keepalive-time-ms = 0;
+    #         validation-timeout-ms = 5000;
+    #       };
+    #     };
+    #     modules = {
+    #       entity-clearing = false;
+    #       mob-limiter = true;
+    #       spawner-limiter = true;
+    #       misc-entity-limiter = true;
+    #       chunk-finder = true;
+    #       performance = true;
+    #       packet-limiter = false;
+    #       afk = false;
+    #       wildstacker = false;
+    #       rosestacker = false;
+    #       modernshowcase = false;
+    #       griefprevention3d = false;
+    #     };
+    #   };
+    # };
+
     # Purely how many threads handle chunk disk I/O -- no gameplay
     # behavior change at all, just throughput. Default is -1 (single
     # thread); worker-threads (chunk generation parallelism) left
@@ -218,12 +263,15 @@
     };
 
     # /vd and /sd -- short aliases to the two ViewDistanceTweaks (plugins.nix)
-    # commands you actually use. Native Paper feature, no plugin needed
-    # (same mechanism creative/files.nix uses for /hub, /creative, /world).
+    # commands you actually use. Native Paper feature, no extra plugin
+    # needed (same mechanism creative/files.nix uses for /hub, /creative,
+    # /world).
     "commands.yml".value = {
       aliases = {
         vd = [ "vdt viewdistance $1" ];
         sd = [ "vdt simulationdistance $1" ];
+        # clearitems = [ "lagg clear" ]; -- ClearLaggEnhanced commented
+        # out (plugins.nix), this would no-op.
       };
     };
 
