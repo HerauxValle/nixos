@@ -20,6 +20,12 @@
     view-distance = 32;
     simulation-distance = 32;
 
+    # Pure bandwidth optimization -- compresses packets above this size,
+    # zero gameplay effect. From the "6 config files performance" video
+    # review -- see files.nix/plugins.nix comments for the rest of that
+    # batch and what was rejected from it.
+    network-compression-threshold = 256;
+
     # RCON -- same purpose as creative's (mcli rcon / mcrcon). Password
     # generated fresh for this server, not reused from creative -- see
     # creative/server.nix's comment for why it's plaintext here and how

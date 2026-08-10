@@ -1,4 +1,4 @@
-# &desc: "Hardcore server's config-file overrides -- server-icon, BlueMap's accept-download + fog-of-war (min-inhabited-time) + full cave removal (remove-caves-below-y), and paper-global.yml's chunk-system IO thread count (pure disk-I/O throughput, zero gameplay effect)."
+# &desc: "Hardcore server's config-file overrides -- server-icon, BlueMap's accept-download + fog-of-war (min-inhabited-time) + full cave removal (remove-caves-below-y), paper-global.yml's chunk-system IO threads, paper-world-defaults.yml + spigot.yml's pure-performance/bug-fix tuning (see inline comments)."
 
 { pkgs, ... }:
 
@@ -15,6 +15,46 @@
       format = pkgs.formats.yaml { };
       value = {
         chunk-system.io-threads = 4;
+      };
+    };
+
+    # From the "6 config files performance" video review -- only the
+    # entries confirmed as pure performance/bug-fixes with zero mechanic
+    # change made the cut (see plugins.nix's top &desc / conversation for
+    # what was rejected and why, including two whole config files --
+    # pufferfish.yml, purpur.yml -- that don't even apply since this is
+    # plain Paper, not those forks).
+    "config/paper-world-defaults.yml" = {
+      format = pkgs.formats.yaml { };
+      value = {
+        chunks = {
+          delay-chunk-unloads-by = "10s";
+          max-auto-save-chunks-per-tick = 8;
+          # Bug-prevention, not a mechanic change -- stops an unfair
+          # glitch-fall through the world during chunk-load lag.
+          prevent-moving-into-unloaded-chunks = true;
+        };
+        # Paper's own docs confirm this produces identical explosion
+        # outcomes, just computed faster -- not a behavior change.
+        environment.optimize-explosions = true;
+        # Closes a real exploit (climbing entities bypassing the entity-
+        # cramming damage rule) -- a fix, not a nerf, same spirit as the
+        # Loyal Tridents void-throw fix considered earlier.
+        collisions.fix-climbing-bypassing-cramming-rule = true;
+      };
+    };
+
+    # merge-radius only affects how close nearby dropped items/XP orbs
+    # need to be before they visually merge into one stacked entity --
+    # doesn't change what you actually collect, just entity count/visual
+    # clutter.
+    "spigot.yml" = {
+      format = pkgs.formats.yaml { };
+      value = {
+        merge-radius = {
+          item = 3.5;
+          exp = 4.5;
+        };
       };
     };
 
