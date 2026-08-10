@@ -135,5 +135,14 @@
     # -- you said skip), Schematic Brush Reborn 2 (SpigotMC direct
     # download is behind a Cloudflare bot-challenge, couldn't fetch it
     # programmatically -- get me a direct file/URL if you still want it).
+
+    # Item editor -- rename/lore/enchant/attribute/potion-color/firework
+    # GUIs. An admin/creative tool by nature, wrong fit for hardcore's
+    # no-advantage rule but exactly right here since you're a real op on
+    # this server (ops.nix).
+    "plugins/ItemEdit.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/yx81EHRu/versions/ODZyheTG/ItemEdit-3.7.10.jar";
+      hash = "sha256-xMzh9A/u+AubB/+Y3w/z2vjkoSI0ddmf/w7NeMy1Yts=";
+    };
   };
 }

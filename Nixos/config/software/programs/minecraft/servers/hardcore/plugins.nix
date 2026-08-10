@@ -1,7 +1,41 @@
-# &desc: "Hardcore server's plugin jars -- Chunky (pre-gen), BlueMap (fog-of-war config, see files.nix), GrimAC (movement anti-cheat), ClearLaggEnhanced (cleanup), PlayTimeManager (stats), VoxyServerSide (nerfed lodStreamRadius, see files.nix), MCPanel (web console, port 8091), LuckPerms (permissions), GSit (sit/lay, cosmetic), FastLeafDecay (cosmetic), Geophilic (world/datapacks/, vanilla biome decoration). DiscordSRV + Skript + SentientMobs commented out/rejected (see inline comments for why). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
+# &desc: "Hardcore server's plugin jars and world/datapacks/ -- Chunky, BlueMap, GrimAC, ClearLaggEnhanced, PlayTimeManager, VoxyServerSide, MCPanel, LuckPerms, GSit, FastLeafDecay (plugins); Geophilic, AMH, More Mobs, Tool Trims, Dynamic Lights, Spawn Animations, Vanilla Refresh + its whitelist-enforcement override (datapacks). DiscordSRV + Skript + SentientMobs + OmniCut commented out/rejected (see inline comments for why). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
 
 { pkgs, ... }:
 
+let
+  # Force-enforces the agreed 14-feature Vanilla Refresh whitelist every
+  # time the world loads, overwriting whatever Vanilla Refresh's own
+  # defaults (or any in-game toggling) set -- unconditional "set value",
+  # not the "unless already set" guard Vanilla Refresh itself uses, so
+  # this always wins regardless of load order between the two packs'
+  # #minecraft:load contributions. See conversation history for the full
+  # per-feature audit (each one traced to its actual source function,
+  # not just its name) that produced this exact list.
+  vanillaRefreshOverridesDatapack = pkgs.runCommand "vanilla-refresh-overrides-datapack" { } ''
+    mkdir -p $out/data/vr_overrides/function
+    mkdir -p $out/data/minecraft/tags/function
+
+    cat > $out/pack.mcmeta <<'EOF'
+    {
+      "pack": {
+        "pack_format": 71,
+        "min_format": 71,
+        "max_format": 9999,
+        "description": "Vanilla Refresh whitelist enforcement (hardcore)"
+      }
+    }
+    EOF
+
+    cat > $out/data/minecraft/tags/function/load.json <<'EOF'
+    {
+      "replace": false,
+      "values": ["vr_overrides:load"]
+    }
+    EOF
+
+    cp ${./vanilla-refresh-overrides.mcfunction} $out/data/vr_overrides/function/load.mcfunction
+  '';
+in
 {
   services.minecraft-servers.servers.hardcore.symlinks = {
     "plugins/Chunky.jar" = pkgs.fetchurl {
@@ -109,6 +143,79 @@
       hash = "sha256-O+eVkgCWVzwhZ7zQh4DnApOB3V4reCaATfPikpQzbVQ=";
       name = "geophilic-3.6-datapack.zip";
     };
+
+    # All Mob Heads -- every mob can drop a decorative head, plus
+    # renaming-based guaranteed conversion for otherwise-unspawnable
+    # trophies (Illusioner, Zombie Horse, Killer Bunny). No power/
+    # resource gain, purely a collection/decoration feature -- confirmed
+    # via its own description.
+    "world/datapacks/AMH.zip" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/WYMK8lIp/versions/DX4ioZzs/AllMobHeads_V11.1.zip";
+      hash = "sha256-ObNGU5lSyIu1Wn4d/GapTeNKbIaYt2quMlYz7ryrGaU=";
+      name = "amh-v11.1-datapack.zip";
+    };
+
+    # More Mobs -- 85 custom player-head visual variants for existing
+    # hostile mobs, plus spiders hanging upside-down. Confirmed purely
+    # decorative, no new items/blocks/mechanics.
+    "world/datapacks/MoreMobs.zip" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/HJR6V0I2/versions/agFrBfr8/more_mobs-v1.5.10-mc1.14-26.2.9-datapack.zip";
+      hash = "sha256-2ciuT9Xn9/ft776Rg6YBnH5t1CmmeMNpTkheucN7A1Y=";
+      name = "more-mobs-v1.5.10-datapack.zip";
+    };
+
+    # Tool Trims -- same visual trim system armor already has, extended
+    # to 46 tools via 4 new smithing templates. Zero stat/durability/
+    # enchantability changes, confirmed via its own description.
+    "world/datapacks/ToolTrims.zip" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/uXeEiQk1/versions/26fWzOv5/tool-trims-v3.0.7-for-1.21.11%2B.zip";
+      hash = "sha256-CluKwP21aDRaGKUK3kmXykOCPorjeZ1k+Mzm1IPb0f0=";
+      name = "tool-trims-v3.0.7-datapack.zip";
+    };
+
+    # Dynamic Lights -- held/dropped light-emitting items actually
+    # illuminate the area, via real vanilla light blocks that follow the
+    # player. NOTE: unlike the other datapacks here, this has a genuine
+    # (if minor) gameplay effect -- it raises the actual light level
+    # around you, which suppresses hostile mob spawns nearby, something
+    # holding (not placing) a torch doesn't do in vanilla. Added anyway
+    # per your explicit call.
+    "world/datapacks/DynamicLights.zip" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/7YjclEGc/versions/3SxZhstR/dynamiclights-v1.9.3-mc1.17-26.2.9-datapack.zip";
+      hash = "sha256-FmOrPmUhXfBjIJd3df9Y2bTvUDZhTlhZ1v3PB8tNUVg=";
+      name = "dynamic-lights-v1.9.3-datapack.zip";
+    };
+
+    # Spawn Animations -- hostile mobs dig out of the ground / poof in
+    # instead of just appearing. Confirmed purely visual, zero mechanic
+    # changes (health/spawn-rate/difficulty untouched).
+    "world/datapacks/SpawnAnimations.zip" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/zrzYrlm0/versions/kXr2QX8r/spawnanimations-v1.11.5-mc1.17-26.2.9-datapack.zip";
+      hash = "sha256-2IxrHOtb3QJn7CtQQNR2k6dXD8TObtsiDS3JmGtLL0A=";
+      name = "spawn-animations-v1.11.5-datapack.zip";
+    };
+
+    # Vanilla Refresh -- a large, individually-toggleable QoL/cosmetic
+    # feature bundle. Only 14 of its 60+ features are actually wanted
+    # here (everything else -- including a genuine lodestone-teleport
+    # mechanic, free XP/crop XP, an easier-baby-zombie buff, and a cake
+    # side effect that silently drops free sugar+wheat -- audited and
+    # rejected). See vanillaRefreshOverridesDatapack above and
+    # vanilla-refresh-overrides.mcfunction for the actual enforcement:
+    # this jar alone is NOT the full picture, it must be paired with
+    # that override datapack (added right below) or the plugin's own
+    # defaults (which include several rejected features) apply instead.
+    "world/datapacks/VanillaRefresh.zip" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/gWO6Zqey/versions/n4kxzqW2/vanilla-refresh-1.4.31.zip";
+      hash = "sha256-RmRh2Hu9yAdJSNtPbKdtLUI+C/FFXI7PWGtoyNkyCrs=";
+      name = "vanilla-refresh-1.4.31-datapack.zip";
+    };
+
+    # The override datapack itself -- "zzz_" prefix has no functional
+    # significance (datapack load order for shared function tags doesn't
+    # depend on folder name), it's just there so this sorts visibly last
+    # in a directory listing next to VanillaRefresh's own files.
+    "world/datapacks/zzz_VanillaRefreshOverrides" = vanillaRefreshOverridesDatapack;
 
     # NOT added: SentientMobs -- looked like pure combat-AI difficulty on
     # the surface, but its real config has an entire villager economy
