@@ -1,4 +1,4 @@
-# &desc: "Hardcore server's plugin jars -- Chunky (pre-gen), BlueMap (fog-of-war config, see files.nix), GrimAC (movement anti-cheat), ClearLaggEnhanced (cleanup), PlayTimeManager (stats), VoxyServerSide (nerfed lodStreamRadius, see files.nix), MCPanel (web console, port 8091), LuckPerms (permissions). DiscordSRV + Skript + SentientMobs commented out/rejected (see inline comments for why). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
+# &desc: "Hardcore server's plugin jars -- Chunky (pre-gen), BlueMap (fog-of-war config, see files.nix), GrimAC (movement anti-cheat), ClearLaggEnhanced (cleanup), PlayTimeManager (stats), VoxyServerSide (nerfed lodStreamRadius, see files.nix), MCPanel (web console, port 8091), LuckPerms (permissions), GSit (sit/lay, cosmetic), FastLeafDecay (cosmetic), Geophilic (world/datapacks/, vanilla biome decoration). DiscordSRV + Skript + SentientMobs commented out/rejected (see inline comments for why). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
 
 { pkgs, ... }:
 
@@ -91,6 +91,23 @@
     "plugins/FastLeafDecay.jar" = pkgs.fetchurl {
       url = "https://cdn.modrinth.com/data/FnE6S0Zk/versions/wGh1RBAz/FastLeafDecay-1.0.7.jar";
       hash = "sha256-T6+4/M/4G3KV1abyB1IMe2QLITTdV725niuqe7iJR+I=";
+    };
+
+    # Geophilic -- vanilla biome decoration (fallen trees, boulders, tree
+    # stumps, bushes, moss, forest clearings) using only vanilla blocks,
+    # no new blocks/items/biomes at all (confirmed via its own
+    # description). A datapack, not a plugin, so it lives under
+    # world/datapacks/ instead of plugins/ -- the actively-maintained
+    # builds are otherwise Fabric/Forge mods (incompatible with Paper),
+    # but this specific datapack sibling build genuinely lists 26.2
+    # support. CAVEAT: datapacks only affect newly-generated chunks --
+    # whatever's already generated near spawn from earlier test boots
+    # won't retroactively decorate, only unexplored terrain going
+    # forward.
+    "world/datapacks/Geophilic.zip" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/hl5OLM95/versions/6uLCMJCR/Geophilic%20v3.6.dp.zip";
+      hash = "sha256-O+eVkgCWVzwhZ7zQh4DnApOB3V4reCaATfPikpQzbVQ=";
+      name = "geophilic-3.6-datapack.zip";
     };
 
     # NOT added: SentientMobs -- looked like pure combat-AI difficulty on
