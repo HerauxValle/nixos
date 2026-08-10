@@ -310,7 +310,10 @@ in
   services.minecraft-servers.servers.hardcore.extraStartPost =
     let
       SOCK = "/run/minecraft/hardcore.sock";
+      # Some commands below contain a literal $ (e.g. $assets_detector)
+      # that must reach tmux/the game unexpanded -- not a shell variable.
       send = cmd: ''
+        # shellcheck disable=SC2016
         ${pkgs.tmux}/bin/tmux -S "${SOCK}" send-keys ${lib.escapeShellArg cmd} Enter
         sleep 1
       '';
@@ -324,5 +327,16 @@ in
       # without it anyway.
       # "lp group default permission set CLE.clear true"
       # "lp group default permission set CLE.clearstatus true"
+
+      # Suppresses Tool Trims' own "required assets weren't detected"
+      # join warning -- confirmed by decompiling its
+      # detect_assets_toggle.mcfunction (world/datapacks/ToolTrims.zip)
+      # that -1 is its own disabled sentinel value for this scoreboard
+      # objective, so setting it directly (not calling the toggle
+      # function itself, which would flip back to enabled every other
+      # boot) is idempotent. Originally applied by hand via RCON
+      # 2026-08-10 -- only lived in the world's own scoreboard data
+      # until now, would've reset on a world regenerate (worlds.nix).
+      "scoreboard players set $assets_detector tooltrims.variable -1"
     ];
 }
