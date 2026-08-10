@@ -1,6 +1,6 @@
 # &desc: "Symlinks home-manager XDG config directories to Dotfiles subdirs (Hyprland, Kitty, Mpv, Neovim, Scripts, Fastfetch, etc)."
 
-{ pkgs, config, ... }:
+{ pkgs, config, osConfig, ... }:
 
 {
   xdg.configFile = {
@@ -47,21 +47,34 @@
     };
   };
 
-  xdg.dataFile."color-schemes/BreezeDarkTransparent.colors".source =
-    ../../Themes/Gwenview/BreezeDarkTransparent.colors;
+  xdg.dataFile = {
+    "color-schemes/BreezeDarkTransparent.colors".source =
+      ../../Themes/Gwenview/BreezeDarkTransparent.colors;
 
-  # Declarative Proton GE: symlinks nixpkgs' proton-ge-bin into Steam's compat
-  # tools dir. Version is whatever nixpkgs pins; bumps on flake update + rebuild,
-  # no protonup/imperative download step needed. Force-check the tool in
-  # Properties > Compatibility after a version bump.
-  xdg.dataFile."Steam/compatibilitytools.d/GE-Proton".source = pkgs.proton-ge-bin;
+    # Declarative Proton GE: symlinks nixpkgs' proton-ge-bin into Steam's compat
+    # tools dir. Version is whatever nixpkgs pins; bumps on flake update + rebuild,
+    # no protonup/imperative download step needed. Force-check the tool in
+    # Properties > Compatibility after a version bump.
+    "Steam/compatibilitytools.d/GE-Proton".source = pkgs.proton-ge-bin;
+  };
 
   # ~/Applications/Desktop holds hand-placed/imperative .desktop files (e.g.
-  # per-instance Prism Launcher shortcuts) -- not tracked in Dotfiles, so this
-  # is an out-of-store symlink rather than a `.source` copy. MyBar's
-  # appscanner (Quickshell/MyBar/source/appscanner/appscanner.cpp) only scans
-  # $XDG_DATA_HOME/applications (default ~/.local/share/applications) plus
-  # $XDG_DATA_DIRS entries, so this link is what makes it discover them.
-  xdg.dataFile."applications/desktop-apps".source =
-    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Applications/Desktop";
+  # per-instance Prism Launcher shortcuts) -- not tracked in Dotfiles, and
+  # its contents aren't knowable at eval time (readDir on it is impure and
+  # flakes reject that). MyBar's appscanner
+  # (Quickshell/MyBar/source/appscanner/appscanner.cpp) only lists files
+  # directly inside $XDG_DATA_HOME/applications (it doesn't recurse into
+  # subdirectories), so each file gets symlinked at the top level of
+  # applications/ individually, at activation time, rather than a single
+  # symlinked subfolder (which it would walk past silently).
+  home.activation.linkDesktopApps = config.lib.dag.entryAfter [ "writeBoundary" ] ''
+    desktopDir="${osConfig.vars.identity.homeDirectory}/Applications/Desktop"
+    appsDir="${osConfig.vars.identity.homeDirectory}/.local/share/applications"
+    if [ -d "$desktopDir" ]; then
+      for f in "$desktopDir"/*.desktop; do
+        [ -e "$f" ] || continue
+        run ln -sf "$f" "$appsDir/$(basename "$f")"
+      done
+    fi
+  '';
 }
