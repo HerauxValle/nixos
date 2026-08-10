@@ -19,8 +19,7 @@ let
     {
       "pack": {
         "pack_format": 71,
-        "min_format": 71,
-        "max_format": 9999,
+        "supported_formats": { "min_inclusive": 71, "max_inclusive": 9999 },
         "description": "Vanilla Refresh whitelist enforcement (hardcore)"
       }
     }
