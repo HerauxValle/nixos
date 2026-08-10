@@ -16,4 +16,13 @@
   # Explicit, not just relying on the default -- no auto-start on boot,
   # start it yourself with `systemctl start minecraft-server-creative`.
   vars.minecraft.servers.creative.autostart = false;
+
+  # Test bed for the tick-freeze feature (modules/services/minecraft-
+  # worlds/tickfreeze.nix) before migrating it to hardcore/ -- see that
+  # file for the full mechanism. true = armed by default (ticks pause
+  # while no one's online); /stopserver on|off toggles it live in-game
+  # (LuckPerms default-group permission tickfreeze.toggle, no op
+  # needed), but that's ephemeral -- every restart/rebuild resets back
+  # to true.
+  vars.minecraft.servers.creative.tickFreeze = true;
 }

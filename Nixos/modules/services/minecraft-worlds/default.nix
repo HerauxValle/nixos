@@ -3,7 +3,10 @@
 { lib, ... }:
 
 {
-  imports = [ ./minecraft-worlds.nix ];
+  imports = [
+    ./minecraft-worlds.nix
+    ./tickfreeze.nix
+  ];
 
   options.vars.minecraft.dataDir = lib.mkOption {
     type = lib.types.str;
@@ -97,6 +100,30 @@
               overrides it per-server). Deliberately opt-in, not
               opt-out, since a server auto-starting is a much bigger
               surprise than one you have to remember to start.
+            '';
+          };
+          tickFreeze = lib.mkOption {
+            type = lib.types.nullOr lib.types.bool;
+            default = null;
+            description = ''
+              null (default) -- the tick-freeze feature (see
+              tickfreeze.nix) isn't installed for this server at all: no
+              Skript command, no RCON poll daemon. Set true/false to
+              install it, with that value as the RUNTIME DEFAULT for
+              whether ticks pause while no one's online -- true means
+              "armed" out of the box, false means installed but starts
+              disarmed. This is only the boot-time default: /stopserver on
+              and /stopserver off (LuckPerms default-group permission
+              tickfreeze.toggle, no op needed) let you flip it live
+              in-game, but that's ephemeral -- every server restart (and
+              therefore every rebuild that touches this server) resets
+              it back to whatever this option says, since tickfreeze.nix
+              regenerates the Skript script's "on script load" default
+              from this value fresh each boot. The daemon NEVER freezes
+              ticks while at least one player is online regardless of
+              this setting, so toggling it can't give you (or anyone
+              else) any in-game advantage -- it only controls what
+              happens while the server sits empty.
             '';
           };
         };
