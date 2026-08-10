@@ -48,10 +48,18 @@
     # need to be before they visually merge into one stacked entity --
     # doesn't change what you actually collect, just entity count/visual
     # clutter.
+    #
+    # world-settings.default.merge-radius, NOT the top-level merge-radius
+    # key -- confirmed by reading the actual generated spigot.yml after
+    # boot 2026-08-10: the top-level key I originally set sits there
+    # unused (still showed vanilla's 0.5/-1.0 under world-settings.default
+    # even with the top-level key correctly applied), because that's the
+    # real, actually-read path; the top-level one is a vestigial/legacy
+    # key Spigot keeps around but doesn't act on.
     "spigot.yml" = {
       format = pkgs.formats.yaml { };
       value = {
-        merge-radius = {
+        world-settings.default.merge-radius = {
           item = 3.5;
           exp = 4.5;
         };
