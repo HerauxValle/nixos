@@ -1,4 +1,4 @@
-# &desc: "Creative server's plugin jars -- Multiverse (worlds/nether-end linking), BlueMap, and the building-tool stack (FAWE/WorldGuard/Axiom/etc)."
+# &desc: "Creative server's plugin jars -- Multiverse (worlds/nether-end linking), BlueMap, the building-tool stack (FAWE/WorldGuard/Axiom/etc), Typewriter + its extensions (dialogue/cutscene/questing), Geyser (Bedrock cross-play), OpenCreative commented out (not installed)."
 
 { pkgs, config, ... }:
 
@@ -143,6 +143,110 @@
     "plugins/ItemEdit.jar" = pkgs.fetchurl {
       url = "https://cdn.modrinth.com/data/yx81EHRu/versions/ODZyheTG/ItemEdit-3.7.10.jar";
       hash = "sha256-xMzh9A/u+AubB/+Y3w/z2vjkoSI0ddmf/w7NeMy1Yts=";
+    };
+
+    # NOT ENABLED -- OpenCreative+ itself has no hard dependencies
+    # (confirmed via its own Modrinth listing), only optional
+    # integrations: Vault (economy), ProtocolLib (coding-chest
+    # animations/glow highlighting), LibsDisguises (entity disguise
+    # action), PlaceholderAPI. None of those four are installed here, so
+    # it would run but with those specific extra features silently
+    # inert. Commented out per your ask -- uncomment to actually add it.
+    # "plugins/OpenCreative.jar" = pkgs.fetchurl {
+    #   url = "https://cdn.modrinth.com/data/pMgywsVc/versions/BVlq6foS/opencreative-6.0.0-build-273.jar";
+    #   hash = "sha256-5p4zFCRG1t2fDXv17uaqrC7/9TWg1Hh+Yi/rcJ1FNds=";
+    # };
+
+    # Required hard dependency of Typewriter itself (confirmed via
+    # Modrinth's own dependency listing for the project) -- packet
+    # interception library, not something Typewriter can run without.
+    "plugins/PacketEvents.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/HYKaKraK/versions/h0ncTpUP/packetevents-spigot-2.13.0.jar";
+      hash = "sha256-bZ7ODYfucnp5ogt/+9QyAhYJxvUrr8tlT8LT6bbwZMU=";
+    };
+
+    # Dialogue/cutscene/questing engine -- NPCs, branching conversations,
+    # cinematics. PlaceholderAPI is an optional soft-dependency (extra
+    # placeholders in text) not installed here, everything else works
+    # without it. Geyser (added below) is also an optional soft-dep, for
+    # Bedrock-client dialogue UI support -- already satisfied.
+    "plugins/Typewriter.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/Typewriter-0.9.0-beta-175.jar";
+      hash = "sha256-JljCzMceuDibGE882S5mH/pHXA3FZJFB9v47dpUXcHk=";
+    };
+
+    # Typewriter's extensions -- shipped as separate jars attached to the
+    # SAME Modrinth version as the core plugin above (must be kept in
+    # lockstep on updates, confirmed via Typewriter's own install docs).
+    # Core content extensions (no third-party plugin needed) stay
+    # enabled; integration adapters for plugins we don't run here are
+    # commented out -- installing them wouldn't crash anything, they'd
+    # just sit there offering entry types for a plugin (Citizens,
+    # MythicMobs, RPGRegions, SuperiorSkyblock2, Vault, WorldGuard) that
+    # isn't present, so there's nothing for them to actually do.
+    "plugins/Typewriter/extensions/BasicExtension.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/BasicExtension.jar";
+      hash = "sha256-16yShUv4wSLGCOsH0D+kJ6ou5HWJ1SUJjEV9fIpBKk8=";
+    };
+    "plugins/Typewriter/extensions/EntityExtension.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/EntityExtension.jar";
+      hash = "sha256-IDk3NitQQR93NHoSvg1Z79f++8TMyc7pNW57/boQz+M=";
+    };
+    "plugins/Typewriter/extensions/QuestExtension.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/QuestExtension.jar";
+      hash = "sha256-vm6guRC4EVbwq5lkQ6+2F/o5tFa7gLQlG8KQc/7GItU=";
+    };
+    "plugins/Typewriter/extensions/RoadNetworkExtension.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/RoadNetworkExtension.jar";
+      hash = "sha256-rKb+8wuFR1ftiNTdedsnMTgoxwkQ33d6xVmBvaSmuJ8=";
+    };
+
+    # NOT ENABLED -- integration adapters for plugins not installed on
+    # this server. Uncomment whichever ones you add the matching plugin
+    # for later (must re-match Typewriter's own version -- see comment
+    # above).
+    # "plugins/Typewriter/extensions/CitizensExtension.jar" = pkgs.fetchurl {
+    #   # Needs Citizens (NPC plugin) -- not installed.
+    #   url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/CitizensExtension.jar";
+    #   hash = "sha256-HV4IbRVe8eepbiAtMnaJdnQrOFS2W9HrYu6u3hK+puw=";
+    # };
+    # "plugins/Typewriter/extensions/MythicMobsExtension.jar" = pkgs.fetchurl {
+    #   # Needs MythicMobs -- not installed.
+    #   url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/MythicMobsExtension.jar";
+    #   hash = "sha256-6pdNokCHnked/8kIhMOnGIzTBq98XUXrK0CXqqdm5kM=";
+    # };
+    # "plugins/Typewriter/extensions/RPGRegionsExtension.jar" = pkgs.fetchurl {
+    #   # Needs RPGRegions -- not installed.
+    #   url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/RPGRegionsExtension.jar";
+    #   hash = "sha256-wDP8FQmP1NaERz1a4urk1sTw3EFHC4UBfjQwS4I6afM=";
+    # };
+    # "plugins/Typewriter/extensions/SuperiorSkyblockExtension.jar" = pkgs.fetchurl {
+    #   # Needs SuperiorSkyblock2 -- not installed.
+    #   url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/SuperiorSkyblockExtension.jar";
+    #   hash = "sha256-HPkhKWaEVAFM7AmdaDhRqigEzXwUKaTFMHZarmBsn3U=";
+    # };
+    # "plugins/Typewriter/extensions/VaultExtension.jar" = pkgs.fetchurl {
+    #   # Needs Vault -- not installed.
+    #   url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/VaultExtension.jar";
+    #   hash = "sha256-zGSz6ot1Zt0u29KXijBEhpc4+ryJ8CDK7JSvqCTcz1w=";
+    # };
+    # "plugins/Typewriter/extensions/WorldGuardExtension.jar" = pkgs.fetchurl {
+    #   # WorldGuard IS installed here -- this one would actually work if
+    #   # you want it, just not requested. Uncomment to enable.
+    #   url = "https://cdn.modrinth.com/data/Vm7B3ymm/versions/NWX8MGts/WorldGuardExtension.jar";
+    #   hash = "sha256-yCBw6DBWkNcfKyjIe538tgW9HHrTz3gttAKwR0znuWo=";
+    # };
+
+    # Bedrock-client cross-play proxy -- lets Bedrock/console/mobile
+    # players join this Java server directly, no separate proxy needed.
+    # "Spigot" build is the correct/only plugin-mode jar (Geyser doesn't
+    # ship a separately-named Paper build, unlike BlueMap) -- runs fine
+    # under Paper. Opens its own listener (default UDP 19132, same port
+    # number as the Java side by default via port-remapping) -- add a
+    # ports.nix entry if you want it reachable from outside this host.
+    "plugins/Geyser-Spigot.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/wKkoqHrH/versions/tQFyivtA/Geyser-Spigot.jar";
+      hash = "sha256-efNudSvfb7na79Nat1OHu2ce+U829a7eNraXpOFLsS8=";
     };
   };
 }

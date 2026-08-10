@@ -93,6 +93,14 @@ in
       hash = "sha256-7Ds657LDwLCJ6/cDiOHlfPB3s5YV2XeuvYOahHsILeE=";
     };
 
+    # Bedrock-client cross-play proxy -- who can join, not what they can
+    # do once in, so no advantage/mechanic implications either way. Same
+    # "Spigot" plugin-mode jar as creative/plugins.nix's entry.
+    "plugins/Geyser-Spigot.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/wKkoqHrH/versions/tQFyivtA/Geyser-Spigot.jar";
+      hash = "sha256-efNudSvfb7na79Nat1OHu2ce+U829a7eNraXpOFLsS8=";
+    };
+
     # NOT added: AntiXray -- Paper's own paper-world-defaults.yml already
     # ships anti-xray enabled by default (anticheat.anti-xray.enabled:
     # true, engine-mode: 2), confirmed via PaperMC's own docs. A plugin
