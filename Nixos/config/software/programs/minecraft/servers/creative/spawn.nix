@@ -9,9 +9,13 @@
   # (caught at build time by minecraft-worlds.nix's parseDestination).
   vars.minecraft.servers.creative.startIn = "hub";
 
-  # loginIn left unset -- every join after the first keeps last location.
-  # Would use the exact same "<world>" / "<world> x y z" syntax as
-  # startIn above if set.
+  # Every join (not just the first) lands in hub -- without this,
+  # join-destination stays disabled and any join after the very first
+  # ever falls back to last-logout location, which for a player who
+  # never successfully stayed connected (e.g. repeated kicks) resolves
+  # to the untouched vanilla bootstrap world's own spawn point instead.
+  # Confirmed the hard way 2026-08-10 testing tickfreeze.nix.
+  vars.minecraft.servers.creative.loginIn = "hub";
 
   # Explicit, not just relying on the default -- no auto-start on boot,
   # start it yourself with `systemctl start minecraft-server-creative`.
