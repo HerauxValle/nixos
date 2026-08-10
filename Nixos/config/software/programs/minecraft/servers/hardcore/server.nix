@@ -12,6 +12,7 @@
     online-mode = true;
     white-list = false;
     pvp = false; # solo play
+    max-players = 5;
     # Lowered from vanilla's 32/32 ceiling after a GPU hang (Xid 31/109
     # MMU faults) while running Iris + a heavy shaderpack at max shadow
     # distance against this server's original 32-chunk cap -- these are

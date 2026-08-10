@@ -248,5 +248,24 @@
       url = "https://cdn.modrinth.com/data/wKkoqHrH/versions/tQFyivtA/Geyser-Spigot.jar";
       hash = "sha256-efNudSvfb7na79Nat1OHu2ce+U829a7eNraXpOFLsS8=";
     };
+
+    # In-game TPS/MSPT/memory HUD (tab-list/boss-bar/action-bar, your
+    # choice via /tabtps) -- pure monitoring, zero gameplay effect. Same
+    # jar/hash as hardcore/plugins.nix's own entry.
+    "plugins/TabTPS.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/cUhi3iB2/versions/y4Ns2oTP/tabtps-paper-1.4.1.jar";
+      hash = "sha256-4B/oQb0FNQXXjGzrtG0t0MtPypLv9iUl2rckmqySL9M=";
+    };
+
+    # Tab-list header/footer + sorting -- config.yml (files.nix) tuned
+    # for the multi-world creative layout (shows which world you're in,
+    # since hub/redstone/building/temp are genuinely different places
+    # you jump between). Same jar/hash as hardcore's own entry, but each
+    # server's files.nix config is deliberately different content.
+    "plugins/TAB.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/gG7VFbG0/versions/Za7G9fdJ/TAB%20v6.1.2.jar";
+      name = "TAB-v6.1.2.jar";
+      hash = "sha256-/ZljMoDSNnvijgAJSAQHwqh/qQLr6QSEZTtsChfq1ww=";
+    };
   };
 }

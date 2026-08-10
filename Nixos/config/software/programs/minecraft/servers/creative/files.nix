@@ -14,6 +14,48 @@
     # Shown in the client's multiplayer server list -- must be exactly 64x64.
     files."server-icon.png" = ../../icons/creative.png;
 
+    # Tailored for creative's multi-world context -- shows which world
+    # you're actually in (hub/redstone/building/temp are genuinely
+    # different places you jump between, unlike hardcore's single
+    # world). No established palette existed for this server before
+    # (unlike hardcore's gold/gray AdvancedServerList MOTD), so this
+    # picks its own bright aqua->lime gradient fitting a
+    # creative/building server. Only the keys that matter are set here;
+    # TAB auto-patches in its own defaults for everything else on first
+    # load. MiniMessage gradients need components.minimessage-support
+    # (TAB's own shipped default: true, left untouched here). Verify
+    # against the real generated plugins/TAB/config.yml after first boot.
+    files."plugins/TAB/config.yml" = {
+      format = pkgs.formats.yaml { };
+      value = {
+        header-footer = {
+          enabled = true;
+          designs.default = {
+            header = [
+              "<gray><strikethrough>                                        </strikethrough></gray>"
+              "<gradient:#00E5FF:#7CFC00><bold>✦ CREATIVE ✦</bold></gradient>"
+              "<aqua>World: <white>%world%</white></aqua>"
+              ""
+            ];
+            footer = [
+              ""
+              "<gray>Ping <white>%ping%ms</white>  <dark_gray>|</dark_gray>  <gray>Mem <white>%memory-used%</white>/<white>%memory-max%</white>MB</gray>"
+              "<green>%time%</green>"
+              "<gray><strikethrough>                                        </strikethrough></gray>"
+            ];
+          };
+        };
+        playerlist-objective = {
+          enabled = true;
+          value = "%ping%";
+          fancy-value = "<aqua>%ping%ms</aqua>";
+        };
+        # Not clustered with anything else -- avoids stray
+        # RedisBungee-lookup warnings on boot.
+        proxy-support.enabled = false;
+      };
+    };
+
     # The spawn.join-destination keys here come from worlds.nix's
     # defaultSpawn = true (see modules/services/minecraft-worlds), not
     # this file -- Nix merges both into the same config.yml.

@@ -266,6 +266,53 @@
     # commands you actually use. Native Paper feature, no extra plugin
     # needed (same mechanism creative/files.nix uses for /hub, /creative,
     # /world).
+    # Tailored for hardcore's context -- same gold/gray "one life, no
+    # second chances" palette as AdvancedServerList's MOTD (this file's
+    # own profiles/default.yml, below), a dark-red->gold gradient title
+    # for the ominous permadeath feel, no rank/group sorting since
+    # ops.nix stays permanently empty (alphabetical is the only sorting
+    # that makes sense with everyone in the same "default" group). Only
+    # the keys that matter are set here; TAB auto-patches in its own
+    # defaults for everything else on first load (confirmed pattern
+    # elsewhere in this repo -- see ViewDistanceTweaks/config.yml's own
+    # comment below for the same caveat). MiniMessage gradients need
+    # components.minimessage-support (TAB's own shipped default: true,
+    # left untouched here). Verify against the real generated
+    # plugins/TAB/config.yml after first boot.
+    "plugins/TAB/config.yml" = {
+      format = pkgs.formats.yaml { };
+      value = {
+        header-footer = {
+          enabled = true;
+          designs.default = {
+            header = [
+              "<dark_gray><strikethrough>                                        </strikethrough></dark_gray>"
+              "<gradient:#8B0000:#FFD700:#8B0000><bold>☠ HARDCORE ☠</bold></gradient>"
+              "<gray><italic>One life. No second chances.</italic></gray>"
+              ""
+            ];
+            footer = [
+              ""
+              "<gray>Ping <white>%ping%ms</white>  <dark_gray>|</dark_gray>  <gray>Mem <white>%memory-used%</white>/<white>%memory-max%</white>MB</gray>"
+              "<gold>%time%</gold>"
+              "<dark_gray><strikethrough>                                        </strikethrough></dark_gray>"
+            ];
+          };
+        };
+        # No rank hierarchy here -- alphabetical is the only sorting
+        # that makes sense with ops.nix permanently empty.
+        scoreboard-teams.sorting-types = [ "PLACEHOLDER_A_TO_Z:%player%" ];
+        playerlist-objective = {
+          enabled = true;
+          value = "%ping%";
+          fancy-value = "<gold>%ping%ms</gold>";
+        };
+        # Not clustered with anything else -- avoids stray
+        # RedisBungee-lookup warnings on boot.
+        proxy-support.enabled = false;
+      };
+    };
+
     "commands.yml".value = {
       aliases = {
         vd = [ "vdt viewdistance $1" ];

@@ -26,6 +26,7 @@
     online-mode = true; # keep true unless you have a specific reason not to
     white-list = false; # or true if you want to gate join access
     pvp = false;
+    max-players = 5;
     view-distance = 8;
     simulation-distance = 5;
 

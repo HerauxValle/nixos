@@ -37,7 +37,7 @@ let
     }
     EOF
 
-    cp ${./vanilla-refresh-overrides.mcfunction} $out/data/vr_overrides/function/load.mcfunction
+    cp ${./.vanilla-refresh-overrides.mcfunction} $out/data/vr_overrides/function/load.mcfunction
   '';
 in
 {
@@ -129,6 +129,25 @@ in
     "plugins/ViewDistanceTweaks.jar" = pkgs.fetchurl {
       url = "https://cdn.modrinth.com/data/X7x1kZUF/versions/Uorl1raS/view-distance-tweaks-2.6-RELEASE.jar";
       hash = "sha256-cP+P8d0B3ziLlcGhyozE7iLfwgN6CdKGBZSFZgG+sFA=";
+    };
+
+    # In-game TPS/MSPT/memory HUD -- pure monitoring, zero gameplay
+    # effect, same reasoning as this file's other zero-advantage QoL
+    # plugins. Same jar/hash as creative/plugins.nix's own entry.
+    "plugins/TabTPS.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/cUhi3iB2/versions/y4Ns2oTP/tabtps-paper-1.4.1.jar";
+      hash = "sha256-4B/oQb0FNQXXjGzrtG0t0MtPypLv9iUl2rckmqySL9M=";
+    };
+
+    # Tab-list header/footer -- config.yml (files.nix) tuned for
+    # hardcore's single-world/mostly-solo context (no world indicator
+    # needed, no rank/group sorting since ops.nix stays permanently
+    # empty here). Same jar/hash as creative's own entry, but each
+    # server's files.nix config is deliberately different content.
+    "plugins/TAB.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/gG7VFbG0/versions/Za7G9fdJ/TAB%20v6.1.2.jar";
+      name = "TAB-v6.1.2.jar";
+      hash = "sha256-/ZljMoDSNnvijgAJSAQHwqh/qQLr6QSEZTtsChfq1ww=";
     };
 
     # NOT added: AntiXray -- Paper's own paper-world-defaults.yml already
