@@ -1,4 +1,4 @@
-# &desc: "Hardcore server's plugin jars and world/datapacks/ -- Chunky, BlueMap, GrimAC, ClearLaggEnhanced, PlayTimeManager, VoxyServerSide, MCPanel, LuckPerms, GSit, FastLeafDecay (plugins); Geophilic, AMH, More Mobs, Tool Trims, Dynamic Lights, Spawn Animations, Vanilla Refresh + its whitelist-enforcement override (datapacks). DiscordSRV + Skript + SentientMobs + OmniCut commented out/rejected (see inline comments for why). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
+# &desc: "Hardcore server's plugin jars and world/datapacks/ -- Chunky, BlueMap, GrimAC, ClearLaggEnhanced, PlayTimeManager, AdvancedServerList, AntiPopup, VoxyServerSide, MCPanel, LuckPerms, GSit, FastLeafDecay (plugins); Geophilic, AMH, More Mobs, Tool Trims, Dynamic Lights, Spawn Animations, Vanilla Refresh + its whitelist-enforcement override (datapacks). DiscordSRV + Skript + SentientMobs + OmniCut commented out/rejected (see inline comments for why). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
 
 { pkgs, ... }:
 
@@ -76,6 +76,21 @@ in
     "plugins/PlayTimeManager.jar" = pkgs.fetchurl {
       url = "https://cdn.modrinth.com/data/OzCiibPq/versions/C0SSVnbh/PlayTimeManager-3.6.5.jar";
       hash = "sha256-H3HuF8g5kCVKJUEZNNG8sEyDnVBTIdhMxJRpkEQVCKo=";
+    };
+
+    # Customizes the multiplayer-screen server-list entry (MOTD/favicon)
+    # -- client-side display only, zero effect on anyone actually
+    # connected. Config in files.nix.
+    "plugins/AdvancedServerList.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/xss83sOY/versions/6FX9dEc4/AdvancedServerList-Paper-5.9.0.jar";
+      hash = "sha256-6eZt3BXkGioOtRdaF80JJhJnq7Et5OmZhpY6k+B5Ev8=";
+    };
+
+    # Suppresses the client's "server enforces secure chat" popup --
+    # pure client-side annoyance removal, no chat/report mechanic change.
+    "plugins/AntiPopup.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/HFTnFHKn/versions/vdjyDvoq/AntiPopup-13.2.jar";
+      hash = "sha256-7Ds657LDwLCJ6/cDiOHlfPB3s5YV2XeuvYOahHsILeE=";
     };
 
     # NOT added: AntiXray -- Paper's own paper-world-defaults.yml already

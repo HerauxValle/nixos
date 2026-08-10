@@ -66,6 +66,22 @@
       };
     };
 
+    # Client-side server-list display only -- MiniMessage-formatted MOTD,
+    # no gameplay/protocol effect. https://asl.andre601.ch/profiles/
+    "plugins/AdvancedServerList/config.yml" = {
+      format = pkgs.formats.yaml { };
+      value = {
+        profiles = [
+          {
+            motd = [
+              "<gold><bold>Hardcore</bold></gold>"
+              "<gray>One life. No second chances.</gray>"
+            ];
+          }
+        ];
+      };
+    };
+
     "plugins/BlueMap/core.conf" = {
       format = pkgs.formats.json { };
       value = {
