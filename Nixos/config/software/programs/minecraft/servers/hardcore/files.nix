@@ -66,18 +66,29 @@
       };
     };
 
-    # Client-side server-list display only -- MiniMessage-formatted MOTD,
-    # no gameplay/protocol effect. https://asl.andre601.ch/profiles/
-    "plugins/AdvancedServerList/config.yml" = {
+    # config.yml's own top-level "profiles" list is NOT what's actually
+    # read -- confirmed by a raw server-list ping after boot 2026-08-10
+    # still returning the plugin's own shipped example text ("Line A" /
+    # "Line B"), same vestigial-key trap as spigot.yml's merge-radius
+    # earlier. The real, per-server file the plugin actually reads is
+    # profiles/default.yml (auto-generated on first boot with that exact
+    # example content baked in, and NOT covered by nix-minecraft's file
+    # management unless explicitly listed here, so it just persisted).
+    # This sets the flat top-level "motd" key in that file directly and
+    # leaves its own "profiles" list empty -- an empty/absent nested
+    # profiles list falls through to this flat motd (confirmed via the
+    # file's own inline doc comment: "When not present or empty
+    # (profiles: []), no profiles will be used and global options from
+    # the file will be used instead").
+    "plugins/AdvancedServerList/profiles/default.yml" = {
       format = pkgs.formats.yaml { };
       value = {
-        profiles = [
-          {
-            motd = [
-              "<gold><bold>Hardcore</bold></gold>"
-              "<gray>One life. No second chances.</gray>"
-            ];
-          }
+        priority = 0;
+        condition = "";
+        profiles = [ ];
+        motd = [
+          "<gold><bold>Hardcore</bold></gold>"
+          "<gray>One life. No second chances.</gray>"
         ];
       };
     };
