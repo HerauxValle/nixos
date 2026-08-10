@@ -1,6 +1,6 @@
 # &desc: "Symlinks home-manager XDG config directories to Dotfiles subdirs (Hyprland, Kitty, Mpv, Neovim, Scripts, Fastfetch, etc)."
 
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 {
   xdg.configFile = {
@@ -55,4 +55,13 @@
   # no protonup/imperative download step needed. Force-check the tool in
   # Properties > Compatibility after a version bump.
   xdg.dataFile."Steam/compatibilitytools.d/GE-Proton".source = pkgs.proton-ge-bin;
+
+  # ~/Applications/Desktop holds hand-placed/imperative .desktop files (e.g.
+  # per-instance Prism Launcher shortcuts) -- not tracked in Dotfiles, so this
+  # is an out-of-store symlink rather than a `.source` copy. MyBar's
+  # appscanner (Quickshell/MyBar/source/appscanner/appscanner.cpp) only scans
+  # $XDG_DATA_HOME/applications (default ~/.local/share/applications) plus
+  # $XDG_DATA_DIRS entries, so this link is what makes it discover them.
+  xdg.dataFile."applications/desktop-apps".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Applications/Desktop";
 }
