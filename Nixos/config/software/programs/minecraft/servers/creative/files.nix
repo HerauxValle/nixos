@@ -56,6 +56,15 @@
         # Not clustered with anything else -- avoids stray
         # RedisBungee-lookup warnings on boot.
         proxy-support.enabled = false;
+        # REQUIRED -- without this, TAB's own config-updater treats the
+        # file as an old/unversioned config on load and rewrites
+        # designs.default's header/footer back to empty arrays,
+        # silently discarding everything set above (confirmed the hard
+        # way 2026-08-11 on hardcore's identical config -- see that
+        # file's own comment). 7 is this TAB version's (6.1.2) own
+        # current config-version, confirmed from its shipped default
+        # config.yml.
+        config-version = 7;
       };
     };
 
