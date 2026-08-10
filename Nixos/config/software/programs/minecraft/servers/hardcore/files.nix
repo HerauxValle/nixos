@@ -217,54 +217,68 @@
       };
     };
 
-    # Commented out -- no alias in mind yet. Native Paper feature, no
-    # plugin needed at all (creative/files.nix uses this exact mechanism
-    # for /hub, /creative, /world). Each entry maps a new command name to
-    # a list of real commands it sends -- e.g. aliasing /home to an
-    # actual teleport command once you have one in mind.
-    # "commands.yml".value = {
-    #   aliases = {
-    #     # example = [ "some real command here" ];
-    #   };
-    # };
+    # /vd and /sd -- short aliases to the two ViewDistanceTweaks (plugins.nix)
+    # commands you actually use. Native Paper feature, no plugin needed
+    # (same mechanism creative/files.nix uses for /hub, /creative, /world).
+    "commands.yml".value = {
+      aliases = {
+        vd = [ "vdt viewdistance $1" ];
+        sd = [ "vdt simulationdistance $1" ];
+      };
+    };
 
-    # Commented out -- ViewDistanceTweaks (plugins.nix) ships with this
-    # OFF by default, so not present here changes nothing; this is just
-    # a ready-to-enable reference matching the plugin's own real schema
-    # (confirmed against its published config.yml). "mixed" combines
-    # proactive (targets a global ticking-chunk-count budget) and
-    # reactive (TPS/MSPT-threshold) adjustment, same for every player,
-    # no advantage -- it can only ever move within the world-defaults
-    # range below, itself capped at server.nix's static 8/5 ceiling.
-    # "plugins/ViewDistanceTweaks/config.yml" = {
-    #   format = pkgs.formats.yaml { };
-    #   value = {
-    #     version = 7;
-    #     enabled = true;
-    #     adjustment-mode = "mixed";
-    #     proactive = {
-    #       global-ticking-chunk-count-target = 5780;
-    #       global-non-ticking-chunk-count-target = 6720;
-    #     };
-    #     reactive = {
-    #       increase-tps-threshold = 19.9;
-    #       decrease-tps-threshold = 18.0;
-    #       collection-period-ticks = 1200;
-    #     };
-    #     world-defaults = {
-    #       simulation-distance = {
-    #         min = 3;
-    #         max = 5;
-    #       };
-    #       view-distance = {
-    #         min = 6;
-    #         max = 8;
-    #       };
-    #       chunk-weight = 1.0;
-    #     };
-    #     check-interval-ticks = 600;
-    #     startup-delay-ticks = 2400;
-    #   };
-    # };
+    # IMPORTANT: this build ("ViewDistanceTweaks - LucasTHCR Edition", a
+    # fork of the original plugin) ships with enabled: true and a live
+    # mixed-mode auto-adjuster OUT OF THE BOX -- confirmed the hard way
+    # 2026-08-10 when /vdt status showed it had already drifted the
+    # world off server.nix's static 8/5 (to 9/6) despite this file
+    # having no entry at all yet. The original plugin defaults to off;
+    # this fork does not. enabled: false here turns that off for real,
+    # leaving server.nix's static 8/5 as the only thing setting
+    # view/simulation-distance unless you run /vd or /sd (or /vdt
+    # enable) yourself. Every other key left at the fork's own
+    # shipped default (confirmed against the real generated config.yml
+    # after first boot) -- only reachable at all once you flip this
+    # back to true.
+    "plugins/ViewDistanceTweaks/config.yml" = {
+      format = pkgs.formats.yaml { };
+      value = {
+        version = 1;
+        enabled = false;
+        adjustment-mode = "mixed";
+        start-delay = 2400;
+        ticks-per-check = 600;
+        passed-checks-for-increase = 10;
+        passed-checks-for-decrease = 1;
+        log-changes = true;
+        announce-changes-in-chat = false;
+        proactive-mode-settings = {
+          global-ticking-chunk-count-target = 5780;
+          global-non-ticking-chunk-count-target = 6720;
+          empty-world-target = "min";
+        };
+        reactive-mode-settings = {
+          increase-mspt-threshold = 40.0;
+          decrease-mspt-threshold = 47.0;
+          prioritize-simulation-distance = false;
+          max-increase-step = 1;
+          max-decrease-step = 1;
+          revert-increase-if-overloaded = true;
+        };
+        world-settings.default = {
+          simulation-distance = {
+            exclude = false;
+            min-simulation-distance = 4;
+            max-simulation-distance = 5;
+          };
+          view-distance = {
+            exclude = false;
+            min-view-distance = 6;
+            max-view-distance = 8;
+          };
+          chunk-weight = 1.0;
+        };
+      };
+    };
   };
 }
