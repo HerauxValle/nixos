@@ -20,6 +20,6 @@
     # on every single start until set back to false -- flip it on,
     # rebuild once to get a fresh attempt, then flip back off so normal
     # restarts stop wiping progress.
-    regenerate = true;
+    regenerate = false;
   };
 }
