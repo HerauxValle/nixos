@@ -1,4 +1,4 @@
-# &desc: "Hardcore server's plugin jars and world/datapacks/ -- Chunky, BlueMap, GrimAC, ClearLaggEnhanced, PlayTimeManager, AdvancedServerList, AntiPopup, VoxyServerSide, MCPanel, LuckPerms, GSit, FastLeafDecay (plugins); Geophilic, AMH, More Mobs, Tool Trims, Dynamic Lights, Spawn Animations, Vanilla Refresh + its whitelist-enforcement override (datapacks). DiscordSRV + Skript + SentientMobs + OmniCut commented out/rejected (see inline comments for why). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
+# &desc: "Hardcore server's plugin jars and world/datapacks/ -- Chunky, BlueMap, GrimAC, PlayTimeManager, JEIRecipeFix, AdvancedServerList, AntiPopup, ViewDistanceTweaks, VoxyServerSide, MCPanel, LuckPerms, GSit, FastLeafDecay, Geyser-Spigot (plugins); Geophilic, AMH, More Mobs, Tool Trims (+ server.nix's matching resource-pack), Dynamic Lights, Spawn Animations, Vanilla Refresh + its whitelist-enforcement override (datapacks). DiscordSRV + Skript + SentientMobs + OmniCut + ClearLaggEnhanced commented out/rejected (see inline comments for why). Spark bundled with Paper, no jar needed; AntiXray skipped, Paper ships it enabled by default. All chosen for zero gameplay advantage/cheating/non-vanilla content -- see conversation for the full reasoning."
 
 { pkgs, lib, ... }:
 
@@ -81,6 +81,17 @@ in
     "plugins/PlayTimeManager.jar" = pkgs.fetchurl {
       url = "https://cdn.modrinth.com/data/OzCiibPq/versions/C0SSVnbh/PlayTimeManager-3.6.5.jar";
       hash = "sha256-H3HuF8g5kCVKJUEZNNG8sEyDnVBTIdhMxJRpkEQVCKo=";
+    };
+
+    # Sends this server's REAL recipes (vanilla + datapack, e.g. Tool
+    # Trims' new smithing templates) to JEI/REI/EMI clients on join --
+    # fixes the in-game warning ("This Paper server does not provide
+    # recipes to JEI... may be different on the server"). Read-only
+    # information sync, doesn't change what anyone can craft, no
+    # dependencies.
+    "plugins/JEIRecipeFix.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/c8cfv0mk/versions/AVRVyd6X/JEIRecipeFix-0.4.0.jar";
+      hash = "sha256-O8/Wb4GrceFilTIbQAlnSb/+shRfEo12IolFKhRd1IA=";
     };
 
     # Customizes the multiplayer-screen server-list entry (MOTD/favicon)

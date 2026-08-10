@@ -29,6 +29,22 @@
     # batch and what was rejected from it.
     network-compression-threshold = 256;
 
+    # Tool Trims' companion asset pack -- the datapack zip (plugins.nix's
+    # world/datapacks/ToolTrims.zip) already contains both the data/
+    # (mechanics) and assets/ (trim textures) halves in one archive, but
+    # Minecraft only reads world/datapacks/ for the data half -- the
+    # assets half has to be separately served as an actual resource
+    # pack for the new trim patterns to render (confirmed via the
+    # in-game warning: "The required assets weren't detected... use it
+    # as a resource pack"). Same exact file/URL as the datapack, just
+    # pointed at directly from Modrinth's CDN since it's already public
+    # and stable there -- no need to re-host it ourselves. sha1 (not
+    # sha256 -- this is the one vanilla server-properties key that's
+    # still SHA-1) confirmed against Modrinth's own file hash listing.
+    resource-pack = "https://cdn.modrinth.com/data/uXeEiQk1/versions/26fWzOv5/tool-trims-v3.0.7-for-1.21.11%2B.zip";
+    "resource-pack-sha1" = "01818424833cfd314b5c269894468abf8a04799e";
+    require-resource-pack = false;
+
     # RCON -- same purpose as creative's (mcli rcon / mcrcon). Password
     # generated fresh for this server, not reused from creative -- see
     # creative/server.nix's comment for why it's plaintext here and how
