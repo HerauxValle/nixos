@@ -40,6 +40,7 @@ let
       for d in ${lib.escapeShellArg levelName} ${lib.escapeShellArg "${levelName}_nether"} ${lib.escapeShellArg "${levelName}_the_end"}; do
         [ -d "$d" ] && mv "$d" "trash/''${ts}-$d"
       done
+      true
     '';
 
   # OP/spawn are server-wide, not tied to any world -- a server can have
