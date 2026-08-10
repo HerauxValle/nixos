@@ -20,7 +20,9 @@
     # world). No established palette existed for this server before
     # (unlike hardcore's gold/gray AdvancedServerList MOTD), so this
     # picks its own bright aqua->lime gradient fitting a
-    # creative/building server. Only the keys that matter are set here;
+    # creative/building server, with its own tagline mirroring
+    # hardcore's "One life. No second chances." (the opposite framing --
+    # total freedom instead of total risk). Only the keys that matter are set here;
     # TAB auto-patches in its own defaults for everything else on first
     # load. MiniMessage gradients need components.minimessage-support
     # (TAB's own shipped default: true, left untouched here). Verify
@@ -34,6 +36,7 @@
             header = [
               "<gray><strikethrough>                                        </strikethrough></gray>"
               "<gradient:#00E5FF:#7CFC00><bold>✦ CREATIVE ✦</bold></gradient>"
+              "<gray><italic>Unlimited canvas. No limits, no consequences.</italic></gray>"
               "<aqua>World: <white>%world%</white></aqua>"
               ""
             ];

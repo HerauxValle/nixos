@@ -11,15 +11,16 @@
     server = "hardcore";
     multiverse = false;
 
-    # Random test seed -- swap for a researched one whenever, no
-    # downside to changing it later: regenerate just wipes and
-    # rebootstraps against whatever's here at the time.
-    seed = "6230727955490815653";
+    # Real survival seed -- deliberately picked knowing nothing about it
+    # except the spawn island itself (never explored beyond that):
+    # fairly large island, a village with a zombie villager ("dead
+    # village"), cherry grove up top. Confirmed 2026-08-10.
+    seed = "8907256489";
 
     # true + rebuild wipes the world (archived to trash/, not deleted)
     # on every single start until set back to false -- flip it on,
     # rebuild once to get a fresh attempt, then flip back off so normal
     # restarts stop wiping progress.
-    regenerate = false;
+    regenerate = true;
   };
 }
