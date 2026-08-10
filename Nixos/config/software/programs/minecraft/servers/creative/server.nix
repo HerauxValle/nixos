@@ -7,6 +7,14 @@
     server-port = 25565;
     gamemode = "creative"; # fallback/default world gamemode -- no survival here
     difficulty = "peaceful"; # fallback difficulty -- no survival here
+    # TEMPORARY -- forces every join to gamemode (creative) at the same
+    # early connection point vanilla's own flying-ability check runs,
+    # fixing a stale abilities.flying=true vs. stored gamemode mismatch
+    # that was kicking a real login before Multiverse's own gamemode
+    # enforcement (which only fires post-join) got a chance to fix it.
+    # Revert to unset once confirmed working -- see tickfreeze.nix
+    # testing session 2026-08-10.
+    force-gamemode = true;
     # Only affects the ONE vanilla-bootstrapped default world (whatever
     # level-name says) at first-ever boot -- Multiverse-created worlds
     # (worlds.nix) go through a different code path entirely. level-name
