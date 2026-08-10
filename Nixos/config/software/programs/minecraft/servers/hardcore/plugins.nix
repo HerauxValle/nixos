@@ -78,6 +78,21 @@
       hash = "sha256-Sc7LZvof0ioTMDmkkOnB5QlaI4581m650qFv5siXVQ0=";
     };
 
+    # Sit/lay/crawl on right-click or /sit -- purely cosmetic animation,
+    # zero gameplay effect.
+    "plugins/GSit.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/GOHbQGyX/versions/nZM8fxpG/GSit-3.5.1.jar";
+      hash = "sha256-sHSUErZcAb3NaDggp2Si92msVX6wtpGFbSZ6Y/KDyhw=";
+    };
+
+    # Leaves decay faster after their connected logs are broken instead
+    # of floating there for a while -- pure time/visual convenience, no
+    # change to drops or resources.
+    "plugins/FastLeafDecay.jar" = pkgs.fetchurl {
+      url = "https://cdn.modrinth.com/data/FnE6S0Zk/versions/wGh1RBAz/FastLeafDecay-1.0.7.jar";
+      hash = "sha256-T6+4/M/4G3KV1abyB1IMe2QLITTdV725niuqe7iJR+I=";
+    };
+
     # NOT added: SentientMobs -- looked like pure combat-AI difficulty on
     # the surface, but its real config has an entire villager economy
     # (labor-trade, profession-work, farmer-work, community chests, an
