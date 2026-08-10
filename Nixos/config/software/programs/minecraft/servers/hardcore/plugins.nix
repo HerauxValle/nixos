@@ -3,14 +3,17 @@
 { pkgs, ... }:
 
 let
-  # Force-enforces the agreed 14-feature Vanilla Refresh whitelist every
-  # time the world loads, overwriting whatever Vanilla Refresh's own
-  # defaults (or any in-game toggling) set -- unconditional "set value",
-  # not the "unless already set" guard Vanilla Refresh itself uses, so
-  # this always wins regardless of load order between the two packs'
-  # #minecraft:load contributions. See conversation history for the full
-  # per-feature audit (each one traced to its actual source function,
-  # not just its name) that produced this exact list.
+  # TRUE whitelist -- every known Vanilla Refresh feature forced off
+  # except the 14 explicitly approved (no exceptions, not even for
+  # features independently verified safe, like Loyal Tridents/Player
+  # Head Drop/Recovery Coordinates/anvil sound -- those are off too
+  # since they were never in the final approved list). Runs every time
+  # the world loads, overwriting whatever Vanilla Refresh's own defaults
+  # (or any in-game toggling) set -- unconditional "set value", not the
+  # "unless already set" guard Vanilla Refresh itself uses, so this
+  # always wins regardless of load order between the two packs'
+  # #minecraft:load contributions. See vanilla-refresh-overrides.mcfunction
+  # itself for the full per-key reasoning, one comment per line.
   vanillaRefreshOverridesDatapack = pkgs.runCommand "vanilla-refresh-overrides-datapack" { } ''
     mkdir -p $out/data/vr_overrides/function
     mkdir -p $out/data/minecraft/tags/function
