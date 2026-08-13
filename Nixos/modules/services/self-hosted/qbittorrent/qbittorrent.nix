@@ -106,6 +106,46 @@ let
     }
   ));
 
+  # Real bug, found on a live run: cfg.paths.save/temp/export/finished
+  # (config.vars.system.mountpoints.device.storage.path, a real
+  # pre-existing directory tree owned by config.vars.identity.username,
+  # not created by this module) only ever granted rwx to that user +
+  # its own primary group via ACL -- the dedicated qbittorrent system
+  # user had nothing beyond `other::r-x` (read/traverse, no write) on
+  # any of them, so any newly-added torrent needing to actually write
+  # piece data errored out immediately (confirmed live: WebUI showed a
+  # fresh torrent stuck at 0%, "Errored", while pre-existing 100%-
+  # complete ones in the same tree were unaffected since they never
+  # needed to write).
+  #
+  # A genuinely SEPARATE, unhardened oneshot unit (not appended to
+  # qbittorrent.service's own preStart) -- same real reason
+  # ../lib/acl-traversal/acl-traversal.nix's own top comment documents
+  # for its traversal grants: qbittorrent.service runs with
+  # PrivateUsers=true, and `setfacl` executed *inside* that private
+  # user namespace hits a UID-mapping artifact that collides with the
+  # real ACL entry it's trying to write ("Malformed access ACL ...
+  # Duplicate entries", confirmed on a live run of the traversal case).
+  # A separate oneshot ordered strictly before qbittorrent.service
+  # (Before=/RequiredBy=) runs as plain root instead, sidestepping the
+  # whole namespace problem the same way.
+  #
+  # -R (recursive, covers files/subdirs already inside the tree) plus a
+  # `d:` default entry (so new files/dirs created after this point
+  # inherit the grant automatically, not just the top-level dir at the
+  # time this ran) -- re-applied on every qbittorrent.service start
+  # (RemainAfterExit = false), not just once per rebuild, since a fresh
+  # `nixos-rebuild switch` isn't the only way this tree gets touched.
+  # Idempotent: `setfacl -m` on an already-present identical entry is a
+  # confirmed no-op (same primitive ../lib/acl-traversal/ already relies
+  # on), so re-running this every start is safe.
+  aclWritePaths = lib.filter (p: p != null) [
+    cfg.paths.save
+    cfg.paths.temp
+    cfg.paths.export
+    cfg.paths.finished
+  ];
+
 in
 
 {
@@ -187,6 +227,24 @@ in
       actions = {
         update = updateScript;
         "update:apply" = updateApplyScript;
+      };
+    })
+    (lib.mkIf (cfg.enabled && aclWritePaths != [ ]) {
+      systemd.services.acl-write-qbittorrent = {
+        description = "ACL write grants for qbittorrent's torrent paths, applied before it starts";
+        before = [ "qbittorrent.service" ];
+        requiredBy = [ "qbittorrent.service" ];
+        path = [ pkgs.acl ];
+        script = lib.concatMapStringsSep "\n"
+          (dir: ''
+            setfacl -R -m g:${config.services.qbittorrent.group}:rwx "${dir}"
+            setfacl -R -m d:g:${config.services.qbittorrent.group}:rwx "${dir}"
+          '')
+          aclWritePaths;
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = false;
+        };
       };
     })
   ];
