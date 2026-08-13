@@ -20,24 +20,29 @@ unit_name() {
 
 require_name() {
     if [ -z "${1:-}" ]; then
-        echo "usage: service ${cmd_usage:-<command>} <name>[@<sub>] [--silent]" >&2
+        echo "usage: service ${cmd_usage:-<command>} <name>[@<sub>] [--silent] [-l|--literal]" >&2
         exit 1
     fi
 }
 
 RED='\033[31m'; GREEN='\033[32m'; YELLOW='\033[33m'; CYAN='\033[36m'; MAGENTA='\033[35m'; RESET='\033[0m'
 
-# Strips a --silent flag out of "$@" (in any position) into $SILENT
-# (0/1) and leaves the rest in the $ARGS array -- start/stop/restart/
-# fail all take just <name>[@<sub>] [--silent], so this is shared
-# instead of each one hand-rolling its own arg scan.
+# Strips --silent and -l/--literal flags out of "$@" (in any position)
+# into $SILENT/$LITERAL (0/1) and leaves the rest in the $ARGS array --
+# start/stop/restart/fail all take just <name>[@<sub>] [--silent]
+# [-l|--literal], so this is shared instead of each one hand-rolling its
+# own arg scan. --literal skips unit_name's self-hosted- prefixing, for
+# units like qbittorrent.service that come from a native nixpkgs module
+# (services.qbittorrent) instead of the self-hosted-<name> convention.
 parse_args() {
     SILENT=0
+    LITERAL=0
     ARGS=()
     local a
     for a in "$@"; do
         case "$a" in
             --silent) SILENT=1 ;;
+            -l | --literal) LITERAL=1 ;;
             *) ARGS+=("$a") ;;
         esac
     done

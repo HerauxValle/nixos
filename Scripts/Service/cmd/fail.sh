@@ -8,7 +8,7 @@ cmd_usage="fail"
 parse_args "$@"
 require_name "${ARGS[0]:-}"
 name="${ARGS[0]}"
-unit="$(unit_name "$name")"
+if [ "$LITERAL" -eq 1 ]; then unit="${name}.service"; else unit="$(unit_name "$name")"; fi
 
 # Same unstick-a-failed-unit fix as `mcli fail` (Scripts/Minecraft) --
 # systemctl start alone refuses to touch a unit still latched `failed`,
