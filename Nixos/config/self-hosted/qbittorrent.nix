@@ -112,6 +112,28 @@
           QueueingSystemEnabled = true;
           SSL.Port = 49999;
           StartPaused = false;
+
+          # DHT/PeXEnabled aren't set here -- both already default to
+          # true upstream (Tools -> Options -> BitTorrent's "Enable DHT"
+          # / "Enable Peer Exchange (PeX)" ship checked), so there's
+          # nothing to override to keep them on.
+
+          # Auto-pulls ngosang/trackerslist's "best" list (curated,
+          # actively-seeded-tracker only, no dead/duplicate entries) and
+          # appends it to every new torrent's own trackers on add --
+          # this is the real key qBittorrent's own "Automatically append
+          # trackers from URL to new downloads" option in Tools ->
+          # Options -> BitTorrent writes, confirmed against qBittorrent's
+          # own conf format (not guessed).
+          AdditionalTrackersURL = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt";
+
+          # Real, separate qBittorrent field (distinct from
+          # AdditionalTrackersURL above) -- individual tracker announce
+          # URLs, one per line, statically appended to every new torrent
+          # on top of whatever AdditionalTrackersURL's own list provides.
+          # Empty for now; add more by just adding lines inside the ''...''.
+          AdditionalTrackers = ''
+          '';
         };
       };
       Core.AutoDeleteAddedTorrentFile = "Never";
