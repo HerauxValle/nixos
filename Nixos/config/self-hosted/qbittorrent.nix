@@ -87,7 +87,7 @@
     extraServerConfig = {
       Preferences.WebUI = {
         Username = "herauxvalle";
-        Password_PBKDF2 = "@ByteArray(oaZ004bvc9ejLxAPMx5I8g==:mlc8gh4G/+FYQK6zJDynouPvN3OmOpdusWTwM07Mu/zq/TTSndPLLm/3BT/hJMswV1MALc4njIaT7mGsX2Bg5g==)";
+        Password_PBKDF2 = "@ByteArray(5XmMpILy65+aPptaS8nzdA==:Ya2q8EHJlI3v9zEiVh02a7XyyUsgdRpbGRMr/UPYfc0k6Lr52EwJl0MhvSr8wM/8cs6Bx6zHiQKhOkSU8M89VQ==)";
       };
       BitTorrent = {
         MergeTrackersEnabled = true;
