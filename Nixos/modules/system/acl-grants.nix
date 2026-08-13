@@ -48,7 +48,7 @@
   config = lib.mkIf (config.vars.system.aclGrants != [ ]) {
     system.activationScripts.aclGrants = lib.stringAfter [ "users" ] (
       lib.concatMapStringsSep "\n"
-        (g: ''${pkgs.acl}/bin/setfacl -m u:${g.user}:rx "${g.path}" 2>/dev/null || true'')
+        (g: ''${pkgs.acl}/bin/setfacl -m u:${g.user}:rx,m::rx "${g.path}" 2>/dev/null || true'')
         config.vars.system.aclGrants
     );
   };
