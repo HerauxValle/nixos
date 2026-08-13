@@ -20,7 +20,27 @@
     mimeType = [ "x-scheme-handler/magnet" ];
   };
   xdg.mimeApps.enable = true;
-  xdg.mimeApps.defaultApplications."x-scheme-handler/magnet" = [ "qbit-magnet.desktop" ];
+  xdg.mimeApps.defaultApplications = {
+    # Pre-existing associations, previously set imperatively (whatever
+    # app/dolphin's "always use this" dialog wrote straight into
+    # ~/.config/mimeapps.list) -- folded in here so home-manager can own
+    # the file outright instead of refusing to touch it.
+    "x-scheme-handler/mailto" = [ "vivaldi-stable.desktop" ];
+    "image/png" = [ "oculante.desktop" ];
+    "image/jpeg" = [ "oculante.desktop" ];
+    "image/webp" = [ "oculante.desktop" ];
+    "image/gif" = [ "oculante.desktop" ];
+    "image/bmp" = [ "oculante.desktop" ];
+    "image/tiff" = [ "oculante.desktop" ];
+    "image/avif" = [ "oculante.desktop" ];
+    "image/heic" = [ "oculante.desktop" ];
+    "image/svg+xml" = [ "oculante.desktop" ];
+    "x-scheme-handler/claude-cli" = [ "claude-code-url-handler.desktop" ];
+    "x-scheme-handler/claude" = [ "com.anthropic.Claude.desktop" ];
+
+    "x-scheme-handler/magnet" = [ "qbit-magnet.desktop" ];
+  };
+  xdg.configFile."mimeapps.list".force = true;
 
   xdg.configFile = {
     "hypr".source = ../../Hyprland;
