@@ -8,6 +8,16 @@ usage: pacnix <command> [args]
       date/version label in the GRUB menu -- only if given, otherwise
       the label is left as the plain default.
 
+  reboot [--label <text>]
+      Same as `rebuild` (same flags, same reload.sh at the end), then
+      `sudo systemctl reboot` -- only reboots if the rebuild actually
+      succeeded.
+
+  shutdown [--label <text>]
+      Same as `rebuild` (same flags, same reload.sh at the end), then
+      `sudo systemctl poweroff` -- only powers off if the rebuild
+      actually succeeded.
+
   validate
       Dry-run the rebuild (sudo nixos-rebuild dry-build) -- shows what
       would change, builds nothing, switches nothing.
