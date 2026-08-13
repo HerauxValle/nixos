@@ -79,6 +79,7 @@ let
   mkFromNativeService = import ./lib/mk-from-native/services.nix { inherit lib pkgs; };
   mkFromNativeUpdateScript = import ./lib/mk-from-native/update.nix { inherit pkgs; };
   mkAclTraversal = import ./lib/acl-traversal/mk-acl-traversal.nix { inherit lib pkgs; };
+  mkAclWrite = import ./lib/acl-write/mk-acl-write.nix { inherit lib pkgs; };
 in
 {
   inherit
@@ -91,5 +92,6 @@ in
     mkActionService
     mkFromNativeService
     mkFromNativeUpdateScript
-    mkAclTraversal;
+    mkAclTraversal
+    mkAclWrite;
 }

@@ -140,4 +140,24 @@
       Preferences.General.Locale = "en";
     };
   };
+
+  # Opt-in only -- vars.selfHosted.aclWriteGrants itself (and the
+  # separate-oneshot-unit mechanism behind it) is declared once, globally,
+  # in ../../modules/services/self-hosted/lib/acl-write/ and already
+  # applies to any service key added here, no modules/ edit required per
+  # service. Real bug this fixes: the four paths above are a real,
+  # pre-existing directory tree owned by config.vars.identity.username,
+  # whose ACLs only ever granted that user's own group rwx -- the
+  # dedicated qbittorrent system user had nothing beyond `other::r-x`
+  # (read/traverse, no write), so a freshly-added torrent needing to
+  # write piece data errored out instantly (confirmed live: WebUI showed
+  # a fresh torrent stuck at 0%, "Errored"). "qbittorrent" -- the real
+  # group name services.qbittorrent's own module creates, confirmed via
+  # `systemctl cat qbittorrent`, not guessed.
+  config.vars.services.selfHosted.aclWriteGrants.qbittorrent = [
+    { group = "qbittorrent"; path = config.vars.services.selfHosted.qbittorrent.paths.save; }
+    { group = "qbittorrent"; path = config.vars.services.selfHosted.qbittorrent.paths.temp; }
+    { group = "qbittorrent"; path = config.vars.services.selfHosted.qbittorrent.paths.export; }
+    { group = "qbittorrent"; path = config.vars.services.selfHosted.qbittorrent.paths.finished; }
+  ];
 }

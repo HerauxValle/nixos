@@ -12,8 +12,9 @@
 #
 # ./lib is here too, one folder down like everything else -- it has its
 # own default.nix that reaches one further folder down into
-# ./lib/acl-traversal (the one lib/ entry with real options of its own).
-# Nothing in this file ever reaches two levels down itself.
+# ./lib/acl-traversal and ./lib/acl-write (the two lib/ entries with real
+# options of their own). Nothing in this file ever reaches two levels
+# down itself.
 {
   imports = [
     ./comfyui
