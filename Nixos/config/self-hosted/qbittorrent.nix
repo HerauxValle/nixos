@@ -88,6 +88,15 @@
       Preferences.WebUI = {
         Username = "herauxvalle";
         Password_PBKDF2 = "@ByteArray(5XmMpILy65+aPptaS8nzdA==:Ya2q8EHJlI3v9zEiVh02a7XyyUsgdRpbGRMr/UPYfc0k6Lr52EwJl0MhvSr8wM/8cs6Bx6zHiQKhOkSU8M89VQ==)";
+        # Lets a request that's genuinely from this box's own loopback
+        # skip login -- exactly what the magnet-link handler (see
+        # Scripts/QbitMagnet) needs to POST to the API without embedding
+        # the WebUI password anywhere. Only affects 127.0.0.1 itself:
+        # ports.nix's qbittorrent entry is mode.local only (LAN, not
+        # forwarded past this machine), and any remote/LAN client still
+        # hits the real Username/Password_PBKDF2 above -- this bypass
+        # never reaches them.
+        LocalHostAuth = false;
       };
       BitTorrent = {
         MergeTrackersEnabled = true;

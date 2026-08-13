@@ -87,6 +87,18 @@
       };
     }
 
+    {
+      # x-scheme-handler/magnet target (wired up as the actual desktop
+      # entry in home/apps.nix) -- forwards straight to qBittorrent's own
+      # already-running WebUI API instead of launching a second, separate
+      # GUI instance under this user that the headless qbittorrent-nox
+      # service never sees.
+      dir = ../../../../Scripts/QbitMagnet;
+      include = {
+        "main.sh" = "qbit-magnet";
+      };
+    }
+
     # {
     #   dir = ../../../../Projects/Path;
     #   include = { "bin" = "path"; };

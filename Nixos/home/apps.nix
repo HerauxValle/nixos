@@ -3,6 +3,25 @@
 { pkgs, config, osConfig, ... }:
 
 {
+  # x-scheme-handler/magnet -- overrides the stock qBittorrent GUI
+  # package's own org.qbittorrent.qBittorrent.desktop (installed only for
+  # its icon/window, see packages.nix), which would otherwise win the
+  # magnet association and launch a second, unrelated qBittorrent
+  # instance under this user instead of reaching the real one
+  # (qbittorrent-nox, running as its own system user -- see
+  # config/self-hosted/qbittorrent.nix). qbit-magnet (Scripts/QbitMagnet,
+  # wired onto PATH in config/software/environment/scripts.nix) forwards
+  # the URI to that instance's WebUI API instead.
+  xdg.desktopEntries.qbit-magnet = {
+    name = "qBittorrent (magnet handler)";
+    exec = "qbit-magnet %u";
+    terminal = false;
+    noDisplay = true;
+    mimeType = [ "x-scheme-handler/magnet" ];
+  };
+  xdg.mimeApps.enable = true;
+  xdg.mimeApps.defaultApplications."x-scheme-handler/magnet" = [ "qbit-magnet.desktop" ];
+
   xdg.configFile = {
     "hypr".source = ../../Hyprland;
     "kitty".source = ../../Kitty;
