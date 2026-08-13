@@ -1,9 +1,10 @@
-# &desc: "System module schema -- imports autostart, storage mounts, networking, port forwarding, device hiding, openrazer, swap, and users submodules."
+# &desc: "System module schema -- imports acl-grants, autostart, storage mounts, networking, port forwarding, device hiding, openrazer, swap, and users submodules."
 
 { config, pkgs, ... }:
 
 {
   imports = [
+    ./acl-grants.nix
     ./autostart
     ./hidden-devices.nix
     ./mountpoints
