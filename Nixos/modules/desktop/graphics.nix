@@ -21,4 +21,19 @@
   # nvidia-suspend/nvidia-resume.service + NVreg_PreserveVideoMemoryAllocations,
   # NVIDIA's own documented fix for exactly this failure mode.
   hardware.nvidia.powerManagement.enable = true;
+
+  # PowerMizer defaults to "Adaptive" (clocks down aggressively under low
+  # load, common cause of stutter on the proprietary driver going idle-clock
+  # then having to ramp back up). This registry dword combo is NVIDIA's own
+  # documented way to force "Prefer Maximum Performance" unconditionally --
+  # PerfLevelSrc=0x2222 pins both AC and battery perf-level source to the
+  # max entry in the GPU's clock table, PowerMizerLevel/-Default/-DefaultAC=0x1
+  # select that same max-performance level for the three PowerMizer contexts
+  # (system default, AC, and the live PowerMizerLevel itself). Applies at
+  # driver load, kernel module parameter -- not per-session, not something
+  # gamemode's occasional GPU bump ([[config/software/programs/gamemode]],
+  # AMD-only anyway) covers.
+  boot.extraModprobeConfig = ''
+    options nvidia NVreg_RegistryDwords="PowerMizerEnable=0x1; PerfLevelSrc=0x2222; PowerMizerLevel=0x1; PowerMizerDefault=0x1; PowerMizerDefaultAC=0x1"
+  '';
 }
