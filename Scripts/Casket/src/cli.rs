@@ -57,6 +57,8 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
+    let force = pop_flag(&mut args, "--force");
+
     let mut opts = Opts::default();
     opts.pass = pop_value(&mut args, "--pass");
     opts.new_pass = pop_value(&mut args, "--new-pass");
@@ -147,7 +149,7 @@ pub fn run() -> Result<()> {
 
         "close" => {
             let vault = Vault::find(&vault_name, path_ref)?;
-            commands::close::run(&ctx, &vault)
+            commands::close::run(&ctx, &vault, force)
         }
 
         "toggle" => {

@@ -80,6 +80,15 @@ impl Vault {
         proc::run_silent("cryptsetup", &["close", &self.mapper]);
     }
 
+    /// Same teardown, but reports cryptsetup's real failure instead of
+    /// swallowing it — for `cas <vault> close --force`, where the whole
+    /// point is finding out *why* a stuck mapper won't go away (e.g. its
+    /// backing loop device vanished mid-operation, leaving it wedged
+    /// "busy" until reboot) rather than a silent no-op.
+    pub fn close_mapper_checked(&self) -> Result<()> {
+        proc::run("cryptsetup", &["close", &self.mapper])
+    }
+
     pub fn ensure_mnt_dir(&self) -> Result<()> {
         match std::fs::create_dir(&self.mnt) {
             Ok(()) => Ok(()),

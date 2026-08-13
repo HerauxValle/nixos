@@ -26,8 +26,16 @@ pub fn format_vault(img: &Path, secret: &[u8], strength: Strength) -> Result<()>
 
 pub fn open_luks(img: &Path, mapper: &str, secret: &[u8]) -> Result<String> {
     let img_str = img.to_string_lossy().into_owned();
+    // Report cryptsetup's real failure reason instead of a blanket
+    // "wrong passphrase" guess — a stale/stuck mapper left behind by a
+    // crashed previous run ("Device X already exists") or a device gone
+    // busy look identical to a bad passphrase otherwise, and silently
+    // relabeling every such failure as a credentials problem sent
+    // someone chasing the wrong fix (confirmed live 2026-08-13: a
+    // leftover errored mapper from an interrupted run was masked as
+    // "wrong passphrase or keyfile" for the rest of the session).
     proc::run_with_stdin("cryptsetup", &["open", "--key-file", "-", &img_str, mapper], secret)
-        .map_err(|_| CasError::new("wrong passphrase or keyfile — could not unlock vault"))?;
+        .map_err(|e| CasError::new(format!("could not unlock vault: {e}")))?;
     Ok(format!("/dev/mapper/{mapper}"))
 }
 

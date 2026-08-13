@@ -16,7 +16,7 @@ pub fn run(
     kf_cache_hint: Option<&Path>,
 ) -> Result<()> {
     if vault.is_mount() {
-        return close::run(ctx, vault);
+        return close::run(ctx, vault, false);
     }
     let meta = Meta::read(&vault.img);
     if meta.is_encryption_bypassed() {
