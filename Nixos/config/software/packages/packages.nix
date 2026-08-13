@@ -12,6 +12,11 @@
       }; # live ISO: browser, essential for a real install session
       tor-browser = { };
 
+      # Torrenting -- GUI package pulled in only for its magnet: handler
+      # (see qbittorrent.nix in self-hosted, running headless as the
+      # real client); stock .desktop entry, no --profile override.
+      qbittorrent = { };
+
       # Development
       git = {
         builtIn = true;
