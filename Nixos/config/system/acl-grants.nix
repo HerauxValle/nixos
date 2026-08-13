@@ -1,4 +1,4 @@
-# &desc: "ACL rx grants -- herauxvalle into Immich's Cloud/Imported dirs (700 immich:immich), Dolphin-browsable without changing Immich's own perms."
+# &desc: "ACL rx grants -- herauxvalle into Immich's Cloud/Imported dirs (700 immich:immich), recursive so subfolders are browsable too, without changing Immich's own perms."
 
 { config, ... }:
 
@@ -7,10 +7,12 @@
     {
       user = config.vars.identity.username;
       path = "${config.vars.identity.homeDirectory}/Images/Media/Cloud";
+      recursive = true;
     }
     {
       user = config.vars.identity.username;
       path = "${config.vars.identity.homeDirectory}/Images/Media/Imported";
+      recursive = true;
     }
   ];
 }

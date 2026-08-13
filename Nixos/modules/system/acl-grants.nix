@@ -39,6 +39,11 @@
           type = lib.types.str;
           description = "Absolute path of the directory to grant access on.";
         };
+        recursive = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = "Also grant rx on every existing subdirectory, and set a default ACL so newly-created subdirectories inherit it too (e.g. Immich's own future Cloud/*/subdirs).";
+        };
       };
     });
     default = [ ];
@@ -48,7 +53,15 @@
   config = lib.mkIf (config.vars.system.aclGrants != [ ]) {
     system.activationScripts.aclGrants = lib.stringAfter [ "users" ] (
       lib.concatMapStringsSep "\n"
-        (g: ''${pkgs.acl}/bin/setfacl -m u:${g.user}:rx,m::rx "${g.path}" 2>/dev/null || true'')
+        (g:
+          if g.recursive then
+            # -R walks existing subdirs; d:u:.../d:m:: set a *default*
+            # ACL on every directory so subdirs Immich creates later
+            # (it owns this tree, not Nix) inherit the same grant
+            # without needing another rebuild.
+            ''${pkgs.acl}/bin/setfacl -R -m u:${g.user}:rx,m::rx,d:u:${g.user}:rx,d:m::rx "${g.path}" 2>/dev/null || true''
+          else
+            ''${pkgs.acl}/bin/setfacl -m u:${g.user}:rx,m::rx "${g.path}" 2>/dev/null || true'')
         config.vars.system.aclGrants
     );
   };
