@@ -8,10 +8,7 @@ function connectqc
 
     if test -z "$MAC"
         echo "📡 Not paired yet -- scanning to find Bose QC Earbuds II..."
-        bluetoothctl scan on > /dev/null 2>&1 &
-        set scan_pid $last_pid
-        sleep 8
-        kill $scan_pid > /dev/null 2>&1
+        bluetoothctl --timeout 10 scan on > /dev/null 2>&1
         set MAC (__connectqc_find_mac)
     end
 
@@ -31,15 +28,13 @@ function connectqc
         echo "🗑 Removing old pairing..."
         bluetoothctl remove $MAC > /dev/null 2>&1
 
-        echo "📡 Starting scan..."
-        bluetoothctl scan on > /dev/null 2>&1 &
-
         echo ""
         echo "⚠ Put Bose QC Earbuds II into pairing mode NOW"
         echo "   Hold button on case until LED blinks blue."
         echo ""
 
-        sleep 8
+        echo "📡 Scanning..."
+        bluetoothctl --timeout 10 scan on > /dev/null 2>&1
 
         echo "🤝 Pairing + trusting + connecting..."
 
@@ -84,18 +79,13 @@ function connectqc
 
         bluetoothctl remove $MAC > /dev/null 2>&1
 
-        echo "📡 Starting scan..."
-        bluetoothctl scan on > /dev/null 2>&1 &
-        set scan_pid $last_pid
-
         echo ""
         echo "⚠ Put Bose QC Earbuds II into pairing mode NOW"
         echo "   Hold button on case until LED blinks blue."
         echo ""
 
-        sleep 8
-
-        kill $scan_pid > /dev/null 2>&1
+        echo "📡 Scanning..."
+        bluetoothctl --timeout 10 scan on > /dev/null 2>&1
 
         echo "🤝 Pairing + trusting + connecting..."
 
