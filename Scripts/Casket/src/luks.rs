@@ -13,11 +13,22 @@ use crate::proc::{self, TempKeyfile};
 /// cost preset. The secret goes over stdin, same as every other
 /// cryptsetup call here — it never touches disk.
 pub fn format_vault(img: &Path, secret: &[u8], strength: Strength) -> Result<()> {
+    format_vault_ex(img, secret, strength, false)
+}
+
+/// Same as `format_vault`, with `integrity` optionally adding
+/// `--integrity hmac-sha256` — per-sector authenticated encryption, used
+/// by `fileIntegrity`'s migration to build the destination container.
+pub fn format_vault_ex(img: &Path, secret: &[u8], strength: Strength, integrity: bool) -> Result<()> {
     let img_str = img.to_string_lossy().into_owned();
     let mut args: Vec<&str> = vec!["luksFormat", "--batch-mode", "--pbkdf", "argon2id"];
     args.extend_from_slice(strength.pbkdf_args());
     args.push("--pbkdf-force-iterations");
     args.push(strength.iterations());
+    if integrity {
+        args.push("--integrity");
+        args.push("hmac-sha256");
+    }
     args.push(&img_str);
     args.push("--key-file");
     args.push("-");

@@ -380,6 +380,24 @@ the same line format 'info' rolls up for every setting at once.
     failure (a busy mapper, etc.) is never miscounted as a bad guess.
     Enabling it prints a one-time warning — read it before turning this on.
 
+  settings security fileIntegrity enable|disable [--delete-backup] | state
+    Migrates the vault to (enable) or off of (disable) a dm-integrity
+    protected LUKS2 container, so a corrupted or tampered byte anywhere
+    in your files gets caught instead of silently decrypting to garbage.
+    The vault must already be open — migration copies every file to a
+    fresh container, content-verifies it byte-for-byte (SHA-256 per
+    file), then swaps it in. Adds ~15-20% storage overhead and a real
+    write-throughput cost.
+    The old container isn't deleted automatically: it's kept at
+    '.<vault>.backup.img' so you can confirm the migrated vault opens
+    correctly first. Pass --delete-backup to remove it automatically once
+    verification passes. The vault ends up closed either way — open it
+    again when the command finishes.
+    A migration interrupted partway through (crash, power loss) is safe
+    to just re-run: the partially-copied staging container is reused
+    (already-matching files are skipped, not re-copied), and the
+    original vault is never touched until the very end.
+
   settings verification <feature> enable|disable
     Controls whether toggling <feature> (any setting above, or
     verification itself) requires re-proving the vault's real passphrase
@@ -398,6 +416,8 @@ EXAMPLES
   cas myvault settings security ransomwareProtection enable --pass "..."
   cas myvault settings security bruteforceLockout enable --threshold 5
   cas myvault settings security bruteforceLockout threshold 15
+  cas myvault settings security fileIntegrity enable --pass "..."
+  cas myvault settings security fileIntegrity enable --delete-backup
   cas myvault settings verification backupAuto disable --pass "..."
   cas myvault settings 2fa state
   cas myvault settings verification state

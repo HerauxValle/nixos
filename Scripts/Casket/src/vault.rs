@@ -35,6 +35,10 @@ impl Vault {
             let base = resolve_lexically(p);
             let img = base.join(format!("{name}.img"));
             if !img.exists() {
+                recover_interrupted_migration(&base, name);
+                if img.exists() {
+                    return Ok(Vault::resolve(&base, name));
+                }
                 die!(
                     "vault '{name}' not found at {}\n    Hint: check the path or run 'cas list' to see all vaults.",
                     img.display()
@@ -47,6 +51,10 @@ impl Vault {
         let mut candidates = vec![cwd.clone()];
         candidates.extend(cwd.ancestors().skip(1).take(4).map(Path::to_path_buf));
         for dir in &candidates {
+            if dir.join(format!("{name}.img")).exists() {
+                return Ok(Vault::resolve(dir, name));
+            }
+            recover_interrupted_migration(dir, name);
             if dir.join(format!("{name}.img")).exists() {
                 return Ok(Vault::resolve(dir, name));
             }
@@ -129,6 +137,31 @@ impl Vault {
     pub fn umount_checked(&self) -> Result<()> {
         let mnt_str = self.mnt.to_string_lossy().into_owned();
         proc::run("umount", &[&mnt_str])
+    }
+}
+
+/// Completes an interrupted `fileIntegrity` swap if `find` would
+/// otherwise report the vault as not found. The swap is two atomic
+/// renames back-to-back (real -> backup, staging -> real); a crash in
+/// the handful of microseconds between them leaves no file named
+/// `{name}.img` at all, with the migrated container sitting right next
+/// to it under its staging name. That's the only state this recovers —
+/// real missing, backup AND staging both present means "step two didn't
+/// run," so finishing it (staging -> real) is unambiguous.
+fn recover_interrupted_migration(base: &Path, name: &str) {
+    let img = base.join(format!("{name}.img"));
+    let staging = base.join(format!(".{name}.fileintegrity-migration.img"));
+    let backup = base.join(format!(".{name}.backup.img"));
+    if !img.exists() && staging.exists() && backup.exists() {
+        if std::fs::rename(&staging, &img).is_ok() {
+            eprintln!(
+                "{}",
+                crate::color::auto(&format!(
+                    "[i] completed an interrupted fileIntegrity migration for '{name}' — old container is at {}",
+                    backup.display()
+                ))
+            );
+        }
     }
 }
 

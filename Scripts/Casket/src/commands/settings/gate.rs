@@ -14,7 +14,8 @@ use crate::vault::Vault;
 /// what an attacker with root but not the passphrase would target —
 /// plus `keyfileReset`, which is irreversible (old key material is gone
 /// the moment the new slot verifies) and therefore deserves the same bar.
-pub const GATED_FEATURES: &[&str] = &["ransomwareProtection", "backupAuto", "verification", "keyfileReset", "bruteforceLockout"];
+pub const GATED_FEATURES: &[&str] =
+    &["ransomwareProtection", "backupAuto", "verification", "keyfileReset", "bruteforceLockout", "fileIntegrity"];
 
 fn default_requires_verification(feature: &str) -> bool {
     GATED_FEATURES.contains(&feature)

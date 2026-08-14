@@ -51,6 +51,12 @@ pub struct Meta {
     pub bruteforce_lockout: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bruteforce_threshold: Option<u32>,
+    /// Whether the container is currently dm-integrity-protected
+    /// (per-sector authenticated encryption) — set by
+    /// `settings security fileIntegrity`'s migration, never toggled any
+    /// other way (it reflects the actual on-disk container format).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_integrity: Option<bool>,
 }
 
 /// Find the trailer on an open handle. Returns `(payload_start_offset,

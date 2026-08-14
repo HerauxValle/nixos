@@ -27,6 +27,9 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
             if feature == "bruteforceLockout" {
                 return security::bruteforce_lockout::dispatch(ctx, vault, &extra[2..], pw);
             }
+            if feature == "fileIntegrity" {
+                return security::file_integrity::dispatch(ctx, vault, &extra[2..], pw);
+            }
             if extra.get(2).map(String::as_str) == Some("state") {
                 return registry::state(security::FEATURES, feature, ctx, vault);
             }
