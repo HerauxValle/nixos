@@ -56,6 +56,10 @@ pub fn run() -> Result<()> {
         help::show(&ctx, args.get(1).map(String::as_str));
         return Ok(());
     }
+    if args[0] == "-V" || args[0] == "--version" || args[0] == "version" {
+        println!("cas {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
 
     let force = pop_flag(&mut args, "--force");
     let remove_keyfile = pop_flag(&mut args, "--removeKeyfile");

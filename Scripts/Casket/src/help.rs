@@ -14,6 +14,7 @@ USAGE
   cas quit
   cas all close
   cas help <action>
+  cas --version
 
 ACTIONS (run on a specific vault)
   create    make a new vault
@@ -40,8 +41,9 @@ ACTIONS (run on a specific vault)
               settings verification <feature> enable|disable
 
 GLOBAL
-  list      show all vaults found nearby
-  all close close every open vault on this machine
+  list          show all vaults found nearby
+  all close     close every open vault on this machine
+  --version     print the cas version (also -V, or `cas version`)
 
 OPTIONS
   --pass "..."      passphrase (you will be prompted if not given)
