@@ -29,7 +29,12 @@ pub fn dispatch(features: &[Feature], name: &str, enable: bool, ctx: &Ctx, vault
 /// `column_width`) so the value column lines up regardless of how long
 /// any one name is.
 pub fn line(name: &str, enabled: bool, width: usize) -> String {
-    format!("  {name:<width$}{}", if enabled { "enabled" } else { "disabled" })
+    // Pad on the plain name first, then colorize — coloring before
+    // padding would count the ANSI escape bytes toward the field width
+    // and throw off alignment.
+    let padded = format!("{name:<width$}");
+    let value = if enabled { "enabled" } else { "disabled" };
+    format!("  {}{}", crate::color::name(&padded), crate::color::state(enabled, value))
 }
 
 /// The column width to hand every `line()` call that's printed as part
@@ -44,7 +49,8 @@ pub fn column_width(names: &[&str]) -> usize {
 /// that isn't an enabled/disabled state (e.g. `[general]`/`[auth]`
 /// fields in `info`).
 pub fn kv_line(name: &str, value: &str, width: usize) -> String {
-    format!("  {name:<width$}{value}")
+    let padded = format!("{name:<width$}");
+    format!("  {}{value}", crate::color::name(&padded))
 }
 
 /// A `[section]` header, grouping related state lines — used by `info`
@@ -52,7 +58,7 @@ pub fn kv_line(name: &str, value: &str, width: usize) -> String {
 /// (e.g. `settings verification state`) so names never need a manual
 /// prefix like `verification-<feature>` to stay unambiguous.
 pub fn section(title: &str) -> String {
-    format!("\n[{title}]")
+    format!("\n{}", crate::color::header(&format!("[{title}]")))
 }
 
 /// Explains what enabled/disabled means specifically under

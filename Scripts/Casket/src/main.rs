@@ -1,6 +1,7 @@
 // &desc: "Entry point: self-elevates via sudo if not already root, then hands off to cli::run() and prints/exit-codes whatever Result comes back."
 mod btrfs;
 mod cli;
+mod color;
 mod commands;
 mod config;
 mod ctx;
@@ -34,7 +35,7 @@ fn main() {
             // time its Result gets here), so check argv directly — same
             // effect as the original's `if not QUIET: log(...)` in die().
             if !std::env::args().any(|a| a == "--no-log") {
-                println!("[x] {msg}");
+                println!("{}", color::auto(&format!("[x] {msg}")));
             }
             std::process::exit(1);
         }
@@ -49,8 +50,8 @@ fn elevate() {
     if unsafe { libc::geteuid() } == 0 {
         return;
     }
-    eprintln!("[i] elevating to sudo (if this fails, run with sudo manually)");
+    eprintln!("{}", color::auto("[i] elevating to sudo (if this fails, run with sudo manually)"));
     let err = std::process::Command::new("sudo").args(std::env::args()).exec();
-    eprintln!("[x] failed to elevate: {err}");
+    eprintln!("{}", color::auto(&format!("[x] failed to elevate: {err}")));
     std::process::exit(1);
 }

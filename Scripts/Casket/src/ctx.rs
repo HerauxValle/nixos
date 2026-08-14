@@ -14,7 +14,7 @@ impl Ctx {
     #[inline]
     pub fn log(&self, args: std::fmt::Arguments) {
         if !self.quiet {
-            println!("{args}");
+            println!("{}", crate::color::auto(&args.to_string()));
         }
     }
 }

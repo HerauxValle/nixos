@@ -55,6 +55,9 @@ OPTIONS
   --path dir        look for vaults here instead of auto-searching
   --removeKeyfile   delete: also delete the 2FA keyfile (preserved by default)
 
+Output is colored automatically on a real terminal, and plain otherwise
+(piped, redirected, or TERM=dumb). Set NO_COLOR=1 to force plain output.
+
 TYPICAL FIRST USE
   cas myvault create          # create a 1 GiB vault in current folder
   cas myvault open            # open it (prompts for passphrase)

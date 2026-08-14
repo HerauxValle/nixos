@@ -83,7 +83,7 @@ pub fn ensure_keyfile_mounted(ctx: &Ctx, kf_path: Option<&Path>) -> KeyfileMount
 
     let Some(uuid) = found_uuid else {
         if !ctx.quiet {
-            eprintln!("[!] keyfile device not found (drive unplugged?), skipping keyfile");
+            eprintln!("{}", crate::color::auto("[!] keyfile device not found (drive unplugged?), skipping keyfile"));
         }
         return plain(None);
     };
@@ -96,7 +96,7 @@ pub fn ensure_keyfile_mounted(ctx: &Ctx, kf_path: Option<&Path>) -> KeyfileMount
     if out.stdout.is_empty() {
         if !ctx.quiet {
             let err = String::from_utf8_lossy(&out.stderr);
-            eprintln!("[!] could not read keyfile off device, skipping keyfile: {}", err.trim());
+            eprintln!("{}", crate::color::auto(&format!("[!] could not read keyfile off device, skipping keyfile: {}", err.trim())));
         }
         return plain(None);
     }

@@ -160,15 +160,21 @@ fn recover_unreadable(img: &Path, raw: &[u8]) {
     let backup = img.with_extension("meta.corrupt");
     if !backup.exists() && std::fs::write(&backup, raw).is_err() {
         eprintln!(
-            "[!] '{}' has an unreadable metadata trailer and the recovery backup could not be written",
-            img.display()
+            "{}",
+            crate::color::auto(&format!(
+                "[!] '{}' has an unreadable metadata trailer and the recovery backup could not be written",
+                img.display()
+            ))
         );
         return;
     }
     eprintln!(
-        "[!] '{}' has an unreadable metadata trailer -- raw bytes preserved at {}",
-        img.display(),
-        backup.display()
+        "{}",
+        crate::color::auto(&format!(
+            "[!] '{}' has an unreadable metadata trailer -- raw bytes preserved at {}",
+            img.display(),
+            backup.display()
+        ))
     );
     eprintln!("    continuing with default settings; the vault's encrypted data is untouched");
 }

@@ -48,7 +48,7 @@ pub fn confirm_name(ctx: &Ctx, expected: &str, warning: &str) -> Result<bool> {
 }
 
 fn aborted() -> CasError {
-    println!("\n[x] aborted");
+    println!("\n{}", crate::color::auto("[x] aborted"));
     CasError::Silent
 }
 
