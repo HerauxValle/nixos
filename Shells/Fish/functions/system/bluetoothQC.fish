@@ -1,7 +1,26 @@
 #&help:"Connect Bose QC Earbuds II (auto-repair on key mismatch)"
+function __connectqc_find_mac
+    bluetoothctl devices | string match -r "^Device ([0-9A-F:]+) Bose QC Earbuds II\$" --groups-only | head -n1
+end
+
 function connectqc
-    set MAC "AC:BF:71:93:45:74"
-    set CARD "bluez_card.AC_BF_71_93_45_74"
+    set MAC (__connectqc_find_mac)
+
+    if test -z "$MAC"
+        echo "📡 Not paired yet -- scanning to find Bose QC Earbuds II..."
+        bluetoothctl scan on > /dev/null 2>&1 &
+        set scan_pid $last_pid
+        sleep 8
+        kill $scan_pid > /dev/null 2>&1
+        set MAC (__connectqc_find_mac)
+    end
+
+    if test -z "$MAC"
+        echo "❌ Could not find Bose QC Earbuds II -- make sure it's on and in pairing mode."
+        return 1
+    end
+
+    set CARD "bluez_card."(string replace -a ":" "_" $MAC)
 
     if test "$argv[1]" = "--fix"
         echo "🛠 Starting full Bluetooth repair..."
