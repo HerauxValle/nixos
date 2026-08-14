@@ -56,6 +56,7 @@ alias kbdx-cli="keepassxc-cli open /run/media/herauxvalle/VirtualKeys/keepassxc/
 # APPLICATIONS
 
 alias celshell="pkill qs; qs -c ~/Projects/Caelestia &"                  #&help:"Restart QS with Caelestia config"
+alias restart-vivaldi="pkill -TERM -f 'vivaldi-bin --enable-features=WebUIDarkMode --force-dark-mode\$'; sleep 2; nohup vivaldi &>/dev/null & disown" #&help:"Restart Vivaldi (clears stale browser-side DNS/mDNS cache)"
 
 # PACMAN AND YAY
 

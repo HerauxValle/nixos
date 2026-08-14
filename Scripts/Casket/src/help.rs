@@ -156,8 +156,11 @@ cas <vault> info
 
 Shows the full vault picture, grouped into sections:
   [general]      path, size, open/closed, active LUKS key slots
-  [auth]         passphrase state (required/bypassed), active keyfile
-                 (path, and whether it's raw or embedded)
+  [auth]         passphrase state (required/bypassed); whether a keyfile
+                 is set and raw/embedded. Its exact path is hidden
+                 unless --pass verifies — info needs no auth by default,
+                 so showing a 2FA vault's second factor location for
+                 free would collapse it toward passphrase-only
   [settings]     encryption, 2fa, backupAuto (+ keep count)
   [security]     every security feature (e.g. ransomwareProtection)
   [verification] which features currently require re-proving the
@@ -167,7 +170,8 @@ Each state line is the same '<name>   enabled|disabled' you'd get
 running 'settings ... state' on that one setting individually.
 
 Pass --pass to also verify the tamper-evidence HMAC (see 'cas help
-tampered') — off by default so info stays a fast, auth-free command.
+tampered') and reveal the keyfile's exact path — both off by default so
+info stays a fast, auth-free command.
 
 EXAMPLE
   cas myvault info

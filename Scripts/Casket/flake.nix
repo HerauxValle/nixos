@@ -21,7 +21,7 @@
       {
         packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = "cas";
-          version = "1.9.4";
+          version = "1.9.5";
           src = ./.;
 
           cargoLock.lockFile = ./Cargo.lock;

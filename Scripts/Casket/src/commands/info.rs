@@ -22,7 +22,12 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     // a passphrase is given, opportunistically verify it and check the
     // tamper HMAC too — extra assurance without making it mandatory.
     // A wrong passphrase here is silently skipped rather than dying;
-    // this is still a read-only command.
+    // this is still a read-only command. `pw_verified` also gates the
+    // keyfile's exact path below (see [auth]) — a 2FA vault whose `info`
+    // hands over the second factor's exact location to anyone with mere
+    // read access to the vault directory, no passphrase required, isn't
+    // really 2FA anymore. It's found for free once you have factor one.
+    let mut pw_verified = false;
     if let Some(pw) = pw {
         let secret = match meta.keyfile.clone() {
             Some(cached) => {
@@ -34,6 +39,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
         Meta::strip(&vault.img)?;
         let ok = luks::test(&vault.img, &secret);
         meta.write(&vault.img)?;
+        pw_verified = ok;
         if ok {
             match tamper::verify(&secret, &meta) {
                 tamper::Status::Healthy => logf!(ctx, "[✓] tamper check: healthy"),
@@ -76,7 +82,11 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     match &meta.keyfile {
         Some(kf) => {
             let kind = if keyfile::is_embedded(Path::new(kf)) { "embedded" } else { "raw file" };
-            logf!(ctx, "{}", registry::kv_line("keyfile", &format!("{kf}  ({kind})"), width));
+            if pw_verified {
+                logf!(ctx, "{}", registry::kv_line("keyfile", &format!("{kf}  ({kind})"), width));
+            } else {
+                logf!(ctx, "{}", registry::kv_line("keyfile", &format!("set  ({kind}, path hidden — pass --pass to reveal)"), width));
+            }
         }
         None => logf!(ctx, "{}", registry::kv_line("keyfile", "none", width)),
     }
