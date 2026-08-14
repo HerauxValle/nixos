@@ -11,6 +11,7 @@ mod keyfile;
 mod keyfile_mount;
 mod luks;
 mod meta;
+mod migrate;
 mod migrations;
 mod proc;
 mod prompt;

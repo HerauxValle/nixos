@@ -1,7 +1,7 @@
 # &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
 [package]
 name = "cas"
-version = "1.8.0"
+version = "1.9.0"
 edition = "2021"
 description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
 
@@ -68,6 +68,12 @@ hmac = "0.12"
 # that page — closes the "core dump / swapped memory page after the
 # process exits" gap. Gated by settings security zeroize (default on).
 zeroize = "1"
+
+# filetime: preserves mtimes during migrate.rs's tree copy (fileIntegrity
+# migration) — std has no cross-platform "set a file's mtime" call, and
+# this is the same small, widely-used (cargo itself depends on it) crate
+# everyone reaches for instead of hand-rolling a utimensat wrapper.
+filetime = "0.2"
 
 # libc: raw getuid()/getgid() for the (rare) fallback path where this
 # runs as root without going through sudo, so SUDO_UID/SUDO_GID aren't
