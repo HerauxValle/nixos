@@ -36,7 +36,7 @@ pub fn err(s: &str) -> String {
 }
 
 pub fn warn(s: &str) -> String {
-    paint("33", s) // yellow -- caution, non-fatal ([!] lines)
+    paint("33", s) // yellow -- caution, non-fatal ([!]/WARNING: lines)
 }
 
 pub fn info(s: &str) -> String {
@@ -44,7 +44,7 @@ pub fn info(s: &str) -> String {
 }
 
 pub fn header(s: &str) -> String {
-    paint("1;36", s) // bold cyan -- [section] headers
+    paint("1;36", s) // bold cyan -- [section]/ALLCAPS headers
 }
 
 pub fn name(s: &str) -> String {
@@ -59,29 +59,53 @@ pub fn state(enabled_flag: bool, s: &str) -> String {
     }
 }
 
-/// Colors a line by its leading `[✓]`/`[x]`/`[!]`/`[i]` marker, if it has
-/// one -- the single hook every `logf!` call runs through via `Ctx::log`,
-/// so the ~70 existing call sites across the codebase get colored output
-/// for free without editing each one individually.
-pub fn auto(line: &str) -> String {
+pub fn value(s: &str) -> String {
+    paint("33", s) // yellow -- a plain data value with no enabled/disabled semantics
+}
+
+/// Colors every line of `text` independently -- the single hook every
+/// `logf!` call runs through via `Ctx::log`, so the ~70 existing
+/// `[✓]`/`[x]`/`[!]`/`[i]`/`WARNING:` call sites across the codebase,
+/// plus every static help page's ALLCAPS section headers, get colored
+/// output for free without editing each one individually.
+pub fn auto(text: &str) -> String {
+    text.split('\n').map(auto_line).collect::<Vec<_>>().join("\n")
+}
+
+fn auto_line(line: &str) -> String {
     for (marker, paint_fn) in [
         ("[✓]", ok as fn(&str) -> String),
         ("[x]", err as fn(&str) -> String),
         ("[!]", warn as fn(&str) -> String),
         ("[i]", info as fn(&str) -> String),
+        ("WARNING:", warn as fn(&str) -> String),
     ] {
-        if let Some(rest) = line.strip_prefix(marker) {
-            return format!("{}{rest}", paint_fn(marker));
-        }
-        // Indented/newline-led variants, e.g. "  [i] generated keyfile:
-        // ..." or "\n[x] aborted".
+        // Only a marker that's the first non-space thing on the line
+        // counts -- not one that happens to appear mid-sentence.
         if let Some(idx) = line.find(marker) {
-            if line[..idx].chars().all(|c| c == ' ' || c == '\n') {
+            if line[..idx].chars().all(|c| c == ' ') {
                 let (lead, rest) = line.split_at(idx);
                 let rest = &rest[marker.len()..];
                 return format!("{lead}{}{rest}", paint_fn(marker));
             }
         }
     }
+
+    // A line starting (after indent) with a run of uppercase
+    // letters/spaces at least 2 characters long is a bare section
+    // header in a static help page -- USAGE, "ACTIONS (run on a
+    // specific vault)", GLOBAL, OPTIONS, EXAMPLES, TYPICAL FIRST USE, a
+    // table header row like "NAME SIZE STATE PATH". Only the leading
+    // uppercase run gets colored; anything after it (a parenthetical,
+    // lowercase prose) stays plain.
+    let trimmed = line.trim_start();
+    let indent = &line[..line.len() - trimmed.len()];
+    let run_end = trimmed.find(|c: char| !(c.is_ascii_uppercase() || c == ' ')).unwrap_or(trimmed.len());
+    let run = trimmed[..run_end].trim_end();
+    if run.len() > 1 {
+        let rest = &trimmed[run.len()..];
+        return format!("{indent}{}{rest}", header(run));
+    }
+
     line.to_string()
 }

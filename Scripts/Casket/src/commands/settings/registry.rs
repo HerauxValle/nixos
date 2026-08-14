@@ -50,7 +50,7 @@ pub fn column_width(names: &[&str]) -> usize {
 /// fields in `info`).
 pub fn kv_line(name: &str, value: &str, width: usize) -> String {
     let padded = format!("{name:<width$}");
-    format!("  {}{value}", crate::color::name(&padded))
+    format!("  {}{}", crate::color::name(&padded), crate::color::value(value))
 }
 
 /// A `[section]` header, grouping related state lines — used by `info`
