@@ -3,12 +3,13 @@ use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-use crate::commands::settings::gate::gate;
+use crate::commands::settings::gate::gate_inner;
 use crate::commands::settings::registry::Feature;
 use crate::ctx::Ctx;
 use crate::error::Result;
 use crate::logf;
 use crate::meta::Meta;
+use crate::tamper;
 use crate::udisks;
 use crate::vault::Vault;
 
@@ -55,10 +56,18 @@ pub fn apply_ownership(casket_dir: &Path, meta: &Meta) -> Result<()> {
 }
 
 pub fn set(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>) -> Result<()> {
-    gate(ctx, vault, "ransomwareProtection", pw)?;
-
+    // If verification is currently required for this feature, gate_inner
+    // resolves+checks the real passphrase and hands back its derived
+    // secret, which also refreshes this field's tamper-evidence HMAC
+    // (tamper.rs). If verification is off, nothing is prompted or
+    // checked — same as before tamper-evidence existed — and the HMAC
+    // is simply left as whatever it was.
+    let verified = gate_inner(ctx, vault, "ransomwareProtection", pw)?;
     let mut meta = Meta::read(&vault.img);
     meta.ransomware_protection = enable.then_some(true);
+    if let Some((_, secret)) = &verified {
+        tamper::refresh(secret, &mut meta);
+    }
     meta.write(&vault.img)?;
 
     if vault.is_mount() {

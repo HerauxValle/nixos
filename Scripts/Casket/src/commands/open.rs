@@ -3,16 +3,70 @@ use std::path::Path;
 
 use crate::btrfs;
 use crate::commands::backup::maybe_auto_backup;
-use crate::commands::settings::security::ransomware_protection;
+use crate::commands::settings::security::{bruteforce_lockout, ransomware_protection};
 use crate::ctx::Ctx;
-use crate::error::Result;
+use crate::error::{CasError, Result};
 use crate::logf;
 use crate::luks;
 use crate::meta::Meta;
 use crate::migrations;
 use crate::secret::{decode_autokey, get_secret};
+use crate::tamper;
 use crate::udisks;
 use crate::vault::Vault;
+
+/// If `bruteforceLockout` is on, test the passphrase *before* the real
+/// unlock attempt so a wrong guess is unambiguous (not confused with an
+/// unrelated open failure — a busy mapper looks identical to a bad
+/// passphrase from `open_luks`'s error alone). A correct guess resets
+/// the counter; a wrong one increments it and, past the threshold,
+/// deletes the vault with no confirmation — that's the point of turning
+/// this on. Returns `Err` (aborting the open) exactly when it deleted
+/// the vault or the passphrase was wrong; `Ok(false)` means proceed.
+fn check_lockout(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &mut Meta) -> Result<bool> {
+    if !bruteforce_lockout::is_enabled(meta) {
+        return Ok(false);
+    }
+    Meta::strip(&vault.img)?;
+    let ok = luks::test(&vault.img, secret);
+    meta.write(&vault.img)?;
+
+    if ok {
+        if meta.failed_attempts.is_some() {
+            meta.failed_attempts = None;
+            meta.write(&vault.img)?;
+        }
+        return Ok(false);
+    }
+
+    let attempts = meta.failed_attempts.unwrap_or(0) + 1;
+    let threshold = bruteforce_lockout::threshold(meta);
+    if attempts >= threshold {
+        let _ = std::fs::remove_file(&vault.img);
+        vault.cleanup_mnt_dir();
+        logf!(ctx, "[x] '{}' deleted — {threshold} consecutive wrong-passphrase attempts reached (bruteforceLockout)", vault.name);
+        return Err(CasError::Silent);
+    }
+    meta.failed_attempts = Some(attempts);
+    meta.write(&vault.img)?;
+    logf!(ctx, "  [!] wrong passphrase ({attempts}/{threshold} — vault deletes at {threshold})");
+    Err(CasError::Silent)
+}
+
+/// Check the metadata HMAC now that the real secret is known, and if it
+/// doesn't match, throw away the 3 protected fields' current values
+/// (they're exactly what's suspect) and fall back to the maximally
+/// protective setting for each instead — never a silent downgrade. The
+/// open still proceeds; refusing to open would risk locking the owner
+/// out over a false positive (a migration bug, a hand edit made before
+/// this feature existed) with no way back in.
+fn check_tamper(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &mut Meta) {
+    if tamper::verify(secret, meta) == tamper::Status::Tampered {
+        logf!(ctx, "  [!] '{}' metadata failed its tamper check — ransomwareProtection/verify_required/zeroize don't match what was last written with a verified passphrase", vault.name);
+        logf!(ctx, "      resetting those 3 settings to their most-protective values; review with 'cas {} info' and adjust as needed", vault.name);
+        tamper::reset_to_safe(meta);
+    }
+}
 
 pub fn run(
     ctx: &Ctx,
@@ -31,7 +85,7 @@ pub fn run(
     }
     vault.ensure_mnt_dir()?;
 
-    let (meta, schema_from) = Meta::read_versioned(&vault.img);
+    let (mut meta, schema_from) = Meta::read_versioned(&vault.img);
 
     // Encryption UX bypass: unlock with the stored autokey, no prompt —
     // this check is unconditional (unlike get_secret's own internal
@@ -39,12 +93,15 @@ pub fn run(
     // given), matching the original's top-level cmd_open branch exactly.
     if meta.is_encryption_bypassed() {
         let secret = decode_autokey(&meta)?;
+        check_tamper(ctx, vault, &secret, &mut meta);
         logf!(ctx, "[cas] opening '{}' ...", vault.name);
         return unlock_and_mount(ctx, vault, &secret, &meta, schema_from);
     }
 
-    let (secret, new_meta) =
+    let (secret, mut new_meta) =
         get_secret(ctx, &vault.img, pw, kf_override, kf_cache_hint, Some(meta.clone()))?;
+    check_lockout(ctx, vault, &secret, &mut new_meta)?;
+    check_tamper(ctx, vault, &secret, &mut new_meta);
     let updated_meta = new_meta != meta;
     logf!(ctx, "[cas] opening '{}' ...", vault.name);
     unlock_and_mount(ctx, vault, &secret, &new_meta, schema_from)?;

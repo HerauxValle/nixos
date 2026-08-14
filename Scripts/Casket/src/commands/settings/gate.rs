@@ -14,7 +14,7 @@ use crate::vault::Vault;
 /// what an attacker with root but not the passphrase would target —
 /// plus `keyfileReset`, which is irreversible (old key material is gone
 /// the moment the new slot verifies) and therefore deserves the same bar.
-pub const GATED_FEATURES: &[&str] = &["ransomwareProtection", "backupAuto", "verification", "keyfileReset"];
+pub const GATED_FEATURES: &[&str] = &["ransomwareProtection", "backupAuto", "verification", "keyfileReset", "bruteforceLockout"];
 
 fn default_requires_verification(feature: &str) -> bool {
     GATED_FEATURES.contains(&feature)
@@ -45,15 +45,22 @@ pub fn gate(ctx: &Ctx, vault: &Vault, feature: &str, pw: Option<&str>) -> Result
 /// that need a real passphrase unconditionally.
 pub fn gate_pw(ctx: &Ctx, vault: &Vault, feature: &str, pw: Option<&str>) -> Result<String> {
     match gate_inner(ctx, vault, feature, pw)? {
-        Some(resolved) => Ok(resolved),
+        Some((resolved, _)) => Ok(resolved),
         None => prompt::get_pw(ctx, pw),
     }
 }
 
-/// `Some(pw)` if verification ran (and passed) and resolved a
-/// passphrase in the process; `None` if `feature` didn't require it, in
-/// which case nothing was prompted or checked.
-fn gate_inner(ctx: &Ctx, vault: &Vault, feature: &str, pw: Option<&str>) -> Result<Option<String>> {
+/// `Some((pw, secret))` if verification ran (and passed), resolving a
+/// passphrase and its derived LUKS secret in the process; `None` if
+/// `feature` didn't currently require it, in which case nothing was
+/// prompted, checked, or derived. Callers that write one of the 3
+/// tamper-evidence-protected fields (`tamper.rs`) use the `Some` case's
+/// secret to refresh that field's HMAC — piggybacking on verification
+/// being on rather than forcing a passphrase prompt on their own, so a
+/// vault with verification off for a feature keeps behaving exactly as
+/// it did before tamper-evidence existed (no prompt), at the cost of
+/// that field's HMAC not staying fresh across an ungated change.
+pub fn gate_inner(ctx: &Ctx, vault: &Vault, feature: &str, pw: Option<&str>) -> Result<Option<(String, Vec<u8>)>> {
     let mut meta = Meta::read(&vault.img);
     if !requires_verification(&meta, feature) {
         return Ok(None);
@@ -74,5 +81,5 @@ fn gate_inner(ctx: &Ctx, vault: &Vault, feature: &str, pw: Option<&str>) -> Resu
     if !ok {
         die!("wrong passphrase — could not verify vault");
     }
-    Ok(Some(pw))
+    Ok(Some((pw, secret)))
 }

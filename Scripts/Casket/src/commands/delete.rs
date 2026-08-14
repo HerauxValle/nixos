@@ -1,5 +1,8 @@
-// &desc: "`cas <vault> delete [--removeKeyfile]` — permanently remove the vault file, after a typed-name confirmation. The keyfile is preserved by default (opt-in to remove it) since it isn't necessarily exclusive to this vault -- nothing here can tell whether some other vault's Meta.keyfile also points at the same file."
+// &desc: "`cas <vault> delete [--removeKeyfile] [--shred]` — permanently remove the vault file, after a typed-name confirmation. The keyfile is preserved by default (opt-in to remove it) since it isn't necessarily exclusive to this vault -- nothing here can tell whether some other vault's Meta.keyfile also points at the same file. --shred overwrites the .img in place before unlinking -- best-effort: meaningful on a spinning disk, close to theater on an SSD (TRIM/wear-leveling means the overwrite doesn't hit the same physical cells), so it's opt-in rather than a default."
+use std::io::{Seek, SeekFrom, Write};
 use std::path::Path;
+
+use rand::RngCore;
 
 use crate::ctx::Ctx;
 use crate::die;
@@ -10,7 +13,27 @@ use crate::prompt;
 use crate::secret::resolve_lexically;
 use crate::vault::Vault;
 
-pub fn run(ctx: &Ctx, vault: &Vault, remove_keyfile: bool) -> Result<()> {
+const SHRED_PASSES: u32 = 3;
+
+fn shred_file(path: &Path) -> std::io::Result<()> {
+    let len = path.metadata()?.len();
+    let mut f = std::fs::OpenOptions::new().write(true).open(path)?;
+    let mut chunk = vec![0u8; 1024 * 1024];
+    for _ in 0..SHRED_PASSES {
+        f.seek(SeekFrom::Start(0))?;
+        let mut remaining = len;
+        while remaining > 0 {
+            let n = remaining.min(chunk.len() as u64) as usize;
+            rand::thread_rng().fill_bytes(&mut chunk[..n]);
+            f.write_all(&chunk[..n])?;
+            remaining -= n as u64;
+        }
+        f.sync_all()?;
+    }
+    Ok(())
+}
+
+pub fn run(ctx: &Ctx, vault: &Vault, remove_keyfile: bool, shred: bool) -> Result<()> {
     if !vault.img.exists() {
         die!("vault '{}' not found", vault.name);
     }
@@ -37,6 +60,12 @@ pub fn run(ctx: &Ctx, vault: &Vault, remove_keyfile: bool) -> Result<()> {
         die!("aborted");
     }
 
+    if shred {
+        logf!(ctx, "[cas] shredding '{}' ({SHRED_PASSES} passes) ...", vault.name);
+        if shred_file(&vault.img).is_err() {
+            logf!(ctx, "  [!] shred pass failed — deleting normally instead");
+        }
+    }
     std::fs::remove_file(&vault.img)?;
     match &kf_path {
         Some(kf) if !remove_keyfile => {

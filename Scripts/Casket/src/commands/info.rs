@@ -7,14 +7,43 @@ use crate::keyfile;
 use crate::logf;
 use crate::luks;
 use crate::meta::Meta;
+use crate::secret::{combined_secret, resolve_keyfile};
+use crate::tamper;
 use crate::vault::Vault;
 use std::path::Path;
 
-pub fn run(ctx: &Ctx, vault: &Vault) -> Result<()> {
+pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     if !vault.img.exists() {
         die!("vault '{}' not found", vault.name);
     }
-    let meta = Meta::read(&vault.img);
+    let mut meta = Meta::read(&vault.img);
+
+    // `info` stays auth-free by default (that's the point of it), but if
+    // a passphrase is given, opportunistically verify it and check the
+    // tamper HMAC too — extra assurance without making it mandatory.
+    // A wrong passphrase here is silently skipped rather than dying;
+    // this is still a read-only command.
+    if let Some(pw) = pw {
+        let secret = match meta.keyfile.clone() {
+            Some(cached) => {
+                let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img)?;
+                combined_secret(pw, &crate::keyfile::read_bytes(&kf_path)?)
+            }
+            None => pw.as_bytes().to_vec(),
+        };
+        Meta::strip(&vault.img)?;
+        let ok = luks::test(&vault.img, &secret);
+        meta.write(&vault.img)?;
+        if ok {
+            match tamper::verify(&secret, &meta) {
+                tamper::Status::Healthy => logf!(ctx, "[✓] tamper check: healthy"),
+                tamper::Status::Tampered => logf!(ctx, "[x] tamper check: TAMPERED — see 'cas {} tampered' for details", vault.name),
+                tamper::Status::Unprotected => logf!(ctx, "[i] tamper check: no baseline yet"),
+            }
+        } else {
+            logf!(ctx, "  [!] --pass didn't verify — skipping tamper check");
+        }
+    }
     let size_mb = vault.img.metadata()?.len() / (1024 * 1024);
     let mounted = if vault.is_mount() {
         format!("yes  ->  {}", vault.mnt.display())

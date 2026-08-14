@@ -26,11 +26,31 @@ pub struct Meta {
     pub backup_auto_keep: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ransomware_protection: Option<bool>,
+    /// Whether the resolved passphrase and derived LUKS secret get
+    /// scrubbed from memory the moment they go out of scope. `None`
+    /// means the default (on) applies -- see `secret::zeroize_enabled`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zeroize: Option<bool>,
     /// Per-feature override of whether `cas <vault> settings ...` toggles
     /// require re-proving the passphrase first. Absent entries fall back
     /// to `commands::settings::gate`'s built-in defaults.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub verify_required: Option<BTreeMap<String, bool>>,
+    /// HMAC-SHA256 (hex) over `tamper::protected_json(self)`, keyed by
+    /// the vault's own derived secret -- see `tamper.rs`. `None` means
+    /// no verified write has happened yet (a fresh vault, or one from
+    /// before this field existed); that's "unprotected", not "tampered".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta_hmac: Option<String>,
+    /// How many consecutive wrong-passphrase `open` attempts since the
+    /// last success. Only consulted/incremented when `bruteforceLockout`
+    /// is enabled -- see `settings/security/bruteforce_lockout.rs`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failed_attempts: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bruteforce_lockout: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bruteforce_threshold: Option<u32>,
 }
 
 /// Find the trailer on an open handle. Returns `(payload_start_offset,

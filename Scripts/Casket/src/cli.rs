@@ -63,6 +63,7 @@ pub fn run() -> Result<()> {
 
     let force = pop_flag(&mut args, "--force");
     let remove_keyfile = pop_flag(&mut args, "--removeKeyfile");
+    let shred = pop_flag(&mut args, "--shred");
 
     let mut opts = Opts::default();
     opts.pass = pop_value(&mut args, "--pass");
@@ -173,7 +174,12 @@ pub fn run() -> Result<()> {
 
         "info" => {
             let vault = Vault::find(&vault_name, path_ref)?;
-            commands::info::run(&ctx, &vault)
+            commands::info::run(&ctx, &vault, opts.pass.as_deref())
+        }
+
+        "tampered" => {
+            let vault = Vault::find(&vault_name, path_ref)?;
+            commands::tampered::run(&ctx, &vault, opts.pass.as_deref())
         }
 
         "encryption" => die!("moved: cas <vault> settings encryption enable|disable"),
@@ -213,7 +219,7 @@ pub fn run() -> Result<()> {
 
         "delete" => {
             let vault = Vault::find(&vault_name, path_ref)?;
-            commands::delete::run(&ctx, &vault, remove_keyfile)
+            commands::delete::run(&ctx, &vault, remove_keyfile, shred)
         }
 
         "resize" | "shrink" => {

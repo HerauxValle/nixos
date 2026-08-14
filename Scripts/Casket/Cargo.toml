@@ -1,7 +1,7 @@
 # &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
 [package]
 name = "cas"
-version = "1.6.2"
+version = "1.7.0"
 edition = "2021"
 description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
 
@@ -52,6 +52,22 @@ base64 = "0.22"
 # rpassword: hidden (no-echo) stdin reads for passphrase prompts —
 # the direct equivalent of Python's getpass.getpass().
 rpassword = "7"
+
+# hmac: keyed integrity tag over the trailer's protection-relevant
+# fields (ransomwareProtection, verify_required, zeroize), keyed by the
+# vault's own derived LUKS secret. A *keyed* hash, not a plain one --
+# a plain hash (SHA256(settings)) proves nothing, since anyone editing
+# the trailer can just recompute a new plain hash over their edit too.
+# HMAC needs the secret to produce a matching tag, which an attacker
+# editing the file without the passphrase doesn't have.
+hmac = "0.12"
+
+# zeroize: scrubs the resolved passphrase and derived LUKS secret from
+# memory the moment they go out of scope, instead of leaving them in
+# freed-but-not-overwritten memory until something else happens to reuse
+# that page — closes the "core dump / swapped memory page after the
+# process exits" gap. Gated by settings security zeroize (default on).
+zeroize = "1"
 
 # libc: raw getuid()/getgid() for the (rare) fallback path where this
 # runs as root without going through sudo, so SUDO_UID/SUDO_GID aren't

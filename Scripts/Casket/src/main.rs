@@ -16,6 +16,7 @@ mod proc;
 mod prompt;
 mod secret;
 mod size;
+mod tamper;
 mod udisks;
 mod vault;
 mod version;

@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use sha2::{Digest, Sha256};
+use zeroize::Zeroize;
 
+use crate::commands::settings::security::zeroize::is_enabled as zeroize_enabled;
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::{CasError, Result};
@@ -12,6 +14,37 @@ use crate::meta::Meta;
 use crate::prompt;
 
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+
+/// The derived LUKS secret — wraps the raw bytes so they get scrubbed
+/// from memory the moment this goes out of scope, unless `settings
+/// security zeroize` is off for this vault. Derefs to `&[u8]` so every
+/// existing call site (cryptsetup stdin, `luks::test`/`slot_cycle`)
+/// keeps working unchanged.
+pub struct Secret {
+    bytes: Vec<u8>,
+    should_zeroize: bool,
+}
+
+impl Secret {
+    fn new(bytes: Vec<u8>, meta: &Meta) -> Self {
+        Secret { bytes, should_zeroize: zeroize_enabled(meta) }
+    }
+}
+
+impl Drop for Secret {
+    fn drop(&mut self) {
+        if self.should_zeroize {
+            self.bytes.zeroize();
+        }
+    }
+}
+
+impl std::ops::Deref for Secret {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        &self.bytes
+    }
+}
 
 /// hex(SHA-256(passphrase || keyfile bytes)) — matches the Python
 /// original's `hashlib.sha256(pw.encode() + kf_bytes).hexdigest().encode()`
@@ -46,8 +79,9 @@ fn b64_decode(s: &str) -> Result<Vec<u8>> {
 /// going through `get_secret`, matching `cmd_open`'s own top-level
 /// bypass check, which — unlike `get_secret`'s internal one — applies
 /// unconditionally rather than only when no keyfile override is given.
-pub fn decode_autokey(meta: &Meta) -> Result<Vec<u8>> {
-    b64_decode(meta.autokey.as_deref().ok_or_else(|| CasError::new("missing autokey"))?)
+pub fn decode_autokey(meta: &Meta) -> Result<Secret> {
+    let bytes = b64_decode(meta.autokey.as_deref().ok_or_else(|| CasError::new("missing autokey"))?)?;
+    Ok(Secret::new(bytes, meta))
 }
 
 /// Absolute, `.`/`..`-normalized form of `path`, without touching the
@@ -85,16 +119,18 @@ pub fn get_secret(
     kf_override: Option<&Path>,
     kf_cache_hint: Option<&Path>,
     meta: Option<Meta>,
-) -> Result<(Vec<u8>, Meta)> {
+) -> Result<(Secret, Meta)> {
     let mut meta = meta.unwrap_or_else(|| Meta::read(img));
 
     if meta.is_encryption_bypassed() && kf_override.is_none() {
         let raw = b64_decode(meta.autokey.as_deref().unwrap())?;
-        return Ok((raw, meta));
+        let secret = Secret::new(raw, &meta);
+        return Ok((secret, meta));
     }
 
     if !meta.has_2fa() {
-        return Ok((pw.as_bytes().to_vec(), meta));
+        let secret = Secret::new(pw.as_bytes().to_vec(), &meta);
+        return Ok((secret, meta));
     }
 
     let cached = meta.keyfile.clone().unwrap();
@@ -138,7 +174,8 @@ pub fn get_secret(
     }
 
     let kf_bytes = crate::keyfile::read_bytes(&kf_path)?;
-    Ok((combined_secret(pw, &kf_bytes), meta))
+    let secret = Secret::new(combined_secret(pw, &kf_bytes), &meta);
+    Ok((secret, meta))
 }
 
 /// Resolve a keyfile path, prompting interactively if it's not found at

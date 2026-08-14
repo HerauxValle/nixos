@@ -26,6 +26,8 @@ ACTIONS (run on a specific vault)
   delete    permanently delete the vault file
 
   info      show vault details plus every setting's enabled|disabled state
+  tampered  check ransomwareProtection/verify_required/zeroize against
+            the last passphrase-verified write
 
   auth      passphrase + keyfile identity material:
               auth passwd
@@ -54,6 +56,7 @@ OPTIONS
   --strength level  encryption strength: light / medium / hard / extreme
   --path dir        look for vaults here instead of auto-searching
   --removeKeyfile   delete: also delete the 2FA keyfile (preserved by default)
+  --shred           delete: overwrite the vault file before removing it (best-effort)
 
 Output is colored automatically on a real terminal, and plain otherwise
 (piped, redirected, or TERM=dumb). Set NO_COLOR=1 to force plain output.
@@ -149,8 +152,37 @@ Shows the full vault picture, grouped into sections:
 Each state line is the same '<name>   enabled|disabled' you'd get
 running 'settings ... state' on that one setting individually.
 
+Pass --pass to also verify the tamper-evidence HMAC (see 'cas help
+tampered') — off by default so info stays a fast, auth-free command.
+
 EXAMPLE
   cas myvault info
+  cas myvault info --pass "..."
+"#,
+        "tampered" => r#"
+cas <vault> tampered [--pass "..."]
+
+Checks whether ransomwareProtection/verify_required/zeroize still match
+the last passphrase-verified write, using an HMAC keyed by the vault's
+own derived secret — a plain hash wouldn't work here, since anyone
+editing the trailer could just recompute a new plain hash over their
+edit too. Always resolves and cryptographically checks a real
+passphrase, same as 'auth passwd'.
+
+Reports one of:
+  healthy      matches — nothing's been edited outside a verified write
+  tampered     doesn't match — those 3 settings were changed some other
+               way (hand-edited trailer, a bug, migration)
+  no baseline  no HMAC stored yet (a fresh vault, or one from before
+               this feature existed) — not evidence of tampering
+
+A tampered result doesn't get fixed by this command — run 'cas myvault
+open', which resets those 3 settings to their most-protective values
+automatically and warns. This command only reports the status.
+
+EXAMPLES
+  cas myvault tampered
+  cas myvault tampered --pass "..."
 "#,
         "auth" => r#"
 cas <vault> auth passwd [--pass "..."] [--new-pass "..."] [--strength level]
@@ -266,7 +298,7 @@ EXAMPLES
   cas myvault resize 512M
 "#,
         "delete" => r#"
-cas <vault> delete [--removeKeyfile]
+cas <vault> delete [--removeKeyfile] [--shred]
 
 Permanently deletes the vault file. The vault must be closed first.
 
@@ -275,11 +307,19 @@ can tell whether some other vault's 2FA also points at the same file, so
 deleting it is opt-in, not automatic. Pass --removeKeyfile to delete it
 along with the vault, same as before.
 
+--shred overwrites the .img file with random data (3 passes) before
+deleting it, instead of a plain unlink. Best-effort, not a guarantee:
+meaningful on a spinning disk, close to theater on an SSD — TRIM and
+wear-leveling mean the overwrite likely doesn't hit the same physical
+cells the original data lived on. If you need an actual guarantee on an
+SSD, that comes from full-disk encryption at rest, not app-level shred.
+
 Asks you to type the vault name to confirm. Skipped with --no-log.
 
 EXAMPLES
   cas myvault delete
   cas myvault delete --removeKeyfile
+  cas myvault delete --shred
 "#,
         "settings" => r#"
 cas <vault> settings encryption enable|disable|state          [--pass "..."]
@@ -323,6 +363,12 @@ the same line format 'info' rolls up for every setting at once.
     anything in there. 'disable' hands it back to you for direct browsing.
     Protects against a same-user attacker only: root, or raw access to
     the vault's underlying block device, is outside what this can stop.
+
+  settings security zeroize enable|disable
+    Controls whether the resolved passphrase and derived LUKS secret get
+    scrubbed from memory the moment they go out of scope, instead of
+    sitting in freed-but-not-overwritten memory until something else
+    reuses that page. Default on; there's no real reason to disable it.
 
   settings verification <feature> enable|disable
     Controls whether toggling <feature> (any setting above, or
@@ -369,7 +415,7 @@ EXAMPLE
 }
 
 const TOPICS: &[&str] = &[
-    "create", "open", "close", "toggle", "resize", "delete", "info", "auth", "backup", "settings", "list", "all",
+    "create", "open", "close", "toggle", "resize", "delete", "info", "tampered", "auth", "backup", "settings", "list", "all",
 ];
 
 pub fn show(ctx: &Ctx, topic: Option<&str>) {

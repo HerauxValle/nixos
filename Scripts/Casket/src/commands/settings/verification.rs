@@ -5,6 +5,7 @@ use crate::ctx::Ctx;
 use crate::error::Result;
 use crate::logf;
 use crate::meta::Meta;
+use crate::tamper;
 use crate::vault::Vault;
 
 use super::gate;
@@ -28,22 +29,21 @@ pub fn state(ctx: &Ctx, vault: &Vault, feature: Option<&str>) -> Result<()> {
 }
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, feature: &str, enable: bool, pw: Option<&str>) -> Result<()> {
-    let mut meta = Meta::read(&vault.img);
-
     // Whether changing *any* feature's verification requirement needs
     // the passphrase first is controlled by the master "verification"
     // entry itself, not by the entry of whichever feature is being
-    // targeted — so turning verification off once frees up every future
-    // `settings verification <feature> ...` call, and turning it off is
-    // itself gated by its own current state (can't switch it off for
-    // free — that includes targeting "verification" itself).
-    if gate::requires_verification(&meta, "verification") {
-        gate::gate(ctx, vault, "verification", pw)?;
-    }
-
+    // targeted. If it does, gate_inner's resolved secret also refreshes
+    // `verify_required`'s tamper-evidence HMAC (tamper.rs); if
+    // verification is off, nothing is prompted/checked, same as before
+    // tamper-evidence existed.
+    let verified = gate::gate_inner(ctx, vault, "verification", pw)?;
+    let mut meta = Meta::read(&vault.img);
     meta.verify_required
         .get_or_insert_with(BTreeMap::new)
         .insert(feature.to_string(), enable);
+    if let Some((_, secret)) = &verified {
+        tamper::refresh(secret, &mut meta);
+    }
     meta.write(&vault.img)?;
 
     logf!(

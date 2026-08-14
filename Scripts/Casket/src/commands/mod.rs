@@ -11,4 +11,5 @@ pub mod open;
 pub mod rename;
 pub mod resize;
 pub mod settings;
+pub mod tampered;
 pub mod toggle;
