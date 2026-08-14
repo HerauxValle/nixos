@@ -24,6 +24,9 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
         "" => die!("usage: cas <vault> settings <encryption|2fa|security|verification|backup> ..."),
         "security" => {
             let feature = extra.get(1).map(String::as_str).unwrap_or("");
+            if feature == "bruteforceLockout" {
+                return security::bruteforce_lockout::dispatch(ctx, vault, &extra[2..], pw);
+            }
             if extra.get(2).map(String::as_str) == Some("state") {
                 return registry::state(security::FEATURES, feature, ctx, vault);
             }

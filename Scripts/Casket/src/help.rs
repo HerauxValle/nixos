@@ -370,6 +370,16 @@ the same line format 'info' rolls up for every setting at once.
     sitting in freed-but-not-overwritten memory until something else
     reuses that page. Default on; there's no real reason to disable it.
 
+  settings security bruteforceLockout enable [--threshold N] | disable |
+                                       threshold <N>
+    Off by default. When on, 'open' PERMANENTLY DELETES the vault (no
+    confirmation, no undo) after N consecutive wrong-passphrase attempts
+    — default N=10, change it with --threshold on enable or 'threshold
+    <N>' afterward. A correct passphrase resets the counter to 0. The
+    check runs before the real unlock attempt, so an unrelated open
+    failure (a busy mapper, etc.) is never miscounted as a bad guess.
+    Enabling it prints a one-time warning — read it before turning this on.
+
   settings verification <feature> enable|disable
     Controls whether toggling <feature> (any setting above, or
     verification itself) requires re-proving the vault's real passphrase
@@ -386,6 +396,8 @@ EXAMPLES
   cas myvault settings 2fa enable
   cas myvault settings backup auto enable --keep 5
   cas myvault settings security ransomwareProtection enable --pass "..."
+  cas myvault settings security bruteforceLockout enable --threshold 5
+  cas myvault settings security bruteforceLockout threshold 15
   cas myvault settings verification backupAuto disable --pass "..."
   cas myvault settings 2fa state
   cas myvault settings verification state

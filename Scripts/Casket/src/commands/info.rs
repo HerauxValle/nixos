@@ -57,7 +57,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     // together so the value column lines up top to bottom, not just
     // within whichever section happens to share a `line()`/`kv_line()`
     // call together.
-    let mut names: Vec<&str> = vec!["vault", "size", "open", "slots", "passphrase", "keyfile", "keep"];
+    let mut names: Vec<&str> = vec!["vault", "size", "open", "slots", "passphrase", "keyfile", "keep", "threshold"];
     names.extend(FLAT_FEATURES.iter().map(|f| f.name));
     names.push("backupAuto");
     names.extend(security::FEATURES.iter().map(|f| f.name));
@@ -96,6 +96,9 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     logf!(ctx, "{}", registry::section("security"));
     for f in security::FEATURES {
         logf!(ctx, "{}", registry::line(f.name, (f.get)(&meta), width));
+        if f.name == "bruteforceLockout" && (f.get)(&meta) {
+            logf!(ctx, "  {}", registry::kv_line("threshold", &security::bruteforce_lockout::threshold(&meta).to_string(), width.saturating_sub(2)));
+        }
     }
 
     logf!(ctx, "{}", registry::section("verification"));

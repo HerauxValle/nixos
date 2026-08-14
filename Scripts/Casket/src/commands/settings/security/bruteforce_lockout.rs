@@ -1,7 +1,8 @@
-// &desc: "`cas <vault> settings security bruteforceLockout enable|disable` — deletes the vault after too many consecutive wrong-passphrase `open` attempts. Off by default and irreversible when it triggers, so enabling it prints a loud one-time warning."
+// &desc: "`cas <vault> settings security bruteforceLockout enable [--threshold N] | disable | threshold <N> | state` — deletes the vault after too many consecutive wrong-passphrase `open` attempts. Off by default and irreversible when it triggers, so enabling it prints a loud one-time warning. Not a plain enable/disable Feature (`threshold <N>` is a third verb with its own argument), so it's dispatched directly by settings/mod.rs rather than through registry::dispatch, same as backup_auto."
 use crate::commands::settings::gate::gate;
-use crate::commands::settings::registry::Feature;
+use crate::commands::settings::registry::{self, Feature};
 use crate::ctx::Ctx;
+use crate::die;
 use crate::error::Result;
 use crate::logf;
 use crate::meta::Meta;
@@ -9,9 +10,13 @@ use crate::vault::Vault;
 
 pub const DEFAULT_THRESHOLD: u32 = 10;
 
+/// Kept for `info`'s rollup, which walks `security::FEATURES` generically
+/// for display only — `set` here is never reached through normal
+/// dispatch (settings/mod.rs routes "bruteforceLockout" to `dispatch`
+/// below before it would ever hit `registry::dispatch`).
 pub const FEATURE: Feature = Feature {
     name: "bruteforceLockout",
-    set,
+    set: |ctx, vault, enable, pw| dispatch(ctx, vault, &[if enable { "enable" } else { "disable" }.to_string()], pw),
     get: is_enabled,
 };
 
@@ -23,23 +28,84 @@ pub fn threshold(meta: &Meta) -> u32 {
     meta.bruteforce_threshold.unwrap_or(DEFAULT_THRESHOLD)
 }
 
-fn set(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>) -> Result<()> {
+fn is_positive_int(s: &str) -> bool {
+    !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
+}
+
+pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
+    match extra.first().map(String::as_str) {
+        Some("enable") => {
+            let mut n = None;
+            if extra.get(1).map(String::as_str) == Some("--threshold") {
+                let valid = extra.get(2).is_some_and(|s| is_positive_int(s));
+                if !valid {
+                    die!("usage: cas <vault> settings security bruteforceLockout enable [--threshold N]");
+                }
+                let parsed: u32 = extra[2].parse().unwrap();
+                if parsed < 1 {
+                    die!("--threshold must be at least 1");
+                }
+                n = Some(parsed);
+            }
+            enable(ctx, vault, n, pw)
+        }
+        Some("disable") => {
+            gate(ctx, vault, "bruteforceLockout", pw)?;
+            let mut meta = Meta::read(&vault.img);
+            meta.bruteforce_lockout = None;
+            meta.write(&vault.img)?;
+            logf!(ctx, "[✓] bruteforce lockout disabled for '{}'", vault.name);
+            Ok(())
+        }
+        Some("threshold") => {
+            let valid = extra.get(1).is_some_and(|s| is_positive_int(s));
+            if !valid {
+                die!("usage: cas <vault> settings security bruteforceLockout threshold <N>");
+            }
+            let n: u32 = extra[1].parse().unwrap();
+            if n < 1 {
+                die!("threshold must be at least 1");
+            }
+            set_threshold(ctx, vault, n, pw)
+        }
+        Some("state") => {
+            let meta = Meta::read(&vault.img);
+            let width = registry::column_width(&["bruteforceLockout", "threshold"]);
+            logf!(ctx, "{}", registry::line("bruteforceLockout", is_enabled(&meta), width));
+            logf!(ctx, "  {}", registry::kv_line("threshold", &threshold(&meta).to_string(), width.saturating_sub(2)));
+            Ok(())
+        }
+        _ => die!("usage: cas <vault> settings security bruteforceLockout enable [--threshold N] | disable | threshold <N> | state"),
+    }
+}
+
+fn enable(ctx: &Ctx, vault: &Vault, n: Option<u32>, pw: Option<&str>) -> Result<()> {
     gate(ctx, vault, "bruteforceLockout", pw)?;
 
     let mut meta = Meta::read(&vault.img);
-    meta.bruteforce_lockout = enable.then_some(true);
-    if enable {
-        meta.failed_attempts = None;
+    meta.bruteforce_lockout = Some(true);
+    meta.failed_attempts = None;
+    if let Some(n) = n {
+        meta.bruteforce_threshold = Some(n);
     }
     meta.write(&vault.img)?;
 
-    if enable {
-        let n = threshold(&meta);
-        logf!(ctx, "[✓] bruteforce lockout enabled for '{}'", vault.name);
-        logf!(ctx, "  [!] after {n} consecutive wrong-passphrase 'open' attempts, this vault gets PERMANENTLY DELETED — no confirmation prompt, no undo");
-        logf!(ctx, "      a mistyped passphrase counts the same as an attacker's guess; make sure you're confident before leaving this on");
-    } else {
-        logf!(ctx, "[✓] bruteforce lockout disabled for '{}'", vault.name);
+    let n = threshold(&meta);
+    logf!(ctx, "[✓] bruteforce lockout enabled for '{}'", vault.name);
+    logf!(ctx, "  [!] after {n} consecutive wrong-passphrase 'open' attempts, this vault gets PERMANENTLY DELETED — no confirmation prompt, no undo");
+    logf!(ctx, "      a mistyped passphrase counts the same as an attacker's guess; make sure you're confident before leaving this on");
+    Ok(())
+}
+
+fn set_threshold(ctx: &Ctx, vault: &Vault, n: u32, pw: Option<&str>) -> Result<()> {
+    gate(ctx, vault, "bruteforceLockout", pw)?;
+
+    let mut meta = Meta::read(&vault.img);
+    if !is_enabled(&meta) {
+        die!("bruteforce lockout is not enabled — run 'cas {} settings security bruteforceLockout enable' first", vault.name);
     }
+    meta.bruteforce_threshold = Some(n);
+    meta.write(&vault.img)?;
+    logf!(ctx, "[✓] bruteforce lockout threshold set to {n} for '{}'", vault.name);
     Ok(())
 }
