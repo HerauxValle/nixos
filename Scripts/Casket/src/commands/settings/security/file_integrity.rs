@@ -112,11 +112,18 @@ fn run(ctx: &Ctx, vault: &Vault, enable: bool, delete_backup: bool, pw: Option<&
     }
 
     // Resume: a staging container from a previous interrupted attempt
-    // that still opens with this secret is treated as a valid partial
-    // copy, not started over. One that doesn't open (crash mid-format)
-    // gets replaced.
-    let resuming = staging.img.exists() && luks::test(&staging.img, &secret);
+    // that still opens with this secret, and is still the right size,
+    // is treated as a valid partial copy, not started over. One that
+    // doesn't open (crash mid-format) — or one sized for a vault that's
+    // since been resized, which can never have enough room no matter
+    // how many times a resize+retry is tried, since a stale staging
+    // file never grows on its own — gets replaced instead.
+    let staging_size_matches = staging.img.metadata().map(|m| m.len() / (1024 * 1024) == size_mb).unwrap_or(false);
+    let resuming = staging.img.exists() && staging_size_matches && luks::test(&staging.img, &secret);
     if staging.img.exists() && !resuming {
+        if !staging_size_matches {
+            logf!(ctx, "  [i] discarding a leftover migration staged for a different vault size — starting fresh");
+        }
         let _ = fs::remove_file(&staging.img);
     }
     if !staging.img.exists() {

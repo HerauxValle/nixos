@@ -28,8 +28,13 @@ pub fn threshold(meta: &Meta) -> u32 {
     meta.bruteforce_threshold.unwrap_or(DEFAULT_THRESHOLD)
 }
 
-fn is_positive_int(s: &str) -> bool {
-    !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
+/// Digits-only *and* fits in `u32` — `s.parse::<u32>()` is the actual
+/// validation; a purely digit-based check let a value like
+/// `999999999999999999999` pass as "valid" and then panic on the
+/// `.unwrap()` every call site used to do right after.
+fn parse_threshold(s: &str) -> Option<u32> {
+    let n: u32 = s.parse().ok()?;
+    (n >= 1).then_some(n)
 }
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
@@ -37,14 +42,9 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
         Some("enable") => {
             let mut n = None;
             if extra.get(1).map(String::as_str) == Some("--threshold") {
-                let valid = extra.get(2).is_some_and(|s| is_positive_int(s));
-                if !valid {
-                    die!("usage: cas <vault> settings security bruteforceLockout enable [--threshold N]");
-                }
-                let parsed: u32 = extra[2].parse().unwrap();
-                if parsed < 1 {
-                    die!("--threshold must be at least 1");
-                }
+                let Some(parsed) = extra.get(2).and_then(|s| parse_threshold(s)) else {
+                    die!("usage: cas <vault> settings security bruteforceLockout enable [--threshold N]\n    N must be a positive whole number");
+                };
                 n = Some(parsed);
             }
             enable(ctx, vault, n, pw)
@@ -58,14 +58,9 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
             Ok(())
         }
         Some("threshold") => {
-            let valid = extra.get(1).is_some_and(|s| is_positive_int(s));
-            if !valid {
-                die!("usage: cas <vault> settings security bruteforceLockout threshold <N>");
-            }
-            let n: u32 = extra[1].parse().unwrap();
-            if n < 1 {
-                die!("threshold must be at least 1");
-            }
+            let Some(n) = extra.get(1).and_then(|s| parse_threshold(s)) else {
+                die!("usage: cas <vault> settings security bruteforceLockout threshold <N>\n    N must be a positive whole number");
+            };
             set_threshold(ctx, vault, n, pw)
         }
         Some("state") => {

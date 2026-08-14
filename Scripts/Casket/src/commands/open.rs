@@ -65,6 +65,12 @@ fn check_tamper(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &mut Meta) {
         logf!(ctx, "  [!] '{}' metadata failed its tamper check — ransomwareProtection/verify_required/zeroize don't match what was last written with a verified passphrase", vault.name);
         logf!(ctx, "      resetting those 3 settings to their most-protective values; review with 'cas {} info' and adjust as needed", vault.name);
         tamper::reset_to_safe(meta);
+        // The reset values are freshly-verified-legitimate the moment
+        // they're written here (we have the real secret in hand right
+        // now) — refresh the HMAC baseline to match, or every future
+        // `tampered`/`open` would report Tampered forever, even after
+        // the exact fix this block just applied.
+        tamper::refresh(secret, meta);
     }
 }
 
