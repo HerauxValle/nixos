@@ -39,7 +39,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
         }
         Some("state") => {
             let meta = Meta::read(&vault.img);
-            logf!(ctx, "{}", registry::line("backupAuto", is_enabled(&meta)));
+            logf!(ctx, "{}", registry::line("backupAuto", is_enabled(&meta), registry::column_width(&["backupAuto"])));
             if is_enabled(&meta) {
                 logf!(ctx, "    keep   {}", meta.backup_auto_keep_or(3));
             }

@@ -24,9 +24,27 @@ pub fn dispatch(features: &[Feature], name: &str, enable: bool, ctx: &Ctx, vault
 
 /// Shared `state` formatter — `<name>   enabled|disabled`, the same line
 /// every enable|disable-shaped setting prints, whether asked for
-/// directly (`settings <x> state`) or rolled up by `info`.
-pub fn line(name: &str, enabled: bool) -> String {
-    format!("  {name:<width$}  {}", if enabled { "enabled" } else { "disabled" }, width = 22)
+/// directly (`settings <x> state`) or rolled up by `info`. `width`
+/// should be the same value for every line printed together (see
+/// `column_width`) so the value column lines up regardless of how long
+/// any one name is.
+pub fn line(name: &str, enabled: bool, width: usize) -> String {
+    format!("  {name:<width$}{}", if enabled { "enabled" } else { "disabled" })
+}
+
+/// The column width to hand every `line()` call that's printed as part
+/// of the same block — the longest name among them plus 8 spaces, so
+/// the shortest name still gets visible breathing room and the longest
+/// one lines up flush with an 8-space gap.
+pub fn column_width(names: &[&str]) -> usize {
+    names.iter().map(|n| n.len()).max().unwrap_or(0) + 8
+}
+
+/// Same column alignment as `line()`, for a plain `name  value` pair
+/// that isn't an enabled/disabled state (e.g. `[general]`/`[auth]`
+/// fields in `info`).
+pub fn kv_line(name: &str, value: &str, width: usize) -> String {
+    format!("  {name:<width$}{value}")
 }
 
 /// A `[section]` header, grouping related state lines — used by `info`
@@ -37,11 +55,17 @@ pub fn section(title: &str) -> String {
     format!("\n[{title}]")
 }
 
+/// Explains what enabled/disabled means specifically under
+/// `[verification]`, where every line reuses a name that also appears
+/// under `[settings]`/`[security]` with a different meaning (is the
+/// setting itself on, vs. does toggling it require the passphrase).
+pub const VERIFICATION_NOTE: &str = "  (requires passphrase before the setting below can be toggled)";
+
 pub fn state(features: &[Feature], name: &str, ctx: &Ctx, vault: &Vault) -> Result<()> {
     match features.iter().find(|f| f.name == name) {
         Some(f) => {
             let meta = Meta::read(&vault.img);
-            logf!(ctx, "{}", line(f.name, (f.get)(&meta)));
+            logf!(ctx, "{}", line(f.name, (f.get)(&meta), column_width(&[f.name])));
             Ok(())
         }
         None => die!(

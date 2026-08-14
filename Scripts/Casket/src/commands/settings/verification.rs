@@ -19,8 +19,10 @@ pub fn state(ctx: &Ctx, vault: &Vault, feature: Option<&str>) -> Result<()> {
         None => gate::GATED_FEATURES.to_vec(),
     };
     logf!(ctx, "{}", registry::section("verification"));
-    for f in targets {
-        logf!(ctx, "{}", registry::line(f, gate::requires_verification(&meta, f)));
+    logf!(ctx, "{}", registry::VERIFICATION_NOTE);
+    let width = registry::column_width(&targets);
+    for f in &targets {
+        logf!(ctx, "{}", registry::line(f, gate::requires_verification(&meta, f), width));
     }
     Ok(())
 }
