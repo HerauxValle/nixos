@@ -1,10 +1,10 @@
-// &desc: "Shared snapshot-path helpers, the post-open auto-backup hook, and the `backup <sub>` dispatch routing to manual.rs and auto.rs."
-pub mod auto;
+// &desc: "Shared snapshot-path helpers, the post-open auto-backup hook, and the `backup <sub>` dispatch routing to manual.rs -- data operations only; the auto-backup on/off policy itself lives at settings::backup_auto since it's a persistent setting, not a data operation."
 pub mod manual;
 
 use std::path::{Path, PathBuf};
 
 use crate::btrfs;
+use crate::commands::settings::security::ransomware_protection;
 use crate::config::{AUTO_SNAP_PREFIX, SNAP_DIR};
 use crate::ctx::Ctx;
 use crate::die;
@@ -40,7 +40,7 @@ pub fn list_sorted(mnt: &Path, auto: bool) -> Vec<PathBuf> {
 }
 
 fn ensure_dir(path: &Path) -> bool {
-    match std::fs::create_dir(path) {
+    match std::fs::create_dir_all(path) {
         Ok(()) => true,
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => true,
         Err(_) => false,
@@ -72,6 +72,7 @@ pub fn maybe_auto_backup(ctx: &Ctx, vault: &Vault, meta: &Meta) {
     if !ensure_dir(&root) {
         return;
     }
+    let _ = ransomware_protection::apply_ownership(&vault.casket_dir(), meta);
     let snap_name = btrfs::format_auto_snap_name(btrfs::now_secs());
     let dest = root.join(&snap_name);
     match btrfs::snapshot(&vault.mnt, &dest, true) {
@@ -99,7 +100,9 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
             Some(name) => manual::delete(ctx, vault, name),
             None => die!("usage: cas <vault> backup delete <name>\n    Example:  cas myvault backup delete old-snap"),
         },
-        Some("auto") => auto::dispatch(ctx, vault, &extra[1..]),
-        _ => die!("usage: cas <vault> backup create|list|restore|delete|auto\n    Run 'cas help backup' for details."),
+        Some("auto") => die!(
+            "the auto-backup on/off policy moved: cas <vault> settings backup auto enable|disable|keep <N>"
+        ),
+        _ => die!("usage: cas <vault> backup create|list|restore|delete\n    Run 'cas help backup' for details."),
     }
 }

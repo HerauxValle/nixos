@@ -137,7 +137,7 @@ pub fn get_secret(
         meta.keyfile = Some(to_cache.to_string_lossy().into_owned());
     }
 
-    let kf_bytes = std::fs::read(&kf_path)?;
+    let kf_bytes = crate::keyfile::read_bytes(&kf_path)?;
     Ok((combined_secret(pw, &kf_bytes), meta))
 }
 

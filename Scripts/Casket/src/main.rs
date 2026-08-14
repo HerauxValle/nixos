@@ -6,15 +6,18 @@ mod config;
 mod ctx;
 mod error;
 mod help;
+mod keyfile;
 mod keyfile_mount;
 mod luks;
 mod meta;
+mod migrations;
 mod proc;
 mod prompt;
 mod secret;
 mod size;
 mod udisks;
 mod vault;
+mod version;
 
 use std::os::unix::process::CommandExt;
 

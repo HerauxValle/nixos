@@ -1,4 +1,4 @@
-// &desc: "`cas <vault> passwd` — change the passphrase via the safe slot_cycle rotation, re-deriving the 2FA combined secret if a keyfile is set."
+// &desc: "`cas <vault> auth passwd` — change the passphrase via the safe slot_cycle rotation, re-deriving the 2FA combined secret if a keyfile is set."
 use crate::config::Strength;
 use crate::ctx::Ctx;
 use crate::die;
@@ -42,7 +42,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, old_pw: &str, new_pw: Option<&str>, strengt
     let mut meta = Meta::read(&vault.img);
     let (old_secret, new_secret) = if let Some(cached) = meta.keyfile.clone() {
         let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img)?;
-        let kf_bytes = std::fs::read(&kf_path)?;
+        let kf_bytes = crate::keyfile::read_bytes(&kf_path)?;
         (combined_secret(&old_pw, &kf_bytes), combined_secret(&new_pw, &kf_bytes))
     } else {
         (old_pw.into_bytes(), new_pw.into_bytes())

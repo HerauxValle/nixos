@@ -1,12 +1,12 @@
 // &desc: "`backup create|list|restore|delete` — manual btrfs snapshots inside an open vault."
 use crate::btrfs;
+use crate::commands::settings::security::ransomware_protection;
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
 use crate::logf;
 use crate::meta::Meta;
 use crate::prompt;
-use crate::udisks;
 use crate::vault::Vault;
 
 use super::{list_sorted, snap_root};
@@ -25,14 +25,14 @@ pub fn create(ctx: &Ctx, vault: &Vault, snap_name: &str) -> Result<()> {
     require_open(vault)?;
     let root = snap_root(&vault.mnt);
     if !root.exists() {
-        std::fs::create_dir(&root)?;
+        std::fs::create_dir_all(&root)?;
     }
     let dest = root.join(snap_name);
     if dest.exists() {
         die!("snapshot '{snap_name}' already exists — pick a different name");
     }
     btrfs::snapshot(&vault.mnt, &dest, true)?;
-    udisks::chown_to_real_user(&root)?;
+    ransomware_protection::apply_ownership(&vault.casket_dir(), &Meta::read(&vault.img))?;
     logf!(ctx, "[✓] snapshot '{snap_name}' created inside vault");
     Ok(())
 }

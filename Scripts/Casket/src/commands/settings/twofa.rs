@@ -1,7 +1,9 @@
-// &desc: "`cas <vault> 2fa on|off` — generate/remove the 2FA keyfile and re-key the vault to/from a passphrase+keyfile combined secret."
+// &desc: "`cas <vault> settings 2fa enable|disable` — generate/remove the 2FA keyfile and re-key the vault to/from a passphrase+keyfile combined secret. Already self-verifies via the real passphrase in on()/off(), so `gate()` is a no-op unless verification is explicitly turned on for this feature too."
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 
+use crate::commands::settings::gate::gate_pw;
+use crate::commands::settings::registry::Feature;
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
@@ -12,11 +14,14 @@ use crate::secret::{b64_encode, combined_secret, get_secret, resolve_keyfile};
 use crate::udisks;
 use crate::vault::Vault;
 
-pub fn dispatch(ctx: &Ctx, vault: &Vault, sub: &str, pw: &str) -> Result<()> {
-    match sub {
-        "on" => on(ctx, vault, pw),
-        "off" => off(ctx, vault, pw),
-        _ => die!("usage: cas <vault> 2fa on|off\n    Run 'cas help 2fa' for details."),
+pub const FEATURE: Feature = Feature { name: "2fa", set };
+
+fn set(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>) -> Result<()> {
+    let pw = gate_pw(ctx, vault, "2fa", pw)?;
+    if enable {
+        on(ctx, vault, &pw)
+    } else {
+        off(ctx, vault, &pw)
     }
 }
 
@@ -30,7 +35,7 @@ fn on(ctx: &Ctx, vault: &Vault, pw: &str) -> Result<()> {
 
     let meta = Meta::read(&vault.img);
     if meta.keyfile.is_some() {
-        die!("2FA is already enabled\n    Run 'cas {} 2fa off' first.", vault.name);
+        die!("2FA is already enabled\n    Run 'cas {} settings 2fa disable' first.", vault.name);
     }
 
     // Respects the encryption=off autokey shortcut the same way `open`
@@ -90,7 +95,7 @@ fn off(ctx: &Ctx, vault: &Vault, pw: &str) -> Result<()> {
     }
     let cached = meta.keyfile.clone().unwrap();
     let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img)?;
-    let kf_bytes = std::fs::read(&kf_path)?;
+    let kf_bytes = crate::keyfile::read_bytes(&kf_path)?;
     let old_secret = combined_secret(pw, &kf_bytes);
     let new_secret = pw.as_bytes().to_vec();
 

@@ -1,4 +1,4 @@
-// &desc: "`cas <vault> delete` — permanently remove the vault file and its keyfile, after a typed-name confirmation."
+// &desc: "`cas <vault> delete [--removeKeyfile]` — permanently remove the vault file, after a typed-name confirmation. The keyfile is preserved by default (opt-in to remove it) since it isn't necessarily exclusive to this vault -- nothing here can tell whether some other vault's Meta.keyfile also points at the same file."
 use std::path::Path;
 
 use crate::ctx::Ctx;
@@ -10,7 +10,7 @@ use crate::prompt;
 use crate::secret::resolve_lexically;
 use crate::vault::Vault;
 
-pub fn run(ctx: &Ctx, vault: &Vault) -> Result<()> {
+pub fn run(ctx: &Ctx, vault: &Vault, remove_keyfile: bool) -> Result<()> {
     if !vault.img.exists() {
         die!("vault '{}' not found", vault.name);
     }
@@ -39,6 +39,10 @@ pub fn run(ctx: &Ctx, vault: &Vault) -> Result<()> {
 
     std::fs::remove_file(&vault.img)?;
     match &kf_path {
+        Some(kf) if !remove_keyfile => {
+            logf!(ctx, "  [i] keyfile preserved: {}", kf.display());
+            logf!(ctx, "      it may be shared with other vaults — pass --removeKeyfile to delete it too");
+        }
         Some(kf) if kf.exists() => {
             std::fs::remove_file(kf)?;
             logf!(ctx, "  [i] keyfile deleted: {}", kf.display());

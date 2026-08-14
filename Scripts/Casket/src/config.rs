@@ -8,7 +8,11 @@ pub const MAPPER_PREFIX: &str = "casvault";
 pub const MAGIC: [u8; 8] = *b"IMGVLT01";
 pub const MAGIC_LEN: usize = MAGIC.len();
 
-pub const SNAP_DIR: &str = ".cas-snapshots";
+/// Root of `cas`'s in-vault namespace — locked as a whole by
+/// ransomwareProtection, so any future protected in-vault artifact just
+/// gets a subfolder here instead of a new lock target.
+pub const CASKET_DIR: &str = ".casket";
+pub const SNAP_DIR: &str = ".casket/snapshots";
 pub const AUTO_SNAP_PREFIX: &str = "auto-";
 
 /// LUKS2 header overhead in MiB — kept as slack between the btrfs

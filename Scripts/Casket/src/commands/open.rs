@@ -3,11 +3,13 @@ use std::path::Path;
 
 use crate::btrfs;
 use crate::commands::backup::maybe_auto_backup;
+use crate::commands::settings::security::ransomware_protection;
 use crate::ctx::Ctx;
 use crate::error::Result;
 use crate::logf;
 use crate::luks;
 use crate::meta::Meta;
+use crate::migrations;
 use crate::secret::{decode_autokey, get_secret};
 use crate::udisks;
 use crate::vault::Vault;
@@ -29,7 +31,7 @@ pub fn run(
     }
     vault.ensure_mnt_dir()?;
 
-    let meta = Meta::read(&vault.img);
+    let (meta, schema_from) = Meta::read_versioned(&vault.img);
 
     // Encryption UX bypass: unlock with the stored autokey, no prompt —
     // this check is unconditional (unlike get_secret's own internal
@@ -38,14 +40,14 @@ pub fn run(
     if meta.is_encryption_bypassed() {
         let secret = decode_autokey(&meta)?;
         logf!(ctx, "[cas] opening '{}' ...", vault.name);
-        return unlock_and_mount(ctx, vault, &secret, &meta);
+        return unlock_and_mount(ctx, vault, &secret, &meta, schema_from);
     }
 
     let (secret, new_meta) =
         get_secret(ctx, &vault.img, pw, kf_override, kf_cache_hint, Some(meta.clone()))?;
     let updated_meta = new_meta != meta;
     logf!(ctx, "[cas] opening '{}' ...", vault.name);
-    unlock_and_mount(ctx, vault, &secret, &new_meta)?;
+    unlock_and_mount(ctx, vault, &secret, &new_meta, schema_from)?;
     if updated_meta {
         logf!(ctx, "  [i] updated cached keyfile path");
     }
@@ -55,7 +57,7 @@ pub fn run(
 /// Strip the trailer, unlock via cryptsetup, restore the trailer
 /// (always, even on failure), format on first use, mount, and reconcile
 /// btrfs/udisks bookkeeping.
-fn unlock_and_mount(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &Meta) -> Result<()> {
+fn unlock_and_mount(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &Meta, schema_from: u64) -> Result<()> {
     Meta::strip(&vault.img)?;
     let dev = match luks::open_luks(&vault.img, &vault.mapper, secret) {
         Ok(d) => d,
@@ -73,6 +75,11 @@ fn unlock_and_mount(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &Meta) -> Res
     }
     vault.mount(&dev)?;
 
+    // Layout migrations need the mounted filesystem, so they can only
+    // run here — before anything else (auto-backup, ransomware lock
+    // enforcement) touches whatever they're renaming/restructuring.
+    migrations::migrate_layout(ctx, vault, schema_from);
+
     logf!(ctx, "  [i] verifying filesystem size ...");
     btrfs::resize_silent(&vault.mnt, "max");
     btrfs::set_label(&vault.mnt, &vault.name, size_mb);
@@ -80,6 +87,7 @@ fn unlock_and_mount(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &Meta) -> Res
 
     udisks::chown_to_vault_owner(&vault.mnt, &vault.img)?;
     maybe_auto_backup(ctx, vault, meta);
+    ransomware_protection::enforce_on_open(ctx, vault, meta);
     logf!(ctx, "[✓] '{}' is open at {}", vault.name, vault.mnt.display());
     Ok(())
 }

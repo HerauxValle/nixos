@@ -58,6 +58,7 @@ pub fn run() -> Result<()> {
     }
 
     let force = pop_flag(&mut args, "--force");
+    let remove_keyfile = pop_flag(&mut args, "--removeKeyfile");
 
     let mut opts = Opts::default();
     opts.pass = pop_value(&mut args, "--pass");
@@ -171,25 +172,29 @@ pub fn run() -> Result<()> {
             commands::info::run(&ctx, &vault)
         }
 
-        "encryption" => {
-            let vault = Vault::find(&vault_name, path_ref)?;
-            let sub = extra.first().map(String::as_str).unwrap_or("");
-            let pw = prompt::get_pw(&ctx, opts.pass.as_deref())?;
-            commands::encryption::dispatch(&ctx, &vault, sub, &pw)
-        }
+        "encryption" => die!("moved: cas <vault> settings encryption enable|disable"),
 
-        "passwd" => {
-            let vault = Vault::find(&vault_name, path_ref)?;
-            let old_pw = prompt::get_pw(&ctx, opts.pass.as_deref())?;
-            let strength = (opts.strength != Strength::Medium).then_some(opts.strength);
-            commands::passwd::run(&ctx, &vault, &old_pw, opts.new_pass.as_deref(), strength)
-        }
+        "passwd" => die!("moved: cas <vault> auth passwd"),
 
-        "2fa" => {
+        "2fa" => die!("moved: cas <vault> settings 2fa enable|disable"),
+
+        "auth" => {
             let vault = Vault::find(&vault_name, path_ref)?;
-            let sub = extra.first().map(String::as_str).unwrap_or("");
-            let pw = prompt::get_pw(&ctx, opts.pass.as_deref())?;
-            commands::twofa::dispatch(&ctx, &vault, sub, &pw)
+            match extra.first().map(String::as_str) {
+                Some("passwd") => {
+                    let old_pw = prompt::get_pw(&ctx, opts.pass.as_deref())?;
+                    let strength = (opts.strength != Strength::Medium).then_some(opts.strength);
+                    commands::auth::passwd::run(&ctx, &vault, &old_pw, opts.new_pass.as_deref(), strength)
+                }
+                Some("keyfile") => commands::auth::keyfile::dispatch(
+                    &ctx,
+                    &vault,
+                    &extra[1..],
+                    opts.keyfile.as_deref().map(Path::new),
+                    opts.pass.as_deref(),
+                ),
+                _ => die!("usage: cas <vault> auth <passwd|keyfile> ...\n    Run 'cas help auth' for details."),
+            }
         }
 
         "backup" => {
@@ -197,9 +202,14 @@ pub fn run() -> Result<()> {
             commands::backup::dispatch(&ctx, &vault, &extra)
         }
 
+        "settings" => {
+            let vault = Vault::find(&vault_name, path_ref)?;
+            commands::settings::dispatch(&ctx, &vault, &extra, opts.pass.as_deref())
+        }
+
         "delete" => {
             let vault = Vault::find(&vault_name, path_ref)?;
-            commands::delete::run(&ctx, &vault)
+            commands::delete::run(&ctx, &vault, remove_keyfile)
         }
 
         "resize" | "shrink" => {

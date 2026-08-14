@@ -60,6 +60,13 @@ impl Vault {
         self.img.parent().unwrap_or(Path::new("."))
     }
 
+    /// `cas`'s namespaced in-vault directory — `.casket/` at the mount
+    /// root. Locked as a whole by ransomwareProtection; `snap_root` (and
+    /// any future protected artifact) lives under it.
+    pub fn casket_dir(&self) -> PathBuf {
+        self.mnt.join(crate::config::CASKET_DIR)
+    }
+
     /// True if `mnt` is a mountpoint (its device differs from its
     /// parent's) — the same test `pathlib.Path.is_mount()` performs.
     pub fn is_mount(&self) -> bool {
