@@ -101,6 +101,16 @@ fn run(ctx: &Ctx, vault: &Vault, enable: bool, delete_backup: bool, pw: Option<&
     let action = if enable { "enabling" } else { "disabling" };
     logf!(ctx, "[cas] {action} fileIntegrity for '{}' ...", vault.name);
 
+    // Clean up a stale staging mapper left behind by a crashed previous
+    // attempt — same as `open`'s own stale-mapper cleanup. Without this,
+    // resuming after a kill -9 mid-migration fails immediately: the
+    // mapper name is still held by the dead process's mapping, and
+    // cryptsetup refuses to open a second one under the same name.
+    if staging.mapper_dev_exists() {
+        staging.umount();
+        staging.close_mapper();
+    }
+
     // Resume: a staging container from a previous interrupted attempt
     // that still opens with this secret is treated as a valid partial
     // copy, not started over. One that doesn't open (crash mid-format)
