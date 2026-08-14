@@ -117,6 +117,7 @@
       youtube-tui = { };
       freetube = { };
       pulsemixer = { };
+      pulseaudio = { }; # pactl CLI -- pipewire-pulse only runs the server side, connectqc needs the client for A2DP profile switching
 
       # Peripherals
       polychromatic = { }; # Razer button/macro/lighting GUI, driven by hardware.openrazer's daemon (modules/system/openrazer.nix)
