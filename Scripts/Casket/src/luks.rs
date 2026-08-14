@@ -31,6 +31,17 @@ pub fn format_vault_ex(img: &Path, secret: &[u8], strength: Strength, integrity:
     proc::run_with_stdin("cryptsetup", &args, secret)
 }
 
+/// Whether an already-formatted container at `img` has integrity
+/// protection active, checked against the real on-disk structure (not
+/// any metadata flag) via `cryptsetup luksDump` — the ground truth
+/// `tamper::reset_to_safe` uses for `Meta.file_integrity`, since that
+/// field only describes the container and can't itself change it.
+pub fn has_integrity(img: &Path) -> bool {
+    let img_str = img.to_string_lossy().into_owned();
+    let out = proc::capture("cryptsetup", &["luksDump", &img_str]);
+    String::from_utf8_lossy(&out.stdout).to_lowercase().contains("integrity:")
+}
+
 pub fn open_luks(img: &Path, mapper: &str, secret: &[u8]) -> Result<String> {
     let img_str = img.to_string_lossy().into_owned();
     // Report cryptsetup's real failure reason instead of a blanket

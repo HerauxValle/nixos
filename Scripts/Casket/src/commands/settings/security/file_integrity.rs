@@ -15,6 +15,7 @@ use crate::luks;
 use crate::meta::Meta;
 use crate::migrate;
 use crate::secret::{combined_secret, resolve_keyfile};
+use crate::tamper;
 use crate::udisks;
 use crate::vault::Vault;
 
@@ -133,6 +134,11 @@ fn run(ctx: &Ctx, vault: &Vault, enable: bool, delete_backup: bool, pw: Option<&
         luks::format_vault_ex(&staging.img, &secret, Strength::default(), enable)?;
         let mut staging_meta = meta.clone();
         staging_meta.file_integrity = enable.then_some(true);
+        // `secret` was already cryptographically verified against the
+        // real vault above (unconditional `luks::test`), so this is
+        // always a legitimate write — refresh the HMAC baseline to
+        // match the new fileIntegrity value.
+        tamper::refresh(&secret, &mut staging_meta);
         staging_meta.write(&staging.img)?;
     } else {
         logf!(ctx, "  [i] resuming a previous interrupted migration");

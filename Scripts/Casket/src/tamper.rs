@@ -1,4 +1,4 @@
-// &desc: "Tamper-evidence for the 3 fields that actually gate a protection (ransomwareProtection, verify_required, zeroize) -- an HMAC-SHA256 over just those fields, keyed by the vault's own derived LUKS secret. Verifiable only when the secret is known (open, or any --pass-bearing command), by design: a check that worked without the secret would also let an attacker forge a matching tag without it."
+// &desc: "Tamper-evidence for the fields that actually gate a protection (ransomwareProtection, verify_required, zeroize, bruteforceLockout, fileIntegrity) -- an HMAC-SHA256 over just those fields, keyed by the vault's own derived LUKS secret. Verifiable only when the secret is known (open, or any --pass-bearing command), by design: a check that worked without the secret would also let an attacker forge a matching tag without it."
 use hmac::{Hmac, Mac};
 use serde::Serialize;
 use sha2::Sha256;
@@ -12,13 +12,21 @@ struct Protected<'a> {
     ransomware_protection: &'a Option<bool>,
     verify_required: &'a Option<std::collections::BTreeMap<String, bool>>,
     zeroize: &'a Option<bool>,
+    bruteforce_lockout: &'a Option<bool>,
+    file_integrity: &'a Option<bool>,
 }
 
-/// Canonical bytes for just the 3 protection fields — deterministic key
+/// Canonical bytes for just the protected fields — deterministic key
 /// order (serde_json's default `Map` is BTreeMap-backed without the
 /// `preserve_order` feature, which this crate doesn't enable).
 fn protected_json(meta: &Meta) -> Vec<u8> {
-    let p = Protected { ransomware_protection: &meta.ransomware_protection, verify_required: &meta.verify_required, zeroize: &meta.zeroize };
+    let p = Protected {
+        ransomware_protection: &meta.ransomware_protection,
+        verify_required: &meta.verify_required,
+        zeroize: &meta.zeroize,
+        bruteforce_lockout: &meta.bruteforce_lockout,
+        file_integrity: &meta.file_integrity,
+    };
     serde_json::to_vec(&p).unwrap_or_default()
 }
 
@@ -62,15 +70,38 @@ pub fn verify(secret: &[u8], meta: &Meta) -> Status {
     }
 }
 
-/// Overwrite the 3 protected fields with the maximally-protective value
+/// Overwrite the protected fields with the maximally-protective value
 /// for each — used when `verify()` returns `Tampered` and there's no
 /// way to know what the legitimate prior values were. Always fails
 /// toward *more* protection than less: worst case is an unwanted
 /// protection turned on (mildly annoying, user turns it back off once
 /// they've investigated), never a silently-weakened one.
-pub fn reset_to_safe(meta: &mut Meta) {
+///
+/// Two fields don't follow the simple "flip to true = safer" rule:
+///
+/// `bruteforceLockout` — forcing this *on* isn't the safe direction,
+/// it's the dangerous one. Unlike every other field here, this one has
+/// a destructive, irreversible side effect (deletes the vault after N
+/// wrong passphrase attempts) that the owner never actually opted into
+/// if the trailer was tampered (or just corrupted by a bug) rather than
+/// legitimately toggled. Silently turning that on as a "safety" measure
+/// would trade a detection problem for a data-loss one. So this is the
+/// one field forced *off* instead — losing a brute-force defense is
+/// recoverable by re-enabling it; an unwanted vault deletion is not.
+///
+/// `fileIntegrity` — this field doesn't control anything itself, it
+/// only *describes* what the on-disk container already is (set once,
+/// at migration time; the container's real structure can't be changed
+/// by editing this flag). Blindly setting it `true` on a container
+/// that's actually plain LUKS would make `info` lie in the *other*
+/// direction — claiming a protection that isn't really there. So this
+/// checks reality instead, via `cryptsetup luksDump`, and stores
+/// whatever's actually true.
+pub fn reset_to_safe(img: &std::path::Path, meta: &mut Meta) {
     meta.ransomware_protection = Some(true);
     meta.zeroize = Some(true);
+    meta.bruteforce_lockout = Some(false);
+    meta.file_integrity = Some(crate::luks::has_integrity(img));
     let mut all_required = std::collections::BTreeMap::new();
     for f in crate::commands::settings::gate::GATED_FEATURES {
         all_required.insert(f.to_string(), true);

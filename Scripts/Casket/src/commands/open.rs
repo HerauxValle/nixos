@@ -54,17 +54,17 @@ fn check_lockout(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &mut Meta) -> Re
 }
 
 /// Check the metadata HMAC now that the real secret is known, and if it
-/// doesn't match, throw away the 3 protected fields' current values
-/// (they're exactly what's suspect) and fall back to the maximally
-/// protective setting for each instead — never a silent downgrade. The
-/// open still proceeds; refusing to open would risk locking the owner
-/// out over a false positive (a migration bug, a hand edit made before
-/// this feature existed) with no way back in.
+/// doesn't match, throw away the protected fields' current values
+/// (they're exactly what's suspect) and fall back to the safe setting
+/// for each instead — never a silent downgrade. The open still
+/// proceeds; refusing to open would risk locking the owner out over a
+/// false positive (a migration bug, a hand edit made before this
+/// feature existed) with no way back in.
 fn check_tamper(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &mut Meta) {
     if tamper::verify(secret, meta) == tamper::Status::Tampered {
-        logf!(ctx, "  [!] '{}' metadata failed its tamper check — ransomwareProtection/verify_required/zeroize don't match what was last written with a verified passphrase", vault.name);
-        logf!(ctx, "      resetting those 3 settings to their most-protective values; review with 'cas {} info' and adjust as needed", vault.name);
-        tamper::reset_to_safe(meta);
+        logf!(ctx, "  [!] '{}' metadata failed its tamper check — ransomwareProtection/verify_required/zeroize/bruteforceLockout/fileIntegrity don't match what was last written with a verified passphrase", vault.name);
+        logf!(ctx, "      resetting those settings to their safe values; review with 'cas {} info' and adjust as needed", vault.name);
+        tamper::reset_to_safe(&vault.img, meta);
         // The reset values are freshly-verified-legitimate the moment
         // they're written here (we have the real secret in hand right
         // now) — refresh the HMAC baseline to match, or every future

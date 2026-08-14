@@ -1,11 +1,12 @@
 // &desc: "`cas <vault> settings security bruteforceLockout enable [--threshold N] | disable | threshold <N> | state` — deletes the vault after too many consecutive wrong-passphrase `open` attempts. Off by default and irreversible when it triggers, so enabling it prints a loud one-time warning. Not a plain enable/disable Feature (`threshold <N>` is a third verb with its own argument), so it's dispatched directly by settings/mod.rs rather than through registry::dispatch, same as backup_auto."
-use crate::commands::settings::gate::gate;
+use crate::commands::settings::gate::{gate, gate_inner};
 use crate::commands::settings::registry::{self, Feature};
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
 use crate::logf;
 use crate::meta::Meta;
+use crate::tamper;
 use crate::vault::Vault;
 
 pub const DEFAULT_THRESHOLD: u32 = 10;
@@ -50,9 +51,12 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
             enable(ctx, vault, n, pw)
         }
         Some("disable") => {
-            gate(ctx, vault, "bruteforceLockout", pw)?;
+            let verified = gate_inner(ctx, vault, "bruteforceLockout", pw)?;
             let mut meta = Meta::read(&vault.img);
             meta.bruteforce_lockout = None;
+            if let Some((_, secret)) = &verified {
+                tamper::refresh(secret, &mut meta);
+            }
             meta.write(&vault.img)?;
             logf!(ctx, "[✓] bruteforce lockout disabled for '{}'", vault.name);
             Ok(())
@@ -75,13 +79,16 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
 }
 
 fn enable(ctx: &Ctx, vault: &Vault, n: Option<u32>, pw: Option<&str>) -> Result<()> {
-    gate(ctx, vault, "bruteforceLockout", pw)?;
+    let verified = gate_inner(ctx, vault, "bruteforceLockout", pw)?;
 
     let mut meta = Meta::read(&vault.img);
     meta.bruteforce_lockout = Some(true);
     meta.failed_attempts = None;
     if let Some(n) = n {
         meta.bruteforce_threshold = Some(n);
+    }
+    if let Some((_, secret)) = &verified {
+        tamper::refresh(secret, &mut meta);
     }
     meta.write(&vault.img)?;
 

@@ -26,8 +26,9 @@ ACTIONS (run on a specific vault)
   delete    permanently delete the vault file
 
   info      show vault details plus every setting's enabled|disabled state
-  tampered  check ransomwareProtection/verify_required/zeroize against
-            the last passphrase-verified write
+  tampered  check ransomwareProtection/verify_required/zeroize/
+            bruteforceLockout/fileIntegrity against the last
+            passphrase-verified write
 
   auth      passphrase + keyfile identity material:
               auth passwd
@@ -185,23 +186,26 @@ EXAMPLE
         "tampered" => r#"
 cas <vault> tampered [--pass "..."]
 
-Checks whether ransomwareProtection/verify_required/zeroize still match
-the last passphrase-verified write, using an HMAC keyed by the vault's
-own derived secret — a plain hash wouldn't work here, since anyone
-editing the trailer could just recompute a new plain hash over their
-edit too. Always resolves and cryptographically checks a real
-passphrase, same as 'auth passwd'.
+Checks whether ransomwareProtection/verify_required/zeroize/
+bruteforceLockout/fileIntegrity still match the last passphrase-
+verified write, using an HMAC keyed by the vault's own derived secret —
+a plain hash wouldn't work here, since anyone editing the trailer could
+just recompute a new plain hash over their edit too. Always resolves
+and cryptographically checks a real passphrase, same as 'auth passwd'.
 
 Reports one of:
   healthy      matches — nothing's been edited outside a verified write
-  tampered     doesn't match — those 3 settings were changed some other
+  tampered     doesn't match — those settings were changed some other
                way (hand-edited trailer, a bug, migration)
   no baseline  no HMAC stored yet (a fresh vault, or one from before
                this feature existed) — not evidence of tampering
 
 A tampered result doesn't get fixed by this command — run 'cas myvault
-open', which resets those 3 settings to their most-protective values
-automatically and warns. This command only reports the status.
+open', which resets those settings to their safe values automatically
+and warns (bruteforceLockout resets to off, not on — see 'cas help
+settings' for why; fileIntegrity is checked against the real container
+via cryptsetup, not blindly flipped). This command only reports the
+status.
 
 EXAMPLES
   cas myvault tampered
