@@ -23,35 +23,34 @@ pub fn run(ctx: &Ctx, vault: &Vault) -> Result<()> {
     };
     let slots = luks::slot_count(&vault.img);
 
-    let general_width = registry::column_width(&["vault", "size", "open", "slots"]);
-    logf!(ctx, "{}", registry::section("general"));
-    logf!(ctx, "{}", registry::kv_line("vault", &vault.img.display().to_string(), general_width));
-    logf!(ctx, "{}", registry::kv_line("size", &format!("{size_mb} MiB"), general_width));
-    logf!(ctx, "{}", registry::kv_line("open", &mounted, general_width));
-    logf!(ctx, "{}", registry::kv_line("slots", &format!("{slots} active"), general_width));
-
-    let auth_width = registry::column_width(&["passphrase", "keyfile"]);
-    logf!(ctx, "{}", registry::section("auth"));
-    let passphrase = if meta.is_encryption_bypassed() { "bypassed  (open won't prompt — see settings encryption)" } else { "required" };
-    logf!(ctx, "{}", registry::kv_line("passphrase", passphrase, auth_width));
-    match &meta.keyfile {
-        Some(kf) => {
-            let kind = if keyfile::is_embedded(Path::new(kf)) { "embedded" } else { "raw file" };
-            logf!(ctx, "{}", registry::kv_line("keyfile", &format!("{kf}  ({kind})"), auth_width));
-        }
-        None => logf!(ctx, "{}", registry::kv_line("keyfile", "none", auth_width)),
-    }
-
-    // One shared column width across settings/security/verification so
-    // the value column lines up across every section, not just within
-    // each one — otherwise a long name in one section (e.g.
-    // ransomwareProtection) sits at a different column than a short
-    // name in another (e.g. 2fa).
-    let mut names: Vec<&str> = FLAT_FEATURES.iter().map(|f| f.name).collect();
+    // One column width for the entire `info` dump — every name in
+    // every section, [general] through [verification], is measured
+    // together so the value column lines up top to bottom, not just
+    // within whichever section happens to share a `line()`/`kv_line()`
+    // call together.
+    let mut names: Vec<&str> = vec!["vault", "size", "open", "slots", "passphrase", "keyfile"];
+    names.extend(FLAT_FEATURES.iter().map(|f| f.name));
     names.push("backupAuto");
     names.extend(security::FEATURES.iter().map(|f| f.name));
     names.extend(gate::GATED_FEATURES.iter().copied());
     let width = registry::column_width(&names);
+
+    logf!(ctx, "{}", registry::section("general"));
+    logf!(ctx, "{}", registry::kv_line("vault", &vault.img.display().to_string(), width));
+    logf!(ctx, "{}", registry::kv_line("size", &format!("{size_mb} MiB"), width));
+    logf!(ctx, "{}", registry::kv_line("open", &mounted, width));
+    logf!(ctx, "{}", registry::kv_line("slots", &format!("{slots} active"), width));
+
+    logf!(ctx, "{}", registry::section("auth"));
+    let passphrase = if meta.is_encryption_bypassed() { "bypassed  (open won't prompt — see settings encryption)" } else { "required" };
+    logf!(ctx, "{}", registry::kv_line("passphrase", passphrase, width));
+    match &meta.keyfile {
+        Some(kf) => {
+            let kind = if keyfile::is_embedded(Path::new(kf)) { "embedded" } else { "raw file" };
+            logf!(ctx, "{}", registry::kv_line("keyfile", &format!("{kf}  ({kind})"), width));
+        }
+        None => logf!(ctx, "{}", registry::kv_line("keyfile", "none", width)),
+    }
 
     logf!(ctx, "{}", registry::section("settings"));
     for f in FLAT_FEATURES {
