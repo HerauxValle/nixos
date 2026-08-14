@@ -13,6 +13,7 @@ use crate::vault::Vault;
 pub const FEATURE: Feature = Feature {
     name: "encryption",
     set,
+    get: |meta| !meta.is_encryption_bypassed(),
 };
 
 fn set(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>) -> Result<()> {

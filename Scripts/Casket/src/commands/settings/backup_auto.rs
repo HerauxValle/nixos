@@ -1,11 +1,16 @@
 // &desc: "`cas <vault> settings backup auto enable|disable|keep` — persist the per-vault auto-snapshot-on-open policy into metadata. Not a plain enable/disable Feature (`keep <N>` is a third verb with its own argument), so it's dispatched directly by settings/mod.rs rather than through registry::dispatch."
 use crate::commands::settings::gate::gate;
+use crate::commands::settings::registry;
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
 use crate::logf;
 use crate::meta::Meta;
 use crate::vault::Vault;
+
+pub fn is_enabled(meta: &Meta) -> bool {
+    meta.backup_auto == Some(true)
+}
 
 fn is_positive_int(s: &str) -> bool {
     !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
@@ -32,6 +37,14 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
             gate(ctx, vault, "backupAuto", pw)?;
             disable(ctx, vault)
         }
+        Some("state") => {
+            let meta = Meta::read(&vault.img);
+            logf!(ctx, "{}", registry::line("backupAuto", is_enabled(&meta)));
+            if is_enabled(&meta) {
+                logf!(ctx, "    keep   {}", meta.backup_auto_keep_or(3));
+            }
+            Ok(())
+        }
         Some("keep") => {
             let valid = extra.get(1).is_some_and(|s| is_positive_int(s));
             if !valid {
@@ -43,7 +56,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
             }
             set_keep(ctx, vault, keep)
         }
-        _ => die!("usage: cas <vault> settings backup auto enable [--keep N] | disable | keep <N>"),
+        _ => die!("usage: cas <vault> settings backup auto enable [--keep N] | disable | keep <N> | state"),
     }
 }
 

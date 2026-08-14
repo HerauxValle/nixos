@@ -15,6 +15,7 @@ use crate::vault::Vault;
 pub const FEATURE: Feature = Feature {
     name: "ransomwareProtection",
     set,
+    get: is_enabled,
 };
 
 pub fn is_enabled(meta: &Meta) -> bool {

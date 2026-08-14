@@ -8,6 +8,21 @@ use crate::meta::Meta;
 use crate::vault::Vault;
 
 use super::gate;
+use super::registry;
+
+/// `cas <vault> settings verification state` (all gated features) or
+/// `cas <vault> settings verification <feature> state` (just one).
+pub fn state(ctx: &Ctx, vault: &Vault, feature: Option<&str>) -> Result<()> {
+    let meta = Meta::read(&vault.img);
+    let targets: Vec<&str> = match feature {
+        Some(f) => vec![f],
+        None => gate::GATED_FEATURES.to_vec(),
+    };
+    for f in targets {
+        logf!(ctx, "{}", registry::line(&format!("verification-{f}"), gate::requires_verification(&meta, f)));
+    }
+    Ok(())
+}
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, feature: &str, enable: bool, pw: Option<&str>) -> Result<()> {
     let mut meta = Meta::read(&vault.img);

@@ -14,7 +14,7 @@ use crate::secret::{b64_encode, combined_secret, get_secret, resolve_keyfile};
 use crate::udisks;
 use crate::vault::Vault;
 
-pub const FEATURE: Feature = Feature { name: "2fa", set };
+pub const FEATURE: Feature = Feature { name: "2fa", set, get: |meta| meta.has_2fa() };
 
 fn set(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>) -> Result<()> {
     let pw = gate_pw(ctx, vault, "2fa", pw)?;

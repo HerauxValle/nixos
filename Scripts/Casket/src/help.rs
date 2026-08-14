@@ -25,7 +25,7 @@ ACTIONS (run on a specific vault)
   rename    rename the vault file (must be closed)
   delete    permanently delete the vault file
 
-  info      show vault details (size, open/closed, 2fa status)
+  info      show vault details plus every setting's enabled|disabled state
 
   auth      passphrase + keyfile identity material:
               auth passwd
@@ -33,12 +33,13 @@ ACTIONS (run on a specific vault)
 
   backup    create / list / restore / delete btrfs snapshots (data, not settings)
 
-  settings  every persistent per-vault toggle, all enable|disable:
-              settings encryption enable|disable
-              settings 2fa enable|disable
-              settings backup auto enable|disable|keep <N>
-              settings security <feature> enable|disable
-              settings verification <feature> enable|disable
+  settings  every persistent per-vault toggle, all enable|disable|state:
+              settings encryption enable|disable|state
+              settings 2fa enable|disable|state
+              settings backup auto enable|disable|keep <N>|state
+              settings security <feature> enable|disable|state
+              settings verification <feature> enable|disable|state
+              settings verification state   (all gated features at once)
 
 GLOBAL
   list          show all vaults found nearby
@@ -136,8 +137,10 @@ cas <vault> info
 Shows a summary of the vault:
   - full path and file size
   - whether it is currently open and where
-  - whether 2FA is enabled and which keyfile is used
   - number of active LUKS key slots
+  - every setting's enabled|disabled state (encryption, 2fa, security
+    features, backupAuto, verification per feature) — the same rollup
+    you'd get running 'settings ... state' on each of them individually
 
 EXAMPLE
   cas myvault info
@@ -272,13 +275,16 @@ EXAMPLES
   cas myvault delete --removeKeyfile
 "#,
         "settings" => r#"
-cas <vault> settings encryption enable|disable          [--pass "..."]
-cas <vault> settings 2fa enable|disable                 [--pass "..."]
-cas <vault> settings backup auto enable|disable|keep <N> [--pass "..."]
-cas <vault> settings security <feature> enable|disable   [--pass "..."]
-cas <vault> settings verification <feature> enable|disable [--pass "..."]
+cas <vault> settings encryption enable|disable|state          [--pass "..."]
+cas <vault> settings 2fa enable|disable|state                 [--pass "..."]
+cas <vault> settings backup auto enable|disable|keep <N>|state [--pass "..."]
+cas <vault> settings security <feature> enable|disable|state   [--pass "..."]
+cas <vault> settings verification <feature> enable|disable|state [--pass "..."]
+cas <vault> settings verification state
 
-Every persistent per-vault toggle lives here, all sharing enable|disable.
+Every persistent per-vault toggle lives here, all sharing enable|disable|state.
+'state' prints the setting's current value as '<name>   enabled|disabled' —
+the same line format 'info' rolls up for every setting at once.
 
   settings encryption enable|disable
     Toggle the passphrase-prompt UX. The vault remains LUKS-encrypted on
@@ -328,6 +334,8 @@ EXAMPLES
   cas myvault settings backup auto enable --keep 5
   cas myvault settings security ransomwareProtection enable --pass "..."
   cas myvault settings verification backupAuto disable --pass "..."
+  cas myvault settings 2fa state
+  cas myvault settings verification state
 "#,
         "list" => r#"
 cas list [--path dir]
