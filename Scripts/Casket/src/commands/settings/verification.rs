@@ -18,8 +18,9 @@ pub fn state(ctx: &Ctx, vault: &Vault, feature: Option<&str>) -> Result<()> {
         Some(f) => vec![f],
         None => gate::GATED_FEATURES.to_vec(),
     };
+    logf!(ctx, "{}", registry::section("verification"));
     for f in targets {
-        logf!(ctx, "{}", registry::line(&format!("verification-{f}"), gate::requires_verification(&meta, f)));
+        logf!(ctx, "{}", registry::line(f, gate::requires_verification(&meta, f)));
     }
     Ok(())
 }

@@ -134,13 +134,17 @@ EXAMPLE
         "info" => r#"
 cas <vault> info
 
-Shows a summary of the vault:
-  - full path and file size
-  - whether it is currently open and where
-  - number of active LUKS key slots
-  - every setting's enabled|disabled state (encryption, 2fa, security
-    features, backupAuto, verification per feature) — the same rollup
-    you'd get running 'settings ... state' on each of them individually
+Shows the full vault picture, grouped into sections:
+  [general]      path, size, open/closed, active LUKS key slots
+  [auth]         passphrase state (required/bypassed), active keyfile
+                 (path, and whether it's raw or embedded)
+  [settings]     encryption, 2fa, backupAuto (+ keep count)
+  [security]     every security feature (e.g. ransomwareProtection)
+  [verification] which features currently require re-proving the
+                 passphrase before they can be toggled
+
+Each state line is the same '<name>   enabled|disabled' you'd get
+running 'settings ... state' on that one setting individually.
 
 EXAMPLE
   cas myvault info

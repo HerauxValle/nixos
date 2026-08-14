@@ -29,6 +29,14 @@ pub fn line(name: &str, enabled: bool) -> String {
     format!("  {name:<width$}  {}", if enabled { "enabled" } else { "disabled" }, width = 22)
 }
 
+/// A `[section]` header, grouping related state lines — used by `info`
+/// and by any standalone `state` output that groups multiple features
+/// (e.g. `settings verification state`) so names never need a manual
+/// prefix like `verification-<feature>` to stay unambiguous.
+pub fn section(title: &str) -> String {
+    format!("\n[{title}]")
+}
+
 pub fn state(features: &[Feature], name: &str, ctx: &Ctx, vault: &Vault) -> Result<()> {
     match features.iter().find(|f| f.name == name) {
         Some(f) => {

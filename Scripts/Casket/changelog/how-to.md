@@ -13,14 +13,19 @@ version's file, you're doing it wrong. Old entries don't change.
   file format changed shape without a migration, a capability is gone
   with no replacement, or a default flips with no signal that it
   flipped. If nothing tells you the ground moved, it's major.
-- **MINOR** — a command moved, a flag's default changed, or something
-  new was added — but the old path still tells you what happened: it
-  redirects, prints where the thing went, or the new behavior is the
-  kind you'd notice (not a silent wrong answer). A new command, a new
-  flag, a new feature is always minor. Old scripts get a loud heads-up
-  instead of a silent surprise.
-- **PATCH** — a bug fixed, nothing added or removed. Behavior that was
-  supposed to happen now actually happens.
+- **MINOR** — a new command, a new flag, or a new verb someone can
+  invoke that genuinely couldn't be done before. A command moved or a
+  flag's default changed also lands here as long as the old path still
+  tells you what happened (redirects, prints where the thing went) —
+  the old script isn't silently wrong, just now informed. The bar is
+  "can the user do something new", not "does the output look
+  different."
+- **PATCH** — a bug fixed, or an existing command's output got richer /
+  reformatted / reorganized without adding a new command, subcommand,
+  or flag. Showing more detail in `info`, restyling a table, adding a
+  field to an existing report — none of that is new capability, it's
+  the same command telling you more (or telling you better). Only
+  count it minor if there's something to type that didn't work before.
 
 One version per unit of work that actually shipped — one feature, one
 fix, one breaking change. Don't bundle three unrelated things into one
