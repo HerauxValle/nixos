@@ -9,12 +9,16 @@ version's file, you're doing it wrong. Old entries don't change.
 
 `MAJOR.MINOR.PATCH`
 
-- **MAJOR** — something that already worked now works differently or is
-  gone. A command moved, a flag's default flipped, a file format
-  changed shape without a migration. If a script written against the
-  old version breaks, it's major.
-- **MINOR** — something new that didn't break what already worked. A
-  new command, a new flag, a new feature. Old scripts still work.
+- **MAJOR** — an old vault or script silently gets the wrong result: a
+  file format changed shape without a migration, a capability is gone
+  with no replacement, or a default flips with no signal that it
+  flipped. If nothing tells you the ground moved, it's major.
+- **MINOR** — a command moved, a flag's default changed, or something
+  new was added — but the old path still tells you what happened: it
+  redirects, prints where the thing went, or the new behavior is the
+  kind you'd notice (not a silent wrong answer). A new command, a new
+  flag, a new feature is always minor. Old scripts get a loud heads-up
+  instead of a silent surprise.
 - **PATCH** — a bug fixed, nothing added or removed. Behavior that was
   supposed to happen now actually happens.
 
