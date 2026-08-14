@@ -57,6 +57,8 @@ OPTIONS
   --path dir        look for vaults here instead of auto-searching
   --removeKeyfile   delete: also delete the 2FA keyfile (preserved by default)
   --shred           delete: overwrite the vault file before removing it (best-effort)
+  --integrity       create: enable fileIntegrity from the start
+  --no-integrity    create: skip the interactive fileIntegrity prompt
 
 Output is colored automatically on a real terminal, and plain otherwise
 (piped, redirected, or TERM=dumb). Set NO_COLOR=1 to force plain output.
@@ -74,6 +76,7 @@ fn topic_text(topic: &str) -> Option<&'static str> {
     Some(match topic {
         "create" => r#"
 cas <vault> create [--size MiB] [--strength level] [--pass "..."]
+                    [--integrity | --no-integrity]
 
 Creates a new encrypted vault. The vault is stored as a single file
 called <vault>.img in the current directory (or --path).
@@ -90,9 +93,20 @@ called <vault>.img in the current directory (or --path).
 
   --pass       Your passphrase. You will be asked if not given here.
 
+  --integrity / --no-integrity
+               Whether the vault gets dm-integrity protection (see
+               'cas help settings' -> fileIntegrity) from the start.
+               If neither is given and you're prompted interactively,
+               you'll be asked — Enter defaults to yes under 20 GiB,
+               no at or above it (the initial device wipe integrity
+               needs gets slow on large vaults). --pass given non-
+               interactively defaults to no unless one of these flags
+               says otherwise.
+
 EXAMPLES
   cas myvault create
   cas myvault create --size 4096 --strength hard
+  cas myvault create --size 2048 --integrity
   cas myvault create --path ~/vaults
 "#,
         "open" => r#"

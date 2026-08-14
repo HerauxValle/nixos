@@ -64,6 +64,8 @@ pub fn run() -> Result<()> {
     let force = pop_flag(&mut args, "--force");
     let remove_keyfile = pop_flag(&mut args, "--removeKeyfile");
     let shred = pop_flag(&mut args, "--shred");
+    let integrity_flag = pop_flag(&mut args, "--integrity");
+    let no_integrity_flag = pop_flag(&mut args, "--no-integrity");
 
     let mut opts = Opts::default();
     opts.pass = pop_value(&mut args, "--pass");
@@ -132,7 +134,14 @@ pub fn run() -> Result<()> {
                 Some(p) if !p.is_empty() => prompt::get_pw(&ctx, Some(p))?,
                 _ => prompt::ask_secret(&ctx, "passphrase (leave empty to generate a strong one)")?,
             };
-            commands::create::run(&ctx, &base, &vault_name, size, &create_pw, opts.strength)
+            let integrity_choice = if integrity_flag {
+                Some(true)
+            } else if no_integrity_flag {
+                Some(false)
+            } else {
+                None
+            };
+            commands::create::run(&ctx, &base, &vault_name, size, &create_pw, opts.strength, integrity_choice, opts.pass.is_none())
         }
 
         "open" => {
