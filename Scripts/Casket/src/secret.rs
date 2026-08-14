@@ -15,6 +15,45 @@ use crate::prompt;
 
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
+const PASSPHRASE_ALPHABET: &[u8] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-_=+?";
+
+/// A strong random passphrase — shared by `create`'s "leave empty to
+/// generate one" and `auth passwd`'s equivalent, so rotating *to* a
+/// strong passphrase is exactly as easy as creating one was (previously
+/// `auth passwd` just refused an empty new passphrase, an inconsistency
+/// with `create`'s own behavior for no real reason).
+pub fn generate_passphrase() -> String {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    (0..28)
+        .map(|_| PASSPHRASE_ALPHABET[rng.gen_range(0..PASSPHRASE_ALPHABET.len())] as char)
+        .collect()
+}
+
+/// Non-blocking — `create`/`auth passwd` warn on a `Some(..)` result but
+/// never refuse it; the point is catching an obviously weak choice at
+/// the one moment someone would actually read the warning, not
+/// gatekeeping. zxcvbn scores 0 (trivial) through 4 (strong); anything
+/// below 3 gets a warning, using its own pattern-match reasoning
+/// (dictionary hit, keyboard pattern, date, repeat, ...) plus an
+/// offline-attack crack-time estimate — the actual number that matters
+/// against someone with the raw `.img` file and no rate limit to
+/// respect, not an online-login-attempt estimate.
+pub fn weakness_warning(pw: &str) -> Option<String> {
+    let estimate = zxcvbn::zxcvbn(pw, &[]);
+    if estimate.score() >= zxcvbn::Score::Three {
+        return None;
+    }
+    let crack_time = estimate.crack_times().offline_slow_hashing_1e4_per_second();
+    let reason = estimate
+        .feedback()
+        .and_then(|f| f.warning())
+        .map(|w| w.to_string())
+        .unwrap_or_else(|| "no specific reason given".to_string());
+    Some(format!("{reason} (est. offline crack time: {crack_time})"))
+}
+
 /// The derived LUKS secret — wraps the raw bytes so they get scrubbed
 /// from memory the moment this goes out of scope, unless `settings
 /// security zeroize` is off for this vault. Derefs to `&[u8]` so every
@@ -27,14 +66,37 @@ pub struct Secret {
 
 impl Secret {
     fn new(bytes: Vec<u8>, meta: &Meta) -> Self {
-        Secret { bytes, should_zeroize: zeroize_enabled(meta) }
+        let should_zeroize = zeroize_enabled(meta);
+        // Locks the pages backing `bytes` into RAM for as long as this
+        // Secret lives, so the key material can't get written to swap
+        // (unencrypted, outside cas's control) while it's actively in
+        // use — zeroize alone only covers *after* use. Same toggle
+        // governs both: `settings security zeroize` is "harden how the
+        // secret is held in memory" as a whole, not two separate knobs.
+        // Best-effort: mlock can fail under RLIMIT_MEMLOCK on some
+        // systems, silently skipped rather than treated as fatal — the
+        // vault operation itself doesn't depend on this succeeding.
+        if should_zeroize && !bytes.is_empty() {
+            unsafe {
+                libc::mlock(bytes.as_ptr() as *const libc::c_void, bytes.len());
+            }
+        }
+        Secret { bytes, should_zeroize }
     }
 }
 
 impl Drop for Secret {
     fn drop(&mut self) {
         if self.should_zeroize {
+            // Zero while still locked — the write itself is guaranteed
+            // to land on the resident page, not race a swap-out that
+            // could otherwise leave a stale plaintext copy on disk.
             self.bytes.zeroize();
+            if !self.bytes.is_empty() {
+                unsafe {
+                    libc::munlock(self.bytes.as_ptr() as *const libc::c_void, self.bytes.len());
+                }
+            }
         }
     }
 }

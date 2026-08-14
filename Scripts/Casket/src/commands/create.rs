@@ -10,6 +10,7 @@ use crate::luks;
 use crate::meta::Meta;
 use crate::proc;
 use crate::prompt;
+use crate::secret::{generate_passphrase, weakness_warning};
 use crate::size::parse_size;
 use crate::udisks;
 use crate::vault::Vault;
@@ -19,17 +20,6 @@ use crate::vault::Vault;
 /// defaulting the create-time prompt to "yes" doesn't surprise anyone
 /// with a multi-minute wait; at or above it, the default flips to "no".
 pub const INTEGRITY_PROMPT_THRESHOLD_MB: u64 = 20 * 1024;
-
-const PASSPHRASE_ALPHABET: &[u8] =
-    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-_=+?";
-
-fn generate_passphrase() -> String {
-    use rand::Rng;
-    let mut rng = rand::thread_rng();
-    (0..28)
-        .map(|_| PASSPHRASE_ALPHABET[rng.gen_range(0..PASSPHRASE_ALPHABET.len())] as char)
-        .collect()
-}
 
 pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, strength: Strength, integrity: Option<bool>, interactive: bool) -> Result<()> {
     let vault = Vault::resolve(base, name);
@@ -63,6 +53,9 @@ pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, stre
         logf!(ctx, "      Save this — it cannot be recovered!");
         &generated
     } else {
+        if let Some(warning) = weakness_warning(pw) {
+            logf!(ctx, "  [!] weak passphrase: {warning}");
+        }
         pw
     };
 

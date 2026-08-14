@@ -1,7 +1,7 @@
 # &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
 [package]
 name = "cas"
-version = "1.9.5"
+version = "1.10.0"
 edition = "2021"
 description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
 
@@ -52,6 +52,14 @@ base64 = "0.22"
 # rpassword: hidden (no-echo) stdin reads for passphrase prompts —
 # the direct equivalent of Python's getpass.getpass().
 rpassword = "7"
+
+# zxcvbn: real passphrase-strength estimation for the create/auth passwd
+# weak-passphrase warning -- Dropbox's zxcvbn algorithm (Rust port),
+# proper entropy/crack-time estimation plus matching against its own
+# embedded large dictionaries (common passwords, English words, names,
+# keyboard patterns, l33t substitutions), not a hand-rolled wordlist or
+# a naive length/character-class check.
+zxcvbn = "3"
 
 # hmac: keyed integrity tag over the trailer's protection-relevant
 # fields (ransomwareProtection, verify_required, zeroize), keyed by the

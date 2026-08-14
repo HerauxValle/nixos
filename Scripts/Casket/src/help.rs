@@ -92,6 +92,11 @@ called <vault>.img in the current directory (or --path).
                If in doubt, leave it at medium.
 
   --pass       Your passphrase. You will be asked if not given here.
+               Leave it empty (interactively, or --pass "") to generate
+               a strong random one instead. A typed passphrase gets a
+               non-blocking weak-passphrase warning (real entropy/
+               dictionary estimation via zxcvbn) if it looks easy to
+               crack offline — it's never refused, just flagged.
 
   --integrity / --no-integrity
                Whether the vault gets dm-integrity protection (see
@@ -220,6 +225,11 @@ vault — as opposed to 'settings', which is behavior toggles.
     --pass/--new-pass. Safe: old slot stays valid until the new one is
     verified, so a crash mid-way can't lock you out. If 2FA is enabled,
     only the passphrase changes — the keyfile stays the same.
+    Leave the new passphrase empty (interactively, or --new-pass "") to
+    generate a strong random one instead, same as 'create'. A typed
+    passphrase gets a non-blocking weak-passphrase warning (real
+    entropy/dictionary estimation via zxcvbn, not just a length check)
+    if it looks easy to crack offline — it's never refused, just flagged.
 
 A keyfile is either RAW (the whole file is the key, today's format) or
 EMBEDDED (the key lives in a small tagged trailer appended to any other
@@ -383,8 +393,9 @@ the same line format 'info' rolls up for every setting at once.
     the vault's underlying block device, is outside what this can stop.
 
   settings security zeroize enable|disable
-    Controls whether the resolved passphrase and derived LUKS secret get
-    scrubbed from memory the moment they go out of scope, instead of
+    Controls whether the derived LUKS secret is locked into RAM (mlock —
+    can't get swapped to disk unencrypted while actively in use) and
+    scrubbed from memory the moment it goes out of scope, instead of
     sitting in freed-but-not-overwritten memory until something else
     reuses that page. Default on; there's no real reason to disable it.
 

@@ -1,4 +1,4 @@
-// &desc: "`cas <vault> settings security zeroize enable|disable` — controls whether the resolved passphrase and derived LUKS secret get scrubbed from memory the moment they go out of scope. Default on; disabling has no legitimate use case but the toggle exists to match every other security feature's shape."
+// &desc: "`cas <vault> settings security zeroize enable|disable` — controls whether the derived LUKS secret is locked into RAM (mlock, can't be swapped to disk unencrypted while in use) and scrubbed from memory the moment it goes out of scope. Default on; disabling has no legitimate use case but the toggle exists to match every other security feature's shape."
 use crate::commands::settings::gate::gate_inner;
 use crate::commands::settings::registry::Feature;
 use crate::ctx::Ctx;
@@ -29,10 +29,10 @@ pub fn set(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>) -> Result<(
 
     if enable {
         logf!(ctx, "[✓] zeroize enabled for '{}'", vault.name);
-        logf!(ctx, "    the passphrase and derived key are scrubbed from memory as soon as they go out of scope");
+        logf!(ctx, "    the derived key is locked into RAM (can't be swapped to disk) while in use, and scrubbed from memory as soon as it goes out of scope");
     } else {
         logf!(ctx, "[✓] zeroize disabled for '{}'", vault.name);
-        logf!(ctx, "    the passphrase and derived key are left in freed memory until something else reuses it");
+        logf!(ctx, "    the derived key is left unlocked and in freed memory until something else reuses it");
     }
     Ok(())
 }
