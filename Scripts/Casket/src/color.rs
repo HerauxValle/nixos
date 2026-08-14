@@ -78,6 +78,7 @@ fn auto_line(line: &str) -> String {
         ("[x]", err as fn(&str) -> String),
         ("[!]", warn as fn(&str) -> String),
         ("[i]", info as fn(&str) -> String),
+        ("[cas]", info as fn(&str) -> String),
         ("WARNING:", warn as fn(&str) -> String),
     ] {
         // Only a marker that's the first non-space thing on the line
@@ -87,6 +88,23 @@ fn auto_line(line: &str) -> String {
                 let (lead, rest) = line.split_at(idx);
                 let rest = &rest[marker.len()..];
                 return format!("{lead}{}{rest}", paint_fn(marker));
+            }
+        }
+    }
+
+    // A leading "[n/m]" step marker, e.g. luks.rs's "  [1/3] writing new
+    // key to slot ...". Short digit/slash brackets only, so this never
+    // catches an already-colored "[section]" header (those arrive with
+    // an ANSI escape before the bracket, not the bracket itself first).
+    let trimmed_start = line.trim_start();
+    if let Some(rest) = trimmed_start.strip_prefix('[') {
+        if let Some(close) = rest.find(']') {
+            let inner = &rest[..close];
+            if !inner.is_empty() && inner.len() <= 6 && inner.chars().all(|c| c.is_ascii_digit() || c == '/') {
+                let indent = &line[..line.len() - trimmed_start.len()];
+                let marker = &trimmed_start[..close + 2];
+                let after = &trimmed_start[close + 2..];
+                return format!("{indent}{}{after}", info(marker));
             }
         }
     }

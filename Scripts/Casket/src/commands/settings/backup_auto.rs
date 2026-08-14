@@ -42,7 +42,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
             let width = registry::column_width(&["backupAuto", "keep"]);
             logf!(ctx, "{}", registry::line("backupAuto", is_enabled(&meta), width));
             if is_enabled(&meta) {
-                logf!(ctx, "  {}", registry::kv_line("keep", &meta.backup_auto_keep_or(3).to_string(), width));
+                logf!(ctx, "  {}", registry::kv_line("keep", &meta.backup_auto_keep_or(3).to_string(), width.saturating_sub(2)));
             }
             Ok(())
         }

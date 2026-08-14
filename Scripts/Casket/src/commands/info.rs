@@ -58,7 +58,10 @@ pub fn run(ctx: &Ctx, vault: &Vault) -> Result<()> {
     }
     logf!(ctx, "{}", registry::line("backupAuto", backup_auto::is_enabled(&meta), width));
     if backup_auto::is_enabled(&meta) {
-        logf!(ctx, "  {}", registry::kv_line("keep", &meta.backup_auto_keep_or(3).to_string(), width));
+        // Extra "  " here nests `keep` visually under backupAuto, so the
+        // name field is 2 narrower than everyone else's to keep the
+        // value column lined up with the rest of the output.
+        logf!(ctx, "  {}", registry::kv_line("keep", &meta.backup_auto_keep_or(3).to_string(), width.saturating_sub(2)));
     }
 
     logf!(ctx, "{}", registry::section("security"));

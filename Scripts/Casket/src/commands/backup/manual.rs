@@ -58,7 +58,8 @@ pub fn list(ctx: &Ctx, vault: &Vault) -> Result<()> {
     }
     if !auto.is_empty() {
         let keep = meta.backup_auto_keep_or(3);
-        let status = if meta.backup_auto == Some(true) { "enabled" } else { "disabled" };
+        let is_enabled = meta.backup_auto == Some(true);
+        let status = crate::color::state(is_enabled, if is_enabled { "enabled" } else { "disabled" });
         logf!(ctx, "  auto-backups [{status}, keep={keep}] (newest first):");
         for s in &auto {
             let name = s.file_name().unwrap_or_default().to_string_lossy().into_owned();

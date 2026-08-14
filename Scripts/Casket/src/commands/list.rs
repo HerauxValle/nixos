@@ -34,7 +34,7 @@ pub fn run(ctx: &Ctx, path_override: Option<&Path>) -> Result<()> {
             let size_mb = img.metadata()?.len() / (1024 * 1024);
             let twofa = if meta.keyfile.is_some() { "2fa" } else { "   " };
             let parent = img.parent().unwrap_or(Path::new(".")).to_string_lossy().into_owned();
-            found.push((stem, size_mb, "open  ", twofa, parent));
+            found.push((stem, size_mb, "open", twofa, parent));
         }
     }
 
@@ -65,7 +65,7 @@ pub fn run(ctx: &Ctx, path_override: Option<&Path>) -> Result<()> {
             let size_mb = img.metadata()?.len() / (1024 * 1024);
             let stem = img.file_stem().unwrap_or_default().to_string_lossy().into_owned();
             let mnt = img.with_extension("");
-            let state = if is_mountpoint(&mnt) { "open  " } else { "closed" };
+            let state = if is_mountpoint(&mnt) { "open" } else { "closed" };
             let twofa = if meta.keyfile.is_some() { "2fa" } else { "   " };
             let parent = img.parent().unwrap_or(Path::new(".")).to_string_lossy().into_owned();
             found.push((stem, size_mb, state, twofa, parent));
@@ -80,7 +80,14 @@ pub fn run(ctx: &Ctx, path_override: Option<&Path>) -> Result<()> {
     logf!(ctx, "\n  {:<20} {:>8}   {:<8}  {:3}  PATH", "NAME", "SIZE", "STATE", "");
     logf!(ctx, "  {}  {}   {}  {}  {}", "-".repeat(20), "-".repeat(8), "-".repeat(8), "-".repeat(3), "-".repeat(30));
     for (name, size_mb, state, twofa, path) in &found {
-        logf!(ctx, "  {name:<20} {size_mb:>7}M   {state:<8}  {twofa:<3}  {path}");
+        // Pad on the plain string first, then colorize — coloring
+        // before padding would count the ANSI escape bytes toward the
+        // field width and throw off the table's column alignment.
+        let state_padded = format!("{state:<8}");
+        let state_colored = crate::color::state(*state == "open", &state_padded);
+        let twofa_padded = format!("{twofa:<3}");
+        let twofa_colored = if *twofa == "2fa" { crate::color::state(true, &twofa_padded) } else { twofa_padded };
+        logf!(ctx, "  {name:<20} {size_mb:>7}M   {state_colored}  {twofa_colored}  {path}");
     }
     logf!(ctx);
     Ok(())
