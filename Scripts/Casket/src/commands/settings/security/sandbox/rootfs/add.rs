@@ -1,11 +1,11 @@
-// &desc: "`rootfs add <name> --preset <distro> [<version>]` -- live fetch+checksum+extract for a named rootfs environment. --tarball comes in the next slice alongside the rest of the CRUD surface."
+// &desc: "`rootfs add <name> --preset <distro> [<version>] | --tarball <path>` -- creates a named rootfs environment either via live fetch+checksum+extract (--preset) or extracting a local archive already validated with 'tar -tf' first (--tarball)."
 use std::fs;
 use std::io::Read;
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
 
-use crate::commands::settings::security::sandbox::rootfs::ensure_dir;
+use crate::commands::settings::security::sandbox::rootfs::{ensure_dir, RESERVED_NAMES};
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
@@ -14,8 +14,6 @@ use crate::proc;
 use crate::registry;
 use crate::udisks;
 use crate::vault::Vault;
-
-const RESERVED_NAMES: &[&str] = &["all", "default"];
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
     let Some(name) = extra.first() else {
@@ -38,8 +36,46 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
             let version = extra.get(3).cloned();
             add_preset(ctx, &env_dir, name, distro, version.as_deref())
         }
-        _ => die!("usage: cas <vault> settings security sandbox rootfs add <name> --preset <distro> [<version>] (--tarball not implemented yet)"),
+        Some("--tarball") => {
+            let Some(path) = extra.get(2) else {
+                die!("usage: cas <vault> settings security sandbox rootfs add <name> --tarball <path>");
+            };
+            add_tarball(ctx, &env_dir, name, Path::new(path))
+        }
+        _ => die!("usage: cas <vault> settings security sandbox rootfs add <name> --preset <distro> [<version>] | --tarball <path>"),
     }
+}
+
+fn add_tarball(ctx: &Ctx, env_dir: &Path, name: &str, tarball: &Path) -> Result<()> {
+    if !tarball.is_file() {
+        die!("'{}' isn't a file", tarball.display());
+    }
+    // Dry-run the archive before touching the filesystem -- catches a
+    // truncated download or wrong file before extraction starts, same
+    // reasoning as the --preset path's checksum check running before
+    // extraction.
+    let check = proc::capture("tar", &["-tf", &tarball.to_string_lossy()]);
+    if !check.status.success() {
+        die!("'{}' doesn't look like a valid tar archive", tarball.display());
+    }
+
+    let base_dir = env_dir.join("base");
+    let upper_dir = env_dir.join("upper");
+    fs::create_dir_all(&base_dir)?;
+    fs::create_dir_all(&upper_dir)?;
+
+    if let Err(e) = proc::run("tar", &["-xf", &tarball.to_string_lossy(), "-C", &base_dir.to_string_lossy()]) {
+        let _ = fs::remove_dir_all(env_dir);
+        return Err(e);
+    }
+
+    let (uid, gid) = udisks::real_user_ids();
+    proc::run("chown", &["-R", &format!("{uid}:{gid}"), &env_dir.to_string_lossy()])?;
+
+    fs::write(env_dir.join(".casket-source"), r#"{"kind":"tarball"}"#)?;
+
+    logf!(ctx, "[✓] rootfs environment '{name}' created from {}", tarball.display());
+    Ok(())
 }
 
 /// Resolves what to actually download: an explicit version always uses

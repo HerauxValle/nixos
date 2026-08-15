@@ -39,11 +39,20 @@ pub fn ask_secret(ctx: &Ctx, prompt: &str) -> Result<String> {
 /// Skipped (auto-confirmed) under --no-log or --no-confirm, matching the
 /// original's `QUIET or NO_CONFIRM` shortcut.
 pub fn confirm_name(ctx: &Ctx, expected: &str, warning: &str) -> Result<bool> {
+    confirm_named(ctx, expected, "vault", warning)
+}
+
+/// Same as `confirm_name`, but for confirming something other than the
+/// vault itself (e.g. a rootfs environment's name) -- `noun` fills in
+/// what the prompt says is being confirmed, so typing the wrong thing
+/// (or the vault's name by habit, when an environment's name was
+/// wanted) doesn't silently pass.
+pub fn confirm_named(ctx: &Ctx, expected: &str, noun: &str, warning: &str) -> Result<bool> {
     if ctx.quiet || ctx.no_confirm {
         return Ok(true);
     }
     logf!(ctx, "  [!] {warning}");
-    let typed = ask(ctx, &format!("  Type the vault name '{expected}' to confirm"), None)?;
+    let typed = ask(ctx, &format!("  Type the {noun} name '{expected}' to confirm"), None)?;
     Ok(typed == expected)
 }
 
