@@ -1,4 +1,5 @@
 // &desc: "`cas <vault> settings security sandbox enable|disable|state` -- top dispatch for the sandbox feature (Linux namespace isolation for `cas <vault> exec`). Not a plain enable/disable Feature -- namespaces/cgroups/seccomp/rootfs sub-nouns are dispatched from here too, each in its own file, same 'special-cased in settings/mod.rs' shape bruteforceLockout/fileIntegrity already use."
+use crate::commands::exec::lockfile;
 use crate::commands::settings::gate::gate_inner;
 use crate::commands::settings::registry;
 use crate::ctx::Ctx;
@@ -39,6 +40,9 @@ fn enable(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
 }
 
 fn disable(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
+    if vault.is_mount() && lockfile::is_live(vault) {
+        die!("'{}' has a live 'cas exec' session -- wait for it to exit before disabling sandbox", vault.name);
+    }
     let verified = gate_inner(ctx, vault, "sandbox", pw)?;
     let mut meta = Meta::read(&vault.img);
     meta.sandbox_enabled = None;

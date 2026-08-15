@@ -1,4 +1,6 @@
-// &desc: "`cas <vault> exec [--rootfs <name>] [-- <cmd>...]` -- drops a shell (or runs one command) inside the sandbox namespaces isolate the vault's own mount as the new root. CLI wiring only; the actual syscall sequence lives in src/sandbox/, which knows nothing about vaults or the CLI. --rootfs is parsed but rejected until named rootfs environments exist (later slice)."
+// &desc: "`cas <vault> exec [--rootfs <name>] [-- <cmd>...]` -- drops a shell (or runs one command) inside the sandbox namespaces isolate the vault's own mount as the new root, holding a liveness lock (lockfile.rs) for the session's duration. CLI wiring only; the actual syscall sequence lives in src/sandbox/, which knows nothing about vaults or the CLI. --rootfs is parsed but rejected until named rootfs environments exist (later slice)."
+pub mod lockfile;
+
 use crate::commands::settings::gate::gate_inner;
 use crate::commands::settings::security::sandbox::{is_enabled, namespaces};
 use crate::ctx::Ctx;
@@ -47,8 +49,15 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
 
     debugf!(ctx, "exec: namespaces={active_namespaces:?}, argv={argv:?}, new_root={}", vault.mnt.display());
     let old_root_relative = std::path::Path::new(".casket").join("oldroot");
-    let code = sandbox::run(&vault.mnt, &old_root_relative, &flags, &argv, ctx.debug)
-        .map_err(|e| crate::error::CasError::new(format!("exec failed: {e}")))?;
 
+    // Held for the duration of the sandboxed session so `close`/
+    // `sandbox disable` can refuse while it's live -- explicitly
+    // dropped (not just left to go out of scope) because
+    // std::process::exit below skips destructors entirely.
+    let lock = lockfile::acquire(vault)?;
+    let result = sandbox::run(&vault.mnt, &old_root_relative, &flags, &argv, ctx.debug);
+    drop(lock);
+
+    let code = result.map_err(|e| crate::error::CasError::new(format!("exec failed: {e}")))?;
     std::process::exit(code);
 }

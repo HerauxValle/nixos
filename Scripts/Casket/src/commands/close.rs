@@ -1,10 +1,15 @@
-// &desc: "`cas <vault> close` — unmount and lock the vault. --force also tears down a stuck/orphaned mapper that's neither mounted nor cleanly closeable."
+// &desc: "`cas <vault> close` — unmount and lock the vault. --force also tears down a stuck/orphaned mapper that's neither mounted nor cleanly closeable. Refuses while a `cas exec` session is live (see commands::exec::lockfile) -- unmounting out from under a running sandboxed process is exactly the kind of thing that should never happen silently."
+use crate::commands::exec::lockfile;
 use crate::ctx::Ctx;
+use crate::die;
 use crate::error::Result;
 use crate::logf;
 use crate::vault::Vault;
 
 pub fn run(ctx: &Ctx, vault: &Vault, force: bool) -> Result<()> {
+    if vault.is_mount() && lockfile::is_live(vault) {
+        die!("'{}' has a live 'cas exec' session -- wait for it to exit before closing", vault.name);
+    }
     if !vault.is_mount() {
         // Without --force this is the common, harmless case (already
         // closed) and it's not worth checking further. With --force,
