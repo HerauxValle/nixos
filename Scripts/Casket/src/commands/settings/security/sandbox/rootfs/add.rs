@@ -1,4 +1,4 @@
-// &desc: "`rootfs add <name> --preset <distro> [<version>] | --tarball <path>` -- creates a named rootfs environment either via live fetch+checksum+extract (--preset) or extracting a local archive already validated with 'tar -tf' first (--tarball)."
+// &desc: "`rootfs add <name> --preset <distro> [<version>] | --tarball <path>` -- creates a named rootfs environment either via live fetch+checksum+extract (--preset) or extracting a local archive already validated with 'tar -tf' first (--tarball). The actual fetch/extract logic (fetch_preset_into/extract_tarball_into) is reused by update.rs, which replaces just base/ without touching upper/ or re-creating the environment."
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -27,6 +27,8 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
     if env_dir.exists() {
         die!("rootfs environment '{name}' already exists -- 'rootfs remove {name}' first if you want to redo it");
     }
+    let base_dir = env_dir.join("base");
+    let upper_dir = env_dir.join("upper");
 
     match extra.get(1).map(String::as_str) {
         Some("--preset") => {
@@ -34,48 +36,58 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
                 die!("usage: cas <vault> settings security sandbox rootfs add <name> --preset <distro> [<version>]");
             };
             let version = extra.get(3).cloned();
-            add_preset(ctx, &env_dir, name, distro, version.as_deref())
+            fs::create_dir_all(&base_dir)?;
+            fs::create_dir_all(&upper_dir)?;
+            let result = fetch_preset_into(ctx, &base_dir, distro, version.as_deref());
+            finish(ctx, &env_dir, name, result, |v| format!(r#"{{"kind":"preset","preset":"{distro}","version":"{v}"}}"#))
         }
         Some("--tarball") => {
             let Some(path) = extra.get(2) else {
                 die!("usage: cas <vault> settings security sandbox rootfs add <name> --tarball <path>");
             };
-            add_tarball(ctx, &env_dir, name, Path::new(path))
+            fs::create_dir_all(&base_dir)?;
+            fs::create_dir_all(&upper_dir)?;
+            let result = extract_tarball_into(&base_dir, Path::new(path)).map(|()| path.clone());
+            finish(ctx, &env_dir, name, result, |_| r#"{"kind":"tarball"}"#.to_string())
         }
         _ => die!("usage: cas <vault> settings security sandbox rootfs add <name> --preset <distro> [<version>] | --tarball <path>"),
     }
 }
 
-fn add_tarball(ctx: &Ctx, env_dir: &Path, name: &str, tarball: &Path) -> Result<()> {
+/// Common cleanup-on-failure + chown + `.casket-source` write + success
+/// message shared by both add paths. `label` is the resolved version
+/// (preset) or the tarball path (tarball) -- whatever `finish` should
+/// report and hand to `source_json`.
+fn finish(ctx: &Ctx, env_dir: &Path, name: &str, result: Result<String>, source_json: impl FnOnce(&str) -> String) -> Result<()> {
+    let label = match result {
+        Ok(label) => label,
+        Err(e) => {
+            let _ = fs::remove_dir_all(env_dir);
+            return Err(e);
+        }
+    };
+
+    let (uid, gid) = udisks::real_user_ids();
+    proc::run("chown", &["-R", &format!("{uid}:{gid}"), &env_dir.to_string_lossy()])?;
+    fs::write(env_dir.join(".casket-source"), source_json(&label))?;
+
+    logf!(ctx, "[✓] rootfs environment '{name}' created ({label})");
+    Ok(())
+}
+
+/// Validates `tarball` (`tar -tf`, before touching the filesystem) and
+/// extracts it into `base_dir`. Used by both `add --tarball` (fresh
+/// `base_dir`) and `update --tarball` (`base_dir` wiped first by the
+/// caller).
+pub fn extract_tarball_into(base_dir: &Path, tarball: &Path) -> Result<()> {
     if !tarball.is_file() {
         die!("'{}' isn't a file", tarball.display());
     }
-    // Dry-run the archive before touching the filesystem -- catches a
-    // truncated download or wrong file before extraction starts, same
-    // reasoning as the --preset path's checksum check running before
-    // extraction.
     let check = proc::capture("tar", &["-tf", &tarball.to_string_lossy()]);
     if !check.status.success() {
         die!("'{}' doesn't look like a valid tar archive", tarball.display());
     }
-
-    let base_dir = env_dir.join("base");
-    let upper_dir = env_dir.join("upper");
-    fs::create_dir_all(&base_dir)?;
-    fs::create_dir_all(&upper_dir)?;
-
-    if let Err(e) = proc::run("tar", &["-xf", &tarball.to_string_lossy(), "-C", &base_dir.to_string_lossy()]) {
-        let _ = fs::remove_dir_all(env_dir);
-        return Err(e);
-    }
-
-    let (uid, gid) = udisks::real_user_ids();
-    proc::run("chown", &["-R", &format!("{uid}:{gid}"), &env_dir.to_string_lossy()])?;
-
-    fs::write(env_dir.join(".casket-source"), r#"{"kind":"tarball"}"#)?;
-
-    logf!(ctx, "[✓] rootfs environment '{name}' created from {}", tarball.display());
-    Ok(())
+    proc::run("tar", &["-xf", &tarball.to_string_lossy(), "-C", &base_dir.to_string_lossy()])
 }
 
 /// Resolves what to actually download: an explicit version always uses
@@ -116,7 +128,12 @@ fn resolve(entry: &registry::rootfs::Entry, distro: &str, version: Option<&str>)
     die!("'latest' isn't available for '{distro}' yet -- specify a version explicitly: rootfs add <name> --preset {distro} <version>");
 }
 
-fn add_preset(ctx: &Ctx, env_dir: &Path, name: &str, distro: &str, version: Option<&str>) -> Result<()> {
+/// Fetches, checksum-verifies, and extracts a preset tarball into
+/// `base_dir`. Returns the resolved version label on success. Used by
+/// both `add --preset` (fresh `base_dir`) and `update` (`base_dir`
+/// wiped first by the caller) -- never touches `upper_dir` or writes
+/// `.casket-source` itself, that's the caller's job.
+pub fn fetch_preset_into(ctx: &Ctx, base_dir: &Path, distro: &str, version: Option<&str>) -> Result<String> {
     let entry = registry::rootfs::entry(distro)?;
     let resolved = resolve(&entry, distro, version)?;
 
@@ -145,25 +162,13 @@ fn add_preset(ctx: &Ctx, env_dir: &Path, name: &str, distro: &str, version: Opti
         None => logf!(ctx, "  [!] no official checksum available for '{distro}' -- downloaded tarball is unverified"),
     }
 
-    let base_dir = env_dir.join("base");
-    let upper_dir = env_dir.join("upper");
-    fs::create_dir_all(&base_dir)?;
-    fs::create_dir_all(&upper_dir)?;
-
-    let tmp_tarball = env_dir.join(".download.tmp");
+    let tmp_tarball = base_dir.join("..").join(".download.tmp");
     fs::write(&tmp_tarball, &bytes)?;
     let extract_result = proc::run("tar", &["-xf", &tmp_tarball.to_string_lossy(), "-C", &base_dir.to_string_lossy()]);
     let _ = fs::remove_file(&tmp_tarball);
     extract_result?;
 
-    let (uid, gid) = udisks::real_user_ids();
-    proc::run("chown", &["-R", &format!("{uid}:{gid}"), &env_dir.to_string_lossy()])?;
-
-    let source = format!(r#"{{"kind":"preset","preset":"{distro}","version":"{}"}}"#, resolved.version_label);
-    fs::write(env_dir.join(".casket-source"), source)?;
-
-    logf!(ctx, "[✓] rootfs environment '{name}' created from {distro} ({})", resolved.version_label);
-    Ok(())
+    Ok(resolved.version_label)
 }
 
 fn fetch(url: &str) -> Result<Vec<u8>> {

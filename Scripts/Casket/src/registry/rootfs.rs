@@ -82,10 +82,19 @@ pub fn resolve_latest_index_url(entry: &Entry, arch: &str) -> Option<String> {
     entry.latest_index_url.as_ref().map(|t| substitute(t, arch, None))
 }
 
+/// A leading `/` in `checksum_suffix` means "directory-relative manifest"
+/// (Ubuntu's `/SHA256SUMS` -- one file listing every artifact in the
+/// release directory); anything else means "per-file companion,
+/// appended directly to the full tarball URL" (Alpine/Debian's
+/// `.sha256`, e.g. `...alpine-minirootfs-3.20.3-x86_64.tar.gz.sha256`).
+/// Conflating these two (stripping to the directory unconditionally)
+/// silently pointed the per-file case at the wrong URL -- confirmed
+/// live when it fetched a 404.
 pub fn checksum_url(entry: &Entry, resolved_tarball_url: &str) -> Option<String> {
     entry.checksum_suffix.as_ref().map(|suffix| {
-        if let Some(dir) = resolved_tarball_url.rsplit_once('/') {
-            format!("{}{suffix}", dir.0)
+        if let Some(rest) = suffix.strip_prefix('/') {
+            let dir = resolved_tarball_url.rsplit_once('/').map(|(d, _)| d).unwrap_or(resolved_tarball_url);
+            format!("{dir}/{rest}")
         } else {
             format!("{resolved_tarball_url}{suffix}")
         }

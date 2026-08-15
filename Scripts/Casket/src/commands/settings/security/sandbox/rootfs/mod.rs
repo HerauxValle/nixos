@@ -6,6 +6,7 @@ mod add;
 mod default;
 mod remove;
 mod rename;
+mod update;
 
 use crate::btrfs;
 use crate::ctx::Ctx;
@@ -73,10 +74,11 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], _pw: Option<&str>) -
     match extra.first().map(String::as_str) {
         Some("list") | None => list(ctx, vault),
         Some("add") => add::dispatch(ctx, vault, &extra[1..]),
+        Some("update") => update::dispatch(ctx, vault, &extra[1..]),
         Some("remove") => remove::dispatch(ctx, vault, &extra[1..]),
         Some("rename") => rename::dispatch(ctx, vault, &extra[1..]),
         Some("default") => default::dispatch(ctx, vault, &extra[1..]),
-        _ => die!("usage: cas <vault> settings security sandbox rootfs list|add|remove|rename|default ..."),
+        _ => die!("usage: cas <vault> settings security sandbox rootfs list|add|update|remove|rename|default ..."),
     }
 }
 
