@@ -9,7 +9,7 @@ use crate::meta::Meta;
 use crate::prompt;
 use crate::vault::Vault;
 
-use super::{list_sorted, snap_root};
+use super::{list_sorted, snap_root, snapshot_included_rootfs};
 
 fn require_open(vault: &Vault) -> Result<()> {
     if !vault.img.exists() {
@@ -23,6 +23,7 @@ fn require_open(vault: &Vault) -> Result<()> {
 
 pub fn create(ctx: &Ctx, vault: &Vault, snap_name: &str) -> Result<()> {
     require_open(vault)?;
+    super::ensure_casket_subvolume(vault)?;
     let root = snap_root(&vault.mnt);
     if !root.exists() {
         std::fs::create_dir_all(&root)?;
@@ -31,8 +32,14 @@ pub fn create(ctx: &Ctx, vault: &Vault, snap_name: &str) -> Result<()> {
     if dest.exists() {
         die!("snapshot '{snap_name}' already exists — pick a different name");
     }
-    btrfs::snapshot(&vault.mnt, &dest, true)?;
-    ransomware_protection::apply_ownership(&vault.casket_dir(), &Meta::read(&vault.img))?;
+    // Writable first -- see backup::maybe_auto_backup's identical
+    // comment: included rootfs copies need to write into `dest` before
+    // it's flipped read-only.
+    btrfs::snapshot(&vault.mnt, &dest, false)?;
+    let meta = Meta::read(&vault.img);
+    snapshot_included_rootfs(ctx, vault, &meta, &dest);
+    btrfs::set_readonly(&dest, true)?;
+    ransomware_protection::apply_ownership(&vault.casket_dir(), &meta)?;
     logf!(ctx, "[✓] snapshot '{snap_name}' created inside vault");
     Ok(())
 }
