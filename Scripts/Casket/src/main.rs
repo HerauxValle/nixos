@@ -15,6 +15,7 @@ mod migrate;
 mod migrations;
 mod proc;
 mod prompt;
+mod sandbox;
 mod secret;
 mod size;
 mod tamper;

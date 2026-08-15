@@ -35,6 +35,12 @@ impl From<std::io::Error> for CasError {
     }
 }
 
+impl From<std::ffi::NulError> for CasError {
+    fn from(e: std::ffi::NulError) -> Self {
+        CasError::Msg(e.to_string())
+    }
+}
+
 impl From<serde_json::Error> for CasError {
     fn from(e: serde_json::Error) -> Self {
         CasError::Msg(e.to_string())

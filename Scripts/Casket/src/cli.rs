@@ -47,6 +47,7 @@ pub fn run() -> Result<()> {
     let mut ctx = Ctx::default();
     ctx.quiet = pop_flag(&mut args, "--no-log");
     ctx.no_confirm = pop_flag(&mut args, "--no-confirm");
+    ctx.debug = pop_flag(&mut args, "--debug");
 
     if args.is_empty() || args[0] == "-h" || args[0] == "--help" {
         help::show(&ctx, None);

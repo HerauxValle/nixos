@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn copy_then_verify_then_resume_skips_and_detects_tamper() {
-        let ctx = Ctx { quiet: true, no_confirm: false };
+        let ctx = Ctx { quiet: true, no_confirm: false, debug: false };
         let tmp = std::env::temp_dir().join(format!("cas-migrate-test-{}", std::process::id()));
         let src = tmp.join("src");
         let dst = tmp.join("dst");

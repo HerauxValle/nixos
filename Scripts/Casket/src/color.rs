@@ -63,6 +63,10 @@ pub fn value(s: &str) -> String {
     paint("33", s) // yellow -- a plain data value with no enabled/disabled semantics
 }
 
+pub fn debug(s: &str) -> String {
+    paint("2;35", s) // dim magenta -- [debug] lines, visually distinct from [i]'s cyan
+}
+
 /// Colors every line of `text` independently -- the single hook every
 /// `logf!` call runs through via `Ctx::log`, so the ~70 existing
 /// `[✓]`/`[x]`/`[!]`/`[i]`/`WARNING:` call sites across the codebase,
@@ -79,6 +83,7 @@ fn auto_line(line: &str) -> String {
         ("[!]", warn as fn(&str) -> String),
         ("[i]", info as fn(&str) -> String),
         ("[cas]", info as fn(&str) -> String),
+        ("[debug]", debug as fn(&str) -> String),
         ("WARNING:", warn as fn(&str) -> String),
     ] {
         // Only a marker that's the first non-space thing on the line
