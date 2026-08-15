@@ -1,4 +1,4 @@
-// &desc: "Tamper-evidence for the fields that actually gate a protection (ransomwareProtection, verify_required, zeroize, bruteforceLockout, fileIntegrity) -- an HMAC-SHA256 over just those fields, keyed by the vault's own derived LUKS secret. Verifiable only when the secret is known (open, or any --pass-bearing command), by design: a check that worked without the secret would also let an attacker forge a matching tag without it."
+// &desc: "Tamper-evidence for the fields that actually gate a protection (ransomwareProtection, verify_required, zeroize, bruteforceLockout, fileIntegrity, sandbox_enabled/namespaces/seccomp) -- an HMAC-SHA256 over just those fields, keyed by the vault's own derived LUKS secret. Verifiable only when the secret is known (open, or any --pass-bearing command), by design: a check that worked without the secret would also let an attacker forge a matching tag without it."
 use hmac::{Hmac, Mac};
 use serde::Serialize;
 use sha2::Sha256;
@@ -14,6 +14,10 @@ struct Protected<'a> {
     zeroize: &'a Option<bool>,
     bruteforce_lockout: &'a Option<bool>,
     file_integrity: &'a Option<bool>,
+    sandbox_enabled: &'a Option<bool>,
+    sandbox_namespaces: &'a Option<Vec<String>>,
+    sandbox_seccomp: &'a Option<std::collections::BTreeMap<String, String>>,
+    sandbox_seccomp_custom_hash: &'a Option<std::collections::BTreeMap<String, String>>,
 }
 
 /// Canonical bytes for just the protected fields — deterministic key
@@ -26,6 +30,10 @@ fn protected_json(meta: &Meta) -> Vec<u8> {
         zeroize: &meta.zeroize,
         bruteforce_lockout: &meta.bruteforce_lockout,
         file_integrity: &meta.file_integrity,
+        sandbox_enabled: &meta.sandbox_enabled,
+        sandbox_namespaces: &meta.sandbox_namespaces,
+        sandbox_seccomp: &meta.sandbox_seccomp,
+        sandbox_seccomp_custom_hash: &meta.sandbox_seccomp_custom_hash,
     };
     serde_json::to_vec(&p).unwrap_or_default()
 }
@@ -102,6 +110,24 @@ pub fn reset_to_safe(img: &std::path::Path, meta: &mut Meta) {
     meta.zeroize = Some(true);
     meta.bruteforce_lockout = Some(false);
     meta.file_integrity = Some(crate::luks::has_integrity(img));
+    // sandbox: forcing *on* has no destructive side effect (unlike
+    // bruteforceLockout), so it follows the majority "more protective"
+    // rule. Namespaces reset to the full set (every namespace isolated,
+    // including `net` — the opposite of the offline-by-default install
+    // default, but the *safe* direction under tampering is maximum
+    // isolation, not the friendliest default). Existing seccomp entries
+    // reset to "strict", never "none" — same reasoning as bruteforce's
+    // exception, just in the opposite direction: there's no destructive
+    // side effect to strict, so majority rule applies here too. Custom
+    // hashes aren't reset — they're an integrity marker, not a
+    // protection strength value.
+    meta.sandbox_enabled = Some(true);
+    meta.sandbox_namespaces = Some(vec!["mount".into(), "pid".into(), "uts".into(), "ipc".into(), "user".into(), "net".into()]);
+    if let Some(seccomp) = meta.sandbox_seccomp.as_mut() {
+        for preset in seccomp.values_mut() {
+            *preset = "strict".to_string();
+        }
+    }
     let mut all_required = std::collections::BTreeMap::new();
     for f in crate::commands::settings::gate::GATED_FEATURES {
         all_required.insert(f.to_string(), true);

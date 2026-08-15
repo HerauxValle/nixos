@@ -57,6 +57,45 @@ pub struct Meta {
     /// other way (it reflects the actual on-disk container format).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_integrity: Option<bool>,
+    /// Whether `cas <vault> exec` is permitted at all — see
+    /// `commands::settings::security::sandbox`. `namespaces`/`cgroups`/
+    /// `seccomp`/`rootfs` sub-settings are only meaningful once this is on.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_enabled: Option<bool>,
+    /// Active Linux namespaces for `exec` (`mount`/`pid`/`uts`/`ipc`/
+    /// `user`/`net`). `user` is always included regardless of this list —
+    /// see `sandbox::namespaces`. `None` means the built-in default
+    /// (everything except `net`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_namespaces: Option<Vec<String>>,
+    /// Per-rootfs-environment seccomp preset name (`default`/`strict`/
+    /// `none`/`compute`/`custom`), keyed by rootfs name — or `"_root"`
+    /// for the no-named-rootfs fallback case `exec` uses when
+    /// `.rootfs.d/` has zero entries.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_seccomp: Option<BTreeMap<String, String>>,
+    /// SHA-256 (hex) of each rootfs's `.casket-seccomp` custom allowlist
+    /// file at the time it was last saved via `seccomp edit custom` —
+    /// detects the file being edited outside that verified path. Keyed
+    /// the same way as `sandbox_seccomp`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_seccomp_custom_hash: Option<BTreeMap<String, String>>,
+    /// Cgroup resource limits for `exec` sessions — memory (e.g.
+    /// `"512M"`), CPU percent, max PIDs. Not tamper-HMAC-covered:
+    /// resource limits, not an attacker-facing protection toggle (same
+    /// category as `backup_auto`/`backup_auto_keep`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_cgroup_mem: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_cgroup_cpu: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_cgroup_pids: Option<u32>,
+    /// Rootfs environment names additionally snapshotted by `backup
+    /// create`/`backupAuto`, on top of the vault's own top-level
+    /// content. `.casket/` is never includable — no field for it exists.
+    /// Default (absent/empty) = none included.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_backup_rootfs: Option<Vec<String>>,
 }
 
 /// Find the trailer on an open handle. Returns `(payload_start_offset,
