@@ -15,7 +15,7 @@ use crate::vault::Vault;
 /// plus `keyfileReset`, which is irreversible (old key material is gone
 /// the moment the new slot verifies) and therefore deserves the same bar.
 pub const GATED_FEATURES: &[&str] =
-    &["ransomwareProtection", "backupAuto", "verification", "keyfileReset", "bruteforceLockout", "fileIntegrity"];
+    &["ransomwareProtection", "backupAuto", "verification", "keyfileReset", "bruteforceLockout", "fileIntegrity", "sandbox"];
 
 fn default_requires_verification(feature: &str) -> bool {
     GATED_FEATURES.contains(&feature)

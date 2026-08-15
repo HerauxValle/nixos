@@ -30,6 +30,9 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
             if feature == "fileIntegrity" {
                 return security::file_integrity::dispatch(ctx, vault, &extra[2..], pw);
             }
+            if feature == "sandbox" {
+                return security::sandbox::dispatch(ctx, vault, &extra[2..], pw);
+            }
             if extra.get(2).map(String::as_str) == Some("state") {
                 return registry::state(security::FEATURES, feature, ctx, vault);
             }

@@ -62,7 +62,7 @@ fn check_lockout(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &mut Meta) -> Re
 /// feature existed) with no way back in.
 fn check_tamper(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &mut Meta) {
     if tamper::verify(secret, meta) == tamper::Status::Tampered {
-        logf!(ctx, "  [!] '{}' metadata failed its tamper check — ransomwareProtection/verify_required/zeroize/bruteforceLockout/fileIntegrity don't match what was last written with a verified passphrase", vault.name);
+        logf!(ctx, "  [!] '{}' metadata failed its tamper check — one or more protected settings don't match what was last written with a verified passphrase", vault.name);
         logf!(ctx, "      resetting those settings to their safe values; review with 'cas {} info' and adjust as needed", vault.name);
         tamper::reset_to_safe(&vault.img, meta);
         // The reset values are freshly-verified-legitimate the moment

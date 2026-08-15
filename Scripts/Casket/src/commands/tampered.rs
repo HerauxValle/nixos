@@ -1,4 +1,4 @@
-// &desc: "`cas <vault> tampered [--pass ...]` — on-demand tamper check: resolves and cryptographically verifies the real passphrase, then reports whether ransomwareProtection/verify_required/zeroize/bruteforceLockout/fileIntegrity match the last passphrase-verified write. Always resolves a real passphrase (like auth passwd), since a check that could pass without one would also let an attacker forge a matching result without one."
+// &desc: "`cas <vault> tampered [--pass ...]` — on-demand tamper check: resolves and cryptographically verifies the real passphrase, then reports whether the tamper-protected fields (see tamper.rs's Protected struct) match the last passphrase-verified write. Always resolves a real passphrase (like auth passwd), since a check that could pass without one would also let an attacker forge a matching result without one."
 use crate::commands::settings::gate::gate_pw;
 use crate::ctx::Ctx;
 use crate::die;
@@ -34,7 +34,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     match tamper::verify(&secret, &meta) {
         tamper::Status::Healthy => logf!(ctx, "[✓] '{}' healthy — metadata matches the last verified write", vault.name),
         tamper::Status::Tampered => {
-            logf!(ctx, "[x] '{}' tampered — ransomwareProtection/verify_required/zeroize/bruteforceLockout/fileIntegrity don't match the last verified write", vault.name);
+            logf!(ctx, "[x] '{}' tampered — one or more protected settings don't match the last verified write", vault.name);
             logf!(ctx, "    run 'cas {} open' to reset those settings to their safe defaults, or review them yourself first", vault.name);
         }
         tamper::Status::Unprotected => logf!(ctx, "[i] '{}' has no tamper baseline yet — no verified write has happened since this feature existed", vault.name),
