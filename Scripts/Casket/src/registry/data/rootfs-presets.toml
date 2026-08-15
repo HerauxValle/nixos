@@ -1,16 +1,22 @@
-# &desc: "Rootfs distro preset registry for 'rootfs add --preset <distro> [<version>]' -- data, not code. No maintained 'latest version' or checksum table: latest_url is each distro's own stable 'always current' alias, followed live; checksum_suffix is appended to whichever tarball URL was actually resolved and fetched fresh from the distro's own site, never cached here. {arch} is substituted with the host architecture (x86_64/aarch64); {version}/{minor} only apply to pinned_url."
+# &desc: "Rootfs distro preset registry for 'rootfs add --preset <distro> [<version>]' -- data, not code. Every URL here is verified against the real endpoint, not assumed. latest_index_url (Alpine) is a machine-readable index that carries its own checksum, resolved+verified in one fetch; distros without a verified 'latest' mechanism omit both latest_index_url and latest_url, and 'add --preset <distro>' (no version) refuses rather than guess. arch_names overrides {arch} substitution per distro when their naming differs from Rust's std::env::consts::ARCH (e.g. Ubuntu/Debian call x86_64 'amd64')."
 
 [alpine]
-latest_url      = "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/{arch}/alpine-minirootfs-latest-{arch}.tar.gz"
-pinned_url      = "https://dl-cdn.alpinelinux.org/alpine/v{minor}/releases/{arch}/alpine-minirootfs-{version}-{arch}.tar.gz"
-checksum_suffix = ".sha256"
+# Alpine's own machine-readable release index -- includes file name,
+# version, and sha256 in one document, so no separate checksum fetch is
+# needed for the latest path. https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/{arch}/latest-releases.yaml
+latest_index_url = "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/{arch}/latest-releases.yaml"
+latest_index_flavor = "alpine-minirootfs"
+pinned_url        = "https://dl-cdn.alpinelinux.org/alpine/v{minor}/releases/{arch}/alpine-minirootfs-{version}-{arch}.tar.gz"
+checksum_suffix   = ".sha256"
 
 [ubuntu]
-latest_url      = "https://cloud-images.ubuntu.com/releases/current/release/ubuntu-current-server-cloudimg-{arch}-root.tar.xz"
-pinned_url      = "https://cloud-images.ubuntu.com/releases/{version}/release/ubuntu-{version}-server-cloudimg-{arch}-root.tar.xz"
-checksum_suffix = "/SHA256SUMS"
+pinned_url        = "https://cloud-images.ubuntu.com/releases/{version}/release/ubuntu-{version}-server-cloudimg-{arch}-root.tar.xz"
+checksum_suffix   = "/SHA256SUMS"
+arch_names.x86_64  = "amd64"
+arch_names.aarch64 = "arm64"
 
 [debian]
-latest_url      = "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-stable/{arch}/rootfs.tar.xz"
-pinned_url      = "https://github.com/debuerreotype/docker-debian-artifacts/raw/{version}/{arch}/rootfs.tar.xz"
-checksum_suffix = ".sha256"
+pinned_url        = "https://github.com/debuerreotype/docker-debian-artifacts/raw/{version}/{arch}/rootfs.tar.xz"
+checksum_suffix   = ".sha256"
+arch_names.x86_64  = "amd64"
+arch_names.aarch64 = "arm64"

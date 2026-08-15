@@ -64,6 +64,9 @@ per-action usage and examples.
 - `docs/usage.md` -- worked examples: first vault, 2FA on a USB drive,
   scripted use, routine snapshots.
 - `docs/porting-notes.md` -- what changed versus the original and why.
+- `docs/rootfs-registry.md` -- how `rootfs add --preset` resolves distro
+  tarballs (`src/registry/data/rootfs-presets.toml`), what's currently
+  supported, and how to add or fix a distro entry.
 - `glossar/glossary.md` -- LUKS/btrfs/udisks domain vocabulary used
   throughout the code and docs.
 

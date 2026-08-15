@@ -1,7 +1,7 @@
 # &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
 [package]
 name = "cas"
-version = "1.10.10"
+version = "1.10.11"
 edition = "2021"
 description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
 
@@ -99,3 +99,10 @@ libc = "0.2"
 # hand-edited; that's specifically what this crate buys over reusing
 # serde_json here.
 toml = "0.8"
+
+# ureq: blocking, sync HTTP client for `rootfs add --preset`'s tarball/
+# checksum fetches -- no async runtime anywhere else in this codebase,
+# so pulling in an async-first client (reqwest) would mean carrying
+# tokio just for two GET requests. ureq is the minimal fit for a
+# request/response shape this simple.
+ureq = "2"

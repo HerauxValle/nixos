@@ -1,6 +1,8 @@
 // &desc: "`cas <vault> settings security sandbox rootfs list|add|update|remove|rename|default` -- named rootfs environments for `exec --rootfs <name>`. `.rootfs.d/` is created lazily as a real btrfs subvolume the first time any rootfs subcommand runs, not by a migration -- most vaults never use this feature, so nothing about it should touch a vault that doesn't opt in."
 use std::fs;
 
+mod add;
+
 use crate::btrfs;
 use crate::ctx::Ctx;
 use crate::die;
@@ -27,7 +29,8 @@ pub fn ensure_dir(vault: &Vault) -> Result<std::path::PathBuf> {
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], _pw: Option<&str>) -> Result<()> {
     match extra.first().map(String::as_str) {
         Some("list") | None => list(ctx, vault),
-        _ => die!("usage: cas <vault> settings security sandbox rootfs list"),
+        Some("add") => add::dispatch(ctx, vault, &extra[1..]),
+        _ => die!("usage: cas <vault> settings security sandbox rootfs list|add ..."),
     }
 }
 
