@@ -5,6 +5,7 @@ pub mod close;
 pub mod close_all;
 pub mod create;
 pub mod delete;
+pub mod exec;
 pub mod info;
 pub mod list;
 pub mod open;

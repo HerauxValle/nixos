@@ -44,6 +44,12 @@ ACTIONS (run on a specific vault)
               settings verification <feature> enable|disable|state
               settings verification state   (all gated features at once)
 
+  exec      drop a shell (or run one command) sandboxed inside the
+            vault's own mount -- requires settings security sandbox
+            enable first:
+              exec                run $SHELL
+              exec -- <cmd> ...   run one command, no shell
+
 GLOBAL
   list          show all vaults found nearby
   all close     close every open vault on this machine
@@ -53,6 +59,7 @@ OPTIONS
   --pass "..."      passphrase (you will be prompted if not given)
   --keyfile path    path to keyfile (for open if 2FA vault)
   --no-log          suppress all output (for scripts)
+  --debug           print [debug]-prefixed internal step tracing
   --size MiB        vault size for create  (default: 1024 = 1 GiB)
   --strength level  encryption strength: light / medium / hard / extreme
   --path dir        look for vaults here instead of auto-searching
@@ -454,6 +461,26 @@ EXAMPLES
   cas myvault settings verification backupAuto disable --pass "..."
   cas myvault settings 2fa state
   cas myvault settings verification state
+"#,
+        "exec" => r#"
+cas <vault> exec [-- <cmd> ...]                                [--pass "..."]
+
+Drops a shell (or runs one command) sandboxed inside the vault's own
+mount, using Linux namespaces (mount/pid/uts/ipc/user, and net if
+enabled) plus pivot_root -- the sandboxed process can't see or touch
+anything outside the vault's contents. Requires the vault open and
+`settings security sandbox` enabled first.
+
+  exec                run $SHELL (or /bin/sh if $SHELL isn't set)
+  exec -- <cmd> ...   run exactly that command, no shell, then return
+
+Which namespaces are active is controlled by
+`settings security sandbox namespaces` -- see 'cas help settings'.
+
+EXAMPLES
+  cas myvault settings security sandbox enable --pass "..."
+  cas myvault exec
+  cas myvault exec -- ls -la
 "#,
         "list" => r#"
 cas list [--path dir]

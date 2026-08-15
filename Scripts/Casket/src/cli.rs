@@ -227,6 +227,11 @@ pub fn run() -> Result<()> {
             commands::settings::dispatch(&ctx, &vault, &extra, opts.pass.as_deref())
         }
 
+        "exec" => {
+            let vault = Vault::find(&vault_name, path_ref)?;
+            commands::exec::dispatch(&ctx, &vault, &extra, opts.pass.as_deref())
+        }
+
         "delete" => {
             let vault = Vault::find(&vault_name, path_ref)?;
             commands::delete::run(&ctx, &vault, remove_keyfile, shred)
