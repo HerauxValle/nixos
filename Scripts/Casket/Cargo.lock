@@ -64,7 +64,7 @@ checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
 
 [[package]]
 name = "cas"
-version = "1.10.4"
+version = "1.10.5"
 dependencies = [
  "base64",
  "filetime",

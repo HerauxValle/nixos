@@ -9,6 +9,8 @@ use crate::meta::Meta;
 use crate::tamper;
 use crate::vault::Vault;
 
+pub mod namespaces;
+
 pub fn is_enabled(meta: &Meta) -> bool {
     meta.sandbox_enabled == Some(true)
 }
@@ -18,7 +20,8 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
         Some("enable") => enable(ctx, vault, pw),
         Some("disable") => disable(ctx, vault, pw),
         Some("state") => state(ctx, vault),
-        _ => die!("usage: cas <vault> settings security sandbox enable|disable|state"),
+        Some("namespaces") => namespaces::dispatch(ctx, vault, &extra[1..], pw),
+        _ => die!("usage: cas <vault> settings security sandbox enable|disable|state|namespaces ..."),
     }
 }
 
