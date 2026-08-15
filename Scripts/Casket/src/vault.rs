@@ -75,6 +75,12 @@ impl Vault {
         self.mnt.join(crate::config::CASKET_DIR)
     }
 
+    /// `.rootfs.d/` at the mount root — see `config::ROOTFS_DIR`'s doc
+    /// comment for why it's a sibling of `.casket/`, not nested inside.
+    pub fn rootfs_dir(&self) -> PathBuf {
+        self.mnt.join(crate::config::ROOTFS_DIR)
+    }
+
     /// True if `mnt` is a mountpoint (its device differs from its
     /// parent's) — the same test `pathlib.Path.is_mount()` performs.
     pub fn is_mount(&self) -> bool {

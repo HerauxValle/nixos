@@ -15,6 +15,14 @@ pub const CASKET_DIR: &str = ".casket";
 pub const SNAP_DIR: &str = ".casket/snapshots";
 pub const AUTO_SNAP_PREFIX: &str = "auto-";
 
+/// Root of `cas exec`'s named rootfs environments — sibling to
+/// `.casket/`, not under it, deliberately: `.casket/`'s ransomware-
+/// protection lock (0700 root:root) would block path resolution into
+/// anything nested beneath it, and environments need to stay user-
+/// writable (installing packages, editing files) regardless of that
+/// setting. Hidden (leading dot) but not protection-locked.
+pub const ROOTFS_DIR: &str = ".rootfs.d";
+
 /// LUKS2 header overhead in MiB — kept as slack between the btrfs
 /// filesystem and the raw file size so cryptsetup and btrfs both stay
 /// well inside the container during a resize.
