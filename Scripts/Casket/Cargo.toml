@@ -1,7 +1,7 @@
 # &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
 [package]
 name = "cas"
-version = "1.10.9"
+version = "1.10.10"
 edition = "2021"
 description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
 
@@ -90,3 +90,12 @@ filetime = "0.2"
 # Python's preexec_fn fork-time callback (which upstream's own docs flag
 # as not signal-safe).
 libc = "0.2"
+
+# toml: the rootfs-distro and seccomp-preset registries are data, not
+# code -- flat, human-editable tables a person should be able to update
+# (a new Alpine "latest" alias, a new distro entry) without touching
+# Rust at all. serde_json (already a dependency) could parse the same
+# shape, but JSON has no comments and reads worse for a file meant to be
+# hand-edited; that's specifically what this crate buys over reusing
+# serde_json here.
+toml = "0.8"
