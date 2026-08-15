@@ -5,6 +5,7 @@ use crate::ctx::Ctx;
 use crate::vault::Vault;
 
 mod v1;
+mod v2;
 
 pub struct Step {
     /// The schema version this step produces. A vault at version N-1
@@ -21,7 +22,7 @@ pub struct Step {
 /// it below, and bump `version::CURRENT` to match. Leave whichever half
 /// of `Step` a version didn't touch as `None`. Entries don't need to be
 /// listed in order — `applicable_steps` sorts by `version` itself.
-const STEPS: &[Step] = &[v1::STEP];
+const STEPS: &[Step] = &[v1::STEP, v2::STEP];
 
 /// Every step needed to reach `version::CURRENT` from `from`, ascending.
 fn applicable_steps(from: u64) -> Vec<&'static Step> {

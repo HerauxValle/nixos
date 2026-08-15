@@ -1,4 +1,4 @@
-// &desc: "btrfs process wrappers: label/resize/used-space queries and subvolume snapshot/delete/show, plus local-time formatting for snapshot names and timestamps."
+// &desc: "btrfs process wrappers: label/resize/used-space queries and subvolume create/snapshot/delete/show, plus local-time formatting for snapshot names and timestamps."
 use std::path::Path;
 
 use crate::error::Result;
@@ -44,6 +44,39 @@ pub fn resize(mnt: &Path, target: &str) -> Result<()> {
 pub fn resize_silent(mnt: &Path, target: &str) {
     let mnt_s = mnt.to_string_lossy().into_owned();
     proc::run_silent("btrfs", &["filesystem", "resize", target, &mnt_s]);
+}
+
+/// `btrfs subvolume create <path>` — the parent directory must already
+/// exist; `path` itself must not.
+pub fn subvolume_create(path: &Path) -> Result<()> {
+    let s = path.to_string_lossy().into_owned();
+    proc::run("btrfs", &["subvolume", "create", &s])
+}
+
+/// Whether `path` is itself the root of a btrfs subvolume (not just a
+/// plain directory on a btrfs filesystem) — `btrfs subvolume show`
+/// fails on a plain directory, succeeds on a subvolume root.
+pub fn is_subvolume(path: &Path) -> bool {
+    let s = path.to_string_lossy().into_owned();
+    proc::capture("btrfs", &["subvolume", "show", &s]).status.success()
+}
+
+/// Current value of a subvolume's `ro` property.
+pub fn is_readonly(path: &Path) -> bool {
+    let s = path.to_string_lossy().into_owned();
+    let out = proc::capture("btrfs", &["property", "get", "-ts", &s, "ro"]);
+    String::from_utf8_lossy(&out.stdout).contains("ro=true")
+}
+
+/// Flips a subvolume's read-only property. A read-only subvolume can't
+/// be the source of a `rename()` at all (fails EROFS) even though
+/// rename only needs write access to the two *parent* directories for
+/// every other kind of directory entry — btrfs specifically forbids
+/// relocating a read-only subvolume's own dirent while it's read-only.
+pub fn set_readonly(path: &Path, readonly: bool) -> Result<()> {
+    let s = path.to_string_lossy().into_owned();
+    let val = if readonly { "true" } else { "false" };
+    proc::run("btrfs", &["property", "set", "-ts", &s, "ro", val])
 }
 
 pub fn snapshot(src: &Path, dest: &Path, readonly: bool) -> Result<()> {
