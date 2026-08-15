@@ -2,6 +2,7 @@
 pub mod devfs;
 pub mod harden;
 pub mod namespaces;
+pub mod overlay;
 pub mod pivot;
 pub mod procfs;
 pub mod reaper;
@@ -22,9 +23,16 @@ use std::path::Path;
 /// 2. Write uid/gid maps immediately -- before anything else touches
 ///    the mount tree.
 /// 3. Detach the whole mount tree from host propagation.
-/// 4. Bind-mount `new_root` onto itself (pivot_root needs a real
-///    mountpoint, not a plain directory).
-/// 5. Mount `/proc` and `/dev` into `new_root` *now*, while it's still
+/// 4. If `overlay` is given, mount it onto `new_root` first -- from
+///    inside the sandbox's own just-unshared mount namespace, so it's
+///    torn down automatically on exit rather than lingering as a real
+///    host mount. `new_root` must already exist as a plain (empty)
+///    directory in this case; the overlay mount is what actually
+///    populates it.
+/// 5. Bind-mount `new_root` onto itself (pivot_root needs a real
+///    mountpoint, not a plain directory) -- `MS_REC` picks up the
+///    overlay mount from step 4 if there was one.
+/// 6. Mount `/proc` and `/dev` into `new_root` *now*, while it's still
 ///    just a subdirectory of the current root, not yet after
 ///    `pivot_root`. Mounting a fresh procfs *after* `pivot_root`
 ///    (targeting the post-pivot `/proc`) reliably fails EPERM ("Mount
@@ -38,11 +46,11 @@ use std::path::Path;
 ///    (namespace isolation + pivot_root hold regardless of whether
 ///    `/proc` exists). A failure here is traced and `exec` continues
 ///    without `/proc` rather than aborting the whole sandbox.
-/// 6. `pivot_root`, chdir, unmount+remove the old root -- `/proc` and
+/// 7. `pivot_root`, chdir, unmount+remove the old root -- `/proc` and
 ///    `/dev` come along for free, already in place at their final
 ///    paths.
-/// 7. Harden (`NO_NEW_PRIVS` + capability-bounding-set drops).
-/// 8. `fork()` -- **required**, not optional, and easy to get
+/// 8. Harden (`NO_NEW_PRIVS` + capability-bounding-set drops).
+/// 9. `fork()` -- **required**, not optional, and easy to get
 ///    catastrophically wrong: per `pid_namespaces(7)`, the process that
 ///    calls `unshare(CLONE_NEWPID)` never itself joins the new PID
 ///    namespace -- only its *next forked child* does. If the reap-loop
@@ -56,7 +64,7 @@ use std::path::Path;
 ///    refuses to fire its final kill unless `getpid() == 1` -- a second,
 ///    independent check -- but the fork here is what makes that
 ///    condition possible to satisfy honestly.
-/// 9. The forked child (now genuinely PID1 of the new PID namespace)
+/// 10. The forked child (now genuinely PID1 of the new PID namespace)
 ///    forks the real foreground command, reap-loops until it exits,
 ///    then kills anything left behind *within its own namespace only*.
 ///
@@ -66,7 +74,7 @@ use std::path::Path;
 /// as a plain bool + `eprintln!` here rather than a `Ctx` dependency so
 /// this module stays includable, unmodified, by the standalone
 /// `sandbox_poc` binary (which has no `Ctx`/`color` of its own).
-pub fn run(new_root: &Path, old_root_relative: &Path, flags: &namespaces::Flags, argv: &[String], debug: bool) -> io::Result<i32> {
+pub fn run(new_root: &Path, old_root_relative: &Path, flags: &namespaces::Flags, argv: &[String], debug: bool, overlay: Option<overlay::Spec>) -> io::Result<i32> {
     let real_uid = unsafe { libc::getuid() };
     let real_gid = unsafe { libc::getgid() };
 
@@ -86,6 +94,10 @@ pub fn run(new_root: &Path, old_root_relative: &Path, flags: &namespaces::Flags,
     }
     pivot::make_root_private()?;
     trace!("make_root_private ok");
+    if let Some(spec) = &overlay {
+        overlay::mount(new_root, spec)?;
+        trace!("overlay mounted onto new_root");
+    }
     pivot::bind_mount_self(new_root)?;
     trace!("bind_mount_self ok");
     match procfs::mount_proc(&new_root.join("proc")) {
