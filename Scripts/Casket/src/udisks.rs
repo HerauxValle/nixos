@@ -86,6 +86,39 @@ pub fn loop_setup(img: &Path) -> Option<String> {
     }
 }
 
+/// Reverses `loop_setup` -- tears down every loop device currently
+/// backed by `img`, via `udisksctl loop-delete` as the real user (same
+/// session `loop_setup` registered it under). Best-effort and silent:
+/// called from `delete`, right before or after the `.img` file itself
+/// is removed, so a permanently-deleted vault doesn't linger forever as
+/// a phantom entry in KDE/Dolphin's device list pointing at a file that
+/// no longer exists (confirmed empirically -- the kernel appends
+/// `(deleted)` to a loop device's displayed backing path once its file
+/// is unlinked while still attached, and nothing ever cleared the loop
+/// device itself). Doesn't error if there's no loop device at all
+/// (`close`-only vaults may never have been `loop_setup`-registered, or
+/// this may be called on an already-detached one) -- deletion always
+/// proceeds either way, same "best-effort, not blocking" posture as the
+/// keyfile cleanup right next to this call in `delete.rs`.
+pub fn loop_teardown(img: &Path) {
+    let img_str = img.to_string_lossy().into_owned();
+    let lo = proc::capture("losetup", &["-j", &img_str]);
+    let stdout = String::from_utf8_lossy(&lo.stdout);
+    let (uid, gid) = real_user_ids();
+    for line in stdout.lines() {
+        let Some(loop_dev) = line.split(':').next().map(str::trim).filter(|s| !s.is_empty()) else {
+            continue;
+        };
+        let _ = Command::new("udisksctl")
+            .args(["loop-delete", "-b", loop_dev, "--no-user-interaction"])
+            .uid(uid)
+            .gid(gid)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
+
 pub fn udev_retrigger(dev: &str) {
     proc::run_silent("udevadm", &["trigger", "--action=change", dev]);
     proc::run_silent("udevadm", &["settle"]);

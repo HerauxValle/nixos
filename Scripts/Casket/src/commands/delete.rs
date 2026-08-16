@@ -11,6 +11,7 @@ use crate::logf;
 use crate::meta::Meta;
 use crate::prompt;
 use crate::secret::resolve_lexically;
+use crate::udisks;
 use crate::vault::Vault;
 
 const SHRED_PASSES: u32 = 3;
@@ -66,6 +67,14 @@ pub fn run(ctx: &Ctx, vault: &Vault, remove_keyfile: bool, shred: bool) -> Resul
             logf!(ctx, "  [!] shred pass failed — deleting normally instead");
         }
     }
+    // Before unlinking -- `udisks::loop_teardown` looks up loop devices
+    // by the image's real path (`losetup -j`), which stops matching
+    // once the file's gone. `create` registers every new vault as a
+    // udisks loop device so it shows up in KDE/Dolphin's device list
+    // (see `udisks::loop_setup`'s own doc comment); without tearing
+    // that down here, a permanently-deleted vault used to linger
+    // forever as a phantom `(deleted)` entry there instead.
+    udisks::loop_teardown(&vault.img);
     std::fs::remove_file(&vault.img)?;
     match &kf_path {
         Some(kf) if !remove_keyfile => {
