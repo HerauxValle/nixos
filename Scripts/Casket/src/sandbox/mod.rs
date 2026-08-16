@@ -20,11 +20,14 @@ use std::path::Path;
 ///
 /// Order matters, confirmed against a known-working reference
 /// (`Scripts/Seed/helpers/sd-init.c`, this project's own C container-
-/// init binary):
-/// 1. `unshare` every requested namespace at once (one call, including
-///    mount -- no need to split it out or defer it to a child).
-/// 2. Write uid/gid maps immediately -- before anything else touches
-///    the mount tree.
+/// init binary) *and* against a live kernel confirmation that motivated
+/// splitting step 1/2 below out from the user namespace -- see
+/// `namespaces::unshare_user`'s doc comment:
+/// 1. `unshare` every requested namespace *except* user, in one call.
+///    Mount is included here -- no need to split it out or defer it to
+///    a child.
+/// 2. (user namespace intentionally deferred to step 7a, after
+///    pivot_root -- not here.)
 /// 3. Detach the whole mount tree from host propagation.
 /// 4. If `overlay` is given, mount it onto `new_root` first -- from
 ///    inside the sandbox's own just-unshared mount namespace, so it's
@@ -52,6 +55,12 @@ use std::path::Path;
 /// 7. `pivot_root`, chdir, unmount+remove the old root -- `/proc` and
 ///    `/dev` come along for free, already in place at their final
 ///    paths.
+/// 7a. *Now* unshare the user namespace and write uid/gid maps, if
+///    `flags.user` is set -- everything that needed real root's
+///    capabilities over pre-existing host mounts (overlay, bind-self,
+///    procfs, devfs, pivot_root) is already done, so entering the new
+///    user namespace here only affects what comes after: hardening and
+///    the sandboxed command itself.
 /// 8. Harden (`NO_NEW_PRIVS` + capability-bounding-set drops).
 /// 9. If `seccomp` is given, applied *after* the required fork below,
 ///    inside the PID1 child only -- never the supervising parent
@@ -114,12 +123,14 @@ pub fn run(
         };
     }
 
-    namespaces::unshare(flags)?;
-    trace!("unshare ok");
-    if flags.user {
-        namespaces::write_id_maps(real_uid, real_gid)?;
-        trace!("write_id_maps ok");
-    }
+    // The user namespace is deliberately unshared *after* every
+    // host-mount operation below, not combined into this call -- see
+    // `namespaces::unshare_user`'s doc comment for why: `cas` already
+    // runs as real root, and a nested user namespace has no capability
+    // over pre-existing host mounts (the vault's own mount point
+    // included) no matter how its uid map is set.
+    namespaces::unshare_without_user(flags)?;
+    trace!("unshare (non-user namespaces) ok");
     pivot::make_root_private()?;
     trace!("make_root_private ok");
     if let Some(spec) = &overlay {
@@ -136,6 +147,12 @@ pub fn run(
     trace!("devfs ok (pre-pivot)");
     pivot::pivot(new_root, old_root_relative)?;
     trace!("pivot ok");
+    if flags.user {
+        namespaces::unshare_user()?;
+        trace!("unshare user ok");
+        namespaces::write_id_maps(real_uid, real_gid)?;
+        trace!("write_id_maps ok");
+    }
     harden::apply()?;
     trace!("harden ok");
 

@@ -19,6 +19,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
     if new == &vault.name {
         die!("new name is the same as current name");
     }
+    crate::name::validate("vault", new)?;
     if vault.is_mount() {
         die!("vault is open — close it first: cas {} close", vault.name);
     }

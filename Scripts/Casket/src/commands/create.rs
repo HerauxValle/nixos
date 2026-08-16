@@ -31,6 +31,13 @@ pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, stre
         Some(s) => s,
         None => parse_size(&prompt::ask(ctx, "size (e.g. 1G, 500M, 2048)", Some("1G"))?)?,
     };
+    // Same floor `resize` already enforces -- without it, `create`
+    // happily produces a vault too small for `mkfs.btrfs` to ever
+    // format, discovered only at first `open` via a raw cryptsetup/
+    // mkfs error instead of a clean error here.
+    if size < crate::config::MIN_VAULT_MB {
+        die!("minimum vault size is {} MiB", crate::config::MIN_VAULT_MB);
+    }
 
     let integrity = match integrity {
         Some(v) => v,

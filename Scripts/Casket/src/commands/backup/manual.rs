@@ -23,6 +23,7 @@ fn require_open(vault: &Vault) -> Result<()> {
 
 pub fn create(ctx: &Ctx, vault: &Vault, snap_name: &str) -> Result<()> {
     require_open(vault)?;
+    crate::name::validate("snapshot", snap_name)?;
     super::ensure_casket_subvolume(vault)?;
     let root = snap_root(&vault.mnt);
     if !root.exists() {
@@ -78,6 +79,7 @@ pub fn list(ctx: &Ctx, vault: &Vault) -> Result<()> {
 
 pub fn restore(ctx: &Ctx, vault: &Vault, snap_name: &str) -> Result<()> {
     require_open(vault)?;
+    crate::name::validate("snapshot", snap_name)?;
     let src = snap_root(&vault.mnt).join(snap_name);
     if !src.exists() {
         die!("snapshot '{snap_name}' not found — run 'cas {} backup list'", vault.name);
@@ -108,10 +110,24 @@ pub fn restore(ctx: &Ctx, vault: &Vault, snap_name: &str) -> Result<()> {
         }
     }
 
+    // NOT `std::fs::rename` -- `staging` is its own btrfs subvolume
+    // (created by `btrfs::snapshot` above), and the kernel refuses to
+    // `rename()` anything across a subvolume boundary on btrfs
+    // (`EXDEV`/"Invalid cross-device link"), even though both
+    // subvolumes live on the very same physical filesystem. Confirmed
+    // empirically: every restore failed here, after the loop above had
+    // already deleted the vault's live contents -- real data loss. `cp
+    // --reflink=always` is the standard btrfs-safe way to move content
+    // between subvolumes of the same filesystem: it's a real copy (so
+    // no EXDEV), but a copy-on-write one (so no actual block
+    // duplication or meaningful time cost) as long as source and dest
+    // share a filesystem, which they always do here.
     for entry in std::fs::read_dir(&staging)?.filter_map(|e| e.ok()) {
         let from = entry.path();
         let to = vault.mnt.join(entry.file_name());
-        std::fs::rename(&from, &to)?;
+        let from_s = from.to_string_lossy().into_owned();
+        let to_s = to.to_string_lossy().into_owned();
+        crate::proc::run("cp", &["--reflink=always", "-a", "--", &from_s, &to_s])?;
     }
     btrfs::delete_subvolume_silent(&staging);
 
@@ -121,6 +137,7 @@ pub fn restore(ctx: &Ctx, vault: &Vault, snap_name: &str) -> Result<()> {
 
 pub fn delete(ctx: &Ctx, vault: &Vault, snap_name: &str) -> Result<()> {
     require_open(vault)?;
+    crate::name::validate("snapshot", snap_name)?;
     let snap = snap_root(&vault.mnt).join(snap_name);
     if !snap.exists() {
         die!("snapshot '{snap_name}' not found — run 'cas {} backup list'", vault.name);

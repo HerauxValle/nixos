@@ -42,6 +42,18 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
                 die!("usage: cas <vault> settings security sandbox namespaces set <mount,pid,uts,ipc,user,net>");
             };
             let list = parse_list(raw)?;
+            // `disable` already refuses to drop `user`; `set` replaces
+            // the whole list outright and had no equivalent check --
+            // `set ""` (or any list omitting `user`) silently stored a
+            // set that misrepresents what `exec` actually does (`user`
+            // is hardcoded on there regardless, see
+            // `commands/exec/mod.rs`), so `state` would report an
+            // inactive namespace as active. Not an exec-time bypass
+            // (exec ignores this field for `user` specifically), but
+            // real state corruption worth refusing at the source.
+            if !list.iter().any(|n| n == "user") {
+                die!("the 'user' namespace can't be excluded -- it's always active regardless of this setting");
+            }
             write(ctx, vault, list, pw)
         }
         Some("enable") => {

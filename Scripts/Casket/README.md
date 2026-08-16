@@ -61,6 +61,8 @@ per-action usage and examples.
   vault metadata trailer (shared with the Python original -- no
   compatibility shim needed).
 - `docs/cli.md` -- structured flag/action reference.
+- `docs/cli-layout.md` -- the entire command tree in one ASCII-tree
+  page, one sentence per action/sub-action.
 - `docs/usage.md` -- worked examples: first vault, 2FA on a USB drive,
   scripted use, routine snapshots.
 - `docs/porting-notes.md` -- what changed versus the original and why.

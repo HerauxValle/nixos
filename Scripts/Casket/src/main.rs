@@ -13,6 +13,7 @@ mod luks;
 mod meta;
 mod migrate;
 mod migrations;
+mod name;
 mod proc;
 mod prompt;
 mod registry;

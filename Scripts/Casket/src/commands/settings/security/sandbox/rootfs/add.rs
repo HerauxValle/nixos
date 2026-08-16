@@ -33,6 +33,10 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
     let base_dir = env_dir.join("base");
     let upper_dir = env_dir.join("upper");
 
+    if extra.iter().any(|s| s == "--preset") && extra.iter().any(|s| s == "--tarball") {
+        die!("--preset and --tarball can't be used together");
+    }
+
     match extra.get(1).map(String::as_str) {
         Some("--preset") => {
             let Some(distro) = extra.get(2) else {

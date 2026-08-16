@@ -1,0 +1,134 @@
+<!-- &desc: "Complete CLI tree for cas, ASCII-tree style -- every action, sub-action, and flag in the tool, one sentence each. Complements docs/cli.md (table-format reference) and 'cas help <action>' (interactive, with examples) rather than replacing either." -->
+# CLI layout
+
+Every command `cas` has, laid out as a tree. Flags may appear anywhere
+in the command line, not just where shown. `<vault>` is the vault name
+(or a bare path/`.img` file to toggle it open/closed). One sentence per
+node — see `docs/cli.md` for the table-format reference and `cas help
+<action>` for interactive help with examples.
+
+```
+cas
+│
+├── list [--path dir]                      list every vault found nearby
+├── quit                                    alias for `all close`
+├── all close                               close every open vault on this machine
+├── --version | -V | version                print the cas version
+├── help [<action>]                         show global help, or one action's detailed help
+├── <path/to/vault.img>                     bare path toggle: open if closed, close if open
+│
+└── <vault> <action> ...
+    │
+    ├── create [--size MiB] [--strength lvl] [--pass "..."] [--integrity|--no-integrity]
+    │                                        make a new vault, prompts for size/passphrase if not given
+    │
+    ├── open [--pass "..."] [--keyfile path]
+    │                                        unlock and mount the vault, running any pending schema migration
+    │
+    ├── close [--force]                     lock the vault again, --force skips the busy-mount check
+    │
+    ├── toggle [--pass "..."] [--keyfile path]
+    │                                        open if closed, close if open
+    │
+    ├── rename <newname>                    rename the vault file (must be closed)
+    │
+    ├── resize <size>  (alias: shrink)      grow or shrink the vault (accepts M/MiB/G/GiB/T/TiB)
+    │
+    ├── delete [--removeKeyfile] [--shred]  permanently delete the vault file, asks to confirm
+    │
+    ├── info [--pass "..."]                 show vault details plus every setting's enabled/disabled state
+    │
+    ├── tampered [--pass "..."]             check the tamper-evidence HMAC against the last verified write
+    │
+    ├── auth
+    │   ├── passwd [--pass "..."] [--new-pass "..."] [--strength lvl]
+    │   │                                    change the vault's passphrase
+    │   └── keyfile
+    │       ├── move <location> [--keyfile path]
+    │       │                                move the active keyfile to a new location
+    │       ├── reset [location] [--keyfile path]
+    │       │                                generate a brand-new keyfile and re-key the vault, irreversible
+    │       ├── embed <carrier-file> [--keyfile path]
+    │       │                                hide the keyfile's bytes appended inside another file
+    │       ├── extract <carrier-file> [location]
+    │       │                                pull a previously-embedded keyfile back out of a carrier
+    │       ├── strip <carrier-file>         remove embedded keyfile bytes from a carrier, leaving the original file intact
+    │       └── activate <location>          make a keyfile at an arbitrary location the vault's active one
+    │
+    ├── backup
+    │   ├── create <name>                    take a manual named btrfs snapshot
+    │   ├── list                             show manual and auto snapshots separately
+    │   ├── restore <name>                   restore the vault's contents from a snapshot
+    │   ├── delete <name>                    delete a manual snapshot
+    │   └── rootfs
+    │       ├── include <name>               opt a rootfs environment into future snapshots (excluded by default)
+    │       ├── exclude <name>                opt it back out
+    │       └── state                        list which rootfs environments are currently included
+    │
+    ├── settings
+    │   ├── encryption enable|disable|state  toggle passphrase-prompt UX vs. an autokey stored in metadata
+    │   ├── 2fa enable|disable|state         add/remove a second-factor keyfile requirement
+    │   │
+    │   ├── backup
+    │   │   └── auto enable [--keep N]|disable|keep <N>|state
+    │   │                                    automatic snapshot-on-open, with a rolling keep count
+    │   │
+    │   ├── verification
+    │   │   ├── state                        show which features currently require re-verification
+    │   │   └── <feature> enable|disable|state
+    │   │                                    require re-proving the real passphrase before <feature> can change
+    │   │
+    │   └── security
+    │       ├── ransomwareProtection enable|disable|state
+    │       │                                lock .casket/ to root-only, unreadable/unwritable by the vault's own user
+    │       ├── zeroize enable|disable|state locks the derived secret in RAM and scrubs it from memory when done
+    │       ├── bruteforceLockout enable [--threshold N]|disable|threshold <N>|state
+    │       │                                delete the vault after N consecutive wrong passphrases
+    │       ├── fileIntegrity enable|disable [--delete-backup]|state
+    │       │                                migrate to/from a dm-integrity per-sector-authenticated LUKS2 container
+    │       │
+    │       └── sandbox
+    │           ├── enable                   permit `cas <vault> exec` for this vault
+    │           ├── disable [--removeRootfs] block `exec`, optionally wiping every rootfs environment too
+    │           ├── state                    show whether sandbox is enabled
+    │           │
+    │           ├── namespaces
+    │           │   ├── set <list>           replace the active namespace set outright (mount/pid/uts/ipc/user/net)
+    │           │   ├── enable <list>        add namespaces to the active set
+    │           │   ├── disable <list>       remove namespaces from the active set (`user` can't be removed)
+    │           │   └── state                show which namespaces are currently active
+    │           │
+    │           ├── rootfs
+    │           │   ├── list                 show every named rootfs environment, and which is `default`
+    │           │   ├── add <name> --preset <distro> [<version>] | --tarball <path>
+    │           │   │                        create a named environment from a live distro fetch or a local tarball
+    │           │   ├── update <name> [<version>] | --tarball <path>
+    │           │   │                        replace only base/, leaving anything installed in upper/ untouched
+    │           │   ├── remove <name>|<name,name,...>|all
+    │           │   │                        permanently delete one, several, or every environment (typed confirm each)
+    │           │   ├── rename <old> <new>   rename an environment, carrying the `default` pointer forward if it applied
+    │           │   └── default <name>|--clear
+    │           │                            set or clear which environment `exec` uses when several exist and none is named
+    │           │
+    │           ├── seccomp [--rootfs <name>]
+    │           │   ├── set <default|strict|compute|none|custom>
+    │           │   │                        choose which syscall filter preset applies to a target
+    │           │   ├── edit custom          open $EDITOR on that target's custom syscall allowlist
+    │           │   └── state                show the active preset for a target
+    │           │
+    │           └── cgroups
+    │               ├── set [--mem <val>] [--cpu <percent>] [--pids <n>]
+    │               │                        cap memory/CPU/process-count for exec sessions
+    │               ├── clear                remove all cgroup limits (back to unlimited)
+    │               └── state                show the currently configured limits
+    │
+    └── exec [--rootfs <name>] [-- <cmd> ...]
+                                             drop a shell (or run one command) namespace-isolated inside the vault
+```
+
+## Global flags (valid anywhere in the command line)
+
+`--pass "..."`, `--new-pass "..."`, `--keyfile <path>`, `--size <MiB>`,
+`--strength <light|medium|hard|extreme>`, `--path <dir>`,
+`--removeKeyfile`, `--shred`, `--integrity` / `--no-integrity`,
+`--no-log`, `--no-confirm`, `--debug`.

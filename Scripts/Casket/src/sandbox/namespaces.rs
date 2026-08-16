@@ -39,18 +39,55 @@ impl Flags {
     }
 }
 
-/// `unshare(2)` with every requested namespace flag combined into one
-/// call -- confirmed against a known-working reference (this project's
-/// own `Scripts/Seed/helpers/sd-init.c`, a C container-init binary that
-/// does the same `unshare(CLONE_NEWNS|NEWPID|NEWUTS|NEWIPC|NEWNET|
-/// NEWUSER)` as a single call, no `fork()` involved yet at this point).
-/// It turned out the earlier "Mount too revealing" EPERM chased through
-/// several `unshare()`/`fork()`/`clone()` orderings wasn't actually an
-/// ordering problem at all -- see `mod.rs::run`'s doc comment for the
-/// real cause (mounting `/proc` *after* `pivot_root` instead of before,
-/// into the pre-pivot new-root path).
-pub fn unshare(flags: &Flags) -> io::Result<()> {
-    let ret = unsafe { libc::unshare(flags.to_libc()) };
+/// Every requested namespace except user, in one `unshare(2)` call --
+/// confirmed against a known-working reference (this project's own
+/// `Scripts/Seed/helpers/sd-init.c`, a C container-init binary that
+/// does the same combined `unshare(CLONE_NEWNS|NEWPID|NEWUTS|NEWIPC|
+/// NEWNET)`, no `fork()` involved yet at this point). The earlier
+/// "Mount too revealing" EPERM chased through several `unshare()`/
+/// `fork()`/`clone()` orderings turned out not to be an ordering
+/// problem at all -- see `mod.rs::run`'s doc comment for the real cause
+/// (mounting `/proc` *after* `pivot_root` instead of before). User is
+/// excluded here and unshared separately, later -- see `unshare_user`'s
+/// doc comment for why the two are split and called in this specific
+/// order.
+pub fn unshare_without_user(flags: &Flags) -> io::Result<()> {
+    let f = flags.to_libc() & !libc::CLONE_NEWUSER;
+    let ret = unsafe { libc::unshare(f) };
+    if ret != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+/// `unshare(CLONE_NEWUSER)` alone, called *after* every host-mount
+/// operation (overlay, bind-self, procfs, devfs, pivot_root) is already
+/// done -- not combined into the same call as the other namespaces the
+/// way an earlier version of this code did. Reason: `cas` always
+/// self-elevates to real root before this ever runs (see
+/// `mod.rs::run`'s doc comment), so there's no unprivileged-caller case
+/// to support here -- the "rootless container trick" this module's own
+/// top-of-file comment describes only applies to a genuinely
+/// unprivileged caller. For real root, entering a new user namespace
+/// *before* mounting anything is actively harmful, not just
+/// unnecessary: a task's capabilities in a newly created child user
+/// namespace do not extend to its parent (here, the real init user
+/// namespace that owns the vault's own already-mounted filesystem) --
+/// `cap_capable()` only grants capabilities *downward* into namespaces
+/// you created, never back up into the one you came from. So a process
+/// that unshares the user namespace first loses `CAP_SYS_ADMIN` over
+/// every pre-existing host mount, including the vault's own mount
+/// point -- confirmed empirically: both the overlay mount (needs
+/// `trusted.*` xattr rights) and the plain self bind-mount that
+/// `pivot_root` requires as its target both failed with
+/// `EPERM`/`EACCES` when the user namespace was unshared up front. Real
+/// root already has every capability the user-namespace trick exists to
+/// grant unprivileged callers, so mounting is done first as plain real
+/// root, and the user namespace is entered afterward -- right before
+/// `harden::apply()` -- purely to contain the actual sandboxed command,
+/// which never needs to touch a pre-pivot host mount at all.
+pub fn unshare_user() -> io::Result<()> {
+    let ret = unsafe { libc::unshare(libc::CLONE_NEWUSER) };
     if ret != 0 {
         return Err(io::Error::last_os_error());
     }

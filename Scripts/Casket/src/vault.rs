@@ -19,7 +19,22 @@ impl Vault {
     /// Build the three well-known paths for `name` under `base`, without
     /// touching the filesystem or requiring the vault to already exist —
     /// used by `create` before the image file is written.
+    ///
+    /// `name` must be non-empty and free of path separators/`.`/`..` --
+    /// `PathBuf::join` treats an empty string as a no-op, so an empty
+    /// name previously made `mnt` resolve to `base` itself (the
+    /// directory the vault lives in, or the cwd), and every command that
+    /// later removed `mnt` -- most seriously `delete`'s
+    /// `cleanup_mnt_dir` -- ended up removing that real directory
+    /// instead of a vault-specific one. Confirmed live: `cas "" delete`
+    /// deleted its own working directory. A `/` in the name has the
+    /// same class of problem for the opposite reason (escapes `base`
+    /// entirely), same as the rootfs-name traversal fixed in 1.10.22.
     pub fn resolve(base: &Path, name: &str) -> Vault {
+        if name.is_empty() || name == "." || name == ".." || name.contains('/') || name.contains('\\') || name.contains('\0') {
+            eprintln!("[x] invalid vault name '{name}' -- must be non-empty and can't contain '/', '\\', a null byte, or be '.'/'..'");
+            std::process::exit(1);
+        }
         Vault {
             name: name.to_string(),
             img: base.join(format!("{name}.img")),
