@@ -60,7 +60,11 @@ fn disable(ctx: &Ctx, vault: &Vault, remove_rootfs: bool, pw: Option<&str>) -> R
         if !vault.is_mount() {
             die!("--removeRootfs requires '{}' to be open -- rootfs environments live inside the mounted vault", vault.name);
         }
-        rootfs::remove_all(ctx, vault)?;
+        // Reuse the passphrase already resolved by the gate_inner call
+        // above (if verification ran) so remove_all's own gate_inner
+        // call doesn't prompt a second time for the same thing.
+        let resolved_pw = verified.as_ref().map(|(p, _)| p.as_str()).or(pw);
+        rootfs::remove_all(ctx, vault, resolved_pw)?;
     }
 
     let mut meta = Meta::read(&vault.img);

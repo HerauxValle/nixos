@@ -5,7 +5,8 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 
-use crate::commands::settings::security::sandbox::rootfs::{ensure_dir, RESERVED_NAMES};
+use crate::commands::settings::gate::gate_inner;
+use crate::commands::settings::security::sandbox::rootfs::{ensure_dir, validate_name, RESERVED_NAMES};
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
@@ -15,13 +16,15 @@ use crate::registry;
 use crate::udisks;
 use crate::vault::Vault;
 
-pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
+pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
     let Some(name) = extra.first() else {
         die!("usage: cas <vault> settings security sandbox rootfs add <name> --preset <distro> [<version>]");
     };
     if RESERVED_NAMES.contains(&name.as_str()) {
         die!("'{name}' is a reserved name -- an environment can't be called that");
     }
+    validate_name(name)?;
+    gate_inner(ctx, vault, "sandbox", pw)?;
 
     let env_dir = ensure_dir(vault)?.join(name);
     if env_dir.exists() {

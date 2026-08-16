@@ -3,7 +3,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::commands::exec::lockfile;
-use crate::commands::settings::security::sandbox::rootfs::{add, ensure_dir};
+use crate::commands::settings::gate::gate_inner;
+use crate::commands::settings::security::sandbox::rootfs::{add, ensure_dir, validate_name};
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
@@ -29,14 +30,16 @@ fn read_source(env_dir: &Path) -> Result<Source> {
     }
 }
 
-pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
+pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
     let Some(name) = extra.first() else {
         die!("usage: cas <vault> settings security sandbox rootfs update <name> [<version>] | update <name> --tarball <path>");
     };
+    validate_name(name)?;
 
     if vault.is_mount() && lockfile::is_live(vault) {
         die!("'{}' has a live 'cas exec' session -- wait for it to exit before updating a rootfs environment", vault.name);
     }
+    gate_inner(ctx, vault, "sandbox", pw)?;
 
     let env_dir = ensure_dir(vault)?.join(name);
     if !env_dir.exists() {

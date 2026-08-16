@@ -69,12 +69,23 @@ fn set(ctx: &Ctx, vault: &Vault, explicit_rootfs: Option<&str>, preset: &str, pw
         die!("unknown seccomp preset '{preset}' -- expected one of: {}", registry::seccomp::PRESET_NAMES.join(", "));
     }
     let key = target_key(vault, explicit_rootfs)?;
-    if preset == "custom" && !custom_file_path(vault, &key).exists() {
-        die!("no custom syscall list yet for this target -- run 'seccomp edit custom' first");
+    let mut meta = Meta::read(&vault.img);
+    if preset == "custom" {
+        // Checking the file's mere existence isn't enough -- `edit`
+        // pre-creates a placeholder before the editor ever runs, so a
+        // cancelled/failed edit would leave a file on disk with no
+        // hash ever recorded for it. A stored hash is the only signal
+        // that `edit custom` actually completed -- exactly what
+        // `commands::exec::resolve_seccomp` checks at exec time, so
+        // this refusal now matches what would otherwise silently fall
+        // back to `strict` there instead of reporting success here.
+        let has_hash = meta.sandbox_seccomp_custom_hash.as_ref().is_some_and(|m| m.contains_key(&key));
+        if !has_hash {
+            die!("no custom syscall list yet for this target -- run 'seccomp edit custom' first");
+        }
     }
 
     let verified = gate_inner(ctx, vault, "sandbox", pw)?;
-    let mut meta = Meta::read(&vault.img);
     let mut map = meta.sandbox_seccomp.clone().unwrap_or_default();
     map.insert(key.clone(), preset.to_string());
     meta.sandbox_seccomp = Some(map);

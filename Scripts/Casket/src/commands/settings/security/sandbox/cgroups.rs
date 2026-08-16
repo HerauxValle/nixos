@@ -30,8 +30,11 @@ fn set(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<(
         match extra[i].as_str() {
             "--mem" => {
                 let Some(v) = extra.get(i + 1) else { die!("--mem requires a value, e.g. '512M'") };
-                if crate::sandbox::cgroup::parse_bytes(v).is_none() {
+                let Some(bytes) = crate::sandbox::cgroup::parse_bytes(v) else {
                     die!("invalid --mem value '{v}' -- expected e.g. '512M', '1G', or a plain byte count");
+                };
+                if bytes == 0 {
+                    die!("--mem can't be 0 -- that would make every 'exec' session unusable (nothing can even start with no memory available)");
                 }
                 spec.mem = Some(v.clone());
                 touched = true;
@@ -40,6 +43,9 @@ fn set(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<(
             "--cpu" => {
                 let Some(v) = extra.get(i + 1) else { die!("--cpu requires a percent value, e.g. '50'") };
                 let Ok(percent) = v.parse::<u32>() else { die!("invalid --cpu value '{v}' -- expected a plain percentage, e.g. '50'") };
+                if percent == 0 {
+                    die!("--cpu can't be 0 -- that would make every 'exec' session unusable (no CPU time available at all). Values over 100 are fine on a multi-core host (e.g. 400 = up to 4 cores).");
+                }
                 spec.cpu = Some(percent);
                 touched = true;
                 i += 2;
@@ -47,6 +53,9 @@ fn set(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<(
             "--pids" => {
                 let Some(v) = extra.get(i + 1) else { die!("--pids requires a value, e.g. '64'") };
                 let Ok(pids) = v.parse::<u32>() else { die!("invalid --pids value '{v}' -- expected a plain integer") };
+                if pids == 0 {
+                    die!("--pids can't be 0 -- that would make every 'exec' session unusable (the kernel refuses to fork/exec anything at all under a 0 pid cap)");
+                }
                 spec.pids = Some(pids);
                 touched = true;
                 i += 2;

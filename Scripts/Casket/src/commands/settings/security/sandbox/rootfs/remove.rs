@@ -2,7 +2,8 @@
 use std::fs;
 
 use crate::commands::exec::lockfile;
-use crate::commands::settings::security::sandbox::rootfs::{default_target, ensure_dir};
+use crate::commands::settings::gate::gate_inner;
+use crate::commands::settings::security::sandbox::rootfs::{default_target, ensure_dir, validate_name};
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
@@ -10,7 +11,7 @@ use crate::logf;
 use crate::prompt;
 use crate::vault::Vault;
 
-pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
+pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
     let Some(raw) = extra.first() else {
         die!("usage: cas <vault> settings security sandbox rootfs remove <name>|<name,name,...>|all");
     };
@@ -18,6 +19,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
     if vault.is_mount() && lockfile::is_live(vault) {
         die!("'{}' has a live 'cas exec' session -- wait for it to exit before removing a rootfs environment", vault.name);
     }
+    gate_inner(ctx, vault, "sandbox", pw)?;
 
     let dir = ensure_dir(vault)?;
     let names: Vec<String> = if raw == "all" {
@@ -36,6 +38,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
 
     let default = default_target(vault);
     for name in &names {
+        validate_name(name)?;
         if !dir.join(name).exists() {
             die!("rootfs environment '{name}' doesn't exist -- see 'cas <vault> settings security sandbox rootfs list'");
         }

@@ -167,7 +167,7 @@ pub fn parse_bytes(s: &str) -> Option<u64> {
         'g' | 'G' => (&s[..s.len() - 1], 1024 * 1024 * 1024),
         _ => (s, 1),
     };
-    num.trim().parse::<u64>().ok().map(|n| n * mult)
+    num.trim().parse::<u64>().ok().and_then(|n| n.checked_mul(mult))
 }
 
 #[cfg(test)]

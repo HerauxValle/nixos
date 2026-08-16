@@ -15,6 +15,7 @@ use crate::logf;
 use crate::meta::Meta;
 use crate::registry;
 use crate::sandbox::{self, cgroup, namespaces::Flags, overlay, seccomp};
+use crate::tamper;
 use crate::vault::Vault;
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
@@ -30,7 +31,25 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
     // exec is a privileged-adjacent action (real code execution against
     // the vault's contents), worth the same bar as toggling the
     // protection that permits it.
-    gate_inner(ctx, vault, "sandbox", pw)?;
+    let verified = gate_inner(ctx, vault, "sandbox", pw)?;
+    // tamper.rs's HMAC over sandbox_enabled/namespaces/seccomp is only
+    // checkable once the real secret is known (by design -- see
+    // tamper.rs's own doc comment) -- which verification just resolved,
+    // if it ran. Skipping this check here would mean the *only* place
+    // that ever validates the tag for these fields is `open`/`info`/
+    // `tampered`, never the command that actually acts on them: a
+    // stale-HMAC trailer edit (e.g. `sandbox_namespaces` narrowed, or a
+    // seccomp preset weakened) would silently apply at exec time with
+    // no warning, even though `info --pass` would correctly flag it.
+    if let Some((_, secret)) = &verified {
+        if tamper::verify(secret, &meta) == tamper::Status::Tampered {
+            die!(
+                "sandbox settings for '{}' don't match their integrity tag -- something edited the trailer outside a verified write. Run 'cas {} settings verification state' to inspect, or re-apply sandbox/namespaces/seccomp settings through their normal commands to restore a trusted baseline before running exec",
+                vault.name,
+                vault.name
+            );
+        }
+    }
 
     let mut i = 0;
     let explicit_rootfs = if extra.first().map(String::as_str) == Some("--rootfs") {

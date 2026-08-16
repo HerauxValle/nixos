@@ -22,6 +22,29 @@ use crate::vault::Vault;
 /// `default` verb/symlink itself.
 pub const RESERVED_NAMES: &[&str] = &["all", "default"];
 
+/// Rejects any environment name that could escape `.rootfs.d/` once
+/// joined onto a directory path with `.join(name)` -- no path
+/// separators, no `.`/`..` component tricks, not empty. Every call site
+/// across this module that does `dir.join(name)` with a caller-supplied
+/// name (`add`, `update`, `remove`, `rename`'s old *and* new, `default`,
+/// `resolve`'s explicit-name branch) must validate through this first --
+/// skipping it at even one of them reopens the exact path-traversal bug
+/// this closes (a name like `../../etc` previously reached real
+/// filesystem writes, including a root-privileged recursive `chown`, at
+/// an arbitrary host path).
+pub fn validate_name(name: &str) -> Result<()> {
+    if name.is_empty() {
+        die!("rootfs environment name can't be empty");
+    }
+    if name == "." || name == ".." {
+        die!("'{name}' isn't a valid rootfs environment name");
+    }
+    if name.contains('/') || name.contains('\\') || name.contains('\0') {
+        die!("rootfs environment name '{name}' contains an invalid character -- no path separators allowed");
+    }
+    Ok(())
+}
+
 const DEFAULT_SYMLINK: &str = "default";
 
 /// Ensures `.rootfs.d/` exists as a real subvolume (creating it, chowned
@@ -79,6 +102,7 @@ pub fn set_default(vault: &Vault, name: Option<&str>) -> Result<()> {
 /// refuse, listing the available names, if not.
 pub fn resolve(vault: &Vault, explicit: Option<&str>) -> Result<Option<String>> {
     if let Some(name) = explicit {
+        validate_name(name)?;
         let dir = ensure_dir(vault)?;
         if !dir.join(name).exists() {
             die!("rootfs environment '{name}' doesn't exist -- see 'cas <vault> settings security sandbox rootfs list'");
@@ -117,18 +141,18 @@ pub fn resolve(vault: &Vault, explicit: Option<&str>) -> Result<Option<String>> 
 /// is live-in-use, and refuses if a `default` is still set (removal
 /// deliberately doesn't auto-clear it -- see `remove.rs`'s own doc
 /// comment on why that's not an implicit side effect this takes).
-pub fn remove_all(ctx: &Ctx, vault: &Vault) -> Result<()> {
-    remove::dispatch(ctx, vault, &["all".to_string()])
+pub fn remove_all(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
+    remove::dispatch(ctx, vault, &["all".to_string()], pw)
 }
 
-pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], _pw: Option<&str>) -> Result<()> {
+pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
     match extra.first().map(String::as_str) {
         Some("list") | None => list(ctx, vault),
-        Some("add") => add::dispatch(ctx, vault, &extra[1..]),
-        Some("update") => update::dispatch(ctx, vault, &extra[1..]),
-        Some("remove") => remove::dispatch(ctx, vault, &extra[1..]),
-        Some("rename") => rename::dispatch(ctx, vault, &extra[1..]),
-        Some("default") => default::dispatch(ctx, vault, &extra[1..]),
+        Some("add") => add::dispatch(ctx, vault, &extra[1..], pw),
+        Some("update") => update::dispatch(ctx, vault, &extra[1..], pw),
+        Some("remove") => remove::dispatch(ctx, vault, &extra[1..], pw),
+        Some("rename") => rename::dispatch(ctx, vault, &extra[1..], pw),
+        Some("default") => default::dispatch(ctx, vault, &extra[1..], pw),
         _ => die!("usage: cas <vault> settings security sandbox rootfs list|add|update|remove|rename|default ..."),
     }
 }
