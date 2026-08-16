@@ -1,6 +1,54 @@
 <!-- &desc: "Tracked, deliberately-deferred gaps -- things found (usually via review/testing) that are real but weren't fixed on the spot, with why not and what a real fix needs. Not a general bug tracker; entries should be removed once actually fixed." -->
 # Known issues
 
+## `sandbox namespaces` `net` isolation is a stub -- unshares but never sets up connectivity
+
+**Found:** pentest subagent review, 2026-08-16.
+
+**What:** `settings security sandbox namespaces` lists `net` as a
+namespace `exec` can isolate, and the CLI docs describe the default
+active set as "everything except `net`". But the actual implementation
+(`sandbox::namespaces::Flags::to_libc` in `src/sandbox/namespaces.rs`)
+does nothing but pass the raw `CLONE_NEWNET` flag to `unshare(2)`. There
+is no veth pair, no bridge, no loopback interface bring-up, nothing --
+a fresh Linux network namespace starts with zero interfaces, not even
+`lo` configured up. Confirmed live: enabling `net` in the active set
+and running `exec` leaves the sandboxed process with no usable network
+at all, not a properly isolated-but-functional one.
+
+**Why it wasn't fixed on the spot:** this isn't a bug to patch, it's an
+unbuilt feature -- real network namespace isolation needs its own
+setup step (at minimum bringing `lo` up inside the new netns; a useful
+one typically also wants a veth pair to the host with NAT, or a
+deliberately fully air-gapped mode as an explicit choice) that doesn't
+exist anywhere in this codebase yet. That's a real feature to design
+and build, not a one-line fix alongside a QA/pentest pass.
+
+**Practical impact today:** `exec` currently defaults to *not* isolating
+the network (matches the CLI's own documented default), so nothing
+currently breaks -- but it also means a sandboxed process can see and
+use the real host's network interfaces (confirmed: real IPs, real
+traffic counters visible from inside `exec` via `/proc/net/dev`) unless
+the user manually enables `net`, and enabling it today just breaks
+networking outright rather than providing isolated-but-working
+connectivity. For a tool positioned around privacy-focused container/
+image storage, this is worth prioritizing: "no network isolation by
+default" is the wrong default for that threat model, but flipping the
+default before the feature actually works would be a straight
+regression for anyone using `exec` for anything network-dependent.
+
+**What a real fix looks like:** implement actual netns plumbing before
+changing any default --  bring `lo` up inside the new namespace at
+minimum (`ip link set lo up` equivalent, or the raw netlink calls), and
+decide + document whether the default posture for an isolated session
+is "no network at all" (simplest, most private, breaks anything that
+needs even DNS) or "host-NAT'd via a veth pair" (usable, more
+plumbing, more attack surface to get right -- an OpenVPN-style
+route/firewall mistake here would defeat the whole point). Once `net`
+namespace isolation actually provides working connectivity (or a
+deliberate, documented no-network mode), revisit defaulting new vaults
+to network-isolated `exec` sessions.
+
 ## Tarball symlink targets aren't validated on `rootfs add`/`update --tarball`
 
 **Found:** pentest subagent review, 2026-08-16 (see `changelog/1.10.22.md`).
