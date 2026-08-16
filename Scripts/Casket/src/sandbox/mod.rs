@@ -1,4 +1,5 @@
 // &desc: "Public entry point for exec's sandbox mechanics -- wires namespaces/pivot/procfs/devfs/harden/reaper together in the exact order that matters (see run()'s doc comment). CLI wiring (commands/exec/) and Meta-driven configuration call into this; nothing in here knows about vaults or the CLI at all, same separation as btrfs.rs/luks.rs from their callers."
+pub mod cgroup;
 pub mod devfs;
 pub mod harden;
 pub mod namespaces;
@@ -57,6 +58,17 @@ use std::path::Path;
 ///    (which just waits and needs no restriction of its own). Inherited
 ///    by everything PID1 subsequently forks/execs, including the real
 ///    foreground command.
+/// 9a. If `cgroup_handle` is given, its `cgroup.procs` fd was opened by
+///    the caller *before* this function ever unshared or pivoted --
+///    `sandbox::cgroup::prepare` runs entirely on the host side, ahead
+///    of everything above. The PID1 child writes its own pid through
+///    that already-open fd right after the fork (step 10), before
+///    seccomp or the foreground command -- the fd itself stays valid
+///    across `pivot_root` regardless of mount namespace changes, same
+///    trick every proper container runtime uses for exactly this
+///    reason (a path-based cgroup join would fail once the host
+///    filesystem is unreachable). The supervising parent removes the
+///    session's cgroup directory after `waitpid` returns.
 /// 10. `fork()` -- **required**, not optional, and easy to get
 ///    catastrophically wrong: per `pid_namespaces(7)`, the process that
 ///    calls `unshare(CLONE_NEWPID)` never itself joins the new PID
@@ -89,6 +101,7 @@ pub fn run(
     debug: bool,
     overlay: Option<overlay::Spec>,
     seccomp_filter: Option<(seccomp::Mode, Vec<String>)>,
+    cgroup_handle: Option<cgroup::Handle>,
 ) -> io::Result<i32> {
     let real_uid = unsafe { libc::getuid() };
     let real_gid = unsafe { libc::getgid() };
@@ -134,6 +147,15 @@ pub fn run(
         return Err(io::Error::last_os_error());
     }
     if pid1_child == 0 {
+        if let Some(handle) = &cgroup_handle {
+            match handle.join_self() {
+                Ok(()) => trace!("cgroup joined"),
+                Err(e) => {
+                    eprintln!("[x] failed to join cgroup: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
         if let Some((mode, syscalls)) = seccomp_filter {
             match seccomp::apply(mode, &syscalls) {
                 Ok(()) => trace!("seccomp filter applied"),
@@ -155,5 +177,8 @@ pub fn run(
     }
     let code = if libc::WIFEXITED(status) { libc::WEXITSTATUS(status) } else { 1 };
     trace!("pid1_child exited with code {code}");
+    // `cgroup_handle`'s Drop impl removes the session directory here
+    // (function return) -- and on every early-return path above too,
+    // see `cgroup::Handle`'s own doc comment.
     Ok(code)
 }

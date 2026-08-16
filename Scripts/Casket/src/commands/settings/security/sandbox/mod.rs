@@ -10,6 +10,7 @@ use crate::meta::Meta;
 use crate::tamper;
 use crate::vault::Vault;
 
+pub mod cgroups;
 pub mod namespaces;
 pub mod rootfs;
 pub mod seccomp;
@@ -26,7 +27,8 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
         Some("namespaces") => namespaces::dispatch(ctx, vault, &extra[1..], pw),
         Some("rootfs") => rootfs::dispatch(ctx, vault, &extra[1..], pw),
         Some("seccomp") => seccomp::dispatch(ctx, vault, &extra[1..], pw),
-        _ => die!("usage: cas <vault> settings security sandbox enable|disable|state|namespaces|rootfs|seccomp ..."),
+        Some("cgroups") => cgroups::dispatch(ctx, vault, &extra[1..], pw),
+        _ => die!("usage: cas <vault> settings security sandbox enable|disable|state|namespaces|rootfs|seccomp|cgroups ..."),
     }
 }
 

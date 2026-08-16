@@ -6,7 +6,7 @@ use std::fs;
 use sha2::{Digest, Sha256};
 
 use crate::commands::settings::gate::gate_inner;
-use crate::commands::settings::security::sandbox::{is_enabled, namespaces, rootfs, seccomp as seccomp_settings};
+use crate::commands::settings::security::sandbox::{cgroups as cgroup_settings, is_enabled, namespaces, rootfs, seccomp as seccomp_settings};
 use crate::ctx::Ctx;
 use crate::debugf;
 use crate::die;
@@ -14,7 +14,7 @@ use crate::error::Result;
 use crate::logf;
 use crate::meta::Meta;
 use crate::registry;
-use crate::sandbox::{self, namespaces::Flags, overlay, seccomp};
+use crate::sandbox::{self, cgroup, namespaces::Flags, overlay, seccomp};
 use crate::vault::Vault;
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
@@ -77,6 +77,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
     };
 
     let seccomp_filter = resolve_seccomp(ctx, vault, &meta, explicit_rootfs)?;
+    let cgroup_handle = resolve_cgroup(ctx, vault, &meta)?;
     debugf!(ctx, "exec: namespaces={active_namespaces:?}, argv={argv:?}, new_root={}", new_root.display());
     let old_root_relative = std::path::Path::new(".casket").join("oldroot");
 
@@ -86,7 +87,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
     // scope) because std::process::exit below skips destructors
     // entirely.
     let lock = lockfile::acquire(vault)?;
-    let result = sandbox::run(&new_root, &old_root_relative, &flags, &argv, ctx.debug, overlay_dirs, seccomp_filter);
+    let result = sandbox::run(&new_root, &old_root_relative, &flags, &argv, ctx.debug, overlay_dirs, seccomp_filter, cgroup_handle);
     drop(lock);
 
     let code = result.map_err(|e| crate::error::CasError::new(format!("exec failed: {e}")))?;
@@ -139,6 +140,25 @@ fn resolve_seccomp(ctx: &Ctx, vault: &Vault, meta: &Meta, explicit_rootfs: Optio
         registry::seccomp::Mode::Denylist => Ok(Some((seccomp::Mode::Denylist, entry.syscalls.clone()))),
         registry::seccomp::Mode::Allowlist => Ok(Some((seccomp::Mode::Allowlist, entry.syscalls.clone()))),
     }
+}
+
+/// Prepares this session's cgroup, if the vault has any limits
+/// configured -- `None` (no cgroup, no resource ceiling) when
+/// `cgroups::active` returns an empty `Spec`, matching the "unset means
+/// unlimited" default the settings side already documents. Fails loudly
+/// (rather than silently running unlimited) if limits *are* configured
+/// but the host can't actually enforce them -- a user who explicitly
+/// asked for a memory cap should never get a session that quietly
+/// ignores it.
+fn resolve_cgroup(ctx: &Ctx, vault: &Vault, meta: &Meta) -> Result<Option<cgroup::Handle>> {
+    let spec = cgroup_settings::active(meta);
+    if spec.is_empty() {
+        return Ok(None);
+    }
+    let session = format!("{}-{}", vault.name.replace(|c: char| !c.is_alphanumeric(), "_"), std::process::id());
+    let handle = cgroup::prepare(&session, &spec).map_err(|e| crate::error::CasError::new(format!("failed to apply configured cgroup limits: {e}")))?;
+    debugf!(ctx, "exec: cgroup session '{session}' prepared");
+    Ok(Some(handle))
 }
 
 fn strict_filter() -> (seccomp::Mode, Vec<String>) {

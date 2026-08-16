@@ -23,7 +23,7 @@ fn main() {
 
     let flags = sandbox::namespaces::Flags { mount: true, pid: true, uts: true, ipc: true, user: true, net: false };
 
-    match sandbox::run(&new_root, std::path::Path::new(".sandbox_poc_oldroot"), &flags, argv, debug, None, None) {
+    match sandbox::run(&new_root, std::path::Path::new(".sandbox_poc_oldroot"), &flags, argv, debug, None, None, None) {
         Ok(code) => std::process::exit(code),
         Err(e) => {
             eprintln!("sandbox_poc failed: {e}");
