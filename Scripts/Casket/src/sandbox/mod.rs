@@ -7,6 +7,7 @@ pub mod pivot;
 pub mod procfs;
 pub mod reaper;
 pub mod seccomp;
+pub mod syscall_table;
 
 use std::io;
 use std::path::Path;

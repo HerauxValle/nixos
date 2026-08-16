@@ -1,7 +1,7 @@
 # &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
 [package]
 name = "cas"
-version = "1.10.17"
+version = "1.10.18"
 edition = "2021"
 description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
 
@@ -106,13 +106,3 @@ toml = "0.8"
 # tokio just for two GET requests. ureq is the minimal fit for a
 # request/response shape this simple.
 ureq = "2"
-
-# libseccomp-sys: raw FFI bindings to the real libseccomp C library for
-# exec's syscall filters. Not hand-rolled: syscall numbers differ per
-# CPU architecture's kernel ABI, and libseccomp already ships correct
-# per-arch name->number tables -- reimplementing that table ourselves is
-# exactly the "clever byte-shaving that risks silently breaking on some
-# edge case" this codebase already avoids elsewhere (see sha2/zxcvbn's
-# own justification comments). Wrapped behind src/sandbox/seccomp.rs so
-# a future hand-rolled swap, if ever needed, is a contained change.
-libseccomp-sys = "0.3"

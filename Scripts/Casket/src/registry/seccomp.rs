@@ -66,6 +66,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn every_preset_syscall_resolves_on_x86_64() {
+        // Every name a shipped preset references must actually exist
+        // in the x86_64 syscall table, or the preset would silently
+        // under-allow on the most common architecture. aarch64
+        // legitimately lacks some legacy names (stat/access/rename/
+        // ...), which is fine -- glibc translates those C calls into
+        // the *at() syscalls that table does have.
+        let x86 = crate::sandbox::syscall_table::x86_64_table();
+        for (preset_name, entry) in load() {
+            for syscall in &entry.syscalls {
+                assert!(x86.contains_key(syscall), "preset '{preset_name}' references unknown syscall '{syscall}'");
+            }
+        }
+    }
+
+    #[test]
     fn every_registry_entry_loads_and_has_a_valid_mode() {
         let presets = load();
         for name in ["default", "strict", "compute", "none"] {
