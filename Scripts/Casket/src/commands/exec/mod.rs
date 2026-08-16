@@ -3,14 +3,18 @@ pub mod lockfile;
 
 use std::fs;
 
+use sha2::{Digest, Sha256};
+
 use crate::commands::settings::gate::gate_inner;
-use crate::commands::settings::security::sandbox::{is_enabled, namespaces, rootfs};
+use crate::commands::settings::security::sandbox::{is_enabled, namespaces, rootfs, seccomp as seccomp_settings};
 use crate::ctx::Ctx;
 use crate::debugf;
 use crate::die;
 use crate::error::Result;
+use crate::logf;
 use crate::meta::Meta;
-use crate::sandbox::{self, namespaces::Flags, overlay};
+use crate::registry;
+use crate::sandbox::{self, namespaces::Flags, overlay, seccomp};
 use crate::vault::Vault;
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
@@ -72,6 +76,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
         None => (vault.mnt.clone(), None),
     };
 
+    let seccomp_filter = resolve_seccomp(ctx, vault, &meta, explicit_rootfs)?;
     debugf!(ctx, "exec: namespaces={active_namespaces:?}, argv={argv:?}, new_root={}", new_root.display());
     let old_root_relative = std::path::Path::new(".casket").join("oldroot");
 
@@ -81,10 +86,70 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
     // scope) because std::process::exit below skips destructors
     // entirely.
     let lock = lockfile::acquire(vault)?;
-    let result = sandbox::run(&new_root, &old_root_relative, &flags, &argv, ctx.debug, overlay_dirs);
+    let result = sandbox::run(&new_root, &old_root_relative, &flags, &argv, ctx.debug, overlay_dirs, seccomp_filter);
     drop(lock);
 
     let code = result.map_err(|e| crate::error::CasError::new(format!("exec failed: {e}")))?;
     std::process::exit(code);
+}
+
+/// Resolves the configured seccomp preset for this exec target into
+/// what `sandbox::run` actually needs. Unset defaults to the "default"
+/// preset (a real, if broad, filter); only the "none" preset itself
+/// resolves to `Ok(None)`, skipping filtering entirely. "custom" is
+/// verified against its stored hash before use; a mismatch (or a
+/// missing file/hash) fails toward the safer "strict" preset instead of
+/// silently running unfiltered or on stale rules -- same "fail toward
+/// more protective" rule `tamper::reset_to_safe` already uses for this
+/// exact field.
+fn resolve_seccomp(ctx: &Ctx, vault: &Vault, meta: &Meta, explicit_rootfs: Option<&str>) -> Result<Option<(seccomp::Mode, Vec<String>)>> {
+    let key = seccomp_settings::target_key(vault, explicit_rootfs)?;
+    let preset = meta.sandbox_seccomp.as_ref().and_then(|m| m.get(&key)).cloned().unwrap_or_else(|| "default".to_string());
+
+    if preset == "none" {
+        return Ok(None);
+    }
+
+    if preset == "custom" {
+        let path = seccomp_settings::custom_file_path(vault, &key);
+        let stored_hash = meta.sandbox_seccomp_custom_hash.as_ref().and_then(|m| m.get(&key));
+        let actual_hash = fs::read(&path).ok().map(|bytes| {
+            let mut hasher = Sha256::new();
+            hasher.update(&bytes);
+            hasher.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>()
+        });
+        if stored_hash.is_some() && stored_hash == actual_hash.as_ref() {
+            let syscalls = parse_custom_syscalls(&path)?;
+            return Ok(Some((seccomp::Mode::Allowlist, syscalls)));
+        }
+        logf!(ctx, "  [!] custom seccomp list is missing or doesn't match its recorded hash -- falling back to 'strict' rather than running unfiltered or on unverified rules");
+        return Ok(Some(strict_filter()));
+    }
+
+    let presets = registry::seccomp::load();
+    let Some(entry) = presets.get(&preset) else {
+        // Meta holds a preset name the current registry doesn't know
+        // (e.g. hand-edited trailer) -- same "fail toward more
+        // protective" fallback as an unverified custom list.
+        logf!(ctx, "  [!] unknown seccomp preset '{preset}' in metadata -- falling back to 'strict'");
+        return Ok(Some(strict_filter()));
+    };
+    match entry.mode {
+        registry::seccomp::Mode::AllowAll => Ok(None),
+        registry::seccomp::Mode::Denylist => Ok(Some((seccomp::Mode::Denylist, entry.syscalls.clone()))),
+        registry::seccomp::Mode::Allowlist => Ok(Some((seccomp::Mode::Allowlist, entry.syscalls.clone()))),
+    }
+}
+
+fn strict_filter() -> (seccomp::Mode, Vec<String>) {
+    let presets = registry::seccomp::load();
+    (seccomp::Mode::Allowlist, presets["strict"].syscalls.clone())
+}
+
+/// One syscall name per line; blank lines and `#`-prefixed comments
+/// (the placeholder `edit` seeds new files with) are skipped.
+fn parse_custom_syscalls(path: &std::path::Path) -> Result<Vec<String>> {
+    let contents = fs::read_to_string(path)?;
+    Ok(contents.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_string).collect())
 }
 

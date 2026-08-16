@@ -26,11 +26,19 @@
 
           cargoLock.lockFile = ./Cargo.lock;
 
+          # libseccomp: real C library the libseccomp-sys crate links
+          # against for exec's seccomp filters -- pkg-config is what its
+          # build script uses to find it.
+          buildInputs = [ pkgs.libseccomp ];
+
           # cas shells out to all of these at runtime; wrap the binary so
           # they're on PATH regardless of the caller's own environment
           # (this matters since cas re-execs itself under sudo, which on
           # some setups resets PATH to a minimal default).
-          nativeBuildInputs = [ pkgs.makeWrapper ];
+          nativeBuildInputs = [
+            pkgs.makeWrapper
+            pkgs.pkg-config
+          ];
           postInstall = ''
             wrapProgram $out/bin/cas --prefix PATH : ${
               pkgs.lib.makeBinPath [
@@ -59,6 +67,8 @@
             btrfs-progs
             udisks2
             e2fsprogs
+            libseccomp
+            pkg-config
           ];
         };
       }

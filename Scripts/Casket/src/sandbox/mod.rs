@@ -6,6 +6,7 @@ pub mod overlay;
 pub mod pivot;
 pub mod procfs;
 pub mod reaper;
+pub mod seccomp;
 
 use std::io;
 use std::path::Path;
@@ -50,7 +51,12 @@ use std::path::Path;
 ///    `/dev` come along for free, already in place at their final
 ///    paths.
 /// 8. Harden (`NO_NEW_PRIVS` + capability-bounding-set drops).
-/// 9. `fork()` -- **required**, not optional, and easy to get
+/// 9. If `seccomp` is given, applied *after* the required fork below,
+///    inside the PID1 child only -- never the supervising parent
+///    (which just waits and needs no restriction of its own). Inherited
+///    by everything PID1 subsequently forks/execs, including the real
+///    foreground command.
+/// 10. `fork()` -- **required**, not optional, and easy to get
 ///    catastrophically wrong: per `pid_namespaces(7)`, the process that
 ///    calls `unshare(CLONE_NEWPID)` never itself joins the new PID
 ///    namespace -- only its *next forked child* does. If the reap-loop
@@ -64,7 +70,7 @@ use std::path::Path;
 ///    refuses to fire its final kill unless `getpid() == 1` -- a second,
 ///    independent check -- but the fork here is what makes that
 ///    condition possible to satisfy honestly.
-/// 10. The forked child (now genuinely PID1 of the new PID namespace)
+/// 11. The forked child (now genuinely PID1 of the new PID namespace)
 ///    forks the real foreground command, reap-loops until it exits,
 ///    then kills anything left behind *within its own namespace only*.
 ///
@@ -74,7 +80,15 @@ use std::path::Path;
 /// as a plain bool + `eprintln!` here rather than a `Ctx` dependency so
 /// this module stays includable, unmodified, by the standalone
 /// `sandbox_poc` binary (which has no `Ctx`/`color` of its own).
-pub fn run(new_root: &Path, old_root_relative: &Path, flags: &namespaces::Flags, argv: &[String], debug: bool, overlay: Option<overlay::Spec>) -> io::Result<i32> {
+pub fn run(
+    new_root: &Path,
+    old_root_relative: &Path,
+    flags: &namespaces::Flags,
+    argv: &[String],
+    debug: bool,
+    overlay: Option<overlay::Spec>,
+    seccomp_filter: Option<(seccomp::Mode, Vec<String>)>,
+) -> io::Result<i32> {
     let real_uid = unsafe { libc::getuid() };
     let real_gid = unsafe { libc::getgid() };
 
@@ -119,6 +133,15 @@ pub fn run(new_root: &Path, old_root_relative: &Path, flags: &namespaces::Flags,
         return Err(io::Error::last_os_error());
     }
     if pid1_child == 0 {
+        if let Some((mode, syscalls)) = seccomp_filter {
+            match seccomp::apply(mode, &syscalls) {
+                Ok(()) => trace!("seccomp filter applied"),
+                Err(e) => {
+                    eprintln!("[x] seccomp filter failed to apply: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
         trace!("pid1_child: forking foreground command, argv={argv:?}");
         let code = reaper::run_as_pid1(argv)?;
         std::process::exit(code);

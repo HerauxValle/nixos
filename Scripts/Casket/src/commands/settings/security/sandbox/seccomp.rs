@@ -21,14 +21,14 @@ use crate::vault::Vault;
 /// itself (see `rootfs::RESERVED_NAMES`), so it can't collide.
 const ROOT_KEY: &str = "_root";
 
-fn target_key(vault: &Vault, explicit_rootfs: Option<&str>) -> Result<String> {
+pub fn target_key(vault: &Vault, explicit_rootfs: Option<&str>) -> Result<String> {
     Ok(rootfs::resolve(vault, explicit_rootfs)?.unwrap_or_else(|| ROOT_KEY.to_string()))
 }
 
 /// Where a target's custom syscall list lives on disk -- inside the
 /// environment for a named rootfs, at the vault's top level (sibling to
 /// `.rootfs.d/`, matching where `.rootfs.d/` itself sits) for `_root`.
-fn custom_file_path(vault: &Vault, key: &str) -> std::path::PathBuf {
+pub fn custom_file_path(vault: &Vault, key: &str) -> std::path::PathBuf {
     if key == ROOT_KEY {
         vault.mnt.join(".casket-seccomp")
     } else {
