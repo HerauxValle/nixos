@@ -22,13 +22,13 @@ pub fn is_enabled(meta: &Meta) -> bool {
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
     match extra.first().map(String::as_str) {
         Some("enable") => enable(ctx, vault, pw),
-        Some("disable") => disable(ctx, vault, pw),
+        Some("disable") => disable(ctx, vault, extra[1..].iter().any(|a| a == "--removeRootfs"), pw),
         Some("state") => state(ctx, vault),
         Some("namespaces") => namespaces::dispatch(ctx, vault, &extra[1..], pw),
         Some("rootfs") => rootfs::dispatch(ctx, vault, &extra[1..], pw),
         Some("seccomp") => seccomp::dispatch(ctx, vault, &extra[1..], pw),
         Some("cgroups") => cgroups::dispatch(ctx, vault, &extra[1..], pw),
-        _ => die!("usage: cas <vault> settings security sandbox enable|disable|state|namespaces|rootfs|seccomp|cgroups ..."),
+        _ => die!("usage: cas <vault> settings security sandbox enable|disable [--removeRootfs]|state|namespaces|rootfs|seccomp|cgroups ..."),
     }
 }
 
@@ -45,11 +45,24 @@ fn enable(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-fn disable(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
+fn disable(ctx: &Ctx, vault: &Vault, remove_rootfs: bool, pw: Option<&str>) -> Result<()> {
     if vault.is_mount() && lockfile::is_live(vault) {
         die!("'{}' has a live 'cas exec' session -- wait for it to exit before disabling sandbox", vault.name);
     }
     let verified = gate_inner(ctx, vault, "sandbox", pw)?;
+
+    // Run before flipping the flag off -- a refusal here (e.g. a
+    // `default` rootfs environment still set, same rule
+    // `rootfs remove all` itself enforces) should leave sandbox exactly
+    // as it was, not disabled-with-leftover-environments requiring
+    // re-enabling just to clean up.
+    if remove_rootfs {
+        if !vault.is_mount() {
+            die!("--removeRootfs requires '{}' to be open -- rootfs environments live inside the mounted vault", vault.name);
+        }
+        rootfs::remove_all(ctx, vault)?;
+    }
+
     let mut meta = Meta::read(&vault.img);
     meta.sandbox_enabled = None;
     if let Some((_, secret)) = &verified {

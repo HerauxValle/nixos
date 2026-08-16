@@ -110,6 +110,17 @@ pub fn resolve(vault: &Vault, explicit: Option<&str>) -> Result<Option<String>> 
     }
 }
 
+/// Removes every rootfs environment -- the same `all` wildcard `rootfs
+/// remove all` itself uses (see `RESERVED_NAMES`'s doc comment), reused
+/// here so `sandbox disable --removeRootfs` gets identical behavior:
+/// typed per-environment confirmation, refuses while any environment
+/// is live-in-use, and refuses if a `default` is still set (removal
+/// deliberately doesn't auto-clear it -- see `remove.rs`'s own doc
+/// comment on why that's not an implicit side effect this takes).
+pub fn remove_all(ctx: &Ctx, vault: &Vault) -> Result<()> {
+    remove::dispatch(ctx, vault, &["all".to_string()])
+}
+
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], _pw: Option<&str>) -> Result<()> {
     match extra.first().map(String::as_str) {
         Some("list") | None => list(ctx, vault),
