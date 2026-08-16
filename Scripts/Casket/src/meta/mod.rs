@@ -71,8 +71,10 @@ pub struct Meta {
     /// Per-target seccomp setting, keyed by rootfs name (or `"_root"`
     /// for the no-named-rootfs fallback case `exec` uses when
     /// `.rootfs.d/` has zero entries) -- either a built-in preset name
-    /// (`default`/`strict`/`none`/`compute`) or `"custom:<profile>"`
-    /// referencing a named profile under `.seccomp.d/`.
+    /// (`default`/`strict`/`none`/`compute`) or a named custom profile
+    /// under `.seccomp.d/`, both from the same flat namespace (no
+    /// prefix distinguishes them, see `commands::settings::security::
+    /// sandbox::seccomp::set`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sandbox_seccomp: Option<BTreeMap<String, String>>,
     /// SHA-256 (hex) of each named custom seccomp profile's `.seccomp.d/

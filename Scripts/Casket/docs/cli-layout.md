@@ -111,14 +111,16 @@ cas
     │           │                            set or clear which environment `exec` uses when several exist and none is named
     │           │
     │           ├── seccomp
-    │           │   ├── [--rootfs <name>] set <default|strict|compute|none|custom:<profile>>
-    │           │   │                        choose which filter a target uses -- built-ins by name, or a
-    │           │   │                        named custom profile via `custom:<profile>`
+    │           │   ├── [--rootfs <name>] set <name>
+    │           │   │                        choose which filter a target uses -- built-in presets
+    │           │   │                        (default/strict/compute/none) and custom profiles share one
+    │           │   │                        flat namespace, no prefix needed to tell them apart
     │           │   ├── [--rootfs <name>] state
     │           │   │                        show the active filter for a target
     │           │   │
     │           │   └── custom                manage named custom seccomp profiles (vault-wide, reusable
-    │           │       │                      across every rootfs environment and the vault's own root target)
+    │           │       │                      across every rootfs environment and the vault's own root target;
+    │           │       │                      `create`/`rename` refuse any name colliding with a built-in preset)
     │           │       ├── list               every profile that exists, and which targets use each
     │           │       ├── create <name>      create a new empty profile (default action: deny)
     │           │       ├── delete <name>      delete a profile -- refuses if any target still references it

@@ -1,4 +1,4 @@
-// &desc: "Parses data/seccomp-presets.toml -- 4 built-in presets (default/strict/compute/none), syscalls listed by name only. Named custom profiles (`seccomp set custom:<name>`) are deliberately not in this file -- they're vault-wide user data managed under `.seccomp.d/`, not a build-time registry entry, see commands::settings::security::sandbox::seccomp::profiles."
+// &desc: "Parses data/seccomp-presets.toml -- 4 built-in presets (default/strict/compute/none), syscalls listed by name only. Named custom profiles (activated via the same flat `seccomp set <name>`) are deliberately not in this file -- they're vault-wide user data managed under `.seccomp.d/`, not a build-time registry entry, see commands::settings::security::sandbox::seccomp::profiles."
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
@@ -6,9 +6,10 @@ use serde::Deserialize;
 const DATA: &str = include_str!("data/seccomp-presets.toml");
 
 /// Every built-in preset name valid for `seccomp set <preset>` -- a
-/// named custom profile is referenced separately, as `custom:<name>`,
-/// not by a bare name from this list (see `commands::settings::
-/// security::sandbox::seccomp::set`, which checks both).
+/// named custom profile shares this same bare-name namespace instead
+/// of being listed here (see `commands::settings::security::sandbox::
+/// seccomp::set`, which checks both, and `profiles::create`/`rename`,
+/// which refuse any name colliding with one of these).
 pub const PRESET_NAMES: &[&str] = &["default", "strict", "compute", "none"];
 
 #[derive(Deserialize)]

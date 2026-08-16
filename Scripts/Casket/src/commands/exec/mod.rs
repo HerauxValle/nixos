@@ -116,12 +116,15 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
 /// Resolves the configured seccomp setting for this exec target into
 /// what `sandbox::run` actually needs. Unset defaults to the "default"
 /// preset (a real, if broad, filter); only the "none" preset itself
-/// resolves to `Ok(None)`, skipping filtering entirely. `"custom:
-/// <profile>"` is verified against that profile's stored hash before
-/// use; a mismatch (or a missing profile/hash) fails toward the safer
-/// "strict" preset instead of silently running unfiltered or on stale
-/// rules -- same "fail toward more protective" rule `tamper::
-/// reset_to_safe` already uses for this exact field.
+/// resolves to `Ok(None)`, skipping filtering entirely. Built-ins and
+/// named custom profiles share one flat namespace -- checked here in
+/// that order, built-in first -- since `profiles::create`/`rename`
+/// refuse any name that collides with a built-in, so the two can never
+/// actually name the same thing. A custom profile is verified against
+/// its stored hash before use; a mismatch (or a missing profile/hash)
+/// fails toward the safer "strict" preset instead of silently running
+/// unfiltered or on stale rules -- same "fail toward more protective"
+/// rule `tamper::reset_to_safe` already uses for this exact field.
 fn resolve_seccomp(ctx: &Ctx, vault: &Vault, meta: &Meta, explicit_rootfs: Option<&str>) -> Result<Option<seccomp::Filter>> {
     let key = seccomp_settings::target_key(vault, explicit_rootfs)?;
     let preset = meta.sandbox_seccomp.as_ref().and_then(|m| m.get(&key)).cloned().unwrap_or_else(|| "default".to_string());
@@ -130,35 +133,37 @@ fn resolve_seccomp(ctx: &Ctx, vault: &Vault, meta: &Meta, explicit_rootfs: Optio
         return Ok(None);
     }
 
-    if let Some(profile_name) = preset.strip_prefix("custom:") {
-        let stored_hash = meta.sandbox_seccomp_profile_hash.as_ref().and_then(|m| m.get(profile_name));
-        let actual_hash = fs::read(seccomp_settings::profiles::path(vault, profile_name)).ok().map(|bytes| {
+    let presets = registry::seccomp::load();
+    if let Some(entry) = presets.get(&preset) {
+        return Ok(match entry.mode {
+            registry::seccomp::Mode::AllowAll => None,
+            registry::seccomp::Mode::Denylist => Some(seccomp::Filter { default_deny: false, allow: Vec::new(), deny: entry.syscalls.clone() }),
+            registry::seccomp::Mode::Allowlist => Some(seccomp::Filter { default_deny: true, allow: entry.syscalls.clone(), deny: Vec::new() }),
+        });
+    }
+
+    if seccomp_settings::profiles::exists(vault, &preset) {
+        let stored_hash = meta.sandbox_seccomp_profile_hash.as_ref().and_then(|m| m.get(&preset));
+        let actual_hash = fs::read(seccomp_settings::profiles::path(vault, &preset)).ok().map(|bytes| {
             let mut hasher = Sha256::new();
             hasher.update(&bytes);
             hasher.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>()
         });
         if stored_hash.is_some() && stored_hash == actual_hash.as_ref() {
-            if let Ok(profile) = seccomp_settings::profiles::read(vault, profile_name) {
+            if let Ok(profile) = seccomp_settings::profiles::read(vault, &preset) {
                 return Ok(Some(profile.to_filter()));
             }
         }
-        logf!(ctx, "  [!] custom seccomp profile '{profile_name}' is missing or doesn't match its recorded hash -- falling back to 'strict' rather than running unfiltered or on unverified rules");
+        logf!(ctx, "  [!] custom seccomp profile '{preset}' is missing or doesn't match its recorded hash -- falling back to 'strict' rather than running unfiltered or on unverified rules");
         return Ok(Some(strict_filter()));
     }
 
-    let presets = registry::seccomp::load();
-    let Some(entry) = presets.get(&preset) else {
-        // Meta holds a preset name the current registry doesn't know
-        // (e.g. hand-edited trailer) -- same "fail toward more
-        // protective" fallback as an unverified custom list.
-        logf!(ctx, "  [!] unknown seccomp preset '{preset}' in metadata -- falling back to 'strict'");
-        return Ok(Some(strict_filter()));
-    };
-    match entry.mode {
-        registry::seccomp::Mode::AllowAll => Ok(None),
-        registry::seccomp::Mode::Denylist => Ok(Some(seccomp::Filter { default_deny: false, allow: Vec::new(), deny: entry.syscalls.clone() })),
-        registry::seccomp::Mode::Allowlist => Ok(Some(seccomp::Filter { default_deny: true, allow: entry.syscalls.clone(), deny: Vec::new() })),
-    }
+    // Meta holds a name neither the built-in registry nor the vault's
+    // own custom profiles know (e.g. a hand-edited trailer, or a
+    // profile that's since been deleted) -- same "fail toward more
+    // protective" fallback as an unverified custom list.
+    logf!(ctx, "  [!] unknown seccomp preset or custom profile '{preset}' in metadata -- falling back to 'strict'");
+    Ok(Some(strict_filter()))
 }
 
 /// Prepares this session's cgroup, if the vault has any limits

@@ -1,4 +1,4 @@
-// &desc: "`cas <vault> settings security sandbox seccomp [--rootfs <name>] set <preset>|state` -- which syscall filter applies to a given target (a named rootfs environment, or the zero-rootfs '_root' case). Built-in presets (default/strict/compute/none) come from registry::seccomp; a named custom profile is referenced as `custom:<name>` and managed separately, see `profiles` submodule."
+// &desc: "`cas <vault> settings security sandbox seccomp [--rootfs <name>] set <preset>|state` -- which syscall filter applies to a given target (a named rootfs environment, or the zero-rootfs '_root' case). Built-in presets (default/strict/compute/none) and named custom profiles share one flat namespace -- `set <name>` resolves either the same way, activation doesn't care which kind a name is. The only asymmetry is that custom profiles (managed under `seccomp custom`, see `profiles` submodule) can be edited/deleted/renamed and built-ins can't -- they're compiled into the binary, not real files. `profiles::create`/`rename` refuse any name that collides with a built-in, so the two namespaces can never actually clash."
 use crate::commands::settings::gate::gate_inner;
 use crate::commands::settings::security::sandbox::rootfs;
 use crate::ctx::Ctx;
@@ -43,7 +43,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
     match rest.first().map(String::as_str) {
         Some("set") => {
             let Some(preset) = rest.get(1) else {
-                die!("usage: cas <vault> settings security sandbox seccomp [--rootfs <name>] set <default|strict|compute|none|custom:<profile>>");
+                die!("usage: cas <vault> settings security sandbox seccomp [--rootfs <name>] set <default|strict|compute|none|profile-name>");
             };
             set(ctx, vault, explicit_rootfs, preset, pw)
         }
@@ -52,15 +52,13 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
     }
 }
 
+/// A bare name resolves to either a built-in preset or a custom
+/// profile -- whichever exists, since `profiles::create`/`rename`
+/// refuse any name that collides with a built-in (see this module's
+/// own doc comment). No prefix needed to disambiguate.
 fn set(ctx: &Ctx, vault: &Vault, explicit_rootfs: Option<&str>, preset: &str, pw: Option<&str>) -> Result<()> {
-    if let Some(profile_name) = preset.strip_prefix("custom:") {
-        if !profiles::exists(vault, profile_name) {
-            die!("no custom seccomp profile named '{profile_name}' -- create it first: 'seccomp custom create {profile_name}' (see 'seccomp custom list')");
-        }
-    } else if !registry::seccomp::PRESET_NAMES.contains(&preset) {
-        die!(
-            "unknown seccomp preset '{preset}' -- expected one of: default, strict, compute, none, or custom:<profile> (see 'seccomp custom list')"
-        );
+    if !registry::seccomp::PRESET_NAMES.contains(&preset) && !profiles::exists(vault, preset) {
+        die!("unknown seccomp preset or custom profile '{preset}' -- expected one of: default, strict, compute, none, or a custom profile name (see 'seccomp custom list')");
     }
 
     let key = target_key(vault, explicit_rootfs)?;

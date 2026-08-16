@@ -1,4 +1,4 @@
-// &desc: "v2 -> v3: converts the old one-custom-list-per-target seccomp feature into the named, reusable custom-profile registry (`.seccomp.d/`). Meta step renames each target's bare `\"custom\"` value to `\"custom:<target-key>\"` (the target key becomes the new profile's name) and renames `sandbox_seccomp_custom_hash` -> `sandbox_seccomp_profile_hash`. Layout step converts each old plain-text `.casket-seccomp` file (one syscall per line) into the equivalent TOML profile at its new location, using the same target-key-as-profile-name convention the meta step assumed."
+// &desc: "v2 -> v3: converts the old one-custom-list-per-target seccomp feature into the named, reusable custom-profile registry (`.seccomp.d/`). Meta step rewrites each target's bare `\"custom\"` value to the target key itself (the target key becomes the new profile's name, in the same flat namespace built-in presets already use -- no prefix) and renames `sandbox_seccomp_custom_hash` -> `sandbox_seccomp_profile_hash`. Layout step converts each old plain-text `.casket-seccomp` file (one syscall per line) into the equivalent TOML profile at its new location, using the same target-key-as-profile-name convention the meta step assumed. Edge case, not specially handled: a rootfs environment historically named exactly `default`/`strict`/`compute`/`none` that also used the old custom feature would migrate to a profile name that collides with a built-in -- `resolve_seccomp` resolves built-ins first, so the migrated profile would just go unused rather than break anything, but this is a real gap worth knowing about if it's ever hit in practice."
 use std::fs;
 
 use serde_json::{Map, Value};
@@ -22,7 +22,7 @@ fn migrate_meta(map: &mut Map<String, Value>) {
     if let Some(Value::Object(seccomp)) = map.get_mut("sandbox_seccomp") {
         for (key, value) in seccomp.iter_mut() {
             if value.as_str() == Some("custom") {
-                *value = Value::String(format!("custom:{key}"));
+                *value = Value::String(key.clone());
                 touched = true;
             }
         }

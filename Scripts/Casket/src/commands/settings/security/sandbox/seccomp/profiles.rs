@@ -1,4 +1,4 @@
-// &desc: "`cas <vault> settings security sandbox seccomp custom list|create|delete|rename|edit` -- named, reusable custom seccomp profiles. Each profile is its own TOML file under `.seccomp.d/` (mode-independent: an `allow` list, a `deny` list, and a `default` action for anything in neither), referenced by any target via `seccomp set custom:<name>`. Replaces the older one-per-target-only custom file (see migrations::v3)."
+// &desc: "`cas <vault> settings security sandbox seccomp custom list|create|delete|rename|edit` -- named, reusable custom seccomp profiles. Each profile is its own TOML file under `.seccomp.d/` (mode-independent: an `allow` list, a `deny` list, and a `default` action for anything in neither), referenced by any target via the same flat `seccomp set <name>` built-ins use -- no prefix. `create`/`rename` refuse any name colliding with a built-in preset, so the shared namespace never actually clashes. Replaces the older one-per-target-only custom file (see migrations::v3)."
 use std::fs;
 use std::path::PathBuf;
 
@@ -91,10 +91,9 @@ fn save(ctx: &Ctx, vault: &Vault, name: &str, profile: &Profile, pw: Option<&str
 }
 
 /// Every target key (`_root` or a rootfs environment name) currently
-/// pointed at `custom:<name>`.
+/// pointed at this profile.
 fn referencing_targets(meta: &Meta, name: &str) -> Vec<String> {
-    let want = format!("custom:{name}");
-    meta.sandbox_seccomp.as_ref().map(|m| m.iter().filter(|(_, v)| **v == want).map(|(k, _)| k.clone()).collect()).unwrap_or_default()
+    meta.sandbox_seccomp.as_ref().map(|m| m.iter().filter(|(_, v)| v.as_str() == name).map(|(k, _)| k.clone()).collect()).unwrap_or_default()
 }
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
@@ -155,6 +154,9 @@ fn list(ctx: &Ctx, vault: &Vault) -> Result<()> {
 
 fn create(ctx: &Ctx, vault: &Vault, profile_name: &str, pw: Option<&str>) -> Result<()> {
     name::validate("seccomp profile", profile_name)?;
+    if crate::registry::seccomp::PRESET_NAMES.contains(&profile_name) {
+        die!("'{profile_name}' is a built-in seccomp preset name -- custom profiles can't reuse it, since `seccomp set` resolves both from one shared namespace");
+    }
     if exists(vault, profile_name) {
         die!("custom seccomp profile '{profile_name}' already exists -- 'seccomp custom edit {profile_name}' to change it");
     }
@@ -164,6 +166,9 @@ fn create(ctx: &Ctx, vault: &Vault, profile_name: &str, pw: Option<&str>) -> Res
 }
 
 fn delete(ctx: &Ctx, vault: &Vault, profile_name: &str, pw: Option<&str>) -> Result<()> {
+    if crate::registry::seccomp::PRESET_NAMES.contains(&profile_name) {
+        die!("'{profile_name}' is a built-in seccomp preset, not a custom profile -- built-ins can't be edited or deleted");
+    }
     if !exists(vault, profile_name) {
         die!("custom seccomp profile '{profile_name}' doesn't exist -- see 'seccomp custom list'");
     }
@@ -188,6 +193,9 @@ fn delete(ctx: &Ctx, vault: &Vault, profile_name: &str, pw: Option<&str>) -> Res
 
 fn rename(ctx: &Ctx, vault: &Vault, old: &str, new: &str, pw: Option<&str>) -> Result<()> {
     name::validate("seccomp profile", new)?;
+    if crate::registry::seccomp::PRESET_NAMES.contains(&new) {
+        die!("'{new}' is a built-in seccomp preset name -- custom profiles can't reuse it, since `seccomp set` resolves both from one shared namespace");
+    }
     if !exists(vault, old) {
         die!("custom seccomp profile '{old}' doesn't exist -- see 'seccomp custom list'");
     }
@@ -204,11 +212,9 @@ fn rename(ctx: &Ctx, vault: &Vault, old: &str, new: &str, pw: Option<&str>) -> R
         }
     }
     if let Some(targets) = meta.sandbox_seccomp.as_mut() {
-        let old_ref = format!("custom:{old}");
-        let new_ref = format!("custom:{new}");
         for v in targets.values_mut() {
-            if *v == old_ref {
-                *v = new_ref.clone();
+            if v.as_str() == old {
+                *v = new.to_string();
             }
         }
     }
@@ -221,6 +227,9 @@ fn rename(ctx: &Ctx, vault: &Vault, old: &str, new: &str, pw: Option<&str>) -> R
 }
 
 fn edit_dispatch(ctx: &Ctx, vault: &Vault, profile_name: &str, rest: &[String], pw: Option<&str>) -> Result<()> {
+    if crate::registry::seccomp::PRESET_NAMES.contains(&profile_name) {
+        die!("'{profile_name}' is a built-in seccomp preset, not a custom profile -- built-ins can't be edited or deleted");
+    }
     if !exists(vault, profile_name) {
         die!("custom seccomp profile '{profile_name}' doesn't exist -- create it first: 'seccomp custom create {profile_name}'");
     }
