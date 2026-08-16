@@ -20,7 +20,20 @@ use crate::vault::Vault;
 /// is the `--removeRootfs`/`remove` wildcard keyword (never a glob, to
 /// avoid shell expansion surprises), `default` would collide with the
 /// `default` verb/symlink itself.
-pub const RESERVED_NAMES: &[&str] = &["all", "default"];
+pub const RESERVED_NAMES: &[&str] = &["all", "default", ROOT_KEY];
+
+/// Sentinel meaning "the vault's own content, not any rootfs
+/// environment" -- accepted anywhere a rootfs name is (`--rootfs
+/// _root`), resolved specially in `resolve()` below rather than looked
+/// up as a real directory. Exists so `exec`/`seccomp` can explicitly
+/// target the vault's own root even when exactly one real environment
+/// exists and would otherwise be auto-selected (see `resolve`'s doc
+/// comment) -- without this, there was no way to reach that target
+/// once any environment existed at all. Reserved here (not just used
+/// by `seccomp`, which originally defined its own private copy of this
+/// same string) so `add`/`rename` can never create a real environment
+/// that collides with it.
+pub const ROOT_KEY: &str = "_root";
 
 /// Rejects any environment name that could escape `.rootfs.d/` once
 /// joined onto a directory path with `.join(name)` -- no path
@@ -95,12 +108,18 @@ pub fn set_default(vault: &Vault, name: Option<&str>) -> Result<()> {
 
 /// Which rootfs environment (if any) a caller should use, per the one
 /// resolution rule shared by `exec --rootfs` and `seccomp --rootfs`: an
-/// explicit `<name>` always wins; otherwise zero environments means
+/// explicit `<name>` always wins (with `--rootfs _root`/`ROOT_KEY`
+/// short-circuiting straight to "the vault's own content", the only way
+/// to reach that target once any real environment exists and would
+/// otherwise be auto-selected below); otherwise zero environments means
 /// `Ok(None)` (isolate the vault's own content directly / target the
 /// `_root` sentinel), exactly one is used automatically, and multiple
 /// environments use the `default` symlink target if one's set -- or
 /// refuse, listing the available names, if not.
 pub fn resolve(vault: &Vault, explicit: Option<&str>) -> Result<Option<String>> {
+    if explicit == Some(ROOT_KEY) {
+        return Ok(None);
+    }
     if let Some(name) = explicit {
         validate_name(name)?;
         let dir = ensure_dir(vault)?;

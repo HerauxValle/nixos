@@ -56,7 +56,15 @@ fn elevate() {
         return;
     }
     eprintln!("{}", color::auto("[i] elevating to sudo (if this fails, run with sudo manually)"));
-    let err = std::process::Command::new("sudo").args(std::env::args()).exec();
+    // `--preserve-env=EDITOR` specifically, not a blanket `-E` -- sudo
+    // resets the environment by default, which silently dropped a
+    // user's `$EDITOR` before it ever reached commands that shell out
+    // to it (`seccomp custom edit`, `settings security fileIntegrity`'s
+    // migration prompts don't use it, but the editor flow does),
+    // launching root's own default editor instead with no explanation.
+    // Only this one variable is threaded through, not the whole
+    // environment, to keep the elevation boundary otherwise unchanged.
+    let err = std::process::Command::new("sudo").arg("--preserve-env=EDITOR").args(std::env::args()).exec();
     eprintln!("{}", color::auto(&format!("[x] failed to elevate: {err}")));
     std::process::exit(1);
 }

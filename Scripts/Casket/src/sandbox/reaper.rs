@@ -25,6 +25,20 @@ pub fn run_as_pid1(argv: &[String]) -> io::Result<i32> {
     // logout once; this check exists specifically to make that
     // structurally impossible to repeat.
     let own_pid = unsafe { libc::getpid() };
+    if own_pid == -1 {
+        // A real pid is always positive -- -1 specifically means the
+        // `getpid` syscall itself just failed, almost always because an
+        // active seccomp filter (a `default = "deny"` custom profile
+        // that forgot to allow `getpid`, most commonly) is blocking it
+        // with `EPERM`, not because of a namespace problem. `getpid`/
+        // `wait4`/`kill`/`fork`/`exit_group` are needed by this reaper
+        // itself, not just whatever command `exec` is running -- a
+        // strict default-deny profile needs to allow those explicitly.
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "refusing to run as PID1 reaper: getpid() itself failed -- if a custom seccomp profile with default=\"deny\" is active, it needs to explicitly allow getpid/wait4/kill/fork/clone/exit_group as well, since this sandbox's own PID1 supervisor needs those, not just the command being run".to_string(),
+        ));
+    }
     if own_pid != 1 {
         return Err(io::Error::new(
             io::ErrorKind::Other,

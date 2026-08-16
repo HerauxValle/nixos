@@ -1,6 +1,7 @@
 // &desc: "`cas <vault> settings security sandbox seccomp [--rootfs <name>] set <preset>|state` -- which syscall filter applies to a given target (a named rootfs environment, or the zero-rootfs '_root' case). Built-in presets (default/strict/compute/none) and named custom profiles share one flat namespace -- `set <name>` resolves either the same way, activation doesn't care which kind a name is. The only asymmetry is that custom profiles (managed under `seccomp custom`, see `profiles` submodule) can be edited/deleted/renamed and built-ins can't -- they're compiled into the binary, not real files. `profiles::create`/`rename` refuse any name that collides with a built-in, so the two namespaces can never actually clash."
 use crate::commands::settings::gate::gate_inner;
 use crate::commands::settings::security::sandbox::rootfs;
+use crate::commands::settings::security::sandbox::rootfs::ROOT_KEY;
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
@@ -11,13 +12,6 @@ use crate::tamper;
 use crate::vault::Vault;
 
 pub mod profiles;
-
-/// The map key `sandbox_seccomp`/target lookups use for the zero-rootfs
-/// case -- `exec` pivots into the vault's own content directly then, so
-/// it still needs *a* seccomp target, just not one named after a real
-/// rootfs environment. Not a valid environment name itself (see
-/// `rootfs::RESERVED_NAMES`), so it can't collide.
-const ROOT_KEY: &str = "_root";
 
 pub fn target_key(vault: &Vault, explicit_rootfs: Option<&str>) -> Result<String> {
     Ok(rootfs::resolve(vault, explicit_rootfs)?.unwrap_or_else(|| ROOT_KEY.to_string()))

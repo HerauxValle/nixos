@@ -114,7 +114,11 @@ cas
     │           │   ├── [--rootfs <name>] set <name>
     │           │   │                        choose which filter a target uses -- built-in presets
     │           │   │                        (default/strict/compute/none) and custom profiles share one
-    │           │   │                        flat namespace, no prefix needed to tell them apart
+    │           │   │                        flat namespace, no prefix needed to tell them apart.
+    │           │   │                        `--rootfs _root` explicitly means the vault's own content --
+    │           │   │                        the only way to reach it once any real environment exists
+    │           │   │                        (otherwise a lone environment is auto-selected instead).
+    │           │   │                        Same sentinel works for `exec --rootfs _root` too.
     │           │   ├── [--rootfs <name>] state
     │           │   │                        show the active filter for a target
     │           │   │

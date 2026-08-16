@@ -152,6 +152,22 @@ fn list(ctx: &Ctx, vault: &Vault) -> Result<()> {
     Ok(())
 }
 
+/// A `default = "deny"` profile blocks everything not explicitly
+/// allowed -- including the syscalls `exec`'s own PID1 supervisor needs
+/// for its own bookkeeping (`getpid`/`wait4`/`kill`/`fork`/`clone`/
+/// `exit_group`), not just whatever command is actually being run. A
+/// profile missing those will make `exec` fail outright with a
+/// confusing low-level error (see `sandbox::reaper::run_as_pid1`'s own
+/// handling of this) rather than a clean seccomp-specific one -- this
+/// warns proactively, at the point the profile becomes default-deny,
+/// rather than only after the fact.
+fn warn_default_deny(ctx: &Ctx, profile_name: &str) {
+    logf!(
+        ctx,
+        "  [i] '{profile_name}' denies by default -- make sure its allow list also covers getpid, wait4, kill, fork, clone, and exit_group, which exec's own sandbox supervisor needs regardless of what command is being run"
+    );
+}
+
 fn create(ctx: &Ctx, vault: &Vault, profile_name: &str, pw: Option<&str>) -> Result<()> {
     name::validate("seccomp profile", profile_name)?;
     if crate::registry::seccomp::PRESET_NAMES.contains(&profile_name) {
@@ -162,6 +178,7 @@ fn create(ctx: &Ctx, vault: &Vault, profile_name: &str, pw: Option<&str>) -> Res
     }
     save(ctx, vault, profile_name, &Profile::default(), pw)?;
     logf!(ctx, "[✓] custom seccomp profile '{profile_name}' created (default: deny, empty allow/deny lists)");
+    warn_default_deny(ctx, profile_name);
     Ok(())
 }
 
@@ -276,6 +293,9 @@ fn edit_default(ctx: &Ctx, vault: &Vault, profile_name: &str, action: &str, pw: 
     profile.default = action.to_string();
     save(ctx, vault, profile_name, &profile, pw)?;
     logf!(ctx, "[✓] '{profile_name}' default action set to '{action}'");
+    if action == "deny" {
+        warn_default_deny(ctx, profile_name);
+    }
     Ok(())
 }
 
