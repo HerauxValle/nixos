@@ -67,6 +67,8 @@ per-action usage and examples.
 - `docs/rootfs-registry.md` -- how `rootfs add --preset` resolves distro
   tarballs (`src/registry/data/rootfs-presets.toml`), what's currently
   supported, and how to add or fix a distro entry.
+- `docs/known-issues.md` -- real gaps found (usually via review) but
+  deliberately left unfixed for now, with why and what a real fix needs.
 - `glossar/glossary.md` -- LUKS/btrfs/udisks domain vocabulary used
   throughout the code and docs.
 
