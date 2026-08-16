@@ -82,10 +82,11 @@ fn finish(ctx: &Ctx, env_dir: &Path, name: &str, result: Result<String>, source_
     Ok(())
 }
 
-/// Validates `tarball` (`tar -tf`, before touching the filesystem) and
-/// extracts it into `base_dir`. Used by both `add --tarball` (fresh
-/// `base_dir`) and `update --tarball` (`base_dir` wiped first by the
-/// caller).
+/// Validates `tarball` (`tar -tf` for a well-formed archive, then
+/// `tar -tvf` symlink-target containment -- see `check_symlink_targets`)
+/// before touching the filesystem, and extracts it into `base_dir`.
+/// Used by both `add --tarball` (fresh `base_dir`) and `update
+/// --tarball` (`base_dir` wiped first by the caller).
 pub fn extract_tarball_into(base_dir: &Path, tarball: &Path) -> Result<()> {
     if !tarball.is_file() {
         die!("'{}' isn't a file", tarball.display());
@@ -94,7 +95,95 @@ pub fn extract_tarball_into(base_dir: &Path, tarball: &Path) -> Result<()> {
     if !check.status.success() {
         die!("'{}' doesn't look like a valid tar archive", tarball.display());
     }
+    check_symlink_targets(tarball)?;
     proc::run("tar", &["-xf", &tarball.to_string_lossy(), "-C", &base_dir.to_string_lossy()])
+}
+
+/// Rejects any symlink member whose target would land outside the
+/// archive's own extraction root -- an absolute target (`-> /anything`)
+/// outright, or a relative target that `..`s its way past the root
+/// once resolved lexically against the symlink's own location. Real
+/// distro rootfs tarballs use *in-bounds* relative symlinks
+/// structurally (Alpine/Debian's `/bin -> usr/bin`, `/lib -> usr/lib`),
+/// so those still pass -- only ones that actually escape are refused.
+/// Resolved lexically (no filesystem access): the targets don't exist
+/// yet at validation time, since nothing has been extracted.
+fn check_symlink_targets(tarball: &Path) -> Result<()> {
+    let out = proc::capture("tar", &["-tvf", &tarball.to_string_lossy()]);
+    if !out.status.success() {
+        die!("'{}': couldn't list archive contents to check symlink targets", tarball.display());
+    }
+    let listing = String::from_utf8_lossy(&out.stdout);
+    for line in listing.lines() {
+        if !line.starts_with('l') {
+            continue; // not a symlink member
+        }
+        let Some((member, target)) = line.split_once(" -> ") else {
+            continue;
+        };
+        // The member's own path is the last whitespace-separated field
+        // before " -> " in `tar -tvf`'s fixed layout (perms, owner,
+        // size, date, time, name).
+        let Some(member_path) = member.rsplit(char::is_whitespace).next() else {
+            continue;
+        };
+        if target.starts_with('/') {
+            die!("'{}': symlink member '{member_path}' points at an absolute path ('{target}') -- refusing to extract, this can't be verified as staying inside the environment", tarball.display());
+        }
+        if escapes_root(member_path, target) {
+            die!("'{}': symlink member '{member_path}' -> '{target}' resolves outside the archive's own root -- refusing to extract", tarball.display());
+        }
+    }
+    Ok(())
+}
+
+/// Lexically resolves `target` relative to `member`'s own parent
+/// directory (matching how the kernel would resolve the symlink once
+/// extracted), then checks whether that resolution ever goes negative
+/// -- i.e. more `..` components than directories consumed so far,
+/// meaning it escapes the root the member itself lives under.
+fn escapes_root(member: &str, target: &str) -> bool {
+    let mut stack: Vec<&str> = member.trim_end_matches('/').split('/').collect();
+    stack.pop(); // drop the symlink's own filename -- resolution starts from its parent dir
+    for part in target.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                if stack.pop().is_none() {
+                    return true;
+                }
+            }
+            other => stack.push(other),
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::escapes_root;
+
+    #[test]
+    fn in_bounds_relative_symlinks_are_fine() {
+        // Alpine/Debian's real-world `/bin -> usr/bin` shape.
+        assert!(!escapes_root("bin", "usr/bin"));
+        assert!(!escapes_root("usr/sbin", "../bin/busybox"));
+    }
+
+    #[test]
+    fn escaping_relative_symlinks_are_caught() {
+        assert!(escapes_root("escape_link", "../../../tmp"));
+        assert!(escapes_root("bin", "../../etc/passwd"));
+        // One `..` more than the member's own depth allows -- still
+        // escapes, since resolution starts from the member's *parent*
+        // directory, not the member itself.
+        assert!(escapes_root("bin", "../.."));
+    }
+
+    #[test]
+    fn nested_member_with_enough_depth_can_go_up_without_escaping() {
+        assert!(!escapes_root("a/b/c/link", "../../x"));
+    }
 }
 
 /// Resolves what to actually download: an explicit version always uses
