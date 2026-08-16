@@ -17,7 +17,7 @@ struct Protected<'a> {
     sandbox_enabled: &'a Option<bool>,
     sandbox_namespaces: &'a Option<Vec<String>>,
     sandbox_seccomp: &'a Option<std::collections::BTreeMap<String, String>>,
-    sandbox_seccomp_custom_hash: &'a Option<std::collections::BTreeMap<String, String>>,
+    sandbox_seccomp_profile_hash: &'a Option<std::collections::BTreeMap<String, String>>,
 }
 
 /// Canonical bytes for just the protected fields — deterministic key
@@ -33,7 +33,7 @@ fn protected_json(meta: &Meta) -> Vec<u8> {
         sandbox_enabled: &meta.sandbox_enabled,
         sandbox_namespaces: &meta.sandbox_namespaces,
         sandbox_seccomp: &meta.sandbox_seccomp,
-        sandbox_seccomp_custom_hash: &meta.sandbox_seccomp_custom_hash,
+        sandbox_seccomp_profile_hash: &meta.sandbox_seccomp_profile_hash,
     };
     serde_json::to_vec(&p).unwrap_or_default()
 }

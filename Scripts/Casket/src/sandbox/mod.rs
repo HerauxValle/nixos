@@ -109,7 +109,7 @@ pub fn run(
     argv: &[String],
     debug: bool,
     overlay: Option<overlay::Spec>,
-    seccomp_filter: Option<(seccomp::Mode, Vec<String>)>,
+    seccomp_filter: Option<seccomp::Filter>,
     cgroup_handle: Option<cgroup::Handle>,
 ) -> io::Result<i32> {
     let real_uid = unsafe { libc::getuid() };
@@ -173,8 +173,8 @@ pub fn run(
                 }
             }
         }
-        if let Some((mode, syscalls)) = seccomp_filter {
-            match seccomp::apply(mode, &syscalls) {
+        if let Some(filter) = seccomp_filter {
+            match seccomp::apply(&filter) {
                 Ok(()) => trace!("seccomp filter applied"),
                 Err(e) => {
                     eprintln!("[x] seccomp filter failed to apply: {e}");

@@ -110,11 +110,29 @@ cas
     │           │   └── default <name>|--clear
     │           │                            set or clear which environment `exec` uses when several exist and none is named
     │           │
-    │           ├── seccomp [--rootfs <name>]
-    │           │   ├── set <default|strict|compute|none|custom>
-    │           │   │                        choose which syscall filter preset applies to a target
-    │           │   ├── edit custom          open $EDITOR on that target's custom syscall allowlist
-    │           │   └── state                show the active preset for a target
+    │           ├── seccomp
+    │           │   ├── [--rootfs <name>] set <default|strict|compute|none|custom:<profile>>
+    │           │   │                        choose which filter a target uses -- built-ins by name, or a
+    │           │   │                        named custom profile via `custom:<profile>`
+    │           │   ├── [--rootfs <name>] state
+    │           │   │                        show the active filter for a target
+    │           │   │
+    │           │   └── custom                manage named custom seccomp profiles (vault-wide, reusable
+    │           │       │                      across every rootfs environment and the vault's own root target)
+    │           │       ├── list               every profile that exists, and which targets use each
+    │           │       ├── create <name>      create a new empty profile (default action: deny)
+    │           │       ├── delete <name>      delete a profile -- refuses if any target still references it
+    │           │       ├── rename <old> <new> rename a profile; every target referencing it follows the rename
+    │           │       └── edit <name>
+    │           │           ├── (no args)      opens $EDITOR on the profile's raw TOML
+    │           │           ├── default <allow|deny>
+    │           │           │                  set the profile's fallback action for syscalls in neither list
+    │           │           ├── add [--allow <list>] [--deny <list>]
+    │           │           │                  add syscalls (names or numeric ids, auto-resolved) to one or
+    │           │           │                  both lists; a bare list with no flag means --allow
+    │           │           ├── remove [--allow <list>] [--deny <list>]
+    │           │           │                  same scoping as `add`, removes instead
+    │           │           └── status         show the profile's default action + full allow/deny lists
     │           │
     │           └── cgroups
     │               ├── set [--mem <val>] [--cpu <percent>] [--pids <n>]

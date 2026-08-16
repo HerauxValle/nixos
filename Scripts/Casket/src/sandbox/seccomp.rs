@@ -3,16 +3,23 @@ use std::io;
 
 use super::syscall_table;
 
-/// Mirrors `registry::seccomp::Mode` (minus `AllowAll`, which the
-/// caller handles by not calling `apply` at all) -- this module
-/// intentionally doesn't depend on `registry::seccomp` beyond the
-/// syscall table, keeping it a pure mechanism with no data-loading
-/// concerns of its own.
-pub enum Mode {
-    /// `syscalls` are blocked; everything else is allowed.
-    Denylist,
-    /// Only `syscalls` are allowed; everything else is blocked.
-    Allowlist,
+/// A syscall filter: `allow` and `deny` can both be non-empty at once
+/// (a syscall named in both is a caller error -- rejected before this
+/// ever gets built, see `commands::settings::security::sandbox::
+/// seccomp::profiles`), with `default_deny` picking the fallback action
+/// for anything named in neither list. This is the one shape every
+/// filter this sandbox ever applies reduces to: a built-in *denylist*
+/// preset is `default_deny: false` with only `deny` populated, a built-
+/// in *allowlist* preset is `default_deny: true` with only `allow`
+/// populated, and a named custom profile (`seccomp custom`) can
+/// populate both lists and choose its own default explicitly -- the
+/// registry's `AllowAll` preset skips calling `apply` entirely rather
+/// than being representable here (there's no BPF program for "no
+/// filter").
+pub struct Filter {
+    pub default_deny: bool,
+    pub allow: Vec<String>,
+    pub deny: Vec<String>,
 }
 
 // --- Raw kernel ABI, straight from linux/filter.h, linux/seccomp.h,
@@ -83,16 +90,14 @@ fn host_audit_arch() -> io::Result<u32> {
 /// genuinely architecture-specific -- see `registry::syscall_table`'s
 /// doc comment on aarch64 lacking several legacy names glibc itself
 /// never emits as literal syscalls on that architecture).
-pub fn apply(mode: Mode, syscalls: &[String]) -> io::Result<()> {
+pub fn apply(filter: &Filter) -> io::Result<()> {
     let audit_arch = host_audit_arch()?;
     let Some(table) = syscall_table::for_host_arch() else {
         return Err(io::Error::new(io::ErrorKind::Unsupported, "no seccomp syscall table for this architecture"));
     };
 
-    let (default_action, match_action) = match mode {
-        Mode::Denylist => (SECCOMP_RET_ALLOW, SECCOMP_RET_ERRNO | (libc::EPERM as u32)),
-        Mode::Allowlist => (SECCOMP_RET_ERRNO | (libc::EPERM as u32), SECCOMP_RET_ALLOW),
-    };
+    let deny_action = SECCOMP_RET_ERRNO | (libc::EPERM as u32);
+    let default_action = if filter.default_deny { deny_action } else { SECCOMP_RET_ALLOW };
 
     let mut program: Vec<SockFilter> = Vec::new();
 
@@ -111,16 +116,27 @@ pub fn apply(mode: Mode, syscalls: &[String]) -> io::Result<()> {
     // 3. One JEQ+RET pair per resolvable syscall name -- each only
     //    ever jumps 0 or 1 instructions forward, so this chain is safe
     //    at any length (no BPF jump-range limit to worry about, unlike
-    //    a single wide jump table would have).
-    for name in syscalls {
+    //    a single wide jump table would have). `deny` is checked first
+    //    so an explicit deny always wins if a name somehow ended up in
+    //    both lists (callers are expected to reject that conflict
+    //    before it ever reaches here, but this ordering keeps the
+    //    fail-safe direction even if that check were ever bypassed).
+    for name in &filter.deny {
         let Some(&nr) = table.get(name.as_str()) else {
             continue;
         };
         program.push(jump(BPF_JMP_JEQ_K, nr as u32, 0, 1));
-        program.push(stmt(BPF_RET_K, match_action));
+        program.push(stmt(BPF_RET_K, deny_action));
+    }
+    for name in &filter.allow {
+        let Some(&nr) = table.get(name.as_str()) else {
+            continue;
+        };
+        program.push(jump(BPF_JMP_JEQ_K, nr as u32, 0, 1));
+        program.push(stmt(BPF_RET_K, SECCOMP_RET_ALLOW));
     }
 
-    // 4. Nothing matched -- the default action for this mode.
+    // 4. Nothing matched -- this filter's default action.
     program.push(stmt(BPF_RET_K, default_action));
 
     if program.len() > u16::MAX as usize {
@@ -173,7 +189,8 @@ mod tests {
     #[test]
     fn denylist_blocks_the_listed_syscall() {
         let code = run_in_child(|| {
-            apply(Mode::Denylist, &["getcwd".to_string()]).expect("apply should succeed");
+            let filter = Filter { default_deny: false, allow: Vec::new(), deny: vec!["getcwd".to_string()] };
+            apply(&filter).expect("apply should succeed");
             let mut buf = [0i8; 64];
             let ret = unsafe { libc::getcwd(buf.as_mut_ptr(), buf.len()) };
             let errno = std::io::Error::last_os_error().raw_os_error();
@@ -190,7 +207,12 @@ mod tests {
             // which _exit ultimately calls, plus rt_sigreturn for
             // signal handling machinery around it), or this test can
             // never report its own result.
-            apply(Mode::Allowlist, &["getpid".to_string(), "exit_group".to_string(), "rt_sigreturn".to_string()]).expect("apply should succeed");
+            let filter = Filter {
+                default_deny: true,
+                allow: vec!["getpid".to_string(), "exit_group".to_string(), "rt_sigreturn".to_string()],
+                deny: Vec::new(),
+            };
+            apply(&filter).expect("apply should succeed");
             let pid = unsafe { libc::getpid() };
             let mut buf = [0i8; 64];
             let ret = unsafe { libc::getcwd(buf.as_mut_ptr(), buf.len()) };
@@ -205,9 +227,29 @@ mod tests {
     #[test]
     fn unresolvable_syscall_name_is_skipped_not_fatal() {
         let code = run_in_child(|| {
-            let ok = apply(Mode::Denylist, &["not-a-real-syscall-name".to_string(), "getcwd".to_string()]).is_ok();
+            let filter = Filter { default_deny: false, allow: Vec::new(), deny: vec!["not-a-real-syscall-name".to_string(), "getcwd".to_string()] };
+            let ok = apply(&filter).is_ok();
             unsafe { libc::_exit(if ok { 0 } else { 1 }) };
         });
         assert_eq!(code, 0, "an unresolvable name shouldn't make apply() itself fail");
+    }
+
+    #[test]
+    fn mixed_allow_and_deny_lists_apply_independently() {
+        let code = run_in_child(|| {
+            // deny wins for getcwd even though the default is "allow" --
+            // and getpid/exit_group/rt_sigreturn stay reachable via the
+            // permissive default, without needing to be listed at all.
+            let filter = Filter { default_deny: false, allow: Vec::new(), deny: vec!["getcwd".to_string()] };
+            apply(&filter).expect("apply should succeed");
+            let pid = unsafe { libc::getpid() };
+            let mut buf = [0i8; 64];
+            let ret = unsafe { libc::getcwd(buf.as_mut_ptr(), buf.len()) };
+            let errno = std::io::Error::last_os_error().raw_os_error();
+            let getpid_worked = pid > 0;
+            let getcwd_blocked = ret.is_null() && errno == Some(libc::EPERM);
+            unsafe { libc::_exit(if getpid_worked && getcwd_blocked { 0 } else { 1 }) };
+        });
+        assert_eq!(code, 0, "getpid should work via the permissive default, getcwd should be blocked via the explicit deny entry");
     }
 }

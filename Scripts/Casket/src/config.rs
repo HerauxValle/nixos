@@ -23,6 +23,15 @@ pub const AUTO_SNAP_PREFIX: &str = "auto-";
 /// setting. Hidden (leading dot) but not protection-locked.
 pub const ROOTFS_DIR: &str = ".rootfs.d";
 
+/// Root of `cas exec`'s named custom seccomp profiles (`settings
+/// security sandbox seccomp custom ...`) -- sibling to `.casket/` and
+/// `.rootfs.d/`, same reasoning as `ROOTFS_DIR`: profiles are named,
+/// reusable across any rootfs environment or the vault's own root
+/// target, and shouldn't be nested under a directory that might not
+/// exist or might be lock-protected. Named to match `.rootfs.d/`'s own
+/// `.<thing>.d/` convention.
+pub const SECCOMP_PROFILES_DIR: &str = ".seccomp.d";
+
 /// LUKS2 header overhead in MiB — kept as slack between the btrfs
 /// filesystem and the raw file size so cryptsetup and btrfs both stay
 /// well inside the container during a resize.

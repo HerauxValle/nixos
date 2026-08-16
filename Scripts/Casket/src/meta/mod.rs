@@ -68,18 +68,20 @@ pub struct Meta {
     /// (everything except `net`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sandbox_namespaces: Option<Vec<String>>,
-    /// Per-rootfs-environment seccomp preset name (`default`/`strict`/
-    /// `none`/`compute`/`custom`), keyed by rootfs name — or `"_root"`
+    /// Per-target seccomp setting, keyed by rootfs name (or `"_root"`
     /// for the no-named-rootfs fallback case `exec` uses when
-    /// `.rootfs.d/` has zero entries.
+    /// `.rootfs.d/` has zero entries) -- either a built-in preset name
+    /// (`default`/`strict`/`none`/`compute`) or `"custom:<profile>"`
+    /// referencing a named profile under `.seccomp.d/`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sandbox_seccomp: Option<BTreeMap<String, String>>,
-    /// SHA-256 (hex) of each rootfs's `.casket-seccomp` custom allowlist
-    /// file at the time it was last saved via `seccomp edit custom` —
-    /// detects the file being edited outside that verified path. Keyed
-    /// the same way as `sandbox_seccomp`.
+    /// SHA-256 (hex) of each named custom seccomp profile's `.seccomp.d/
+    /// <name>.toml` file at the time it was last saved via `seccomp
+    /// custom edit`/`create` — detects a profile being edited outside
+    /// that verified path. Keyed by profile name (not target key, since
+    /// one profile can be referenced by several targets at once).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sandbox_seccomp_custom_hash: Option<BTreeMap<String, String>>,
+    pub sandbox_seccomp_profile_hash: Option<BTreeMap<String, String>>,
     /// Cgroup resource limits for `exec` sessions — memory (e.g.
     /// `"512M"`), CPU percent, max PIDs. Not tamper-HMAC-covered:
     /// resource limits, not an attacker-facing protection toggle (same

@@ -1,14 +1,15 @@
-// &desc: "Parses data/seccomp-presets.toml -- 4 built-in presets (default/strict/compute/none), syscalls listed by name only. 'custom' is deliberately not in this file -- it's per-rootfs user data, not a registry entry, see commands::settings::security::sandbox::seccomp."
+// &desc: "Parses data/seccomp-presets.toml -- 4 built-in presets (default/strict/compute/none), syscalls listed by name only. Named custom profiles (`seccomp set custom:<name>`) are deliberately not in this file -- they're vault-wide user data managed under `.seccomp.d/`, not a build-time registry entry, see commands::settings::security::sandbox::seccomp::profiles."
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
 const DATA: &str = include_str!("data/seccomp-presets.toml");
 
-/// Every valid value for `seccomp set <preset>`, including `custom`
-/// (which has no registry entry of its own -- it's per-rootfs user
-/// data, not part of this TOML file).
-pub const PRESET_NAMES: &[&str] = &["default", "strict", "compute", "none", "custom"];
+/// Every built-in preset name valid for `seccomp set <preset>` -- a
+/// named custom profile is referenced separately, as `custom:<name>`,
+/// not by a bare name from this list (see `commands::settings::
+/// security::sandbox::seccomp::set`, which checks both).
+pub const PRESET_NAMES: &[&str] = &["default", "strict", "compute", "none"];
 
 #[derive(Deserialize)]
 struct RawEntry {
@@ -110,8 +111,8 @@ mod tests {
     }
 
     #[test]
-    fn preset_names_include_custom_with_no_registry_entry() {
-        assert!(PRESET_NAMES.contains(&"custom"));
+    fn preset_names_excludes_custom_which_has_no_registry_entry() {
+        assert!(!PRESET_NAMES.contains(&"custom"));
         assert!(!load().contains_key("custom"));
     }
 }

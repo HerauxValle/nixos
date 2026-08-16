@@ -113,16 +113,16 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
     std::process::exit(code);
 }
 
-/// Resolves the configured seccomp preset for this exec target into
+/// Resolves the configured seccomp setting for this exec target into
 /// what `sandbox::run` actually needs. Unset defaults to the "default"
 /// preset (a real, if broad, filter); only the "none" preset itself
-/// resolves to `Ok(None)`, skipping filtering entirely. "custom" is
-/// verified against its stored hash before use; a mismatch (or a
-/// missing file/hash) fails toward the safer "strict" preset instead of
-/// silently running unfiltered or on stale rules -- same "fail toward
-/// more protective" rule `tamper::reset_to_safe` already uses for this
-/// exact field.
-fn resolve_seccomp(ctx: &Ctx, vault: &Vault, meta: &Meta, explicit_rootfs: Option<&str>) -> Result<Option<(seccomp::Mode, Vec<String>)>> {
+/// resolves to `Ok(None)`, skipping filtering entirely. `"custom:
+/// <profile>"` is verified against that profile's stored hash before
+/// use; a mismatch (or a missing profile/hash) fails toward the safer
+/// "strict" preset instead of silently running unfiltered or on stale
+/// rules -- same "fail toward more protective" rule `tamper::
+/// reset_to_safe` already uses for this exact field.
+fn resolve_seccomp(ctx: &Ctx, vault: &Vault, meta: &Meta, explicit_rootfs: Option<&str>) -> Result<Option<seccomp::Filter>> {
     let key = seccomp_settings::target_key(vault, explicit_rootfs)?;
     let preset = meta.sandbox_seccomp.as_ref().and_then(|m| m.get(&key)).cloned().unwrap_or_else(|| "default".to_string());
 
@@ -130,19 +130,19 @@ fn resolve_seccomp(ctx: &Ctx, vault: &Vault, meta: &Meta, explicit_rootfs: Optio
         return Ok(None);
     }
 
-    if preset == "custom" {
-        let path = seccomp_settings::custom_file_path(vault, &key);
-        let stored_hash = meta.sandbox_seccomp_custom_hash.as_ref().and_then(|m| m.get(&key));
-        let actual_hash = fs::read(&path).ok().map(|bytes| {
+    if let Some(profile_name) = preset.strip_prefix("custom:") {
+        let stored_hash = meta.sandbox_seccomp_profile_hash.as_ref().and_then(|m| m.get(profile_name));
+        let actual_hash = fs::read(seccomp_settings::profiles::path(vault, profile_name)).ok().map(|bytes| {
             let mut hasher = Sha256::new();
             hasher.update(&bytes);
             hasher.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>()
         });
         if stored_hash.is_some() && stored_hash == actual_hash.as_ref() {
-            let syscalls = parse_custom_syscalls(&path)?;
-            return Ok(Some((seccomp::Mode::Allowlist, syscalls)));
+            if let Ok(profile) = seccomp_settings::profiles::read(vault, profile_name) {
+                return Ok(Some(profile.to_filter()));
+            }
         }
-        logf!(ctx, "  [!] custom seccomp list is missing or doesn't match its recorded hash -- falling back to 'strict' rather than running unfiltered or on unverified rules");
+        logf!(ctx, "  [!] custom seccomp profile '{profile_name}' is missing or doesn't match its recorded hash -- falling back to 'strict' rather than running unfiltered or on unverified rules");
         return Ok(Some(strict_filter()));
     }
 
@@ -156,8 +156,8 @@ fn resolve_seccomp(ctx: &Ctx, vault: &Vault, meta: &Meta, explicit_rootfs: Optio
     };
     match entry.mode {
         registry::seccomp::Mode::AllowAll => Ok(None),
-        registry::seccomp::Mode::Denylist => Ok(Some((seccomp::Mode::Denylist, entry.syscalls.clone()))),
-        registry::seccomp::Mode::Allowlist => Ok(Some((seccomp::Mode::Allowlist, entry.syscalls.clone()))),
+        registry::seccomp::Mode::Denylist => Ok(Some(seccomp::Filter { default_deny: false, allow: Vec::new(), deny: entry.syscalls.clone() })),
+        registry::seccomp::Mode::Allowlist => Ok(Some(seccomp::Filter { default_deny: true, allow: entry.syscalls.clone(), deny: Vec::new() })),
     }
 }
 
@@ -180,15 +180,8 @@ fn resolve_cgroup(ctx: &Ctx, vault: &Vault, meta: &Meta) -> Result<Option<cgroup
     Ok(Some(handle))
 }
 
-fn strict_filter() -> (seccomp::Mode, Vec<String>) {
+fn strict_filter() -> seccomp::Filter {
     let presets = registry::seccomp::load();
-    (seccomp::Mode::Allowlist, presets["strict"].syscalls.clone())
-}
-
-/// One syscall name per line; blank lines and `#`-prefixed comments
-/// (the placeholder `edit` seeds new files with) are skipped.
-fn parse_custom_syscalls(path: &std::path::Path) -> Result<Vec<String>> {
-    let contents = fs::read_to_string(path)?;
-    Ok(contents.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_string).collect())
+    seccomp::Filter { default_deny: true, allow: presets["strict"].syscalls.clone(), deny: Vec::new() }
 }
 

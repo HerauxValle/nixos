@@ -1,6 +1,40 @@
 <!-- &desc: "Tracked, deliberately-deferred gaps -- things found (usually via review/testing) that are real but weren't fixed on the spot, with why not and what a real fix needs. Not a general bug tracker; entries should be removed once actually fixed." -->
 # Known issues
 
+## `seccomp set strict` segfaults a statically linked busybox under `exec`
+
+**Found:** live testing while verifying the seccomp custom-profile
+feature (2026-08-16), unrelated to that feature itself -- reproduces
+identically with the plain built-in `strict` preset on its own.
+
+**What:** `cas <vault> exec` with `seccomp set strict` active, running a
+statically linked busybox (`pkgsStatic.busybox`) inside the sandbox,
+exits with code 139 (SIGSEGV) instead of running normally. `default`
+preset with the same binary works fine; only `strict` (and, by
+extension, anything that falls back to it, like a custom profile whose
+hash check fails) triggers this. Not yet root-caused -- likely `strict`
+is missing a syscall this particular musl-libc binary's startup path
+needs, and the process crashes instead of cleanly failing when the
+kernel returns `EPERM` for it, rather than a bug in the filter-building
+code itself (the same BPF builder correctly enforces both allow and
+deny lists elsewhere, confirmed via passing unit tests and the mixed-
+list `exec` test in the same session this was found).
+
+**Why it wasn't fixed on the spot:** out of scope for the session that
+found it (building the named custom-profile CLI feature), and root-
+causing a specific-binary-under-a-specific-preset crash needs its own
+focused pass (bisecting `strict`'s syscall list, likely via `strace`
+against a non-static or differently-linked test binary to see which
+syscall returns EPERM right before the crash).
+
+**What a real fix looks like:** reproduce with `--debug` and a way to
+see which syscall was denied right before the crash (`strace -f` on
+the *host* side watching the sandboxed process, or a deliberately
+narrowed test filter to binary-search which syscall in `strict`'s list
+the binary actually needs), then either add the missing syscall to
+`strict` in `registry/data/seccomp-presets.toml` or confirm it's a
+`busybox`-specific/musl-specific issue rather than a preset gap.
+
 ## `sandbox namespaces` `net` isolation is a stub -- unshares but never sets up connectivity
 
 **Found:** pentest subagent review, 2026-08-16.
