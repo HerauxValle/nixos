@@ -12,6 +12,7 @@ use crate::vault::Vault;
 
 pub mod namespaces;
 pub mod rootfs;
+pub mod seccomp;
 
 pub fn is_enabled(meta: &Meta) -> bool {
     meta.sandbox_enabled == Some(true)
@@ -24,7 +25,8 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
         Some("state") => state(ctx, vault),
         Some("namespaces") => namespaces::dispatch(ctx, vault, &extra[1..], pw),
         Some("rootfs") => rootfs::dispatch(ctx, vault, &extra[1..], pw),
-        _ => die!("usage: cas <vault> settings security sandbox enable|disable|state|namespaces|rootfs ..."),
+        Some("seccomp") => seccomp::dispatch(ctx, vault, &extra[1..], pw),
+        _ => die!("usage: cas <vault> settings security sandbox enable|disable|state|namespaces|rootfs|seccomp ..."),
     }
 }
 

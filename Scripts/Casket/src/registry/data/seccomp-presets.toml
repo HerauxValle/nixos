@@ -1,0 +1,49 @@
+# &desc: "Seccomp preset registry for 'settings security sandbox seccomp set <preset>' -- data, not code. Syscalls listed by name only, never numeric ID -- syscall numbers differ per CPU architecture's kernel ABI, and name->number resolution happens at filter-build time via libseccomp (which has its own per-arch tables), see src/sandbox/seccomp.rs. 'custom' isn't listed here -- it's per-rootfs, read from .rootfs.d/<name>/.casket-seccomp (or the vault root's .casket-seccomp for the zero-rootfs case), see commands::settings::security::sandbox::seccomp."
+
+[default]
+# Broad allowlist -- deny only the syscalls that matter for container-
+# escape/host-tampering, not a real allowlist. The least restrictive of
+# the four built-in presets; most likely to let an unmodified program
+# run without hitting a blocked syscall.
+mode = "denylist"
+syscalls = [
+    "ptrace", "mount", "umount2", "pivot_root", "reboot",
+    "kexec_load", "init_module", "finit_module", "delete_module",
+    "swapon", "swapoff", "unshare", "setns", "bpf",
+]
+
+[strict]
+# Real allowlist: only what a typical CLI/shell workload needs (file
+# I/O, process/signal handling, memory, basic networking if the net
+# namespace is enabled). This is where most of the actual defense-in-
+# depth value is -- everything not listed is blocked.
+mode = "allowlist"
+syscalls = [
+    "read", "write", "openat", "close", "fstat", "lseek", "mmap",
+    "mprotect", "munmap", "brk", "rt_sigaction", "rt_sigprocmask",
+    "rt_sigreturn", "ioctl", "access", "pipe2", "dup", "dup2", "dup3",
+    "getpid", "getppid", "gettid", "clone", "clone3", "fork", "vfork",
+    "execve", "exit", "exit_group", "wait4", "kill", "uname",
+    "fcntl", "getcwd", "chdir", "mkdir", "rmdir", "unlink", "unlinkat",
+    "rename", "renameat", "renameat2", "readlink", "readlinkat",
+    "stat", "lstat", "statx", "getdents64", "socket", "connect",
+    "bind", "listen", "accept", "accept4", "sendto", "recvfrom",
+    "setsockopt", "getsockopt", "getrandom", "clock_gettime",
+    "clock_nanosleep", "nanosleep", "futex", "set_tid_address",
+    "set_robust_list", "prlimit64", "sched_getaffinity", "epoll_create1",
+    "epoll_ctl", "epoll_wait", "eventfd2", "signalfd4", "openat2",
+]
+
+[compute]
+# Same allowlist as strict, minus every networking syscall -- for build/
+# compute workloads that should never phone home even if the net
+# namespace was accidentally left enabled.
+mode = "allowlist"
+syscalls_from = "strict"
+deny_syscalls = ["socket", "connect", "bind", "listen", "accept", "accept4", "sendto", "recvfrom", "setsockopt", "getsockopt"]
+
+[none]
+# No filter at all -- escape hatch for a rootfs whose exact syscall
+# needs aren't known.
+mode = "allow_all"
+syscalls = []

@@ -2,7 +2,6 @@
 pub mod lockfile;
 
 use std::fs;
-use std::path::PathBuf;
 
 use crate::commands::settings::gate::gate_inner;
 use crate::commands::settings::security::sandbox::{is_enabled, namespaces, rootfs};
@@ -60,7 +59,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
         net: active_namespaces.iter().any(|n| n == "net"),
     };
 
-    let chosen = resolve_rootfs(vault, explicit_rootfs)?;
+    let chosen = rootfs::resolve(vault, explicit_rootfs)?;
     let (new_root, overlay_dirs) = match &chosen {
         Some(name) => {
             let env_dir = vault.rootfs_dir().join(name);
@@ -89,42 +88,3 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
     std::process::exit(code);
 }
 
-/// Which rootfs environment (if any) `exec` should use, per the
-/// established resolution rule: an explicit `--rootfs <name>` always
-/// wins; otherwise zero environments falls back to isolating the
-/// vault's own content directly (`Ok(None)`), exactly one is used
-/// automatically, and multiple environments use the `default` symlink
-/// target if one's set -- or refuse, listing the available names, if
-/// not.
-fn resolve_rootfs(vault: &Vault, explicit: Option<&str>) -> Result<Option<String>> {
-    if let Some(name) = explicit {
-        let dir = rootfs::ensure_dir(vault)?;
-        if !dir.join(name).exists() {
-            die!("rootfs environment '{name}' doesn't exist -- see 'cas <vault> settings security sandbox rootfs list'");
-        }
-        return Ok(Some(name.to_string()));
-    }
-
-    let dir: PathBuf = vault.rootfs_dir();
-    if !dir.exists() {
-        return Ok(None);
-    }
-    let mut names: Vec<String> = fs::read_dir(&dir)?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-        .filter_map(|e| e.file_name().into_string().ok())
-        .collect();
-    names.sort();
-
-    match names.len() {
-        0 => Ok(None),
-        1 => Ok(Some(names.remove(0))),
-        _ => match rootfs::default_target(vault) {
-            Some(name) => Ok(Some(name)),
-            None => die!(
-                "multiple rootfs environments exist ({}) -- specify one with --rootfs <name>, or set a default: settings security sandbox rootfs default <name>",
-                names.join(", ")
-            ),
-        },
-    }
-}

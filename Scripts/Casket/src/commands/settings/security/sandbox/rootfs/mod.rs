@@ -70,6 +70,46 @@ pub fn set_default(vault: &Vault, name: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+/// Which rootfs environment (if any) a caller should use, per the one
+/// resolution rule shared by `exec --rootfs` and `seccomp --rootfs`: an
+/// explicit `<name>` always wins; otherwise zero environments means
+/// `Ok(None)` (isolate the vault's own content directly / target the
+/// `_root` sentinel), exactly one is used automatically, and multiple
+/// environments use the `default` symlink target if one's set -- or
+/// refuse, listing the available names, if not.
+pub fn resolve(vault: &Vault, explicit: Option<&str>) -> Result<Option<String>> {
+    if let Some(name) = explicit {
+        let dir = ensure_dir(vault)?;
+        if !dir.join(name).exists() {
+            die!("rootfs environment '{name}' doesn't exist -- see 'cas <vault> settings security sandbox rootfs list'");
+        }
+        return Ok(Some(name.to_string()));
+    }
+
+    let dir = vault.rootfs_dir();
+    if !dir.exists() {
+        return Ok(None);
+    }
+    let mut names: Vec<String> = fs::read_dir(&dir)?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .filter_map(|e| e.file_name().into_string().ok())
+        .collect();
+    names.sort();
+
+    match names.len() {
+        0 => Ok(None),
+        1 => Ok(Some(names.remove(0))),
+        _ => match default_target(vault) {
+            Some(name) => Ok(Some(name)),
+            None => die!(
+                "multiple rootfs environments exist ({}) -- specify one with --rootfs <name>, or set a default: settings security sandbox rootfs default <name>",
+                names.join(", ")
+            ),
+        },
+    }
+}
+
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], _pw: Option<&str>) -> Result<()> {
     match extra.first().map(String::as_str) {
         Some("list") | None => list(ctx, vault),
