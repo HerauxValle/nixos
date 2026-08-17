@@ -134,15 +134,13 @@ fn resolve_seccomp(ctx: &Ctx, vault: &Vault, meta: &Meta, explicit_rootfs: Optio
     }
 
     let presets = registry::seccomp::load();
-    if let Some(entry) = presets.get(&preset) {
-        return Ok(match entry.mode {
+    let filter = if let Some(entry) = presets.get(&preset) {
+        match entry.mode {
             registry::seccomp::Mode::AllowAll => None,
             registry::seccomp::Mode::Denylist => Some(seccomp::Filter { default_deny: false, allow: Vec::new(), deny: entry.syscalls.clone() }),
             registry::seccomp::Mode::Allowlist => Some(seccomp::Filter { default_deny: true, allow: entry.syscalls.clone(), deny: Vec::new() }),
-        });
-    }
-
-    if seccomp_settings::profiles::exists(vault, &preset) {
+        }
+    } else if seccomp_settings::profiles::exists(vault, &preset) {
         let stored_hash = meta.sandbox_seccomp_profile_hash.as_ref().and_then(|m| m.get(&preset));
         let actual_hash = fs::read(seccomp_settings::profiles::path(vault, &preset)).ok().map(|bytes| {
             let mut hasher = Sha256::new();
@@ -150,20 +148,80 @@ fn resolve_seccomp(ctx: &Ctx, vault: &Vault, meta: &Meta, explicit_rootfs: Optio
             hasher.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>()
         });
         if stored_hash.is_some() && stored_hash == actual_hash.as_ref() {
-            if let Ok(profile) = seccomp_settings::profiles::read(vault, &preset) {
-                return Ok(Some(profile.to_filter()));
+            match seccomp_settings::profiles::read(vault, &preset) {
+                Ok(profile) => Some(profile.to_filter()),
+                Err(_) => Some(strict_filter()),
             }
+        } else {
+            logf!(ctx, "  [!] custom seccomp profile '{preset}' is missing or doesn't match its recorded hash -- falling back to 'strict' rather than running unfiltered or on unverified rules");
+            Some(strict_filter())
         }
-        logf!(ctx, "  [!] custom seccomp profile '{preset}' is missing or doesn't match its recorded hash -- falling back to 'strict' rather than running unfiltered or on unverified rules");
-        return Ok(Some(strict_filter()));
+    } else {
+        // Meta holds a name neither the built-in registry nor the
+        // vault's own custom profiles know (e.g. a hand-edited trailer,
+        // or a profile that's since been deleted) -- same "fail toward
+        // more protective" fallback as an unverified custom list.
+        logf!(ctx, "  [!] unknown seccomp preset or custom profile '{preset}' in metadata -- falling back to 'strict'");
+        Some(strict_filter())
+    };
+
+    if let Some(f) = &filter {
+        warn_unresolvable_syscalls(ctx, &preset, f);
+    }
+    Ok(filter)
+}
+
+/// `sandbox::seccomp::apply` silently skips any syscall name that
+/// doesn't resolve on the host's own architecture table -- correct
+/// behavior for genuinely arch-specific names, but silent either way,
+/// so a filter that's fully correct on x86_64 could quietly end up
+/// weaker than intended on aarch64 (or vice versa) with no signal ever
+/// reaching the user. This surfaces that gap at the one point it
+/// actually matters -- right before the filter built here is handed to
+/// `sandbox::run`, on whichever architecture `cas` is actually running
+/// on right now.
+fn warn_unresolvable_syscalls(ctx: &Ctx, preset: &str, filter: &seccomp::Filter) {
+    let names = unresolvable_syscalls(&filter.allow, &filter.deny);
+    if !names.is_empty() {
+        logf!(
+            ctx,
+            "  [!] '{preset}' lists syscalls that don't resolve on this architecture ({}): {} -- they're silently skipped, not enforced, so this filter is weaker here than it looks",
+            std::env::consts::ARCH,
+            names.join(", ")
+        );
+    }
+}
+
+/// Pure lookup, split out from `warn_unresolvable_syscalls` so it's
+/// testable without a `Ctx` -- every name across both lists that isn't
+/// in the host's own architecture table. Empty if the host's
+/// architecture has no table at all (`apply()` itself already refuses
+/// cleanly in that case, nothing more to say here).
+fn unresolvable_syscalls(allow: &[String], deny: &[String]) -> Vec<String> {
+    let Some(table) = crate::sandbox::syscall_table::for_host_arch() else {
+        return Vec::new();
+    };
+    allow.iter().chain(deny.iter()).filter(|s| !table.contains_key(s.as_str())).cloned().collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unresolvable_syscalls;
+
+    #[test]
+    fn flags_names_missing_from_the_host_syscall_table() {
+        let allow = vec!["read".to_string(), "totally_fake_syscall_xyz".to_string()];
+        let deny = vec!["mount".to_string()];
+        let bad = unresolvable_syscalls(&allow, &deny);
+        assert_eq!(bad, vec!["totally_fake_syscall_xyz".to_string()]);
     }
 
-    // Meta holds a name neither the built-in registry nor the vault's
-    // own custom profiles know (e.g. a hand-edited trailer, or a
-    // profile that's since been deleted) -- same "fail toward more
-    // protective" fallback as an unverified custom list.
-    logf!(ctx, "  [!] unknown seccomp preset or custom profile '{preset}' in metadata -- falling back to 'strict'");
-    Ok(Some(strict_filter()))
+    #[test]
+    fn empty_when_everything_resolves() {
+        let allow = vec!["read".to_string(), "write".to_string(), "getpid".to_string()];
+        let deny = vec!["mount".to_string(), "ptrace".to_string()];
+        assert!(unresolvable_syscalls(&allow, &deny).is_empty());
+    }
 }
 
 /// Prepares this session's cgroup, if the vault has any limits

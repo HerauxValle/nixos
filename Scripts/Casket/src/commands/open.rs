@@ -6,6 +6,7 @@ use crate::commands::backup::maybe_auto_backup;
 use crate::commands::settings::security::{bruteforce_lockout, ransomware_protection};
 use crate::ctx::Ctx;
 use crate::error::{CasError, Result};
+use crate::header;
 use crate::logf;
 use crate::luks;
 use crate::meta::Meta;
@@ -28,7 +29,13 @@ fn check_lockout(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &mut Meta) -> Re
         return Ok(false);
     }
     Meta::strip(&vault.img)?;
-    let ok = luks::test(&vault.img, secret);
+    // Not luks::test -- that only proves anything when the header is
+    // still native-front (see header::relocate::verify_current_secret's
+    // own doc comment). With headerOffset/headerEncryption on, the front
+    // of the file is scrubbed CSPRNG filler, so a plain luks::test always
+    // fails regardless of passphrase correctness -- confirmed live to
+    // delete a vault using its own correct password before this fix.
+    let ok = header::relocate::verify_current_secret(vault, meta, secret);
     meta.write(&vault.img)?;
 
     if ok {
@@ -61,10 +68,26 @@ fn check_lockout(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &mut Meta) -> Re
 /// false positive (a migration bug, a hand edit made before this
 /// feature existed) with no way back in.
 fn check_tamper(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &mut Meta) {
+    // tamper::verify's HMAC is keyed by whatever secret was passed in --
+    // an unverified/wrong secret produces a mismatch indistinguishable
+    // from real tampering. Previously that false positive only reset
+    // cosmetic protection-strength booleans; now that header_offset/
+    // header_encryption are also HMAC-covered, reset_to_safe running with
+    // a *wrong* secret confirmed-live corrupts those fields (ground_truth
+    // can't prove anything with a wrong secret, falls back to
+    // native-front, and that bogus value gets persisted even though the
+    // open then fails) -- bricking the vault until an accidental
+    // self-heal on the next correct attempt. Only run the tamper check
+    // once the secret is actually confirmed to unlock this vault; if it
+    // doesn't, there's nothing safe to conclude either way, so do nothing
+    // and let the real open attempt fail with its normal error instead.
+    if !header::relocate::verify_current_secret(vault, meta, secret) {
+        return;
+    }
     if tamper::verify(secret, meta) == tamper::Status::Tampered {
         logf!(ctx, "  [!] '{}' metadata failed its tamper check — one or more protected settings don't match what was last written with a verified passphrase", vault.name);
         logf!(ctx, "      resetting those settings to their safe values; review with 'cas {} info' and adjust as needed", vault.name);
-        tamper::reset_to_safe(&vault.img, meta);
+        tamper::reset_to_safe(&vault.img, secret, meta);
         // The reset values are freshly-verified-legitimate the moment
         // they're written here (we have the real secret in hand right
         // now) — refresh the HMAC baseline to match, or every future
@@ -117,12 +140,40 @@ pub fn run(
     Ok(())
 }
 
+/// Open via `luks::open_luks` normally, or via the detached-header path
+/// (`luks::open_luks_detached`) if `headerOffset`/`headerEncryption` has
+/// moved the header off the container's front — same
+/// stale-mapper-vs-bad-passphrase care `open_luks`'s own doc comment
+/// describes applies here too: `run()` already cleans up a stale mapper
+/// from a crashed previous attempt *before* this is ever reached (see
+/// its `vault.mapper_dev_exists()` check), so a failure surfacing here
+/// is attributable to the passphrase/header material itself, not a
+/// leftover busy mapper being misread as "wrong passphrase". The
+/// opportunistic crash-window scrub resume also runs first — if a prior
+/// `headerOffset` enable was interrupted mid-scrub, this finishes it
+/// before relying on `meta.header_offset` to decide which path to take.
+fn open_dispatch(vault: &Vault, meta: &Meta, secret: &[u8]) -> Result<String> {
+    header::relocate::resume_scrub_if_pending(&vault.img);
+
+    if header::relocate::is_native_front(meta) {
+        return luks::open_luks(&vault.img, &vault.mapper, secret);
+    }
+
+    let salt = header::room::read_salt(&vault.img).ok_or_else(|| {
+        CasError::new("vault metadata says the header is relocated/encrypted, but no header room was found — vault metadata is inconsistent")
+    })?;
+    let master = header::derive_master_secret(&[secret], &salt);
+    let staged = header::relocate::stage_current_header(vault, meta, Some(&master))
+        .map_err(|e| CasError::new(format!("could not locate the relocated/encrypted header: {e}")))?;
+    luks::open_luks_detached(staged.path(), &vault.img, &vault.mapper, secret)
+}
+
 /// Strip the trailer, unlock via cryptsetup, restore the trailer
 /// (always, even on failure), format on first use, mount, and reconcile
 /// btrfs/udisks bookkeeping.
 fn unlock_and_mount(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &Meta, schema_from: u64) -> Result<()> {
     Meta::strip(&vault.img)?;
-    let dev = match luks::open_luks(&vault.img, &vault.mapper, secret) {
+    let dev = match open_dispatch(vault, meta, secret) {
         Ok(d) => d,
         Err(e) => {
             meta.write(&vault.img)?;

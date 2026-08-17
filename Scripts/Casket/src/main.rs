@@ -6,6 +6,7 @@ mod commands;
 mod config;
 mod ctx;
 mod error;
+mod header;
 mod help;
 mod keyfile;
 mod keyfile_mount;

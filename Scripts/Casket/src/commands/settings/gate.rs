@@ -2,7 +2,6 @@
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
-use crate::luks;
 use crate::meta::Meta;
 use crate::prompt;
 use crate::secret::{combined_secret, resolve_keyfile};
@@ -14,8 +13,17 @@ use crate::vault::Vault;
 /// what an attacker with root but not the passphrase would target —
 /// plus `keyfileReset`, which is irreversible (old key material is gone
 /// the moment the new slot verifies) and therefore deserves the same bar.
-pub const GATED_FEATURES: &[&str] =
-    &["ransomwareProtection", "backupAuto", "verification", "keyfileReset", "bruteforceLockout", "fileIntegrity", "sandbox"];
+pub const GATED_FEATURES: &[&str] = &[
+    "ransomwareProtection",
+    "backupAuto",
+    "verification",
+    "keyfileReset",
+    "bruteforceLockout",
+    "fileIntegrity",
+    "sandbox",
+    "headerOffset",
+    "headerEncryption",
+];
 
 fn default_requires_verification(feature: &str) -> bool {
     GATED_FEATURES.contains(&feature)
@@ -77,7 +85,11 @@ pub fn gate_inner(ctx: &Ctx, vault: &Vault, feature: &str, pw: Option<&str>) -> 
     };
 
     Meta::strip(&vault.img)?;
-    let ok = luks::test(&vault.img, &secret);
+    // A plain (non-`--header`) test only proves anything while the
+    // header is still front-resident and unencrypted -- once either
+    // headerOffset or headerEncryption is on, `verify_current_secret`
+    // knows to look wherever the header actually lives instead.
+    let ok = crate::header::relocate::verify_current_secret(vault, &meta, &secret);
     meta.write(&vault.img)?;
     if !ok {
         die!("wrong passphrase — could not verify vault");

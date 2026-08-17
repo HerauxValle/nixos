@@ -1,7 +1,7 @@
 # &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
 [package]
 name = "cas"
-version = "1.11.1"
+version = "1.12.4"
 edition = "2021"
 description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
 
@@ -106,3 +106,24 @@ toml = "0.8"
 # tokio just for two GET requests. ureq is the minimal fit for a
 # request/response shape this simple.
 ureq = "2"
+
+# argon2: master-secret KDF for the headerOffset/headerEncryption
+# header-hiding features (src/header/mod.rs) -- same memory-hard,
+# side-channel-resistant algorithm cryptsetup itself already uses for
+# LUKS2 keyslots (`--pbkdf argon2id`), applied here to a second,
+# independent secret derived from the same passphrase (+ keyfile). Pure
+# RustCrypto, matches the existing all-RustCrypto stack.
+argon2 = "0.5"
+
+# hkdf: purpose-separated subkey expansion from the Argon2id master
+# secret -- `HKDF-Expand(secret, info="cas:header-slot"|"cas:header-key")`
+# so enabling one header-hiding toggle never leaks key material relevant
+# to the other, off one shared expensive KDF pass per open.
+hkdf = "0.12"
+
+# chacha20poly1305: AEAD for `headerEncryption`'s header-content
+# encryption. Chosen over AES-GCM for portability -- no implicit AES-NI
+# performance assumption, since the relocated/encrypted header has to
+# open reasonably fast on whatever CPU the vault ends up on, not just
+# the build host. Pure RustCrypto, no host OpenSSL/libsodium dependency.
+chacha20poly1305 = "0.10"

@@ -13,11 +13,25 @@ struct Protected<'a> {
     verify_required: &'a Option<std::collections::BTreeMap<String, bool>>,
     zeroize: &'a Option<bool>,
     bruteforce_lockout: &'a Option<bool>,
+    // Not just the on/off bool -- the threshold itself gates *how much*
+    // protection `bruteforceLockout` actually gives. An attacker who
+    // could silently raise it (3 -> 999999, say) without ever touching
+    // `bruteforce_lockout` would gut the feature's real strength while
+    // `tampered`/`open` kept reporting "healthy", since nothing here
+    // was checking this field at all until now.
+    bruteforce_threshold: &'a Option<u32>,
     file_integrity: &'a Option<bool>,
     sandbox_enabled: &'a Option<bool>,
     sandbox_namespaces: &'a Option<Vec<String>>,
     sandbox_seccomp: &'a Option<std::collections::BTreeMap<String, String>>,
     sandbox_seccomp_profile_hash: &'a Option<std::collections::BTreeMap<String, String>>,
+    // header_room deliberately NOT covered here -- it only describes
+    // whether the room slack space has ever been provisioned (a
+    // one-way ratchet with no security meaning of its own once true),
+    // not a protection strength. header_offset/header_encryption are
+    // the two that actually gate anything.
+    header_offset: &'a Option<bool>,
+    header_encryption: &'a Option<bool>,
 }
 
 /// Canonical bytes for just the protected fields — deterministic key
@@ -29,11 +43,14 @@ fn protected_json(meta: &Meta) -> Vec<u8> {
         verify_required: &meta.verify_required,
         zeroize: &meta.zeroize,
         bruteforce_lockout: &meta.bruteforce_lockout,
+        bruteforce_threshold: &meta.bruteforce_threshold,
         file_integrity: &meta.file_integrity,
         sandbox_enabled: &meta.sandbox_enabled,
         sandbox_namespaces: &meta.sandbox_namespaces,
         sandbox_seccomp: &meta.sandbox_seccomp,
         sandbox_seccomp_profile_hash: &meta.sandbox_seccomp_profile_hash,
+        header_offset: &meta.header_offset,
+        header_encryption: &meta.header_encryption,
     };
     serde_json::to_vec(&p).unwrap_or_default()
 }
@@ -105,10 +122,21 @@ pub fn verify(secret: &[u8], meta: &Meta) -> Status {
 /// direction — claiming a protection that isn't really there. So this
 /// checks reality instead, via `cryptsetup luksDump`, and stores
 /// whatever's actually true.
-pub fn reset_to_safe(img: &std::path::Path, meta: &mut Meta) {
+/// `secret` is the vault's already-verified LUKS secret (available at
+/// every call site — `open.rs`'s `check_tamper` runs right after the
+/// real secret was resolved) — needed here because `header_offset`/
+/// `header_encryption`'s ground truth can only be established by
+/// actually trying to locate/open the header both ways (native front,
+/// front-framed-encrypted, room slot plaintext, room slot encrypted),
+/// not by inspecting bytes alone. See `header::relocate::ground_truth`.
+pub fn reset_to_safe(img: &std::path::Path, secret: &[u8], meta: &mut Meta) {
     meta.ransomware_protection = Some(true);
     meta.zeroize = Some(true);
     meta.bruteforce_lockout = Some(false);
+    // `bruteforce_threshold` is left untouched -- now HMAC-covered (so
+    // a tampered value is correctly *detected*), but with the feature
+    // itself forced off above, a stale/tampered threshold number is
+    // inert either way; nothing reads it while lockout is disabled.
     meta.file_integrity = Some(crate::luks::has_integrity(img));
     // sandbox: forcing *on* has no destructive side effect (unlike
     // bruteforceLockout), so it follows the majority "more protective"
@@ -133,4 +161,11 @@ pub fn reset_to_safe(img: &std::path::Path, meta: &mut Meta) {
         all_required.insert(f.to_string(), true);
     }
     meta.verify_required = Some(all_required);
+
+    // header_offset/header_encryption: neither "force both false" nor
+    // "leave untouched" is safe (see header/relocate.rs's module doc)
+    // -- re-derive from physical ground truth instead.
+    let (offset, encryption) = crate::header::relocate::ground_truth(img, secret);
+    meta.header_offset = Some(offset);
+    meta.header_encryption = Some(encryption);
 }

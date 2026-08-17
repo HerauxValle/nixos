@@ -33,6 +33,12 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
             if feature == "sandbox" {
                 return security::sandbox::dispatch(ctx, vault, &extra[2..], pw);
             }
+            if feature == "headerOffset" {
+                return security::header_offset::dispatch(ctx, vault, &extra[2..], pw);
+            }
+            if feature == "headerEncryption" {
+                return security::header_encryption::dispatch(ctx, vault, &extra[2..], pw);
+            }
             if extra.get(2).map(String::as_str) == Some("state") {
                 return registry::state(security::FEATURES, feature, ctx, vault);
             }

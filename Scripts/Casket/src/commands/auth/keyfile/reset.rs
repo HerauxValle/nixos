@@ -5,6 +5,7 @@ use crate::commands::settings::gate::gate_pw;
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
+use crate::header::relocate;
 use crate::keyfile;
 use crate::logf;
 use crate::luks;
@@ -65,7 +66,24 @@ pub fn run(ctx: &Ctx, vault: &Vault, location: Option<&Path>, kf_override: Optio
 
     logf!(ctx, "[cas] resetting keyfile for '{}' ...", vault.name);
     Meta::strip(&vault.img)?;
-    if let Err(e) = luks::slot_cycle(ctx, &vault.img, &old_secret, &new_secret, None) {
+    // Same relocation-awareness as auth::passwd and settings::twofa's
+    // cycle_secret -- if headerOffset and/or headerEncryption is on, the
+    // container's front bytes aren't a directly-testable plain LUKS2
+    // header, so a bare slot_cycle against the raw front fails. This
+    // call site had none of that awareness at all until now — confirmed
+    // live 2026-08-17 to fail identically to the twofa.rs bug for the
+    // same reason.
+    let cycle_result: Result<()> = if !relocate::is_native_front(&meta) {
+        (|| -> Result<()> {
+            let salt = crate::header::room::read_salt(&vault.img).ok_or_else(|| crate::error::CasError::new("header room not found — vault metadata is inconsistent"))?;
+            let master = crate::header::derive_master_secret(&[old_secret.as_slice()], &salt);
+            let staged = relocate::stage_current_header(vault, &meta, Some(&master))?;
+            luks::slot_cycle_detached(ctx, staged.path(), &vault.img, &old_secret, &new_secret, None)
+        })()
+    } else {
+        luks::slot_cycle(ctx, &vault.img, &old_secret, &new_secret, None)
+    };
+    if let Err(e) = cycle_result {
         meta.write(&vault.img)?;
         match in_place_backup {
             Some(old) => {
@@ -75,6 +93,23 @@ pub fn run(ctx: &Ctx, vault: &Vault, location: Option<&Path>, kf_override: Optio
                 let _ = std::fs::remove_file(&dest);
             }
         }
+        return Err(e);
+    }
+
+    // Same discipline as auth::passwd and settings::twofa: the new keyfile
+    // bytes just invalidated any existing header-room slot/key (both are
+    // derived from the keyfile bytes), so relocate before committing the
+    // new keyfile path, strictly between slot_cycle succeeding and the
+    // final meta.write() -- relocate_if_enabled does its own verify-then-
+    // commit-then-scrub dance under the *new* secret.
+    //
+    // No rollback of `dest`'s bytes on failure here, unlike the slot_cycle
+    // error arm above -- slot_cycle already committed at this point, so
+    // `new_secret` (which needs the new bytes) is the *only* secret that
+    // still unlocks the vault. Restoring the old bytes would desync the
+    // keyfile from the LUKS slot instead of protecting against anything.
+    if let Err(e) = relocate::relocate_if_enabled(ctx, vault, &mut meta, &old_secret, &new_secret, None) {
+        meta.write(&vault.img)?;
         return Err(e);
     }
 

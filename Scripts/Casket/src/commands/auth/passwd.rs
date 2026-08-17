@@ -2,7 +2,8 @@
 use crate::config::Strength;
 use crate::ctx::Ctx;
 use crate::die;
-use crate::error::Result;
+use crate::error::{CasError, Result};
+use crate::header::relocate;
 use crate::logf;
 use crate::luks;
 use crate::meta::Meta;
@@ -71,7 +72,34 @@ pub fn run(ctx: &Ctx, vault: &Vault, old_pw: &str, new_pw: Option<&str>, strengt
     logf!(ctx, "[cas] changing passphrase for '{}' (strength={strength_label}) ...", vault.name);
     Meta::strip(&vault.img)?;
 
-    if let Err(e) = luks::slot_cycle(ctx, &vault.img, &old_secret, &new_secret, strength) {
+    // Not just offset_enabled -- headerEncryption alone also leaves the
+    // container's front bytes undtestable by a plain (non-`--header`)
+    // cryptsetup call (they're AEAD ciphertext, not a parseable LUKS2
+    // header), same failure mode as headerOffset. is_native_front
+    // (false) covers all three "something's relocated and/or encrypted"
+    // states with one check, matching the same fix already applied to
+    // settings::twofa's identical branch after this exact bug class was
+    // confirmed live there.
+    let cycle_result: Result<()> = if !relocate::is_native_front(&meta) {
+        (|| -> Result<()> {
+            let salt = crate::header::room::read_salt(&vault.img).ok_or_else(|| CasError::new("header room not found — vault metadata is inconsistent"))?;
+            let master = crate::header::derive_master_secret(&[old_secret.as_slice()], &salt);
+            let staged = relocate::stage_current_header(vault, &meta, Some(&master))?;
+            luks::slot_cycle_detached(ctx, staged.path(), &vault.img, &old_secret, &new_secret, strength)
+        })()
+    } else {
+        luks::slot_cycle(ctx, &vault.img, &old_secret, &new_secret, strength)
+    };
+    if let Err(e) = cycle_result {
+        meta.write(&vault.img)?;
+        return Err(e);
+    }
+
+    // Both toggles' actual relocation/re-encryption happens here,
+    // strictly between slot_cycle succeeding and meta.write() —
+    // relocate_if_enabled itself does the verify-before-commit-before-
+    // scrub dance under the *new* secret, same discipline as enable.
+    if let Err(e) = relocate::relocate_if_enabled(ctx, vault, &mut meta, &old_secret, &new_secret, strength) {
         meta.write(&vault.img)?;
         return Err(e);
     }

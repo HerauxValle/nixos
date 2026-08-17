@@ -6,13 +6,38 @@ use crate::commands::settings::gate::gate_pw;
 use crate::commands::settings::registry::Feature;
 use crate::ctx::Ctx;
 use crate::die;
-use crate::error::Result;
+use crate::error::{CasError, Result};
+use crate::header::relocate;
 use crate::logf;
 use crate::luks;
 use crate::meta::Meta;
 use crate::secret::{b64_encode, combined_secret, get_secret, resolve_keyfile};
 use crate::udisks;
 use crate::vault::Vault;
+
+/// Cycle `img`'s LUKS keyslot from `old_secret` to `new_secret`, pointed
+/// at the header wherever it actually lives (front, or `headerOffset`'s
+/// room slot) — mirrors `passwd.rs`'s identical branch, needed here too
+/// since 2FA on/off is exactly as much a "rotate the LUKS secret" event
+/// as a passphrase change is.
+fn cycle_secret(ctx: &Ctx, vault: &Vault, meta: &Meta, old_secret: &[u8], new_secret: &[u8]) -> Result<()> {
+    // Not just offset_enabled -- headerEncryption alone also means the
+    // container's front bytes aren't a directly-testable plain LUKS2
+    // header anymore (they're AEAD ciphertext), so plain slot_cycle
+    // against the raw front fails just as surely as it would under
+    // headerOffset. is_native_front covers all three "something's
+    // relocated and/or encrypted" states with one check. Confirmed live
+    // 2026-08-17: 2fa enable under headerEncryption-alone failed with
+    // "current passphrase did not match any LUKS slot" before this fix.
+    if !relocate::is_native_front(meta) {
+        let salt = crate::header::room::read_salt(&vault.img).ok_or_else(|| CasError::new("header room not found — vault metadata is inconsistent"))?;
+        let master = crate::header::derive_master_secret(&[old_secret], &salt);
+        let staged = relocate::stage_current_header(vault, meta, Some(&master))?;
+        luks::slot_cycle_detached(ctx, staged.path(), &vault.img, old_secret, new_secret, None)
+    } else {
+        luks::slot_cycle(ctx, &vault.img, old_secret, new_secret, None)
+    }
+}
 
 pub const FEATURE: Feature = Feature { name: "2fa", set, get: |meta| meta.has_2fa() };
 
@@ -68,8 +93,20 @@ fn on(ctx: &Ctx, vault: &Vault, pw: &str) -> Result<()> {
         new_meta.encrypted = Some(false);
         new_meta.autokey = Some(b64_encode(&new_secret));
     }
+    // Carry the header-hiding fields over -- this is a fresh Meta::default()
+    // above, which would otherwise silently drop headerOffset/
+    // headerEncryption/header_room on every 2FA toggle.
+    new_meta.header_room = meta.header_room;
+    new_meta.header_offset = meta.header_offset;
+    new_meta.header_encryption = meta.header_encryption;
 
-    if let Err(e) = luks::slot_cycle(ctx, &vault.img, &old_secret, &new_secret, None) {
+    if let Err(e) = cycle_secret(ctx, vault, &meta, &old_secret, &new_secret) {
+        meta.write(&vault.img)?;
+        let _ = std::fs::remove_file(&kf_path);
+        return Err(e);
+    }
+
+    if let Err(e) = relocate::relocate_if_enabled(ctx, vault, &mut new_meta, &old_secret, &new_secret, None) {
         meta.write(&vault.img)?;
         let _ = std::fs::remove_file(&kf_path);
         return Err(e);
@@ -107,8 +144,16 @@ fn off(ctx: &Ctx, vault: &Vault, pw: &str) -> Result<()> {
         new_meta.encrypted = Some(false);
         new_meta.autokey = Some(b64_encode(&new_secret));
     }
+    new_meta.header_room = meta.header_room;
+    new_meta.header_offset = meta.header_offset;
+    new_meta.header_encryption = meta.header_encryption;
 
-    if let Err(e) = luks::slot_cycle(ctx, &vault.img, &old_secret, &new_secret, None) {
+    if let Err(e) = cycle_secret(ctx, vault, &meta, &old_secret, &new_secret) {
+        meta.write(&vault.img)?;
+        return Err(e);
+    }
+
+    if let Err(e) = relocate::relocate_if_enabled(ctx, vault, &mut new_meta, &old_secret, &new_secret, None) {
         meta.write(&vault.img)?;
         return Err(e);
     }

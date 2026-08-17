@@ -100,6 +100,26 @@ pub struct Meta {
     /// Default (absent/empty) = none included.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sandbox_backup_rootfs: Option<Vec<String>>,
+    /// Whether the 32 MiB header-hiding "room" (see `header::room`) has
+    /// been provisioned in the slack space between the LUKS2 container
+    /// and this trailer. Set once, lazily, on first `enable` of either
+    /// `headerOffset`/`headerEncryption` -- never unset (the room stays
+    /// even if both toggles are later disabled, so re-enabling doesn't
+    /// have to reprovision).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub header_room: Option<bool>,
+    /// Whether the LUKS2 header currently lives at a passphrase-derived
+    /// slot inside the room instead of the container's front. See
+    /// `header::relocate`. Tamper-HMAC-covered and re-derived from
+    /// physical ground truth on tamper detection, not trusted blindly.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub header_offset: Option<bool>,
+    /// Whether the header's content (wherever it currently lives -- the
+    /// front, or a room slot) is ChaCha20-Poly1305-encrypted rather than
+    /// a plain cryptsetup-native header. See `header::relocate`. Same
+    /// tamper-HMAC/ground-truth treatment as `header_offset`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub header_encryption: Option<bool>,
 }
 
 /// Find the trailer on an open handle. Returns `(payload_start_offset,
@@ -128,6 +148,17 @@ fn locate(f: &mut File) -> Option<(u64, u32)> {
         return None;
     }
     Some((payload_start as u64, size))
+}
+
+/// Byte offset where the trailer (if any) begins — i.e. the end of the
+/// LUKS2 container + any reserved room ahead of the trailer. `None` if
+/// the file has no trailer at all. Exposed read-only for `header::room`,
+/// which needs to find where its 32 MiB room sits (immediately before
+/// this offset) without duplicating `locate`'s parsing logic or
+/// changing it.
+pub fn trailer_start(img: &Path) -> Option<u64> {
+    let mut f = File::open(img).ok()?;
+    locate(&mut f).map(|(start, _)| start)
 }
 
 impl Meta {
