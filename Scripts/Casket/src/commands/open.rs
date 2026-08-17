@@ -5,6 +5,7 @@ use crate::btrfs;
 use crate::commands::backup::maybe_auto_backup;
 use crate::commands::settings::security::{bruteforce_lockout, ransomware_protection};
 use crate::ctx::Ctx;
+use crate::debugf;
 use crate::error::{CasError, Result};
 use crate::header;
 use crate::logf;
@@ -159,12 +160,20 @@ fn open_dispatch(vault: &Vault, meta: &Meta, secret: &[u8]) -> Result<String> {
         return luks::open_luks(&vault.img, &vault.mapper, secret);
     }
 
-    let salt = header::room::read_salt(&vault.img).ok_or_else(|| {
-        CasError::new("vault metadata says the header is relocated/encrypted, but no header room was found — vault metadata is inconsistent")
-    })?;
+    let salt = match meta.header_room_slots {
+        Some(n) => header::room::v3_read_salt(&vault.img, n as u64),
+        None => header::room::read_salt(&vault.img),
+    }
+    .ok_or_else(|| CasError::new("vault metadata says the header is relocated/encrypted, but no header room was found — vault metadata is inconsistent"))?;
     let master = header::derive_master_secret(&[secret], &salt);
     let staged = header::relocate::stage_current_header(vault, meta, Some(&master))
         .map_err(|e| CasError::new(format!("could not locate the relocated/encrypted header: {e}")))?;
+    // No `--size` gymnastics needed here: a v3 room lives in its own
+    // sibling file (`header::room::v3_room_path`), never appended to
+    // `vault.img`, so the image's "till end of device" dynamic sizing
+    // is exactly what it was at format time, every time -- see
+    // `room::v3_room_path`'s doc comment for the full story of why that
+    // matters and what was tried (and failed) before landing here.
     luks::open_luks_detached(staged.path(), &vault.img, &vault.mapper, secret)
 }
 
@@ -183,7 +192,20 @@ fn unlock_and_mount(ctx: &Ctx, vault: &Vault, secret: &[u8], meta: &Meta, schema
     meta.write(&vault.img)?;
 
     let size_mb = vault.img.metadata()?.len() / (1024 * 1024);
-    if !btrfs::blkid_output(&dev).contains("btrfs") {
+    // The /dev/mapper/<name> symlink `dev` points at is created by udev
+    // asynchronously after `cryptsetup open` returns, not synchronously
+    // by the ioctl itself -- for a detached-header dm-integrity (+
+    // dm-crypt) two-layer activation specifically, that lag is long
+    // enough to reliably race `blkid` below and read the device before
+    // its content is fully in place, misreporting "no filesystem" and
+    // triggering a destructive `mkfs.btrfs` over real data. Confirmed
+    // live 2026-08-17. `udevadm settle` blocks until the queue drains,
+    // closing the race; a short bounded timeout so a stuck udev queue
+    // (unrelated to this device) can't hang `open` indefinitely.
+    crate::proc::run_silent("udevadm", &["settle", "--timeout=5"]);
+    let blkid = btrfs::blkid_output(&dev);
+    debugf!(ctx, "unlock_and_mount: dev={dev} blkid_output={blkid:?}");
+    if !blkid.contains("btrfs") {
         logf!(ctx, "  [i] first open — formatting filesystem ...");
         btrfs::mkfs(&dev, &vault.name, size_mb)?;
     }

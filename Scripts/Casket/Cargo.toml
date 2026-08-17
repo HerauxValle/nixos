@@ -1,7 +1,7 @@
 # &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
 [package]
 name = "cas"
-version = "1.12.5"
+version = "1.13.0"
 edition = "2021"
 description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
 

@@ -120,6 +120,15 @@ pub struct Meta {
     /// tamper-HMAC/ground-truth treatment as `header_offset`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header_encryption: Option<bool>,
+    /// Slot count for a v3 (`fileIntegrity`-compatible, full-header-copy)
+    /// room -- `None` for a v1/v2 (minimized-header) room, or before any
+    /// room exists. Chosen once at `headerOffset`'s first `enable` on an
+    /// integrity vault (`--slots N`, default `header::room::
+    /// integrity_default_slots`), changeable later via `settings security
+    /// headerOffset slots <N>`. See `header::room`'s v3 doc comment for
+    /// why slot count is a disk-overhead knob, not a security one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub header_room_slots: Option<u32>,
 }
 
 /// Find the trailer on an open handle. Returns `(payload_start_offset,

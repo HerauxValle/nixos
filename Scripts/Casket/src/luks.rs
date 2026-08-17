@@ -225,6 +225,7 @@ pub fn open_luks_detached(header: &Path, img: &Path, mapper: &str, secret: &[u8]
     Ok(format!("/dev/mapper/{mapper}"))
 }
 
+
 /// Detached-header equivalent of `test` -- structural-only check (the
 /// header's own KDF/passphrase match), same caveat as `test`: proves the
 /// header decrypts, not that the payload it points at is the *right*

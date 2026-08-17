@@ -18,8 +18,18 @@ pub fn mkfs(dev: &str, name: &str, mb: u64) -> Result<()> {
 
 /// Raw `blkid <dev>` output — callers check for `"btrfs"` (already
 /// formatted with our filesystem) or `"TYPE="` (has *any* filesystem).
+/// `-p` forces a direct low-level probe of the device instead of a
+/// cached-database lookup -- confirmed live 2026-08-17: a freshly
+/// activated dm-mapper device (especially a dm-integrity + dm-crypt
+/// two-layer stack, which settles via udev measurably slower than plain
+/// dm-crypt) isn't in blkid's cache yet immediately after `cryptsetup
+/// open` returns, so plain `blkid <dev>` returns empty even though the
+/// device genuinely holds a valid, already-formatted btrfs filesystem --
+/// which `unlock_and_mount` then reads as "needs formatting" and runs a
+/// destructive `mkfs.btrfs` over real data. `-p` reads the actual device
+/// content directly, no cache/udev-timing dependency.
 pub fn blkid_output(dev: &str) -> String {
-    let out = proc::capture("blkid", &[dev]);
+    let out = proc::capture("blkid", &["-p", dev]);
     String::from_utf8_lossy(&out.stdout).into_owned()
 }
 
