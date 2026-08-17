@@ -13,26 +13,55 @@ pub const ROOM_SIZE: u64 = 32 * 1024 * 1024;
 pub const ROOM_HEADER_LEN: u64 = 4096;
 
 pub const ROOM_MAGIC: &[u8; 8] = b"CASHDR01";
-const ROOM_VERSION: u8 = 1;
+/// Bumped 1 -> 2 when `SLOT_SIZE` grew to fit an integrity-formatted
+/// header (see `SLOT_SIZE`'s doc comment) -- `room_version`/
+/// `header::migrate` use this byte to tell an old-layout room (slot
+/// addressing based on `V1_SLOT_SIZE`/`V1_N_SLOTS`) apart from a
+/// current one, so a room provisioned by an older `cas` build doesn't
+/// get silently misaddressed by code that now assumes the bigger size.
+pub const ROOM_VERSION: u8 = 2;
 const SALT_LEN: usize = 32;
 
-/// Per-slot size, measured live 2026-08-16 against cryptsetup 2.8.6: a
-/// minimized single-active-keyslot LUKS2 header (`--luks2-metadata-size
-/// 16k --luks2-keyslots-size 252k`, the smallest 4k-aligned keyslots-size
-/// that still lets a real Argon2id keyslot fit) needs 16k*2 + 252k =
-/// 290816 bytes on-disk. 384 KiB gives ~35% headroom above that measured
-/// floor -- see header/relocate.rs's format call for the exact
-/// cryptsetup flags this constant has to stay in sync with.
-pub const SLOT_SIZE: u64 = 384 * 1024;
+/// Version 1's slot size (cas <=1.12.4, before dm-integrity support was
+/// added to `headerOffset`/`headerEncryption`) -- 290,816 measured bytes
+/// for a *plain* minimized header, 384 KiB slot. Kept only so
+/// `header::migrate` can locate and relocate a still-live v1 slot's
+/// bytes to their new v2 address; no current code ever writes at this
+/// size.
+pub const V1_SLOT_SIZE: u64 = 384 * 1024;
+/// Version 1's slot count: `(ROOM_SIZE - ROOM_HEADER_LEN) / V1_SLOT_SIZE` = 85.
+pub const V1_N_SLOTS: u64 = (ROOM_SIZE - ROOM_HEADER_LEN) / V1_SLOT_SIZE;
+
+/// Per-slot size. A dm-integrity-protected container's volume key is 96
+/// bytes (a plain AES-256-XTS + HMAC-SHA256 key, vs. 64 bytes without
+/// integrity), which needs a much bigger LUKS2 keyslots area to fit a
+/// real Argon2id keyslot -- measured live 2026-08-17 against cryptsetup
+/// 2.8.6: `--luks2-keyslots-size 384k` is the smallest 4k-aligned size
+/// that still succeeds (368k fails with "No space for new keyslot"),
+/// giving a 425,984-byte minimized+integrity header on-disk (426,012
+/// framed+encrypted). `header/relocate.rs` always requests a fixed
+/// `512k` keyslots-size regardless of whether the source container
+/// actually has integrity, to keep one constant here in sync with one
+/// cryptsetup flag there instead of two conditional sizes; 768 KiB
+/// gives ~35% headroom above that 512k-keyslots real-world floor (mirrors
+/// the same headroom ratio v1's 384 KiB gave over its 290,816-byte floor)
+/// for future growth (a bigger cipher/integrity combination, additional
+/// PBKDF parameters, etc.) without needing another slot-size bump.
+pub const SLOT_SIZE: u64 = 768 * 1024;
 
 /// Number of candidate slots that fit in the room after its header:
-/// `(ROOM_SIZE - ROOM_HEADER_LEN) / SLOT_SIZE` = 85.
+/// `(ROOM_SIZE - ROOM_HEADER_LEN) / SLOT_SIZE` = 42.
 pub const N_SLOTS: u64 = (ROOM_SIZE - ROOM_HEADER_LEN) / SLOT_SIZE;
 
 /// Where slot `index`'s bytes start, relative to the room's own start
-/// (not the file's).
+/// (not the file's) -- parameterized over slot size so the v1 versioned
+/// helpers below can reuse it against the old layout.
+fn slot_offset_sized(index: u64, slot_size: u64) -> u64 {
+    ROOM_HEADER_LEN + index * slot_size
+}
+
 fn slot_offset(index: u64) -> u64 {
-    ROOM_HEADER_LEN + index * SLOT_SIZE
+    slot_offset_sized(index, SLOT_SIZE)
 }
 
 /// Absolute file offset where the room starts (or would start).
@@ -73,6 +102,62 @@ pub fn read_salt(img: &Path) -> Option<[u8; SALT_LEN]> {
 
 pub fn is_provisioned(img: &Path) -> bool {
     read_salt(img).is_some()
+}
+
+/// The container's true payload boundary -- where the room starts if
+/// one's provisioned, otherwise the current file length. `Meta::strip`
+/// is assumed to have already removed the trailer (every caller in
+/// `relocate.rs` guarantees this), so the only thing that can be sitting
+/// after the real LUKS2 container is the room itself.
+///
+/// Used by `header::relocate`'s `with_room_hidden` to temporarily
+/// truncate the room away before any `luksFormat --integrity` call
+/// against `img` -- confirmed live 2026-08-17: cryptsetup (re)initializes
+/// dm-integrity's per-sector tag/journal structures out to *however big
+/// the underlying file currently is* (the container's data segment is
+/// dynamic/"till end of device", never given an explicit fixed size),
+/// so if the room is already appended when a new detached header gets
+/// built, that init pass silently overwrites straight through it -- not
+/// on open, only on a fresh `luksFormat`, and only ever confirmed with
+/// `--integrity` involved.
+pub fn container_boundary(img: &Path) -> u64 {
+    let full_len = std::fs::metadata(img).map(|m| m.len()).unwrap_or(0);
+    if read_salt(img).is_some() {
+        if let Some(start) = room_start(img) {
+            return start;
+        }
+    }
+    full_len
+}
+
+/// The room layout version currently stamped in the header, or `None` if
+/// there's no room at all -- lets `header::migrate` tell a v1 room (still
+/// possibly holding live content addressed by `V1_SLOT_SIZE`/
+/// `V1_N_SLOTS`) apart from a current-layout one.
+pub fn room_version(img: &Path) -> Option<u8> {
+    let start = room_start(img)?;
+    let mut f = OpenOptions::new().read(true).open(img).ok()?;
+    let mut header = [0u8; ROOM_HEADER_LEN as usize];
+    f.seek(SeekFrom::Start(start)).ok()?;
+    f.read_exact(&mut header).ok()?;
+    if &header[0..8] != ROOM_MAGIC {
+        return None;
+    }
+    Some(header[8])
+}
+
+/// Stamp the room header's version byte in place -- the sole "commit"
+/// step of a room-layout migration (see `header::migrate`): a crash
+/// before this leaves the old version number still authoritative (old
+/// layout still fully readable), a crash after leaves the new version
+/// authoritative with its content already verified and in place. Never
+/// touches the salt or anything past byte 9.
+pub fn set_room_version(img: &Path, version: u8) -> std::io::Result<()> {
+    let start = room_start(img).ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "room not provisioned"))?;
+    let mut f = OpenOptions::new().write(true).open(img)?;
+    f.seek(SeekFrom::Start(start + 8))?;
+    f.write_all(&[version])?;
+    f.flush()
 }
 
 /// Idempotent room provisioning. Must be called on a file that's
@@ -125,44 +210,81 @@ pub fn ensure_provisioned(img: &Path) -> std::io::Result<[u8; SALT_LEN]> {
     Ok(salt)
 }
 
-/// Read slot `index`'s raw bytes (always exactly `SLOT_SIZE`). `None` if
-/// there's no room, or `index >= N_SLOTS`.
-pub fn read_slot(img: &Path, index: u64) -> Option<Vec<u8>> {
-    if index >= N_SLOTS {
+/// Read slot `index`'s raw bytes (always exactly `slot_size`). `None` if
+/// there's no room, or `index >= n_slots`. Parameterized so
+/// `header::migrate` can read a still-live v1 slot with
+/// `(V1_SLOT_SIZE, V1_N_SLOTS)`; `read_slot` below is the normal current-
+/// layout entry point every other caller uses.
+fn read_slot_sized(img: &Path, index: u64, slot_size: u64, n_slots: u64) -> Option<Vec<u8>> {
+    if index >= n_slots {
         return None;
     }
     let start = room_start(img)?;
     let mut f = OpenOptions::new().read(true).open(img).ok()?;
-    let mut buf = vec![0u8; SLOT_SIZE as usize];
-    f.seek(SeekFrom::Start(start + slot_offset(index))).ok()?;
+    let mut buf = vec![0u8; slot_size as usize];
+    f.seek(SeekFrom::Start(start + slot_offset_sized(index, slot_size))).ok()?;
     f.read_exact(&mut buf).ok()?;
     Some(buf)
 }
 
 /// Write `data` into slot `index`, padded with fresh CSPRNG filler up to
-/// `SLOT_SIZE` if shorter. Errors if `data` doesn't fit or the room
+/// `slot_size` if shorter. Errors if `data` doesn't fit or the room
 /// isn't provisioned. Caller (`relocate.rs`) is responsible for the
 /// verify-before-mutate ordering around this -- this function itself
-/// just performs the raw write, no safety judgment.
-pub fn write_slot(img: &Path, index: u64, data: &[u8]) -> std::io::Result<()> {
-    if data.len() as u64 > SLOT_SIZE {
-        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "slot payload exceeds SLOT_SIZE"));
+/// just performs the raw write, no safety judgment. Parameterized for
+/// the same reason as `read_slot_sized`.
+fn write_slot_sized(img: &Path, index: u64, data: &[u8], slot_size: u64, n_slots: u64) -> std::io::Result<()> {
+    if data.len() as u64 > slot_size {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "slot payload exceeds slot size"));
     }
-    if index >= N_SLOTS {
+    if index >= n_slots {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "slot index out of range"));
     }
     let start = room_start(img).ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "room not provisioned"))?;
 
-    let mut padded = vec![0u8; SLOT_SIZE as usize];
+    let mut padded = vec![0u8; slot_size as usize];
     padded[..data.len()].copy_from_slice(data);
-    if data.len() < SLOT_SIZE as usize {
+    if data.len() < slot_size as usize {
         rand::thread_rng().fill_bytes(&mut padded[data.len()..]);
     }
 
     let mut f = OpenOptions::new().write(true).open(img)?;
-    f.seek(SeekFrom::Start(start + slot_offset(index)))?;
+    f.seek(SeekFrom::Start(start + slot_offset_sized(index, slot_size)))?;
     f.write_all(&padded)?;
     f.flush()
+}
+
+pub fn read_slot(img: &Path, index: u64) -> Option<Vec<u8>> {
+    read_slot_sized(img, index, SLOT_SIZE, N_SLOTS)
+}
+
+pub fn write_slot(img: &Path, index: u64, data: &[u8]) -> std::io::Result<()> {
+    write_slot_sized(img, index, data, SLOT_SIZE, N_SLOTS)
+}
+
+/// v1-layout equivalent of `read_slot` -- only ever used by
+/// `header::migrate` to pull a still-live v1 slot's bytes out before
+/// relocating them to their v2 address.
+pub fn read_slot_v1(img: &Path, index: u64) -> Option<Vec<u8>> {
+    read_slot_sized(img, index, V1_SLOT_SIZE, V1_N_SLOTS)
+}
+
+/// v1-layout equivalent of `write_slot` -- no production code ever
+/// writes at v1 size (only `read_slot_v1`/`scrub_slot_v1` do, during
+/// migration), so this only exists for `header::relocate`'s migration
+/// test to hand-craft a v1 room without a real historical vault.
+#[cfg(test)]
+pub fn write_slot_v1_for_test(img: &Path, index: u64, data: &[u8]) -> std::io::Result<()> {
+    write_slot_sized(img, index, data, V1_SLOT_SIZE, V1_N_SLOTS)
+}
+
+/// v1-layout equivalent of `scrub_slot` -- used by `header::migrate` to
+/// wipe the old slot's bytes once its content has been verified at its
+/// new v2 address and the room version has already been committed.
+pub fn scrub_slot_v1(img: &Path, index: u64) -> std::io::Result<()> {
+    let mut filler = vec![0u8; V1_SLOT_SIZE as usize];
+    rand::thread_rng().fill_bytes(&mut filler);
+    write_raw_slot_sized(img, index, &filler, V1_SLOT_SIZE, V1_N_SLOTS)
 }
 
 /// Overwrite slot `index` with fresh random filler -- used to scrub a
@@ -172,19 +294,19 @@ pub fn write_slot(img: &Path, index: u64, data: &[u8]) -> std::io::Result<()> {
 pub fn scrub_slot(img: &Path, index: u64) -> std::io::Result<()> {
     let mut filler = vec![0u8; SLOT_SIZE as usize];
     rand::thread_rng().fill_bytes(&mut filler);
-    write_raw_slot(img, index, &filler)
+    write_raw_slot_sized(img, index, &filler, SLOT_SIZE, N_SLOTS)
 }
 
-/// Like `write_slot` but never pads (`data` must already be exactly
-/// `SLOT_SIZE`) -- internal helper for `scrub_slot`.
-fn write_raw_slot(img: &Path, index: u64, data: &[u8]) -> std::io::Result<()> {
-    debug_assert_eq!(data.len() as u64, SLOT_SIZE);
-    if index >= N_SLOTS {
+/// Like `write_slot_sized` but never pads (`data` must already be
+/// exactly `slot_size`) -- internal helper for `scrub_slot`/`scrub_slot_v1`.
+fn write_raw_slot_sized(img: &Path, index: u64, data: &[u8], slot_size: u64, n_slots: u64) -> std::io::Result<()> {
+    debug_assert_eq!(data.len() as u64, slot_size);
+    if index >= n_slots {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "slot index out of range"));
     }
     let start = room_start(img).ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "room not provisioned"))?;
     let mut f = OpenOptions::new().write(true).open(img)?;
-    f.seek(SeekFrom::Start(start + slot_offset(index)))?;
+    f.seek(SeekFrom::Start(start + slot_offset_sized(index, slot_size)))?;
     f.write_all(data)?;
     f.flush()
 }
@@ -272,9 +394,12 @@ mod tests {
         // Guards against SLOT_SIZE/N_SLOTS silently drifting out of
         // sync with header/relocate.rs's cryptsetup flags -- see
         // SLOT_SIZE's doc comment for the measured numbers.
-        assert_eq!(SLOT_SIZE, 384 * 1024);
-        assert_eq!(N_SLOTS, 85);
+        assert_eq!(SLOT_SIZE, 768 * 1024);
+        assert_eq!(N_SLOTS, 42);
         assert!(ROOM_HEADER_LEN + N_SLOTS * SLOT_SIZE <= ROOM_SIZE);
+        assert_eq!(V1_SLOT_SIZE, 384 * 1024);
+        assert_eq!(V1_N_SLOTS, 85);
+        assert!(ROOM_HEADER_LEN + V1_N_SLOTS * V1_SLOT_SIZE <= ROOM_SIZE);
     }
 
     #[test]

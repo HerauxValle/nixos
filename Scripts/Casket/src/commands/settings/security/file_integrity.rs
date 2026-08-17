@@ -73,6 +73,20 @@ fn run(ctx: &Ctx, vault: &Vault, enable: bool, delete_backup: bool, pw: Option<&
         let word = if enable { "enabled" } else { "disabled" };
         die!("fileIntegrity is already {word} for '{}'", vault.name);
     }
+    // This migration builds an entirely new container (fresh volume key,
+    // copied file tree, then a rename-swap) -- it never goes through
+    // header::relocate's room/slot logic, so if headerOffset/
+    // headerEncryption is currently on, the new container would end up
+    // with `meta.header_offset`/`header_encryption` still claiming a
+    // relocated header that was never actually placed anywhere on it.
+    // Separately (and confirmed live 2026-08-17, not just theoretical):
+    // rebuilding a detached LUKS2 header while forcing the same volume
+    // key -- exactly what headerOffset/headerEncryption's enable/disable/
+    // rotate paths do -- corrupts a dm-integrity-protected container's
+    // payload. The two features can't coexist either direction.
+    if enable && (crate::header::relocate::offset_enabled(&meta) || crate::header::relocate::encryption_enabled(&meta)) {
+        die!("fileIntegrity cannot be enabled while headerOffset/headerEncryption is on for '{}'\n    disable headerOffset and headerEncryption first", vault.name);
+    }
 
     let pw = gate_pw(ctx, vault, "fileIntegrity", pw)?;
     let secret = match meta.keyfile.clone() {

@@ -6,6 +6,7 @@ use crate::die;
 use crate::error::Result;
 use crate::header::relocate;
 use crate::logf;
+use crate::luks;
 use crate::meta::Meta;
 use crate::secret::{combined_secret, resolve_keyfile};
 use crate::vault::Vault;
@@ -53,6 +54,21 @@ fn run(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>) -> Result<()> {
     if is_enabled(&meta_before) == enable {
         let word = if enable { "enabled" } else { "disabled" };
         die!("headerOffset is already {word} for '{}'", vault.name);
+    }
+    // Rebuilding a detached LUKS2 header while forcing the container's
+    // existing volume key silently corrupts the payload the instant a
+    // dm-integrity-protected container is involved -- confirmed live
+    // 2026-08-17: even with no file-size tricks at all (no room ever
+    // appended), a fresh `--integrity` header built this way and forced
+    // to the same raw volume key already opens to garbage (bad
+    // superblock, files gone). dm-integrity derives its own per-sector
+    // authentication keying at format time from more than just the raw
+    // volume key, and `--volume-key-file` doesn't preserve whatever that
+    // is -- there is no truncate/resize/reordering trick that fixes
+    // this, since the corruption happens the moment the new header is
+    // formatted. Refuse outright rather than risk it.
+    if enable && luks::has_integrity(&vault.img) {
+        die!("headerOffset cannot be enabled while fileIntegrity is on for '{}' -- rebuilding the LUKS2 header for a dm-integrity-protected container corrupts its data (confirmed, not just theoretical)\n    disable fileIntegrity first, or don't enable headerOffset on this vault", vault.name);
     }
 
     let pw = gate_pw(ctx, vault, "headerOffset", pw)?;

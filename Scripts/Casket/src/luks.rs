@@ -42,6 +42,25 @@ pub fn has_integrity(img: &Path) -> bool {
     String::from_utf8_lossy(&out.stdout).to_lowercase().contains("integrity:")
 }
 
+/// Detached-header equivalent of `has_integrity` -- integrity is a data
+/// segment property recorded in the LUKS2 metadata, which isn't
+/// necessarily at `img`'s front anymore once `headerOffset`/
+/// `headerEncryption` has relocated it, so this must be checked against
+/// wherever the header currently is, not `img` directly. Used by
+/// `format_minimized_detached_header`/`format_default_detached_header`'s
+/// callers in `header/relocate.rs` so a rebuilt header replicates the
+/// source container's real integrity setting instead of silently
+/// dropping it (a rebuilt non-integrity header over an integrity-tagged
+/// data segment "opens" fine but decrypts every sector's payload bytes
+/// wrong, since dm-integrity's per-sector tag interleaving shifts where
+/// the actual ciphertext lives).
+pub fn has_integrity_from_header(header: &Path, img: &Path) -> bool {
+    let header_str = header.to_string_lossy().into_owned();
+    let img_str = img.to_string_lossy().into_owned();
+    let out = proc::capture("cryptsetup", &["luksDump", "--header", &header_str, &img_str]);
+    String::from_utf8_lossy(&out.stdout).to_lowercase().contains("integrity:")
+}
+
 pub fn open_luks(img: &Path, mapper: &str, secret: &[u8]) -> Result<String> {
     let img_str = img.to_string_lossy().into_owned();
     // Report cryptsetup's real failure reason instead of a blanket
@@ -332,12 +351,13 @@ pub fn dump_volume_key(img: &Path, secret: &[u8]) -> Result<TempOutPath> {
 /// `header_out` (a plain file, not `img` itself) that decrypts `img`'s
 /// *existing* payload starting at `offset_bytes` -- by forcing the same
 /// volume key (`volume_key_file`, from `dump_volume_key`) instead of
-/// letting `luksFormat` mint a fresh one. `--luks2-keyslots-size 252k`
-/// is the measured (not guessed) minimum 4k-aligned keyslots area that
-/// still fits one real Argon2id keyslot at cryptsetup 2.8.6 -- see
-/// `header::room::SLOT_SIZE`'s doc comment for the full measurement.
-/// Never touches `img` beyond reading its existing bytes elsewhere
-/// (this call writes only to `header_out`).
+/// letting `luksFormat` mint a fresh one. `--luks2-keyslots-size 512k`
+/// is fixed regardless of `integrity` (a non-integrity volume key only
+/// needs the old 252k floor, but using one constant here keeps it in
+/// sync with exactly one measured floor -- `header::room::SLOT_SIZE`'s
+/// doc comment -- instead of two conditional sizes that could drift
+/// independently). Never touches `img` beyond reading its existing bytes
+/// elsewhere (this call writes only to `header_out`).
 pub fn format_minimized_detached_header(
     header_out: &Path,
     img: &Path,
@@ -346,6 +366,7 @@ pub fn format_minimized_detached_header(
     offset_bytes: u64,
     sector_size: u64,
     strength: Strength,
+    integrity: bool,
 ) -> Result<()> {
     if offset_bytes % 512 != 0 {
         return Err(CasError::new("data offset is not sector-aligned"));
@@ -360,7 +381,7 @@ pub fn format_minimized_detached_header(
         "luksFormat", "--batch-mode", "--type", "luks2",
         "--header", &header_str,
         "--luks2-metadata-size", "16k",
-        "--luks2-keyslots-size", "252k",
+        "--luks2-keyslots-size", "512k",
         "--offset", &offset_sectors,
         // Must match the original container's sector size exactly —
         // XTS's IV is derived from the sector number, so a mismatch
@@ -375,6 +396,20 @@ pub fn format_minimized_detached_header(
     args.extend_from_slice(strength.pbkdf_args());
     args.push("--pbkdf-force-iterations");
     args.push(strength.iterations());
+    // Must match whether the source container's data segment is
+    // dm-integrity-tagged (`fileIntegrity`) — a rebuilt header that
+    // disagrees on this "opens" successfully (same volume key, same
+    // sector size) but decrypts every sector to garbage, since
+    // dm-integrity interleaves a per-sector auth tag into the data
+    // segment layout that a plain (non-integrity) header doesn't
+    // account for. Confirmed live 2026-08-17: this was silently
+    // dropped, causing `headerOffset`/`headerEncryption` enable to
+    // fail its own verify-before-commit step on every integrity-
+    // protected vault.
+    if integrity {
+        args.push("--integrity");
+        args.push("hmac-sha256");
+    }
     args.push(&img_str);
     args.push("--key-file");
     args.push("-");
@@ -419,6 +454,7 @@ pub fn format_default_detached_header(
     offset_bytes: u64,
     sector_size: u64,
     strength: Strength,
+    integrity: bool,
 ) -> Result<()> {
     if offset_bytes % 512 != 0 {
         return Err(CasError::new("data offset is not sector-aligned"));
@@ -440,6 +476,12 @@ pub fn format_default_detached_header(
     args.extend_from_slice(strength.pbkdf_args());
     args.push("--pbkdf-force-iterations");
     args.push(strength.iterations());
+    // Same reasoning as `format_minimized_detached_header` -- must match
+    // the source container's real dm-integrity setting.
+    if integrity {
+        args.push("--integrity");
+        args.push("hmac-sha256");
+    }
     args.push(&img_str);
     args.push("--key-file");
     args.push("-");
@@ -619,7 +661,7 @@ mod header_offset_tests {
         let vk = dump_volume_key(&img, &old_secret).unwrap();
         let new_secret = b"scratchpass-relocated".to_vec();
         let minihdr = dir.join("minihdr.img");
-        format_minimized_detached_header(&minihdr, &img, &new_secret, vk.path(), offset, sector_size, Strength::Light).unwrap();
+        format_minimized_detached_header(&minihdr, &img, &new_secret, vk.path(), offset, sector_size, Strength::Light, false).unwrap();
         let meta_bytes = std::fs::metadata(&minihdr).unwrap().len();
         assert!(meta_bytes <= crate::header::room::SLOT_SIZE, "minimized header ({meta_bytes} bytes) must fit in one room slot ({} bytes)", crate::header::room::SLOT_SIZE);
         assert!(test_detached(&minihdr, &img, &new_secret), "minimized detached header with forced volume key must unlock the same payload under its own new passphrase");

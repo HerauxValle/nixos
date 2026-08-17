@@ -88,17 +88,22 @@ fn on(ctx: &Ctx, vault: &Vault, pw: &str) -> Result<()> {
     logf!(ctx, "[cas] enabling 2FA on '{}' ...", vault.name);
     Meta::strip(&vault.img)?;
 
-    let mut new_meta = Meta { keyfile: Some(kf_path.to_string_lossy().into_owned()), ..Meta::default() };
+    // Start from a clone of the existing Meta, not Meta::default() --
+    // building fresh and manually carrying over a handful of fields
+    // (the old approach) silently drops every field someone forgets to
+    // list by hand on the next new setting: confirmed live 2026-08-17,
+    // `file_integrity` was reset to `None` (shown as "disabled" by
+    // `info`) on the very next 2FA toggle after being set at creation,
+    // even though the container's real on-disk dm-integrity layout
+    // never changed. Only the fields that must actually differ for a
+    // 2FA-enable are overwritten below.
+    let mut new_meta = meta.clone();
+    new_meta.keyfile = Some(kf_path.to_string_lossy().into_owned());
+    new_meta.autokey = None;
     if meta.encrypted == Some(false) {
         new_meta.encrypted = Some(false);
         new_meta.autokey = Some(b64_encode(&new_secret));
     }
-    // Carry the header-hiding fields over -- this is a fresh Meta::default()
-    // above, which would otherwise silently drop headerOffset/
-    // headerEncryption/header_room on every 2FA toggle.
-    new_meta.header_room = meta.header_room;
-    new_meta.header_offset = meta.header_offset;
-    new_meta.header_encryption = meta.header_encryption;
 
     if let Err(e) = cycle_secret(ctx, vault, &meta, &old_secret, &new_secret) {
         meta.write(&vault.img)?;
@@ -139,14 +144,15 @@ fn off(ctx: &Ctx, vault: &Vault, pw: &str) -> Result<()> {
     logf!(ctx, "[cas] disabling 2FA on '{}' ...", vault.name);
     Meta::strip(&vault.img)?;
 
-    let mut new_meta = Meta::default();
+    // Same reasoning as `on()` -- clone rather than rebuild from
+    // Meta::default() so every existing setting survives the toggle.
+    let mut new_meta = meta.clone();
+    new_meta.keyfile = None;
+    new_meta.autokey = None;
     if meta.encrypted == Some(false) {
         new_meta.encrypted = Some(false);
         new_meta.autokey = Some(b64_encode(&new_secret));
     }
-    new_meta.header_room = meta.header_room;
-    new_meta.header_offset = meta.header_offset;
-    new_meta.header_encryption = meta.header_encryption;
 
     if let Err(e) = cycle_secret(ctx, vault, &meta, &old_secret, &new_secret) {
         meta.write(&vault.img)?;

@@ -165,7 +165,59 @@ impl Vault {
         let mnt_str = self.mnt.to_string_lossy().into_owned();
         proc::run("umount", &[&mnt_str])
     }
+
+    /// Path to this vault's advisory lock file -- a dotfile sibling of
+    /// the `.img`, never the `.img` itself (locking the image directly
+    /// would conflict with the udisks/loop-device machinery that also
+    /// opens it). Same name shape as `recover_interrupted_migration`'s
+    /// staging/backup dotfiles, so it doesn't collide with a real vault
+    /// name.
+    pub fn lock_path(&self) -> PathBuf {
+        self.img.with_file_name(format!(".{}.lock", self.name))
+    }
+
+    /// Block until an exclusive advisory lock on this vault is held,
+    /// for the duration of the returned guard. Every CLI verb that
+    /// mutates a vault's on-disk state (metadata trailer, LUKS keyslots,
+    /// header room, mounted filesystem) must hold this for its entire
+    /// run -- confirmed live 2026-08-17 that two `settings` commands
+    /// racing against the same vault with no synchronization corrupt
+    /// its metadata/keyslot state badly enough to permanently lock the
+    /// owner out, even with the correct passphrase. `flock` on a plain
+    /// sibling file (not the `.img`) needs no coordination with
+    /// anything else that opens the image, and is released automatically
+    /// the moment the returned guard (and the `File` it holds) drops --
+    /// including on a crash or `kill -9`, since the kernel releases an
+    /// `flock` when the holding process's last fd to it closes, no
+    /// explicit unlock step required.
+    pub fn lock_exclusive(&self) -> Result<VaultLock> {
+        use std::os::unix::io::AsRawFd;
+        let path = self.lock_path();
+        let file = std::fs::OpenOptions::new().write(true).create(true).open(&path)?;
+        // SAFETY: `file` stays open for exactly as long as the lock is
+        // held (owned by the returned guard) — `flock`'s lock is tied to
+        // the open file description, not the fd number, so this is safe
+        // as long as `file` isn't dropped before the lock should
+        // release, which `VaultLock` guarantees by owning it.
+        let rc = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) };
+        if rc != 0 {
+            return Err(crate::error::CasError::new(format!(
+                "could not lock vault '{}': {}",
+                self.name,
+                std::io::Error::last_os_error()
+            )));
+        }
+        Ok(VaultLock(file))
+    }
 }
+
+/// RAII guard for `Vault::lock_exclusive` -- releases the `flock` when
+/// dropped (via the held `File`'s own `Drop` closing its fd; no
+/// explicit `LOCK_UN` needed, see `lock_exclusive`'s doc comment). The
+/// field is never read directly -- it exists purely so its `Drop` runs
+/// at the right time.
+#[allow(dead_code)]
+pub struct VaultLock(std::fs::File);
 
 /// Completes an interrupted `fileIntegrity` swap if `find` would
 /// otherwise report the vault as not found. The swap is two atomic

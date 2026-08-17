@@ -49,12 +49,19 @@ pub enum Strength {
 
 impl Strength {
     /// `--pbkdf-memory`/`--pbkdf-parallel` pair passed to cryptsetup.
+    /// `--pbkdf-parallel` is capped at 4 for every level, `Extreme`
+    /// included -- confirmed live 2026-08-17 that cryptsetup 2.8.6
+    /// itself refuses anything higher ("Requested maximum PBKDF
+    /// parallel cost is too high (maximum is 4)"), regardless of how
+    /// many CPU cores the host actually has (tested on a 16-core
+    /// machine). `Extreme`'s distinguishing cost is memory + iteration
+    /// count, not parallelism.
     pub const fn pbkdf_args(self) -> &'static [&'static str] {
         match self {
             Strength::Light => &["--pbkdf-memory", "128000", "--pbkdf-parallel", "2"],
             Strength::Medium => &["--pbkdf-memory", "512000", "--pbkdf-parallel", "4"],
             Strength::Hard => &["--pbkdf-memory", "1024000", "--pbkdf-parallel", "4"],
-            Strength::Extreme => &["--pbkdf-memory", "2048000", "--pbkdf-parallel", "8"],
+            Strength::Extreme => &["--pbkdf-memory", "2048000", "--pbkdf-parallel", "4"],
         }
     }
 

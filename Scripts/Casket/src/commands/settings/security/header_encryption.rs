@@ -6,6 +6,7 @@ use crate::die;
 use crate::error::Result;
 use crate::header::relocate;
 use crate::logf;
+use crate::luks;
 use crate::meta::Meta;
 use crate::secret::{combined_secret, resolve_keyfile};
 use crate::vault::Vault;
@@ -50,6 +51,13 @@ fn run(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>) -> Result<()> {
     if is_enabled(&meta_before) == enable {
         let word = if enable { "enabled" } else { "disabled" };
         die!("headerEncryption is already {word} for '{}'", vault.name);
+    }
+    // Same incompatibility as headerOffset -- see its guard's comment.
+    // Rebuilding/re-encrypting the LUKS2 header while forcing the same
+    // volume key corrupts a dm-integrity-protected container's payload,
+    // confirmed live 2026-08-17.
+    if enable && luks::has_integrity(&vault.img) {
+        die!("headerEncryption cannot be enabled while fileIntegrity is on for '{}' -- rebuilding the LUKS2 header for a dm-integrity-protected container corrupts its data (confirmed, not just theoretical)\n    disable fileIntegrity first, or don't enable headerEncryption on this vault", vault.name);
     }
 
     let pw = gate_pw(ctx, vault, "headerEncryption", pw)?;

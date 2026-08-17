@@ -100,6 +100,7 @@ pub fn run() -> Result<()> {
         let name = p.file_stem().unwrap_or_default().to_string_lossy().into_owned();
         let base = p.parent().unwrap_or(Path::new(".")).to_path_buf();
         let vault = Vault::resolve(&base, &name);
+        let _lock = vault.lock_exclusive()?;
         let meta = Meta::read(&vault.img);
         let effective_kf = opts.keyfile.clone().or_else(|| meta.keyfile.clone());
         let kfm = ensure_keyfile_mounted(&ctx, effective_kf.as_deref().map(Path::new));
@@ -142,11 +143,17 @@ pub fn run() -> Result<()> {
             } else {
                 None
             };
+            // Lock before create so two concurrent `create`s racing on
+            // the same name can't both pass the "already exists" check
+            // and stomp each other's `truncate`/`luksFormat`.
+            let vault = Vault::resolve(&base, &vault_name);
+            let _lock = vault.lock_exclusive()?;
             commands::create::run(&ctx, &base, &vault_name, size, &create_pw, opts.strength, integrity_choice, opts.pass.is_none())
         }
 
         "open" => {
             let vault = Vault::find(&vault_name, path_ref)?;
+            let _lock = vault.lock_exclusive()?;
             let meta = Meta::read(&vault.img);
             let effective_kf = opts.keyfile.clone().or_else(|| meta.keyfile.clone());
             let kfm = ensure_keyfile_mounted(&ctx, effective_kf.as_deref().map(Path::new));
@@ -160,16 +167,19 @@ pub fn run() -> Result<()> {
 
         "rename" => {
             let vault = Vault::find(&vault_name, path_ref)?;
+            let _lock = vault.lock_exclusive()?;
             commands::rename::run(&ctx, &vault, &extra)
         }
 
         "close" => {
             let vault = Vault::find(&vault_name, path_ref)?;
+            let _lock = vault.lock_exclusive()?;
             commands::close::run(&ctx, &vault, force)
         }
 
         "toggle" => {
             let vault = Vault::find(&vault_name, path_ref)?;
+            let _lock = vault.lock_exclusive()?;
             let meta = Meta::read(&vault.img);
             let effective_kf = opts.keyfile.clone().or_else(|| meta.keyfile.clone());
             let kfm = ensure_keyfile_mounted(&ctx, effective_kf.as_deref().map(Path::new));
@@ -200,6 +210,7 @@ pub fn run() -> Result<()> {
 
         "auth" => {
             let vault = Vault::find(&vault_name, path_ref)?;
+            let _lock = vault.lock_exclusive()?;
             match extra.first().map(String::as_str) {
                 Some("passwd") => {
                     let old_pw = prompt::get_pw(&ctx, opts.pass.as_deref())?;
@@ -219,21 +230,25 @@ pub fn run() -> Result<()> {
 
         "backup" => {
             let vault = Vault::find(&vault_name, path_ref)?;
+            let _lock = vault.lock_exclusive()?;
             commands::backup::dispatch(&ctx, &vault, &extra)
         }
 
         "settings" => {
             let vault = Vault::find(&vault_name, path_ref)?;
+            let _lock = vault.lock_exclusive()?;
             commands::settings::dispatch(&ctx, &vault, &extra, opts.pass.as_deref())
         }
 
         "exec" => {
             let vault = Vault::find(&vault_name, path_ref)?;
+            let _lock = vault.lock_exclusive()?;
             commands::exec::dispatch(&ctx, &vault, &extra, opts.pass.as_deref())
         }
 
         "delete" => {
             let vault = Vault::find(&vault_name, path_ref)?;
+            let _lock = vault.lock_exclusive()?;
             commands::delete::run(&ctx, &vault, remove_keyfile, shred)
         }
 
@@ -243,6 +258,7 @@ pub fn run() -> Result<()> {
             };
             let size_str = format!("{first}{}", extra.get(1).map(String::as_str).unwrap_or(""));
             let vault = Vault::find(&vault_name, path_ref)?;
+            let _lock = vault.lock_exclusive()?;
             let new_mb = parse_size(&size_str)?;
             let pw = prompt::get_pw(&ctx, opts.pass.as_deref())?;
             commands::resize::run(&ctx, &vault, new_mb, &pw)
