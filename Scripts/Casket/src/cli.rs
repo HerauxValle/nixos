@@ -72,7 +72,7 @@ pub fn run() -> Result<()> {
     opts.keyfile = pop_value(&mut args, "--keyfile");
     opts.path = pop_value(&mut args, "--path");
     if let Some(raw) = pop_value(&mut args, "--size") {
-        opts.size = Some(raw.parse::<u64>().map_err(|_| CasError::new(format!("invalid --size '{raw}'")))?);
+        opts.size = Some(parse_size(&raw)?);
     }
     if let Some(raw) = pop_value(&mut args, "--strength") {
         opts.strength = raw.parse::<Strength>().map_err(CasError::Msg)?;
