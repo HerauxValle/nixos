@@ -1,7 +1,8 @@
-// &desc: "The MASQUERADE half of sandbox internet: one nftables table/chain/rule built from raw NETLINK_NETFILTER messages (linux/netfilter/nfnetlink.h, linux/netfilter/nf_tables.h) -- no nft(8) shell-out, no nftables crate. Scoped to traffic entering the host's own postrouting from the sandbox's veth end (`iifname casnet0`) only -- never touches any other rule/table on the host."
+// &desc: "Host-side NAT for sandbox networking: one nftables table holding an outbound MASQUERADE chain (if `Config::outbound`) and/or an inbound DNAT chain (one rule per `Config::inbound` port), all built from raw NETLINK_NETFILTER messages (linux/netfilter/nfnetlink.h, linux/netfilter/nf_tables.h) -- no nft(8) shell-out, no nftables crate. Outbound is scoped to traffic leaving via the sandbox's own veth end (`iifname casnet0`) only; inbound DNAT rules match on destination port only (by design -- a forwarded port is meant to be reachable from wherever can reach this host, not just casnet0). Neither ever touches any other rule/table on the host."
 use std::io;
 
 use super::super::netlink::{self, MsgBuilder};
+use super::{Config, PortForward, SANDBOX_IP};
 
 // --- NETLINK_NETFILTER / nftables wire format -- linux/netfilter/
 // nfnetlink.h (subsystem framing) and linux/netfilter/nf_tables.h
@@ -28,7 +29,9 @@ const NFTA_CHAIN_TYPE: u16 = 7;
 
 const NFTA_HOOK_HOOKNUM: u16 = 1;
 const NFTA_HOOK_PRIORITY: u16 = 2;
+const NF_INET_PRE_ROUTING: u32 = 0;
 const NF_INET_POST_ROUTING: u32 = 4;
+const NF_IP_PRI_NAT_DST: i32 = -100;
 const NF_IP_PRI_NAT_SRC: i32 = 100;
 
 const NFTA_RULE_TABLE: u16 = 1;
@@ -42,6 +45,13 @@ const NFTA_EXPR_DATA: u16 = 2;
 const NFTA_META_DREG: u16 = 1;
 const NFTA_META_KEY: u16 = 2;
 const NFT_META_IIFNAME: u32 = 6;
+const NFT_META_L4PROTO: u32 = 16;
+
+const NFTA_PAYLOAD_DREG: u16 = 1;
+const NFTA_PAYLOAD_BASE: u16 = 2;
+const NFTA_PAYLOAD_OFFSET: u16 = 3;
+const NFTA_PAYLOAD_LEN: u16 = 4;
+const NFT_PAYLOAD_TRANSPORT_HEADER: u32 = 2;
 
 const NFTA_CMP_SREG: u16 = 1;
 const NFTA_CMP_OP: u16 = 2;
@@ -49,10 +59,21 @@ const NFTA_CMP_DATA: u16 = 3;
 const NFT_CMP_EQ: u32 = 0;
 const NFTA_DATA_VALUE: u16 = 1;
 
+const NFTA_IMMEDIATE_DREG: u16 = 1;
+const NFTA_IMMEDIATE_DATA: u16 = 2;
+
+const NFTA_NAT_TYPE: u16 = 1;
+const NFTA_NAT_FAMILY: u16 = 2;
+const NFTA_NAT_REG_ADDR_MIN: u16 = 3;
+const NFTA_NAT_REG_PROTO_MIN: u16 = 5;
+const NFT_NAT_DNAT: u32 = 1;
+
 const NFT_REG_1: u32 = 1;
+const NFT_REG_2: u32 = 2;
 
 const TABLE_NAME: &str = "cas_sandbox";
-const CHAIN_NAME: &str = "postrouting";
+const CHAIN_OUT: &str = "postrouting";
+const CHAIN_IN: &str = "prerouting";
 const IFACE_HOST: &str = super::IFACE_HOST;
 
 #[repr(C)]
@@ -70,76 +91,96 @@ fn nfgen(family: u8) -> NfGenMsg {
     NfGenMsg { family, version: 0, res_id: 0 }
 }
 
-/// Table/chain/rule creation order matters (a chain needs its table to
-/// exist, a rule needs its chain) -- all three are folded into one
-/// nftables *batch* (`netlink::nft_batch`) and committed atomically:
+/// Builds and commits every table/chain/rule `cfg` calls for, in one
+/// nftables batch (`netlink::nft_batch`) -- table/chain/rule creation
+/// order matters (a chain needs its table, a rule needs its chain), and
 /// nftables netlink rejects a bare individual `NEWTABLE`/`NEWCHAIN`/
 /// `NEWRULE` outside a `BATCH_BEGIN`/`BATCH_END` transaction with
 /// `EINVAL` (confirmed by straceing the real `nft` binary against this
 /// exact operation), unlike rtnetlink's per-message request/ack model.
-/// A failed batch commits nothing at all -- no separate rollback logic
-/// needed here the way `network::setup_host_side` needs one for its
-/// (non-transactional) rtnetlink calls.
-pub fn add_masquerade_rule() -> io::Result<()> {
+/// `cfg.outbound`/`cfg.inbound` are independent -- either, both, or (via
+/// `Config::is_empty`, checked by the caller before this is ever called)
+/// neither chain gets built.
+pub fn apply(cfg: &Config) -> io::Result<()> {
     let fd = netlink::open(netlink::NETLINK_NETFILTER)?;
-    let messages = vec![new_table_msg(), new_chain_msg(), new_rule_msg()];
+    let mut messages = vec![new_table_msg(1)];
+    let mut seq = 2;
+    if cfg.outbound {
+        messages.push(new_postrouting_chain_msg(seq));
+        seq += 1;
+        messages.push(new_masquerade_rule_msg(seq));
+        seq += 1;
+    }
+    if !cfg.inbound.is_empty() {
+        messages.push(new_prerouting_chain_msg(seq));
+        seq += 1;
+        for pf in &cfg.inbound {
+            messages.push(new_dnat_rule_msg(seq, pf));
+            seq += 1;
+        }
+    }
     let r = netlink::nft_batch(fd, NFNL_SUBSYS_NFTABLES, messages, 1);
     netlink::close(fd);
     r
 }
 
-pub fn delete_masquerade_rule() -> io::Result<()> {
+pub fn delete_all() -> io::Result<()> {
     let fd = netlink::open(netlink::NETLINK_NETFILTER)?;
     // Deleting the table deletes every chain/rule inside it too -- no
-    // need to delete the chain/rule individually first.
-    let r = netlink::nft_batch(fd, NFNL_SUBSYS_NFTABLES, vec![del_table_msg()], 1);
+    // need to delete anything individually first.
+    let r = netlink::nft_batch(fd, NFNL_SUBSYS_NFTABLES, vec![del_table_msg(1)], 1);
     netlink::close(fd);
     r
 }
 
-fn new_table_msg() -> Vec<u8> {
+fn new_table_msg(seq: u32) -> Vec<u8> {
     let gen = nfgen(libc::AF_INET as u8);
     let mut b = MsgBuilder::new(msg_type(NFT_MSG_NEWTABLE), 0, as_bytes(&gen));
     b.push_attr_str(NFTA_TABLE_NAME, TABLE_NAME);
-    b.finish_raw(msg_type(NFT_MSG_NEWTABLE), 0, 1)
+    b.finish_raw(msg_type(NFT_MSG_NEWTABLE), 0, seq)
 }
 
-fn del_table_msg() -> Vec<u8> {
+fn del_table_msg(seq: u32) -> Vec<u8> {
     let gen = nfgen(libc::AF_INET as u8);
     let mut b = MsgBuilder::new(msg_type(NFT_MSG_DELTABLE), 0, as_bytes(&gen));
     b.push_attr_str(NFTA_TABLE_NAME, TABLE_NAME);
-    b.finish_raw(msg_type(NFT_MSG_DELTABLE), 0, 1)
+    b.finish_raw(msg_type(NFT_MSG_DELTABLE), 0, seq)
 }
 
-fn new_chain_msg() -> Vec<u8> {
+fn new_base_chain_msg(seq: u32, name: &str, hooknum: u32, priority: i32) -> Vec<u8> {
     let gen = nfgen(libc::AF_INET as u8);
     let mut b = MsgBuilder::new(msg_type(NFT_MSG_NEWCHAIN), 0, as_bytes(&gen));
     b.push_attr_str(NFTA_CHAIN_TABLE, TABLE_NAME);
-    b.push_attr_str(NFTA_CHAIN_NAME, CHAIN_NAME);
-    // "type nat hook postrouting priority 100" -- a base chain (has a
-    // hook, unlike a plain regular chain), Source-NAT hook point/
-    // priority so this only ever runs where SNAT/MASQUERADE is valid.
+    b.push_attr_str(NFTA_CHAIN_NAME, name);
     b.push_attr_str(NFTA_CHAIN_TYPE, "nat");
     b.nest_start(NFTA_CHAIN_HOOK);
-    // Both fields are `__be32` on the wire -- explicit big-endian, not
-    // `push_attr_u32` (native/little-endian on x86_64), confirmed by
-    // diffing against the real `nft` binary's own encoding of the same
-    // "hook postrouting priority 100" via strace.
-    b.push_attr(NFTA_HOOK_HOOKNUM, &NF_INET_POST_ROUTING.to_be_bytes());
-    b.push_attr(NFTA_HOOK_PRIORITY, &NF_IP_PRI_NAT_SRC.to_be_bytes());
+    // Both fields are `__be32`/`__be32`(as a signed priority) on the wire
+    // -- explicit big-endian, not `push_attr_u32` (native/little-endian
+    // on x86_64), confirmed by diffing against the real `nft` binary's
+    // own encoding of the same "hook ... priority ..." via strace.
+    b.push_attr(NFTA_HOOK_HOOKNUM, &hooknum.to_be_bytes());
+    b.push_attr(NFTA_HOOK_PRIORITY, &priority.to_be_bytes());
     b.nest_end();
-    b.finish_raw(msg_type(NFT_MSG_NEWCHAIN), netlink::NLM_F_CREATE, 2)
+    b.finish_raw(msg_type(NFT_MSG_NEWCHAIN), netlink::NLM_F_CREATE, seq)
 }
 
-fn new_rule_msg() -> Vec<u8> {
+fn new_postrouting_chain_msg(seq: u32) -> Vec<u8> {
+    new_base_chain_msg(seq, CHAIN_OUT, NF_INET_POST_ROUTING, NF_IP_PRI_NAT_SRC)
+}
+
+fn new_prerouting_chain_msg(seq: u32) -> Vec<u8> {
+    new_base_chain_msg(seq, CHAIN_IN, NF_INET_PRE_ROUTING, NF_IP_PRI_NAT_DST)
+}
+
+fn new_masquerade_rule_msg(seq: u32) -> Vec<u8> {
     let gen = nfgen(libc::AF_INET as u8);
     let mut b = MsgBuilder::new(msg_type(NFT_MSG_NEWRULE), 0, as_bytes(&gen));
     b.push_attr_str(NFTA_RULE_TABLE, TABLE_NAME);
-    b.push_attr_str(NFTA_RULE_CHAIN, CHAIN_NAME);
+    b.push_attr_str(NFTA_RULE_CHAIN, CHAIN_OUT);
     b.nest_start(NFTA_RULE_EXPRESSIONS);
 
-    // expr 1: "meta iifname" -- load the packet's ingress interface name
-    // into NFT_REG_1.
+    // expr 1/2: "iifname casnet0" -- load the packet's ingress interface
+    // name into NFT_REG_1, compare against our host-side veth name.
     b.nest_start(NFTA_LIST_ELEM);
     b.push_attr_str(NFTA_EXPR_NAME, "meta");
     b.nest_start(NFTA_EXPR_DATA);
@@ -148,9 +189,6 @@ fn new_rule_msg() -> Vec<u8> {
     b.nest_end();
     b.nest_end();
 
-    // expr 2: "== casnet0" -- compare NFT_REG_1 against our host-side
-    // veth name, NUL-padded the same way the kernel's own ifname compare
-    // data is (exact byte match, not a prefix).
     b.nest_start(NFTA_LIST_ELEM);
     b.push_attr_str(NFTA_EXPR_NAME, "cmp");
     b.nest_start(NFTA_EXPR_DATA);
@@ -176,5 +214,99 @@ fn new_rule_msg() -> Vec<u8> {
     b.nest_end();
 
     b.nest_end(); // NFTA_RULE_EXPRESSIONS
-    b.finish_raw(msg_type(NFT_MSG_NEWRULE), netlink::NLM_F_CREATE | NLM_F_APPEND, 3)
+    b.finish_raw(msg_type(NFT_MSG_NEWRULE), netlink::NLM_F_CREATE | NLM_F_APPEND, seq)
+}
+
+/// One rule: `<protocol> dport <host_port> dnat to <SANDBOX_IP>:<sandbox_port>`.
+/// No interface restriction (unlike the masquerade rule) -- a forwarded
+/// port is meant to be reachable from wherever can reach this host at
+/// all (LAN, the internet, depending on the host's own exposure), not
+/// just from the sandbox's own veth.
+fn new_dnat_rule_msg(seq: u32, pf: &PortForward) -> Vec<u8> {
+    let gen = nfgen(libc::AF_INET as u8);
+    let mut b = MsgBuilder::new(msg_type(NFT_MSG_NEWRULE), 0, as_bytes(&gen));
+    b.push_attr_str(NFTA_RULE_TABLE, TABLE_NAME);
+    b.push_attr_str(NFTA_RULE_CHAIN, CHAIN_IN);
+    b.nest_start(NFTA_RULE_EXPRESSIONS);
+
+    // expr 1/2: match the transport protocol (tcp=6, udp=17) via
+    // `meta l4proto`.
+    let l4proto: u8 = if pf.tcp { 6 } else { 17 };
+    b.nest_start(NFTA_LIST_ELEM);
+    b.push_attr_str(NFTA_EXPR_NAME, "meta");
+    b.nest_start(NFTA_EXPR_DATA);
+    b.push_attr_u32_be(NFTA_META_DREG, NFT_REG_1);
+    b.push_attr_u32_be(NFTA_META_KEY, NFT_META_L4PROTO);
+    b.nest_end();
+    b.nest_end();
+
+    b.nest_start(NFTA_LIST_ELEM);
+    b.push_attr_str(NFTA_EXPR_NAME, "cmp");
+    b.nest_start(NFTA_EXPR_DATA);
+    b.push_attr_u32_be(NFTA_CMP_SREG, NFT_REG_1);
+    b.push_attr_u32_be(NFTA_CMP_OP, NFT_CMP_EQ);
+    b.nest_start(NFTA_CMP_DATA);
+    b.push_attr(NFTA_DATA_VALUE, &[l4proto]);
+    b.nest_end();
+    b.nest_end();
+    b.nest_end();
+
+    // expr 3/4: match the destination port -- 2 bytes at offset 2 into
+    // the transport header (same position for both tcp and udp dport).
+    b.nest_start(NFTA_LIST_ELEM);
+    b.push_attr_str(NFTA_EXPR_NAME, "payload");
+    b.nest_start(NFTA_EXPR_DATA);
+    b.push_attr_u32_be(NFTA_PAYLOAD_DREG, NFT_REG_1);
+    b.push_attr_u32_be(NFTA_PAYLOAD_BASE, NFT_PAYLOAD_TRANSPORT_HEADER);
+    b.push_attr_u32_be(NFTA_PAYLOAD_OFFSET, 2);
+    b.push_attr_u32_be(NFTA_PAYLOAD_LEN, 2);
+    b.nest_end();
+    b.nest_end();
+
+    b.nest_start(NFTA_LIST_ELEM);
+    b.push_attr_str(NFTA_EXPR_NAME, "cmp");
+    b.nest_start(NFTA_EXPR_DATA);
+    b.push_attr_u32_be(NFTA_CMP_SREG, NFT_REG_1);
+    b.push_attr_u32_be(NFTA_CMP_OP, NFT_CMP_EQ);
+    b.nest_start(NFTA_CMP_DATA);
+    b.push_attr(NFTA_DATA_VALUE, &pf.host_port.to_be_bytes());
+    b.nest_end();
+    b.nest_end();
+    b.nest_end();
+
+    // expr 5/6: load the DNAT target address/port into registers via
+    // "immediate", then expr 7 references both in a single "nat"
+    // (type=DNAT) statement.
+    b.nest_start(NFTA_LIST_ELEM);
+    b.push_attr_str(NFTA_EXPR_NAME, "immediate");
+    b.nest_start(NFTA_EXPR_DATA);
+    b.push_attr_u32_be(NFTA_IMMEDIATE_DREG, NFT_REG_1);
+    b.nest_start(NFTA_IMMEDIATE_DATA);
+    b.push_attr(NFTA_DATA_VALUE, &SANDBOX_IP);
+    b.nest_end();
+    b.nest_end();
+    b.nest_end();
+
+    b.nest_start(NFTA_LIST_ELEM);
+    b.push_attr_str(NFTA_EXPR_NAME, "immediate");
+    b.nest_start(NFTA_EXPR_DATA);
+    b.push_attr_u32_be(NFTA_IMMEDIATE_DREG, NFT_REG_2);
+    b.nest_start(NFTA_IMMEDIATE_DATA);
+    b.push_attr(NFTA_DATA_VALUE, &pf.sandbox_port.to_be_bytes());
+    b.nest_end();
+    b.nest_end();
+    b.nest_end();
+
+    b.nest_start(NFTA_LIST_ELEM);
+    b.push_attr_str(NFTA_EXPR_NAME, "nat");
+    b.nest_start(NFTA_EXPR_DATA);
+    b.push_attr_u32_be(NFTA_NAT_TYPE, NFT_NAT_DNAT);
+    b.push_attr_u32_be(NFTA_NAT_FAMILY, libc::AF_INET as u32);
+    b.push_attr_u32_be(NFTA_NAT_REG_ADDR_MIN, NFT_REG_1);
+    b.push_attr_u32_be(NFTA_NAT_REG_PROTO_MIN, NFT_REG_2);
+    b.nest_end();
+    b.nest_end();
+
+    b.nest_end(); // NFTA_RULE_EXPRESSIONS
+    b.finish_raw(msg_type(NFT_MSG_NEWRULE), netlink::NLM_F_CREATE | NLM_F_APPEND, seq)
 }

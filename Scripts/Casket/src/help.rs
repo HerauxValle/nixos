@@ -396,14 +396,26 @@ the same line format 'info' rolls up for every setting at once.
     Protects against a same-user attacker only: root, or raw access to
     the vault's underlying block device, is outside what this can stop.
 
-  settings security sandbox network internet enable|disable|state
+  settings security sandbox network outbound enable|disable|state
     Off by default. Requires 'namespaces enable net' first. 'net' alone
     gives 'exec' an isolated network namespace with a working loopback
-    only (no route out — safe, contained). Enabling 'internet' on top of
+    only (no route out — safe, contained). Enabling 'outbound' on top of
     that sets up a real veth pair + host NAT (MASQUERADE rule) for each
-    'exec' session, torn down automatically when it exits. This is the
-    one sandbox setting that touches the host's own routing/NAT tables,
-    not just the sandboxed process's own namespace.
+    'exec' session, torn down automatically when it exits.
+
+  settings security sandbox network inbound add|remove|list|enable|disable|state
+    Off by default, independent of 'outbound'. 'add <hostPort>[:<sandboxPort>]
+    [--protocol tcp|udp]' configures a host port to forward into the
+    sandbox (sandboxPort defaults to hostPort); 'enable' actually turns
+    forwarding on (adding a port doesn't by itself). Opens the listed
+    host port(s) to whatever's listening inside the sandbox for the
+    duration of each 'exec' session — anything that can reach this
+    machine on those ports can reach the sandboxed process.
+
+  Both 'outbound' and 'inbound' are the sandbox settings that touch the
+  host's own routing/NAT tables, not just the sandboxed process's own
+  namespace — everything else under 'sandbox' only affects the isolated
+  process itself.
 
   settings security zeroize enable|disable
     Controls whether the derived LUKS secret is locked into RAM (mlock —

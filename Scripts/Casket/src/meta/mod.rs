@@ -100,7 +100,7 @@ pub struct Meta {
     /// has `net` active; `None`/`false` means the safe default (loopback
     /// only, see `namespaces::bring_up_loopback`).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sandbox_internet: Option<bool>,
+    pub sandbox_outbound: Option<bool>,
     /// Whether the 32 MiB header-hiding "room" (see `header::room`) has
     /// been provisioned in the slack space between the LUKS2 container
     /// and this trailer. Set once, lazily, on first `enable` of either
@@ -127,6 +127,59 @@ pub struct Meta {
     /// just locking it. Never set by anything else, never unset.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ephemeral: Option<bool>,
+    /// Master switch for `exec`'s inbound port forwarding -- see
+    /// `commands::settings::security::sandbox::network::inbound` and
+    /// `sandbox::network`. Ports in `sandbox_inbound_ports` only actually
+    /// forward while this is `Some(true)`; keeping the switch and the
+    /// port list separate means `inbound add`/`remove` can edit the list
+    /// without silently turning forwarding on. Same `net`-namespace
+    /// dependency as `sandbox_outbound`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_inbound_enabled: Option<bool>,
+    /// The configured host->sandbox port forwards themselves -- see
+    /// `PortMapping`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_inbound_ports: Option<Vec<PortMapping>>,
+}
+
+/// One `inbound add`-configured port forward: `host_port` on the real
+/// machine gets DNAT'd to `sandbox_port` inside the `exec` sandbox's own
+/// veth address, for `protocol` traffic only. `sandbox_port` defaults to
+/// `host_port` when not given explicitly (see `inbound add`'s CLI
+/// parsing) -- stored explicitly here regardless, so this struct is
+/// always a complete, unambiguous mapping on its own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PortMapping {
+    pub host_port: u16,
+    pub sandbox_port: u16,
+    pub protocol: Protocol,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Protocol {
+    Tcp,
+    Udp,
+}
+
+impl std::fmt::Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Protocol::Tcp => "tcp",
+            Protocol::Udp => "udp",
+        })
+    }
+}
+
+impl std::str::FromStr for Protocol {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "tcp" => Ok(Protocol::Tcp),
+            "udp" => Ok(Protocol::Udp),
+            other => Err(format!("unknown protocol '{other}' -- expected 'tcp' or 'udp'")),
+        }
+    }
 }
 
 /// Find the trailer on an open handle. Returns `(payload_start_offset,

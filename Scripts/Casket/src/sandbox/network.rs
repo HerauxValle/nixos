@@ -1,4 +1,4 @@
-// &desc: "Opt-in real connectivity for a `net`-namespaced exec sandbox -- a veth pair + host-side NAT (MASQUERADE), built from raw rtnetlink/netfilter-netlink messages via netlink.rs (no ip(8)/nft(8) shell-out, no netlink crate). Only active when `settings security sandbox network internet` is enabled on top of the existing `namespaces net` isolation -- without this, `net` still only gets a working loopback (see namespaces::bring_up_loopback), which is the safe, contained default."
+// &desc: "Opt-in real connectivity for a `net`-namespaced exec sandbox -- a veth pair + host-side NAT (outbound MASQUERADE, inbound DNAT port forwards), built from raw rtnetlink/netfilter-netlink messages via netlink.rs (no ip(8)/nft(8) shell-out, no netlink crate). Only active when `settings security sandbox network outbound`/`inbound` are enabled on top of the existing `namespaces net` isolation -- without either, `net` still only gets a working loopback (see namespaces::bring_up_loopback), which is the safe, contained default."
 use std::io;
 use std::mem;
 use std::os::unix::io::RawFd;
@@ -37,7 +37,7 @@ const RTN_UNICAST: u8 = 1;
 
 /// The subnet this feature always uses for the host<->sandbox veth link
 /// -- `10.200.99.0/30` (host `.1`, sandbox `.2`). Fixed rather than
-/// dynamically allocated: only one `internet`-enabled `exec` session is
+/// dynamically allocated: only one outbound/inbound-enabled `exec` session is
 /// supported at a time process-wide (see `Lock` below), so there's
 /// nothing to avoid colliding with except the small chance this exact
 /// /30 is already used elsewhere on the host, which `setup` surfaces as
@@ -48,6 +48,33 @@ const PREFIX_LEN: u8 = 30;
 
 const IFACE_HOST: &str = "casnet0";
 const IFACE_PEER: &str = "casnet0p";
+
+/// One `inbound add`-configured port forward, in the shape `sandbox::run`
+/// actually needs -- the CLI/`meta::PortMapping` layer (which knows about
+/// vaults) converts into this at the call site, same pattern
+/// `seccomp::Filter` already uses for keeping this module vault-agnostic.
+#[derive(Debug, Clone, Copy)]
+pub struct PortForward {
+    pub host_port: u16,
+    pub sandbox_port: u16,
+    pub tcp: bool,
+}
+
+/// What `setup_host_side` should actually set up -- `outbound` (the old
+/// bare `internet: bool`, before the outbound/inbound split) and `inbound` are independent: either, both, or
+/// neither can be requested. Skip calling `setup_host_side` at all when
+/// both are empty/false (see `mod::run`).
+#[derive(Debug, Clone, Default)]
+pub struct Config {
+    pub outbound: bool,
+    pub inbound: Vec<PortForward>,
+}
+
+impl Config {
+    pub fn is_empty(&self) -> bool {
+        !self.outbound && self.inbound.is_empty()
+    }
+}
 
 #[repr(C)]
 struct IfInfoMsg {
@@ -86,7 +113,7 @@ fn as_bytes<T>(v: &T) -> &[u8] {
 }
 
 /// A single process-wide advisory lock (`/run/cas-sandbox-net.lock`)
-/// serializing `internet`-enabled `exec` sessions -- the veth pair, IP
+/// serializing outbound/inbound-enabled `exec` sessions -- the veth pair, IP
 /// range, and nft table this module uses are all fixed names/addresses
 /// (see `HOST_IP`'s doc comment), so two such sessions running at once
 /// (even across different vaults) would silently stomp each other's
@@ -101,14 +128,17 @@ pub fn acquire_lock() -> io::Result<Lock> {
     if ret != 0 {
         let e = io::Error::last_os_error();
         if e.kind() == io::ErrorKind::WouldBlock {
-            return Err(io::Error::new(io::ErrorKind::WouldBlock, "another 'exec --internet' session is already active"));
+            return Err(io::Error::new(
+                io::ErrorKind::WouldBlock,
+                "another 'exec' session with outbound/inbound networking is already active",
+            ));
         }
         return Err(e);
     }
     Ok(Lock(f))
 }
 
-/// Live handle for one `internet`-enabled session -- `teardown` (called
+/// Live handle for one outbound/inbound-enabled session -- `teardown` (called
 /// once the sandboxed command exits, from `mod.rs::run`) removes
 /// everything this created: deleting the host-side veth end also
 /// deletes its peer (the kernel always frees a veth pair together), so
@@ -130,7 +160,7 @@ pub struct Handle {
 /// own `Drop` impl.
 impl Drop for Handle {
     fn drop(&mut self) {
-        let _ = nat::delete_masquerade_rule();
+        let _ = nat::delete_all();
         let _ = delete_link(self.rt_fd, IFACE_HOST);
         if !self.ip_forward_was_enabled {
             let _ = std::fs::write("/proc/sys/net/ipv4/ip_forward", b"0");
@@ -211,7 +241,7 @@ pub fn spawn_teardown_waiter(handle: &Handle) -> io::Result<TeardownWaiter> {
         let mut buf = [0u8; 1];
         unsafe { libc::read(read_fd, buf.as_mut_ptr() as *mut libc::c_void, 1) };
         unsafe { libc::close(read_fd) };
-        let _ = nat::delete_masquerade_rule();
+        let _ = nat::delete_all();
         let _ = delete_link(rt_fd, IFACE_HOST);
         if !ip_forward_was_enabled {
             let _ = std::fs::write("/proc/sys/net/ipv4/ip_forward", b"0");
@@ -244,9 +274,9 @@ pub fn detach(handle: Handle) {
 /// principle that lets a process keep writing to an already-open file
 /// after `pivot_root`), which is exactly what `move_peer_into_current_ns`
 /// below relies on.
-pub fn setup_host_side() -> io::Result<Handle> {
+pub fn setup_host_side(cfg: &Config) -> io::Result<Handle> {
     let lock = acquire_lock()?;
-    sweep_stale_iface();
+    sweep_stale();
 
     let rt_fd = netlink::open(netlink::NETLINK_ROUTE)?;
     let result = (|| -> io::Result<()> {
@@ -261,12 +291,16 @@ pub fn setup_host_side() -> io::Result<Handle> {
         return Err(e);
     }
 
+    // Needed for *any* forwarded traffic through the host, both
+    // directions -- outbound's MASQUERADE and inbound's DNAT both rely
+    // on the kernel actually forwarding packets between interfaces at
+    // all, which this sysctl gates independently of either NAT rule.
     let ip_forward_was_enabled = read_ip_forward()?;
     if !ip_forward_was_enabled {
         std::fs::write("/proc/sys/net/ipv4/ip_forward", b"1")?;
     }
 
-    if let Err(e) = nat::add_masquerade_rule() {
+    if let Err(e) = nat::apply(cfg) {
         let _ = delete_link(rt_fd, IFACE_HOST);
         netlink::close(rt_fd);
         return Err(e);
@@ -302,7 +336,7 @@ pub fn setup_sandbox_side(handle: &Handle) -> io::Result<()> {
 /// below fail with EEXIST) never blocks a fresh session. The `flock`
 /// above already prevents this from ever racing a still-live session on
 /// this same host.
-fn sweep_stale_iface() {
+fn sweep_stale() {
     if let Ok(fd) = netlink::open(netlink::NETLINK_ROUTE) {
         let _ = delete_link(fd, IFACE_HOST);
         netlink::close(fd);
@@ -312,12 +346,12 @@ fn sweep_stale_iface() {
     // catastrophic case (the whole sandboxed process tree killed at
     // once, taking the helper down before it could act -- confirmed
     // reachable live via `pkill -9` against every process in the tree
-    // simultaneously). NAT rule creation is idempotent either way
+    // simultaneously). Rule/chain creation is idempotent either way
     // (`NLM_F_CREATE`, no `NLM_F_EXCL`), so a stale table wouldn't have
     // blocked a fresh session -- it would just have kept silently
-    // accumulating a duplicate masquerade rule per orphaned session
-    // instead of ever being noticed.
-    let _ = nat::delete_masquerade_rule();
+    // accumulating duplicate rules per orphaned session instead of ever
+    // being noticed.
+    let _ = nat::delete_all();
 }
 
 fn read_ip_forward() -> io::Result<bool> {

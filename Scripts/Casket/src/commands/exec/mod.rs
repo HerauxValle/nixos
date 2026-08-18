@@ -97,21 +97,37 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
 
     let seccomp_filter = resolve_seccomp(ctx, vault, &meta, explicit_rootfs)?;
     let cgroup_handle = resolve_cgroup(ctx, vault, &meta)?;
-    let internet = flags.net && network_settings::is_enabled(&meta);
+    let outbound = flags.net && network_settings::outbound_is_enabled(&meta);
+    let inbound = if flags.net && network_settings::inbound_is_enabled(&meta) {
+        network_settings::inbound_ports(&meta)
+            .into_iter()
+            .map(|p| sandbox::network::PortForward { host_port: p.host_port, sandbox_port: p.sandbox_port, tcp: p.protocol == crate::meta::Protocol::Tcp })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let net_cfg = sandbox::network::Config { outbound, inbound };
     // Always surfaced, not just when `net` is active -- a vault can have
-    // `internet` left "enabled" in its metadata while `net` itself was
-    // since removed from `namespaces` (narrowed after the fact); in that
-    // state `flags.net` is false, no network namespace gets unshared at
-    // all, and the sandboxed process gets the host's real, unrestricted
-    // network -- silently, with nothing printed, before this covered
-    // every case explicitly (confirmed via pentest review: previously
-    // only the `net && !internet` case logged anything).
+    // `outbound`/`inbound` left "enabled" in its metadata while `net`
+    // itself was since removed from `namespaces` (narrowed after the
+    // fact); in that state `flags.net` is false, no network namespace
+    // gets unshared at all, and the sandboxed process gets the host's
+    // real, unrestricted network -- silently, with nothing printed,
+    // before this covered every case explicitly (confirmed via pentest
+    // review: previously only the `net && !outbound` case logged
+    // anything).
     if !flags.net {
         logf!(ctx, "  [i] network: unrestricted -- shares the host's real network (namespaces doesn't include 'net')");
-    } else if !internet {
-        logf!(ctx, "  [i] network: loopback only -- 'settings security sandbox network internet enable' for outbound access");
     } else {
-        logf!(ctx, "  [i] network: real outbound connectivity active (veth + host NAT)");
+        if net_cfg.outbound {
+            logf!(ctx, "  [i] network: real outbound connectivity active (veth + host NAT)");
+        } else {
+            logf!(ctx, "  [i] network: outbound loopback only -- 'settings security sandbox network outbound enable' for real outbound access");
+        }
+        if !net_cfg.inbound.is_empty() {
+            let ports: Vec<String> = net_cfg.inbound.iter().map(|p| format!("{}->{}", p.host_port, p.sandbox_port)).collect();
+            logf!(ctx, "  [i] network: inbound forwarding active ({})", ports.join(", "));
+        }
     }
     debugf!(ctx, "exec: namespaces={active_namespaces:?}, argv={argv:?}, new_root={}", new_root.display());
     let old_root_relative = std::path::Path::new(".casket").join("oldroot");
@@ -122,7 +138,7 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
     // scope) because std::process::exit below skips destructors
     // entirely.
     let lock = lockfile::acquire(vault)?;
-    let result = sandbox::run(&new_root, &old_root_relative, &flags, &argv, ctx.debug, overlay_dirs, seccomp_filter, cgroup_handle, internet);
+    let result = sandbox::run(&new_root, &old_root_relative, &flags, &argv, ctx.debug, overlay_dirs, seccomp_filter, cgroup_handle, net_cfg);
     drop(lock);
 
     let code = result.map_err(|e| crate::error::CasError::new(format!("exec failed: {e}")))?;

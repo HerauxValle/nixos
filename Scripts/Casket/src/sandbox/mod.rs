@@ -113,7 +113,7 @@ pub fn run(
     overlay: Option<overlay::Spec>,
     seccomp_filter: Option<seccomp::Filter>,
     cgroup_handle: Option<cgroup::Handle>,
-    internet: bool,
+    net_cfg: network::Config,
 ) -> io::Result<i32> {
     let real_uid = unsafe { libc::getuid() };
     let real_gid = unsafe { libc::getgid() };
@@ -130,9 +130,9 @@ pub fn run(
     // setup_host_side` needs the real host netns to create the veth
     // pair at all (see its own doc comment on why the netlink socket it
     // opens is deliberately kept alive across the later unshare).
-    let net_handle = if flags.net && internet {
-        let h = network::setup_host_side()?;
-        trace!("network: host-side veth+NAT ok");
+    let net_handle = if flags.net && !net_cfg.is_empty() {
+        let h = network::setup_host_side(&net_cfg)?;
+        trace!("network: host-side veth+NAT ok (outbound={}, inbound_ports={})", net_cfg.outbound, net_cfg.inbound.len());
         Some(h)
     } else {
         None

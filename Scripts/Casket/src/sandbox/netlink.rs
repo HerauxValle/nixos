@@ -1,4 +1,4 @@
-// &desc: "Minimal hand-rolled AF_NETLINK request/response plumbing -- raw kernel wire format (linux/netlink.h), no crate. Shared by network.rs's two users: NETLINK_ROUTE (veth/addr/route for sandbox internet) and NETLINK_NETFILTER (the NAT rule). Same philosophy as sandbox/seccomp.rs's own hand-rolled BPF builder -- these are fixed, stable kernel ABI structs, not worth a dependency."
+// &desc: "Minimal hand-rolled AF_NETLINK request/response plumbing -- raw kernel wire format (linux/netlink.h), no crate. Shared by network.rs's two users: NETLINK_ROUTE (veth/addr/route for sandbox networking) and NETLINK_NETFILTER (the NAT rule). Same philosophy as sandbox/seccomp.rs's own hand-rolled BPF builder -- these are fixed, stable kernel ABI structs, not worth a dependency."
 use std::io;
 use std::mem;
 use std::os::unix::io::RawFd;
