@@ -1,2 +1,2 @@
 // &desc: "The vault data-shape schema version -- deliberately separate from Cargo.toml's crate version. The crate version answers 'what does this build do' and bumps on every release; this answers 'what shape is a vault's on-disk data' and only bumps when meta's JSON shape or the in-vault directory layout actually changes, which most releases won't touch. A plain, always-increasing integer: it only has to say 'is this vault caught up', not carry meaning about how big or risky a change was, so semver buys nothing here."
-pub const CURRENT: u64 = 7;
+pub const CURRENT: u64 = 1;

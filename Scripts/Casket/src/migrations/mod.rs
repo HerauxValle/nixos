@@ -4,13 +4,6 @@ use serde_json::{Map, Value};
 use crate::ctx::Ctx;
 use crate::vault::Vault;
 
-mod v1;
-mod v2;
-mod v3;
-mod v4;
-mod v5;
-mod v7;
-
 pub struct Step {
     /// The schema version this step produces. A vault at version N-1
     /// needs this step; a vault already at N or later doesn't. This is
@@ -23,10 +16,18 @@ pub struct Step {
 
 /// To add a migration: create a file exposing `pub const STEP: Step`
 /// with a `version` one higher than the current max in this list, add
-/// it below, and bump `version::CURRENT` to match. Leave whichever half
-/// of `Step` a version didn't touch as `None`. Entries don't need to be
-/// listed in order — `applicable_steps` sorts by `version` itself.
-const STEPS: &[Step] = &[v1::STEP, v2::STEP, v3::STEP, v4::STEP, v5::STEP, v7::STEP];
+/// a `mod vN;` above and list it here, and bump `version::CURRENT` to
+/// match. Leave whichever half of `Step` a version didn't touch as
+/// `None`. Entries don't need to be listed in order — `applicable_steps`
+/// sorts by `version` itself. Empty for now -- every historical step
+/// (v1-v7) has already been applied to every vault on this machine and
+/// was removed 2026-08-18 along with the `requires_new_image`/
+/// `image_rebuild` full-image-rebuild mechanism (see
+/// Documents/Claude/Casket/Bugs/ for why). `version::CURRENT` was reset
+/// to 1 accordingly -- this registry, `migrate_meta`/`migrate_layout`,
+/// and `_v` tracking in `meta/mod.rs` all stay as working infrastructure
+/// for whatever future migration actually needs one.
+const STEPS: &[Step] = &[];
 
 /// Every step needed to reach `version::CURRENT` from `from`, ascending.
 fn applicable_steps(from: u64) -> Vec<&'static Step> {
