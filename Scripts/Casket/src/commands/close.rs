@@ -37,6 +37,15 @@ pub fn run(ctx: &Ctx, vault: &Vault, force: bool) -> Result<()> {
         // always attempts the real teardown and reports what happened.
         if !force || !vault.mapper_dev_exists() {
             logf!(ctx, "[i] '{}' is already closed", vault.name);
+            // A --test vault that was created but never opened never hit
+            // is_mount() == true, so the ephemeral-delete path below
+            // never ran for it either -- without this, "create --test"
+            // followed immediately by "close" (no "open" in between, a
+            // very plausible throwaway-test sequence) silently left the
+            // .img behind instead of cleaning it up.
+            if vault.img.exists() && Meta::read(&vault.img).ephemeral.unwrap_or(false) {
+                delete_ephemeral(ctx, vault);
+            }
             return Ok(());
         }
         logf!(ctx, "[cas] '{}' isn't mounted but has a mapper — force-closing ...", vault.name);
