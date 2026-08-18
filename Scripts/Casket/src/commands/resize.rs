@@ -30,7 +30,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, new_mb: u64, pw: &str) -> Result<()> {
         die!("minimum vault size is {MIN_VAULT_MB} MiB");
     }
 
-    let meta = Meta::read(&vault.img);
+    let (meta, schema_from) = Meta::read_versioned(&vault.img);
     let (secret, meta) = get_secret(ctx, &vault.img, pw, None, None, Some(meta))?;
     vault.close_mapper(); // clear a stale mapper from a previous crashed resize
     Meta::strip(&vault.img)?;
@@ -49,7 +49,12 @@ pub fn run(ctx: &Ctx, vault: &Vault, new_mb: u64, pw: &str) -> Result<()> {
     }
     vault.close_mapper();
     vault.cleanup_mnt_dir();
-    meta.write(&vault.img)?;
+    // Preserve whatever schema version the trailer was actually at --
+    // `Meta::write()` would stamp `_v` to current unconditionally, which
+    // would silently mark a still-pending `requires_new_image` migration
+    // as done without ever having rebuilt the image (see
+    // Documents/Claude/Casket/Bugs/resize-silently-completes-schema-migration.md).
+    meta.write_at_version(&vault.img, schema_from)?;
 
     result?;
 

@@ -70,17 +70,6 @@
         '';
       };
 
-      tor = {
-        execStart.cmd = ''
-          cd /home/herauxvalle/Images || exit 1
-          printf %s "314159265" | cas Tor open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Tor.key --no-log
-        '';
-        execStop.cmd = ''
-          cd /home/herauxvalle/Images || exit 1
-          cas Tor close --no-log
-        '';
-      };
-
       selfHosted = {
         execStart.cmd = ''
           cd /home/herauxvalle/Images || exit 1
