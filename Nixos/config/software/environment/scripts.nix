@@ -99,6 +99,22 @@
       };
     }
 
+    {
+      # Runs whichever of Casket's target/{release,debug}/cas was most
+      # recently compiled by a plain `cargo build`, for fast local
+      # iteration without a full pacnix rebuild -- see
+      # feedback_cas_dev_workflow memory. Deliberately points at
+      # Casket/.test-bin/ (a dedicated one-file subfolder), NOT
+      # Casket/ itself -- wrapScript's `cp -r ${dirOf path}` copies the
+      # script's whole *containing* folder into the store, and Casket/
+      # itself holds target/ (multiple GiB of build output) which must
+      # never get swept into that copy.
+      dir = ../../../../Scripts/Casket/.test-bin;
+      include = {
+        "cas-test.sh" = "cas-test";
+      };
+    }
+
     # {
     #   dir = ../../../../Projects/Path;
     #   include = { "bin" = "path"; };
