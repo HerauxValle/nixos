@@ -1,0 +1,215 @@
+// &desc: "Single source of truth for the CLI's shape -- names, nesting, ids, arg/flag schema. Compiled into the binary via include_str! (src/cli_registry/mod.rs), never read at runtime. Covers the full CLI as of changelog/1.17.0.md: every settings/security/sandbox feature, auth, backup, debug, and the vault-top-level/exec actions (the latter two documented here for help/debug-parse-cli coverage but deliberately still dispatched via cli.rs's plain string match, not cli_registry::resolve -- see that file's own comments on why). `id` is the only thing Rust's dispatch ever keys off of; renaming/moving a node here never requires a Rust change (see cli/codes.kdl for the id<->label map used only by debug/help/docs, never by dispatch)."
+
+bare {
+    action "debug" help="dev/introspection tools, no vault needed" {
+        action "parse-cli" id="5001" help="dump the compiled-in KDL tree as ASCII; lists any id with no wired Rust handler as Ignored, and any id claimed by two nodes as Duplicate"
+    }
+}
+
+vault {
+    action "create" id="1001" help="make a new vault, prompts for size/passphrase if not given"
+    action "open" id="1002" help="unlock and mount a vault so you can access your files"
+    action "close" id="1003" help="lock the vault again"
+    action "toggle" id="1004" help="open if closed, close if open"
+    action "rename" id="1005" help="rename the vault file (must be closed)"
+    action "resize" id="1006" help="grow or shrink the vault -- accepts M/MiB/G/GiB/T/TiB (also reachable as 'shrink')"
+    action "delete" id="1007" help="permanently delete the vault file, asks to confirm"
+    action "info" id="1008" help="show vault details plus every setting's enabled/disabled state"
+    action "tampered" id="1009" help="check the tamper-evidence HMAC against the last verified write"
+    action "exec" id="2100" help="drop a shell (or run one command) sandboxed inside the vault's own mount -- requires settings security sandbox enable first" {
+        flag "--rootfs" type="string" help="named rootfs environment to use instead of the vault's own content"
+    }
+
+    action "settings" help="every persistent per-vault toggle -- encryption, 2fa, backup auto, security features, verification requirements" {
+        action "encryption" help="toggle the passphrase-prompt UX vs. an autokey stored in metadata" {
+            action "enable" id="1300" help="require a passphrase again on open (undoes 'disable')"
+            action "disable" id="1301" help="store the derived secret in metadata so open/toggle no longer prompts"
+            action "state" id="1302" help="show whether the passphrase prompt is currently required"
+        }
+        action "2fa" help="require a second-factor keyfile alongside the passphrase" {
+            action "enable" id="1303" help="generate a keyfile and re-key the vault to passphrase+keyfile"
+            action "disable" id="1304" help="remove the keyfile requirement and revert to passphrase-only"
+            action "state" id="1305" help="show whether 2FA is currently enabled"
+        }
+        action "backup" help="automatic snapshot-on-open policy" {
+            action "auto" id="1306" help="enable [--keep N] | disable | keep <N> | state -- see 'cas help settings backup auto'" {
+                flag "--keep" type="int" help="snapshots to retain, default 3 (enable only)"
+            }
+        }
+        action "verification" id="1307" help="state | <feature> enable|disable|state -- require re-proving the passphrase before <feature> can change; see 'cas help settings verification'" {
+            arg "feature" type="string" help="which setting's verification requirement to view/change (omit, with 'state', to show all)"
+        }
+        action "security" help="security-hardening toggles: ransomware protection, key zeroization, bruteforce lockout, header hiding, and the exec sandbox" {
+            action "ransomwareProtection" help="lock .casket/ to root-only, unreadable/unwritable by the vault's own user" {
+                action "enable" id="1308" help="chown .casket/ to root:root, mode 700"
+                action "disable" id="1309" help="hand .casket/ back to the real user for direct browsing"
+                action "state" id="1310" help="show whether ransomware protection is currently enabled"
+            }
+            action "zeroize" help="lock the derived LUKS secret in RAM and scrub it from memory when done" {
+                action "enable" id="1311" help="mlock the derived secret and scrub it from memory once it goes out of scope (default)"
+                action "disable" id="1312" help="leave the derived secret unlocked and in freed memory until reused"
+                action "state" id="1313" help="show whether zeroize is currently enabled"
+            }
+            action "bruteforceLockout" id="1314" help="enable [--threshold N] | disable | threshold <N> | state -- delete the vault after N consecutive wrong passphrases; see 'cas help settings security bruteforceLockout'" {
+                flag "--threshold" type="int" help="consecutive wrong-passphrase limit before deletion, default 10 (enable only)"
+            }
+            action "headerOffset" id="1315" help="enable|disable|state -- relocate the LUKS2 header off the container's front into a hidden, passphrase-derived slot; see 'cas help settings security headerOffset'"
+            action "headerEncryption" id="1316" help="enable|disable|state -- encrypt the LUKS2 header's content wherever it currently lives; see 'cas help settings security headerEncryption'"
+            action "sandbox" help="process isolation for 'exec' -- namespaces, seccomp, network, rootfs environments, cgroups; see 'cas help settings security sandbox'" {
+                action "network" {
+                    action "outbound" {
+                        action "enable" id="4001" help="turn on real outbound connectivity (veth + host NAT) for exec sessions"
+                        action "disable" id="4002" help="turn off outbound connectivity -- exec sessions go back to loopback-only"
+                        action "state" id="4003" help="show whether outbound connectivity is currently enabled"
+                    }
+                    action "inbound" {
+                        action "add" id="4004" help="forward a host port into whatever's listening inside the sandbox" {
+                            arg "spec" type="string" help="<hostPort>[:<sandboxPort>] -- sandboxPort defaults to hostPort"
+                            flag "--protocol" type="enum" values="tcp,udp" default="tcp" help="which protocol to forward"
+                        }
+                        action "remove" id="4005" help="stop forwarding a host port" {
+                            arg "hostPort" type="port"
+                        }
+                        action "list" id="4006" help="show every configured port forward and its protocol"
+                        action "enable" id="4007" help="turn on inbound forwarding for the configured ports"
+                        action "disable" id="4008" help="turn off inbound forwarding (port list is kept, not cleared)"
+                        action "state" id="4009" help="show whether inbound forwarding is currently enabled"
+                    }
+                }
+                action "seccomp" help="which syscall filter applies to a target -- built-in presets and custom profiles share one flat namespace" {
+                    action "set" id="2200" help="apply a built-in preset or custom profile to a target ([--rootfs <name>] set <name>)" {
+                        flag "--rootfs" type="string" help="target rootfs environment name, or '_root' for the vault's own content; omitted means auto-select the lone environment"
+                        arg "name" type="string" help="built-in preset (default|strict|compute|none) or custom profile name"
+                    }
+                    action "state" id="2201" help="show the active filter for a target ([--rootfs <name>] state)" {
+                        flag "--rootfs" type="string" help="target rootfs environment name, or '_root' for the vault's own content; omitted means auto-select the lone environment"
+                    }
+                    action "custom" help="manage named custom seccomp profiles (vault-wide, reusable across every rootfs environment and the vault's own root target)" {
+                        action "list" id="2202" help="every custom profile that exists, and which targets use each"
+                        action "create" id="2203" help="create a new empty profile (default action: deny)" {
+                            arg "name" type="string" help="new profile name -- can't collide with a built-in preset name"
+                        }
+                        action "delete" id="2204" help="delete a profile -- refuses if any target still references it" {
+                            arg "name" type="string" help="profile name to delete"
+                        }
+                        action "rename" id="2205" help="rename a profile; every target referencing it follows the rename" {
+                            arg "old" type="string" help="existing profile name"
+                            arg "new" type="string" help="new profile name -- can't collide with a built-in preset name"
+                        }
+                        action "edit" help="edit a custom profile's raw TOML or a specific part of it" {
+                            action "default" id="2207" help="set the profile's fallback action for syscalls in neither list (edit <name> default <allow|deny>)" {
+                                arg "name" type="string" help="profile name"
+                                arg "action" type="enum" values="allow,deny" help="fallback action for syscalls in neither list"
+                            }
+                            action "add" id="2208" help="add syscalls (names or numeric ids, auto-resolved) to one or both lists (edit <name> add [--allow <list>] [--deny <list>])" {
+                                arg "name" type="string" help="profile name"
+                                flag "--allow" type="string" help="comma-separated syscall names/ids to add to the allow list"
+                                flag "--deny" type="string" help="comma-separated syscall names/ids to add to the deny list"
+                            }
+                            action "remove" id="2209" help="remove syscalls from one or both lists, same scoping as add (edit <name> remove [--allow <list>] [--deny <list>])" {
+                                arg "name" type="string" help="profile name"
+                                flag "--allow" type="string" help="comma-separated syscall names/ids to remove from the allow list"
+                                flag "--deny" type="string" help="comma-separated syscall names/ids to remove from the deny list"
+                            }
+                            action "status" id="2210" help="show the profile's default action + full allow/deny lists (edit <name> status)" {
+                                arg "name" type="string" help="profile name"
+                            }
+                        }
+                    }
+                }
+                action "namespaces" help="which Linux namespaces 'exec' isolates (mount/pid/uts/ipc/user/net)" {
+                    action "set" id="1600" help="replace the active namespace list outright" {
+                        arg "list" type="string" help="comma-separated: mount,pid,uts,ipc,user,net -- 'user' can't be omitted"
+                    }
+                    action "enable" id="1601" help="add namespace(s) to the active list" {
+                        arg "list" type="string" help="comma-separated namespaces to add"
+                    }
+                    action "disable" id="1602" help="remove namespace(s) from the active list" {
+                        arg "list" type="string" help="comma-separated namespaces to remove -- 'user' can't be removed"
+                    }
+                    action "state" id="1603" help="show which namespaces are currently active"
+                }
+                action "rootfs" help="named rootfs environments for 'exec --rootfs <name>'" {
+                    action "list" id="1700" help="show every rootfs environment for this vault (default when no subcommand is given)"
+                    action "add" id="1701" help="create a named rootfs environment from a preset distro or a local tarball" {
+                        arg "name" type="string" help="new environment name"
+                        flag "--preset" type="string" help="<distro> [<version>] -- fetch+checksum+extract a known distro rootfs; omit version for latest"
+                        flag "--tarball" type="string" help="<path> -- extract a local, already-validated tar archive instead of fetching"
+                    }
+                    action "update" id="1702" help="replace an environment's base/ (upper/ is preserved) from its original source" {
+                        arg "name" type="string" help="existing environment name"
+                        arg "version" type="string" help="optional new version -- preset-sourced environments only"
+                        flag "--tarball" type="string" help="<path> -- tarball-sourced environments only, replaces --version"
+                    }
+                    action "remove" id="1703" help="permanently delete one, several, or every rootfs environment" {
+                        arg "name" type="string" help="<name>|<name,name,...>|all"
+                    }
+                    action "rename" id="1704" help="rename a rootfs environment, carrying the default pointer forward if it was the default" {
+                        arg "old" type="string" help="existing environment name"
+                        arg "new" type="string" help="new environment name"
+                    }
+                    action "default" id="1705" help="show, set, or clear the environment 'exec' falls back to when multiple exist" {
+                        arg "name" type="string" help="environment to set as default; omit to show the current default"
+                        flag "--clear" type="bool" help="clear the current default instead of setting one"
+                    }
+                }
+                action "cgroups" help="per-vault resource limits (memory/cpu/pids) applied to 'exec' sessions" {
+                    action "set" id="1800" help="set one or more resource limits (at least one flag required)" {
+                        flag "--mem" type="string" help="e.g. 512M, 1G, or a plain byte count"
+                        flag "--cpu" type="int" help="percent, e.g. 50; values over 100 use multiple cores"
+                        flag "--pids" type="int" help="max number of processes/threads"
+                    }
+                    action "clear" id="1801" help="remove all cgroup limits (exec sessions go back to unlimited)"
+                    action "state" id="1802" help="show the currently configured cgroup limits"
+                }
+            }
+        }
+    }
+
+    action "auth" help="identity material -- the passphrase and keyfile that actually unlock the vault, as opposed to 'settings' (behavior toggles)" {
+        action "passwd" id="1100" help="change the vault's passphrase"
+        action "keyfile" help="RAW or EMBEDDED keyfile management for 2FA" {
+            action "move" id="1101" help="relocate the active keyfile to a new location, preserving its form" {
+                arg "location" type="string" help="destination directory or file path"
+            }
+            action "reset" id="1102" help="overwrite the active keyfile with freshly generated bytes and re-key the vault -- irreversible" {
+                arg "location" type="string" help="optional destination; defaults to in-place"
+            }
+            action "embed" id="1103" help="copy the active keyfile's bytes into a trailer appended to another file" {
+                arg "carrier-file" type="string" help="file to embed the keyfile bytes into"
+            }
+            action "extract" id="1104" help="pull embedded keyfile bytes back out of a carrier into a standalone raw file" {
+                arg "carrier-file" type="string" help="file previously embedded via 'embed'"
+                arg "location" type="string" help="optional destination; defaults to the vault's usual keyfile path"
+            }
+            action "strip" id="1105" help="remove embedded keyfile bytes from a carrier, restoring its original content" {
+                arg "carrier-file" type="string" help="file to strip embedded keyfile bytes from"
+            }
+            action "activate" id="1106" help="point the vault at a different file (raw or embedded) as its active keyfile" {
+                arg "location" type="string" help="file to activate as the keyfile"
+            }
+        }
+    }
+
+    action "backup" help="manual btrfs snapshots of the vault's contents, plus opt-in rootfs environment inclusion" {
+        action "create" id="1110" help="take a manual named btrfs snapshot" {
+            arg "name" type="string" help="snapshot name"
+        }
+        action "list" id="1111" help="list manual and auto snapshots, newest first"
+        action "restore" id="1112" help="replace the vault's contents with a snapshot" {
+            arg "name" type="string" help="snapshot name"
+        }
+        action "delete" id="1113" help="delete a manual snapshot" {
+            arg "name" type="string" help="snapshot name"
+        }
+        action "rootfs" help="which named rootfs environments get an extra snapshot alongside the vault's own" {
+            action "include" id="1114" help="opt a rootfs environment into future snapshots (excluded by default)" {
+                arg "name" type="string" help="rootfs environment name, or 'all'"
+            }
+            action "exclude" id="1115" help="opt a rootfs environment back out of future snapshots" {
+                arg "name" type="string" help="rootfs environment name, or 'all'"
+            }
+            action "state" id="1116" help="list which rootfs environments are currently included"
+        }
+    }
+}

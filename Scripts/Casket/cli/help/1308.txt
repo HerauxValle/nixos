@@ -1,0 +1,11 @@
+cas <vault> settings security ransomwareProtection enable [--pass "..."]
+
+Locks .casket/ (snapshots, and anything else cas keeps inside the
+vault) to root-only -- chowns it to root:root, mode 700. Your own user
+account, and anything running as it (including ransomware), can no
+longer read, create, or delete anything in there. Protects against a
+same-user attacker only: root, or raw access to the vault's underlying
+block device, is outside what this can stop.
+
+EXAMPLES
+  cas myvault settings security ransomwareProtection enable --pass "..."

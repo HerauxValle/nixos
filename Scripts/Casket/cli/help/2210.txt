@@ -1,0 +1,7 @@
+cas <vault> settings security sandbox seccomp custom edit <name> status
+
+Shows a custom profile's fallback (default) action and its full allow
+and deny syscall lists.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp custom edit my-profile status

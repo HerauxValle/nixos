@@ -15,11 +15,14 @@ cas
 ├── all close                               close every open vault on this machine
 ├── --version | -V | version                print the cas version
 ├── help [<action>]                         show global help, or one action's detailed help
+├── debug <subcommand>                      dev/introspection tools, no vault needed
+│   └── parse-cli                           dump the compiled-in KDL registry as ASCII, with
+│                                            an Ignored/Duplicate consistency check
 ├── <path/to/vault.img>                     bare path toggle: open if closed, close if open
 │
 └── <vault> <action> ...
     │
-    ├── create [--size MiB] [--strength lvl] [--pass "..."] [--integrity|--no-integrity]
+    ├── create [--size MiB] [--strength lvl] [--pass "..."] [--test]
     │                                        make a new vault, prompts for size/passphrase if not given
     │
     ├── open [--pass "..."] [--keyfile path]
@@ -95,6 +98,20 @@ cas
     │           │   ├── disable <list>       remove namespaces from the active set (`user` can't be removed)
     │           │   └── state                show which namespaces are currently active
     │           │
+    │           ├── network                  (generated from cli/registry.kdl -- run
+    │           │                             `cas debug parse-cli` for the live compiled tree)
+    │           │   ├── outbound enable|disable|state
+    │           │   │                        real veth+NAT outbound connectivity for `exec`, requires `namespaces net`
+    │           │   └── inbound
+    │           │       ├── add <hostPort>[:<sandboxPort>] [--protocol tcp|udp]
+    │           │       │                    configure a host port to forward into the sandbox
+    │           │       ├── remove <hostPort>
+    │           │       │                    stop forwarding a host port
+    │           │       ├── list             show every configured port forward
+    │           │       ├── enable           turn on forwarding for the configured ports
+    │           │       ├── disable          turn off forwarding (port list is kept)
+    │           │       └── state            show whether inbound forwarding is enabled
+    │           │
     │           ├── rootfs
     │           │   ├── list                 show every named rootfs environment, and which is `default`
     │           │   ├── add <name> --preset <distro> [<version>] | --tarball <path>
@@ -151,5 +168,16 @@ cas
 
 `--pass "..."`, `--new-pass "..."`, `--keyfile <path>`, `--size <MiB>`,
 `--strength <light|medium|hard|extreme>`, `--path <dir>`,
-`--removeKeyfile`, `--shred`, `--integrity` / `--no-integrity`,
+`--removeKeyfile`, `--shred`, `--test`,
 `--no-log`, `--no-confirm`, `--debug`.
+
+## Note on the `network` subtree above
+
+`settings security sandbox network` is generated from `cli/registry.kdl`,
+the CLI's KDL-driven single source of truth for shape (names, nesting,
+ids, help text) -- see `changelog/1.17.0.md` for why. `cas debug
+parse-cli` prints the live compiled tree directly from the binary,
+which is the authoritative version if this file and the binary ever
+disagree. Everything else in this document is still the original
+hand-maintained tree; migrating more of the CLI onto the KDL system is
+future work.

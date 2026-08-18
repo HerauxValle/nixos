@@ -1,0 +1,8 @@
+cas <vault> settings security sandbox network inbound disable
+
+Turns off inbound forwarding. The configured port list is kept, not
+cleared -- `inbound list` still shows it, `inbound enable` re-activates
+it without needing to re-add anything.
+
+EXAMPLES
+  cas myvault settings security sandbox network inbound disable --pass "..."

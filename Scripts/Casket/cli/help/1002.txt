@@ -1,0 +1,12 @@
+cas <vault> open [--pass "..."] [--keyfile path]
+
+Unlocks the vault and makes your files accessible in a folder named
+<vault>, next to the .img file.
+
+If 2FA is enabled, you need both your passphrase and keyfile.
+The keyfile path is remembered automatically -- you only need --keyfile
+if the file has moved since last time.
+
+EXAMPLES
+  cas myvault open
+  cas myvault open --keyfile /mnt/usb/my.key

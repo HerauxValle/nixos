@@ -1,0 +1,6 @@
+cas <vault> settings security sandbox network outbound state
+
+Shows whether outbound connectivity is currently enabled for this vault.
+
+EXAMPLES
+  cas myvault settings security sandbox network outbound state

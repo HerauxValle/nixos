@@ -1,10 +1,12 @@
-// &desc: "Shared snapshot-path helpers, the post-open auto-backup hook, and the `backup <sub>` dispatch routing to manual.rs -- data operations only; the auto-backup on/off policy itself lives at settings::backup_auto since it's a persistent setting, not a data operation."
+// &desc: "Shared snapshot-path helpers, the post-open auto-backup hook, and the registry-driven `backup <sub>` dispatch -- data operations only; the auto-backup on/off policy itself lives at settings::backup_auto since it's a persistent setting, not a data operation. dispatch() resolves the whole `backup` subtree (create/list/restore/delete plus every `rootfs` leaf) in one shot via cli_registry::resolve, same pattern as commands::settings::security::sandbox::network / commands::auth."
 pub mod manual;
 pub mod rootfs;
 
 use std::path::{Path, PathBuf};
 
+use crate::cli_registry::Domain;
 use crate::btrfs;
+use crate::cli_registry::{self, Resolved};
 use crate::commands::settings::security::ransomware_protection;
 use crate::config::{AUTO_SNAP_PREFIX, SNAP_DIR};
 use crate::ctx::Ctx;
@@ -13,6 +15,57 @@ use crate::error::Result;
 use crate::logf;
 use crate::meta::Meta;
 use crate::vault::Vault;
+
+/// This subtree's own flat, position-independent id space -- see
+/// `cli/registry.kdl`'s doc comment and `src/cli_registry/mod.rs`'s for
+/// the full reasoning. Each variant is a bare number, not a semantic
+/// name: the meaningful name lives on the handler function it maps to
+/// below, never on the id itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ActionId {
+    Code1110,
+    Code1111,
+    Code1112,
+    Code1113,
+    Code1114,
+    Code1115,
+    Code1116,
+}
+
+impl ActionId {
+    const ALL: &'static [(&'static str, ActionId)] = &[
+        ("1110", ActionId::Code1110),
+        ("1111", ActionId::Code1111),
+        ("1112", ActionId::Code1112),
+        ("1113", ActionId::Code1113),
+        ("1114", ActionId::Code1114),
+        ("1115", ActionId::Code1115),
+        ("1116", ActionId::Code1116),
+    ];
+
+    fn from_code(s: &str) -> Option<Self> {
+        Self::ALL.iter().find(|(c, _)| *c == s).map(|(_, a)| *a)
+    }
+
+    /// Every code this domain knows how to handle -- consulted only by
+    /// `cas debug parse-cli` (via the domain's `known_ids` export) to
+    /// compute the Ignored list, never by dispatch itself.
+    pub fn known_codes() -> Vec<&'static str> {
+        Self::ALL.iter().map(|(c, _)| *c).collect()
+    }
+}
+
+/// Finds the `backup` node inside the compiled-in registry tree once.
+/// If this ever returns `None` it means `cli/registry.kdl` and this
+/// file's hardcoded navigation path have drifted apart -- a build-
+/// time/test bug, not something a user can trigger.
+fn backup_children() -> &'static [cli_registry::TreeNode] {
+    use std::sync::OnceLock;
+    static CHILDREN: OnceLock<Vec<cli_registry::TreeNode>> = OnceLock::new();
+    CHILDREN
+        .get_or_init(|| cli_registry::get().vault.iter().find(|n| n.name == "backup").map(|n| n.children.clone()).unwrap_or_default())
+        .as_slice()
+}
 
 pub fn snap_root(mnt: &Path) -> PathBuf {
     mnt.join(SNAP_DIR)
@@ -169,24 +222,49 @@ pub fn maybe_auto_backup(ctx: &Ctx, vault: &Vault, meta: &Meta) {
 }
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
-    match extra.first().map(String::as_str) {
-        Some("create") => match extra.get(1) {
+    if extra.first().map(String::as_str) == Some("auto") {
+        die!("the auto-backup on/off policy moved: cas <vault> settings backup auto enable|disable|keep <N>");
+    }
+    let tokens: Vec<&str> = extra.iter().map(String::as_str).collect();
+    match cli_registry::resolve(backup_children(), &tokens) {
+        Resolved::Leaf(node, consumed) => {
+            let id = match node.id.as_deref().and_then(ActionId::from_code) {
+                Some(id) => id,
+                None => die!("'{}' is declared but not wired up yet -- see 'cas debug parse-cli'", node.name),
+            };
+            dispatch_action(ctx, vault, id, &extra[consumed..])
+        }
+        Resolved::Branch(_) | Resolved::NotFound => {
+            die!("usage: cas <vault> backup create|list|restore|delete|rootfs\n    Run 'cas help backup' for details.")
+        }
+    }
+}
+
+fn dispatch_action(ctx: &Ctx, vault: &Vault, id: ActionId, rest: &[String]) -> Result<()> {
+    match id {
+        ActionId::Code1110 => match rest.first() {
             Some(name) => manual::create(ctx, vault, name),
             None => die!("usage: cas <vault> backup create <name>\n    Example:  cas myvault backup create before-upgrade"),
         },
-        Some("list") => manual::list(ctx, vault),
-        Some("restore") => match extra.get(1) {
+        ActionId::Code1111 => manual::list(ctx, vault),
+        ActionId::Code1112 => match rest.first() {
             Some(name) => manual::restore(ctx, vault, name),
             None => die!("usage: cas <vault> backup restore <name>\n    Example:  cas myvault backup restore before-upgrade"),
         },
-        Some("delete") => match extra.get(1) {
+        ActionId::Code1113 => match rest.first() {
             Some(name) => manual::delete(ctx, vault, name),
             None => die!("usage: cas <vault> backup delete <name>\n    Example:  cas myvault backup delete old-snap"),
         },
-        Some("auto") => die!(
-            "the auto-backup on/off policy moved: cas <vault> settings backup auto enable|disable|keep <N>"
-        ),
-        Some("rootfs") => rootfs::dispatch(ctx, vault, &extra[1..]),
-        _ => die!("usage: cas <vault> backup create|list|restore|delete|rootfs\n    Run 'cas help backup' for details."),
+        ActionId::Code1114 => rootfs::set(ctx, vault, rest.first(), true),
+        ActionId::Code1115 => rootfs::set(ctx, vault, rest.first(), false),
+        ActionId::Code1116 => rootfs::state(ctx, vault),
     }
 }
+
+/// Exposed for `cas debug parse-cli`'s Ignored-list computation -- see
+/// `commands::debug`.
+pub fn known_ids() -> Vec<&'static str> {
+    ActionId::known_codes()
+}
+
+inventory::submit! { Domain { known_ids } }

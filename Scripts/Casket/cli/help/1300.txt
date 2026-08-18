@@ -1,0 +1,10 @@
+cas <vault> settings encryption enable [--pass "..."]
+
+Requires a passphrase again on 'open'/'toggle', undoing 'disable'. The
+vault stays LUKS-encrypted on disk regardless of this setting -- it only
+controls whether 'open' prompts. Re-derives and verifies the real
+passphrase as part of enabling, so this always self-verifies even if
+'settings verification encryption' is off (it's off by default).
+
+EXAMPLES
+  cas myvault settings encryption enable --pass "mypass"

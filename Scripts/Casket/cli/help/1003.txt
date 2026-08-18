@@ -1,0 +1,17 @@
+cas <vault> close [--force]
+
+Unmounts and locks the vault. Your files are encrypted again and the
+<vault> folder becomes empty. Always close vaults when done.
+
+--force also tears down a mapper that's stuck in a broken state --
+neither mounted nor cleanly closeable (e.g. left behind by a crashed
+previous open/close). Without --force, "not mounted" is always treated
+as "already closed" and nothing is checked further; --force actually
+attempts the teardown and reports if it fails, instead of silently
+no-opping. If it still fails, the mapper is genuinely wedged at the
+kernel level and needs a reboot to clear -- this never touches or risks
+the vault's actual encrypted data, only the runtime device mapping.
+
+EXAMPLES
+  cas myvault close
+  cas myvault close --force

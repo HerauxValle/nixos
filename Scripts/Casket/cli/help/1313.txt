@@ -1,0 +1,7 @@
+cas <vault> settings security zeroize state
+
+Shows whether zeroize is currently enabled, as
+'zeroize   enabled|disabled'.
+
+EXAMPLES
+  cas myvault settings security zeroize state

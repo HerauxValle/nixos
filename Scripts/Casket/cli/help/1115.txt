@@ -1,0 +1,7 @@
+cas <vault> backup rootfs exclude <name>|all
+
+Opts a rootfs environment back out of future snapshots.
+
+EXAMPLES
+  cas myvault backup rootfs exclude default
+  cas myvault backup rootfs exclude all

@@ -1,0 +1,7 @@
+cas <vault> settings security ransomwareProtection state
+
+Shows whether ransomware protection is currently enabled, as
+'ransomwareProtection   enabled|disabled'.
+
+EXAMPLES
+  cas myvault settings security ransomwareProtection state

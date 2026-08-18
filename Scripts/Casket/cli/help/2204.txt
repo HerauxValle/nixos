@@ -1,0 +1,8 @@
+cas <vault> settings security sandbox seccomp custom delete <name>
+
+Deletes a custom seccomp profile. Refuses if any target (rootfs
+environment or "_root") still references it via `seccomp set` --
+point those targets at a different preset or profile first.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp custom delete my-profile --pass "..."

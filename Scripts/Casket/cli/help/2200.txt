@@ -1,0 +1,19 @@
+cas <vault> settings security sandbox seccomp [--rootfs <name>] set <name>
+
+Applies a syscall filter to a target -- either a named rootfs
+environment, or the vault's own content when no rootfs is involved.
+Built-in presets (default, strict, compute, none) and custom profiles
+(see `seccomp custom`) share one flat namespace: `set` resolves either
+kind the same way, no prefix needed to tell them apart.
+
+`--rootfs _root` explicitly targets the vault's own content -- the
+only way to reach it once any real rootfs environment exists
+(otherwise, with a single environment and no `--rootfs`, that lone
+environment is auto-selected instead). The same `_root` sentinel works
+for `exec --rootfs _root` too.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp set strict --pass "..."
+  cas myvault settings security sandbox seccomp --rootfs alpine set compute --pass "..."
+  cas myvault settings security sandbox seccomp --rootfs _root set default --pass "..."
+  cas myvault settings security sandbox seccomp set my-profile --pass "..."

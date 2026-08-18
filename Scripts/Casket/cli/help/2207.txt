@@ -1,0 +1,14 @@
+cas <vault> settings security sandbox seccomp custom edit <name> default <allow|deny>
+
+Sets a custom profile's fallback action for any syscall named in
+neither its allow nor its deny list.
+
+  [!] switching to "deny" blocks everything not explicitly allowed --
+      including the syscalls exec's own PID1 supervisor needs for its
+      own bookkeeping (getpid, wait4, kill, fork, clone, exit_group).
+      Make sure the allow list covers those first, or exec will fail
+      with a confusing low-level error rather than a clean one.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp custom edit my-profile default deny --pass "..."
+  cas myvault settings security sandbox seccomp custom edit my-profile default allow --pass "..."

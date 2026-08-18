@@ -1,0 +1,15 @@
+cas debug parse-cli
+
+Dumps the compiled-in CLI registry (cli/registry.kdl) as an ASCII tree,
+same shape as docs/cli-layout.md. Two extra sections appear if non-empty:
+
+  Ignored     ids declared in the KDL tree with no wired Rust handler --
+              a command that would parse fine but silently do nothing
+  Duplicate   ids claimed by more than one KDL node
+
+Dev/introspection tool, no vault needed, unrelated to the boolean
+--debug flag used elsewhere (that one enables tracing during a real
+vault action; this is a standalone command in its own right).
+
+EXAMPLES
+  cas debug parse-cli

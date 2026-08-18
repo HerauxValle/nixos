@@ -20,16 +20,7 @@ fn existing_names(vault: &Vault) -> Result<Vec<String>> {
     Ok(names)
 }
 
-pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String]) -> Result<()> {
-    match extra.first().map(String::as_str) {
-        Some("include") => set(ctx, vault, extra.get(1), true),
-        Some("exclude") => set(ctx, vault, extra.get(1), false),
-        Some("state") | None => state(ctx, vault),
-        _ => die!("usage: cas <vault> backup rootfs include|exclude <name>|all | state"),
-    }
-}
-
-fn set(ctx: &Ctx, vault: &Vault, target: Option<&String>, include: bool) -> Result<()> {
+pub(crate) fn set(ctx: &Ctx, vault: &Vault, target: Option<&String>, include: bool) -> Result<()> {
     let Some(target) = target else {
         die!("usage: cas <vault> backup rootfs {}<name>|all", if include { "include " } else { "exclude " });
     };
@@ -65,7 +56,7 @@ fn set(ctx: &Ctx, vault: &Vault, target: Option<&String>, include: bool) -> Resu
     Ok(())
 }
 
-fn state(ctx: &Ctx, vault: &Vault) -> Result<()> {
+pub(crate) fn state(ctx: &Ctx, vault: &Vault) -> Result<()> {
     let meta = Meta::read(&vault.img);
     match meta.sandbox_backup_rootfs {
         Some(names) if !names.is_empty() => {

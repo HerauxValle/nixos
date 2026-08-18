@@ -1,0 +1,6 @@
+cas <vault> settings security ransomwareProtection disable [--pass "..."]
+
+Hands .casket/ back to your user account for direct browsing.
+
+EXAMPLES
+  cas myvault settings security ransomwareProtection disable --pass "..."

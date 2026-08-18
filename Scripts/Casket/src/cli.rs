@@ -42,6 +42,16 @@ fn pop_flag(args: &mut Vec<String>, flag: &str) -> bool {
 }
 
 pub fn run() -> Result<()> {
+    // Forces the KDL registry's parse + duplicate-id assert to run on
+    // every invocation, not just ones that happen to touch a migrated
+    // subtree (help/debug/settings/auth/backup/sandbox) -- a session
+    // that only ever runs a plain vault-top verb (create/open/exec/...)
+    // would otherwise never call `cli_registry::get()` at all, leaving
+    // a hypothetical id collision elsewhere in the tree undetected for
+    // that whole process. This makes the collision-safety guarantee
+    // startup-wide instead of lazy-per-subtree.
+    crate::cli_registry::get();
+
     let mut args: Vec<String> = std::env::args().skip(1).collect();
 
     let mut ctx = Ctx::default();
@@ -49,12 +59,16 @@ pub fn run() -> Result<()> {
     ctx.no_confirm = pop_flag(&mut args, "--no-confirm");
     ctx.debug = pop_flag(&mut args, "--debug");
 
-    if args.is_empty() || args[0] == "-h" || args[0] == "--help" {
-        help::show(&ctx, None);
+    if args.is_empty() {
+        help::show(&ctx, &[]);
+        return Ok(());
+    }
+    if args[0] == "-h" || args[0] == "--help" {
+        help::show(&ctx, &args[1..]);
         return Ok(());
     }
     if args[0] == "help" {
-        help::show(&ctx, args.get(1).map(String::as_str));
+        help::show(&ctx, &args[1..]);
         return Ok(());
     }
     if args[0] == "-V" || args[0] == "--version" || args[0] == "version" {
@@ -89,6 +103,9 @@ pub fn run() -> Result<()> {
     if args.first().map(String::as_str) == Some("quit") {
         return commands::close_all::run(&ctx);
     }
+    if args.first().map(String::as_str) == Some("debug") {
+        return commands::debug::dispatch(&ctx, &args[1..]);
+    }
 
     // cas path/to/vault.img  (bare path toggle)
     if args.len() == 1 && (args[0].ends_with(".img") || args[0].contains(std::path::MAIN_SEPARATOR)) {
@@ -113,7 +130,7 @@ pub fn run() -> Result<()> {
     }
 
     if args.len() < 2 {
-        help::show(&ctx, None);
+        help::show(&ctx, &[]);
         return Ok(());
     }
 
@@ -203,21 +220,15 @@ pub fn run() -> Result<()> {
         "auth" => {
             let vault = Vault::find(&vault_name, path_ref)?;
             let _lock = vault.lock_exclusive()?;
-            match extra.first().map(String::as_str) {
-                Some("passwd") => {
-                    let old_pw = prompt::get_pw(&ctx, opts.pass.as_deref())?;
-                    let strength = (opts.strength != Strength::Medium).then_some(opts.strength);
-                    commands::auth::passwd::run(&ctx, &vault, &old_pw, opts.new_pass.as_deref(), strength)
-                }
-                Some("keyfile") => commands::auth::keyfile::dispatch(
-                    &ctx,
-                    &vault,
-                    &extra[1..],
-                    opts.keyfile.as_deref().map(Path::new),
-                    opts.pass.as_deref(),
-                ),
-                _ => die!("usage: cas <vault> auth <passwd|keyfile> ...\n    Run 'cas help auth' for details."),
-            }
+            commands::auth::dispatch(
+                &ctx,
+                &vault,
+                &extra,
+                opts.pass.as_deref(),
+                opts.new_pass.as_deref(),
+                opts.strength,
+                opts.keyfile.as_deref().map(Path::new),
+            )
         }
 
         "backup" => {

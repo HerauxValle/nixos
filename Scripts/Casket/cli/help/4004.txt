@@ -1,0 +1,14 @@
+cas <vault> settings security sandbox network inbound add <hostPort>[:<sandboxPort>] [--protocol tcp|udp]
+
+Configures a host port to forward into whatever's listening inside the
+sandbox. `sandboxPort` defaults to `hostPort` when omitted. Adding a
+port doesn't itself turn forwarding on -- see `inbound enable`.
+
+  [!] host port already listening on this machine? enabling forwarding
+      redirects that traffic into the sandbox instead -- add prints a
+      warning if it detects this.
+
+EXAMPLES
+  cas myvault settings security sandbox network inbound add 8080
+  cas myvault settings security sandbox network inbound add 8080:3000
+  cas myvault settings security sandbox network inbound add 53 --protocol udp

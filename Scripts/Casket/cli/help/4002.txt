@@ -1,0 +1,7 @@
+cas <vault> settings security sandbox network outbound disable
+
+Turns off outbound connectivity. `exec` sessions go back to the safe,
+contained default: loopback only, no route out.
+
+EXAMPLES
+  cas myvault settings security sandbox network outbound disable --pass "..."

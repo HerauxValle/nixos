@@ -1,0 +1,13 @@
+cas <vault> settings backup auto enable [--keep N] | disable | keep <N> | state   [--pass "..."]
+
+Automatic snapshot-on-open policy. 'enable' (optionally with --keep N,
+default 3) creates a timestamped read-only snapshot every time the
+vault is opened, pruning down to the keep count. 'disable' stops future
+auto-snapshots (existing ones are kept). 'keep <N>' changes the limit
+without re-enabling. 'state' shows the current setting and keep count.
+
+EXAMPLES
+  cas myvault settings backup auto enable --keep 5
+  cas myvault settings backup auto keep 10
+  cas myvault settings backup auto disable
+  cas myvault settings backup auto state

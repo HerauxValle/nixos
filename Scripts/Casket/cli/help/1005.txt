@@ -1,0 +1,6 @@
+cas <vault> rename <newname>
+
+Renames the .img file in place. The vault must be closed first.
+
+EXAMPLES
+  cas myvault rename backups2026

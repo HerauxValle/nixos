@@ -1,0 +1,8 @@
+cas <vault> auth keyfile embed <carrier-file> [--keyfile path]
+
+Copies the active keyfile's key bytes into a trailer appended to
+<carrier-file>, without disturbing its existing content. Doesn't
+activate the copy -- that's 'activate', done deliberately.
+
+EXAMPLES
+  cas myvault auth keyfile embed ~/Pictures/holiday.jpg

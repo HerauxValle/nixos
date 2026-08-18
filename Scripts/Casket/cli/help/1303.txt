@@ -1,0 +1,10 @@
+cas <vault> settings 2fa enable [--pass "..."]
+
+Generates a keyfile at <vault-dir>/<name>.key (64 random bytes, fixed
+path) and re-keys the vault so opening it needs BOTH the passphrase AND
+that keyfile -- the real LUKS passphrase becomes
+SHA256(your_passphrase + keyfile_contents); neither alone can open the
+vault. Back the keyfile up -- losing it means losing access.
+
+EXAMPLES
+  cas myvault settings 2fa enable --pass "mypass"

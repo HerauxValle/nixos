@@ -1,0 +1,11 @@
+cas <vault> backup rootfs include <name>|all
+
+Opts a rootfs environment into future snapshots -- since .rootfs.d/ is
+a real btrfs subvolume, a snapshot of the vault's mount already skips
+it entirely for free, so an environment only gets swept into backups
+if explicitly opted in here. Applies to both manual 'backup create' and
+the auto-backup rotation.
+
+EXAMPLES
+  cas myvault backup rootfs include default
+  cas myvault backup rootfs include all

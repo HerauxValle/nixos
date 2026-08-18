@@ -1,4 +1,5 @@
-// &desc: "Hand-written help text — the global overview and one page per action — shown by `cas help [action]`, `-h`, `--help`, and with no arguments."
+// &desc: "Hand-written help text — the global overview and one page per action — shown by `cas help [action]`, `-h`, `--help`, and with no arguments. `show` checks the KDL-driven registry tree (src/cli_registry) first for any path that resolves there, falling through to this file's static `topic_text` table for everything not yet migrated -- see cli/registry.kdl's own doc comment for which subtree that currently is."
+use crate::cli_registry::{self, Resolved, TreeNode};
 use crate::ctx::Ctx;
 use crate::logf;
 
@@ -14,6 +15,7 @@ USAGE
   cas quit
   cas all close
   cas help <action>
+  cas debug <subcommand>
   cas --version
 
 ACTIONS (run on a specific vault)
@@ -52,6 +54,7 @@ ACTIONS (run on a specific vault)
 GLOBAL
   list          show all vaults found nearby
   all close     close every open vault on this machine
+  debug         dev/introspection tools, no vault needed -- `cas help debug`
   --version     print the cas version (also -V, or `cas version`)
 
 OPTIONS
@@ -456,6 +459,18 @@ EXAMPLES
   cas myvault settings 2fa state
   cas myvault settings verification state
 "#,
+        "debug" => r#"
+cas debug <subcommand>
+
+Dev/introspection tools, no vault needed.
+
+  parse-cli    dump the compiled-in CLI registry as ASCII, with an
+               Ignored/Duplicate consistency check -- run
+               'cas help debug parse-cli' for details
+
+Unrelated to the boolean --debug flag used elsewhere (that one enables
+tracing during a real vault action).
+"#,
         "exec" => r#"
 cas <vault> exec [-- <cmd> ...]                                [--pass "..."]
 
@@ -501,18 +516,163 @@ EXAMPLE
 }
 
 const TOPICS: &[&str] = &[
-    "create", "open", "close", "toggle", "resize", "delete", "info", "tampered", "auth", "backup", "settings", "list", "all",
+    "create", "open", "close", "toggle", "resize", "delete", "info", "tampered", "auth", "backup", "settings", "list", "all", "debug",
 ];
 
-pub fn show(ctx: &Ctx, topic: Option<&str>) {
-    match topic {
-        None => logf!(ctx, "{HELP_GLOBAL}"),
-        Some(t) => match topic_text(t) {
-            Some(text) => logf!(ctx, "{text}"),
-            None => {
-                logf!(ctx, "[x] no help topic '{t}'");
-                logf!(ctx, "    available: {}", TOPICS.join(", "));
-            }
-        },
+/// `path` is every token after `help`/`--help` on the command line --
+/// e.g. `cas help settings security sandbox network inbound add` gives
+/// `["settings", "security", "sandbox", "network", "inbound", "add"]`.
+/// Checked against the registry tree first (any depth, both `bare` and
+/// `vault`); anything that doesn't resolve there falls through to the
+/// legacy single-token `topic_text` table unchanged, using only
+/// `path[0]` the same way this function always has.
+pub fn show(ctx: &Ctx, path: &[String]) {
+    let Some(first) = path.first() else {
+        logf!(ctx, "{HELP_GLOBAL}");
+        return;
+    };
+    // Only a genuine *leaf* match short-circuits to the new system --
+    // a Branch match (e.g. "settings", still an ancestor of the one
+    // migrated subtree, not migrated itself) would otherwise shadow
+    // `topic_text`'s much richer existing content for anything not
+    // fully migrated yet, with only a bare, mostly-help-less child list
+    // to show instead. Falling through to `topic_text` for any
+    // non-leaf match keeps every not-yet-migrated path exactly as
+    // informative as it already was.
+    let tokens: Vec<&str> = path.iter().map(String::as_str).collect();
+    let reg = cli_registry::get();
+    for tree in [&reg.bare, &reg.vault] {
+        match cli_registry::resolve(tree, &tokens) {
+            Resolved::Leaf(node, _) => return show_leaf(ctx, node),
+            // A Branch only renders from the registry if it actually
+            // has a `help=` of its own -- an ancestor node that exists
+            // purely for navigation (no help text ever set on it,
+            // still true for anything not yet migrated) falls through
+            // instead, so an unmigrated path keeps showing legacy
+            // `topic_text` content rather than a sparse, help-less
+            // child list.
+            Resolved::Branch(node) if node.help.is_some() => return show_branch(ctx, node),
+            _ => {}
+        }
     }
+    match topic_text(first) {
+        Some(text) => logf!(ctx, "{text}"),
+        None => {
+            logf!(ctx, "[x] no help topic '{first}'");
+            logf!(ctx, "    available: {}", TOPICS.join(", "));
+        }
+    }
+}
+
+/// Registry-help/<id>.txt, compiled in the same way `registry.kdl`/
+/// `codes.kdl` are -- one `include_str!` per file, matched on the
+/// leaf's id. A leaf with no matching file (shouldn't happen for
+/// anything actually migrated) falls back to just printing its
+/// one-line `help=` text instead of nothing.
+fn show_leaf(ctx: &Ctx, node: &TreeNode) {
+    let text = node.id.as_deref().and_then(registry_help_text);
+    match text {
+        Some(t) => logf!(ctx, "{t}"),
+        None => logf!(ctx, "{}", node.help.as_deref().unwrap_or(&node.name)),
+    }
+}
+
+/// Only reached when the branch itself has a `help=` set (see `show`'s
+/// caller-side check) -- prints that, then one line per child with its
+/// own short `help=`, same shape `debug parse-cli`'s tree render uses
+/// for the description column.
+fn show_branch(ctx: &Ctx, node: &TreeNode) {
+    if let Some(h) = &node.help {
+        logf!(ctx, "{h}\n");
+    }
+    let width = node.children.iter().map(|c| c.name.len()).max().unwrap_or(0);
+    for child in &node.children {
+        let help = child.help.as_deref().unwrap_or("");
+        logf!(ctx, "  {:<width$}  {help}", child.name);
+    }
+}
+
+/// One `include_str!` arm per migrated leaf id -- see `cli/help/*.txt`.
+/// New leaves get a new arm here when they're migrated; nothing
+/// dynamic/runtime-loaded, matching every other compiled-in registry
+/// file.
+fn registry_help_text(id: &str) -> Option<&'static str> {
+    Some(match id {
+        "4001" => include_str!("../cli/help/4001.txt"),
+        "4002" => include_str!("../cli/help/4002.txt"),
+        "4003" => include_str!("../cli/help/4003.txt"),
+        "4004" => include_str!("../cli/help/4004.txt"),
+        "4005" => include_str!("../cli/help/4005.txt"),
+        "4006" => include_str!("../cli/help/4006.txt"),
+        "4007" => include_str!("../cli/help/4007.txt"),
+        "4008" => include_str!("../cli/help/4008.txt"),
+        "4009" => include_str!("../cli/help/4009.txt"),
+        "5001" => include_str!("../cli/help/5001.txt"),
+        "1300" => include_str!("../cli/help/1300.txt"),
+        "1301" => include_str!("../cli/help/1301.txt"),
+        "1302" => include_str!("../cli/help/1302.txt"),
+        "1303" => include_str!("../cli/help/1303.txt"),
+        "1304" => include_str!("../cli/help/1304.txt"),
+        "1305" => include_str!("../cli/help/1305.txt"),
+        "1306" => include_str!("../cli/help/1306.txt"),
+        "1307" => include_str!("../cli/help/1307.txt"),
+        "1308" => include_str!("../cli/help/1308.txt"),
+        "1309" => include_str!("../cli/help/1309.txt"),
+        "1310" => include_str!("../cli/help/1310.txt"),
+        "1311" => include_str!("../cli/help/1311.txt"),
+        "1312" => include_str!("../cli/help/1312.txt"),
+        "1313" => include_str!("../cli/help/1313.txt"),
+        "1314" => include_str!("../cli/help/1314.txt"),
+        "1315" => include_str!("../cli/help/1315.txt"),
+        "1316" => include_str!("../cli/help/1316.txt"),
+        "2200" => include_str!("../cli/help/2200.txt"),
+        "2201" => include_str!("../cli/help/2201.txt"),
+        "2202" => include_str!("../cli/help/2202.txt"),
+        "2203" => include_str!("../cli/help/2203.txt"),
+        "2204" => include_str!("../cli/help/2204.txt"),
+        "2205" => include_str!("../cli/help/2205.txt"),
+        "2207" => include_str!("../cli/help/2207.txt"),
+        "2208" => include_str!("../cli/help/2208.txt"),
+        "2209" => include_str!("../cli/help/2209.txt"),
+        "2210" => include_str!("../cli/help/2210.txt"),
+        "1100" => include_str!("../cli/help/1100.txt"),
+        "1101" => include_str!("../cli/help/1101.txt"),
+        "1102" => include_str!("../cli/help/1102.txt"),
+        "1103" => include_str!("../cli/help/1103.txt"),
+        "1104" => include_str!("../cli/help/1104.txt"),
+        "1105" => include_str!("../cli/help/1105.txt"),
+        "1106" => include_str!("../cli/help/1106.txt"),
+        "1110" => include_str!("../cli/help/1110.txt"),
+        "1111" => include_str!("../cli/help/1111.txt"),
+        "1112" => include_str!("../cli/help/1112.txt"),
+        "1113" => include_str!("../cli/help/1113.txt"),
+        "1114" => include_str!("../cli/help/1114.txt"),
+        "1115" => include_str!("../cli/help/1115.txt"),
+        "1116" => include_str!("../cli/help/1116.txt"),
+        "1001" => include_str!("../cli/help/1001.txt"),
+        "1002" => include_str!("../cli/help/1002.txt"),
+        "1003" => include_str!("../cli/help/1003.txt"),
+        "1004" => include_str!("../cli/help/1004.txt"),
+        "1005" => include_str!("../cli/help/1005.txt"),
+        "1006" => include_str!("../cli/help/1006.txt"),
+        "1007" => include_str!("../cli/help/1007.txt"),
+        "1008" => include_str!("../cli/help/1008.txt"),
+        "1009" => include_str!("../cli/help/1009.txt"),
+        "2100" => include_str!("../cli/help/2100.txt"),
+        "1600" => include_str!("../cli/help/1600.txt"),
+        "1601" => include_str!("../cli/help/1601.txt"),
+        "1602" => include_str!("../cli/help/1602.txt"),
+        "1603" => include_str!("../cli/help/1603.txt"),
+        "1700" => include_str!("../cli/help/1700.txt"),
+        "1701" => include_str!("../cli/help/1701.txt"),
+        "1702" => include_str!("../cli/help/1702.txt"),
+        "1703" => include_str!("../cli/help/1703.txt"),
+        "1704" => include_str!("../cli/help/1704.txt"),
+        "1705" => include_str!("../cli/help/1705.txt"),
+        "1800" => include_str!("../cli/help/1800.txt"),
+        "1801" => include_str!("../cli/help/1801.txt"),
+        "1802" => include_str!("../cli/help/1802.txt"),
+        "2206" => include_str!("../cli/help/2206.txt"),
+        _ => return None,
+    })
 }

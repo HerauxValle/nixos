@@ -1,0 +1,12 @@
+cas <vault> settings security sandbox seccomp custom edit <name> add [--allow <list>] [--deny <list>]
+
+Adds syscalls to a custom profile's allow and/or deny list. Each list
+is comma-separated syscall names or numeric ids -- numeric ids are
+auto-resolved to their canonical name on this host's architecture
+before being stored, so the on-disk profile always stays
+human-readable and portable. A bare list with no --allow/--deny flag
+is treated as --allow. A syscall can't end up in both lists.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp custom edit my-profile add openat,read,write --pass "..."
+  cas myvault settings security sandbox seccomp custom edit my-profile add --allow getpid,wait4 --deny ptrace --pass "..."

@@ -1,4 +1,6 @@
 // &desc: "`cas <vault> settings security sandbox network outbound|inbound ...` -- opt-in real connectivity for exec's 'net' namespace, separate from `namespaces enable net` itself (see sandbox::network's own doc comment for why the two are split: 'net' alone is always safe/contained loopback-only, these are the parts that actually mutate the host's routing/NAT). `outbound` and `inbound` are independent opt-ins, not one combined switch -- a sandbox might want to be reachable without ever phoning out, or vice versa, and folding them into a single toggle would hide that distinction for no real benefit."
+use crate::cli_registry::Domain;
+use crate::cli_registry::{self, Resolved};
 use crate::commands::settings::gate::gate_inner;
 use crate::commands::settings::registry;
 use crate::commands::settings::security::sandbox::namespaces;
@@ -10,28 +12,116 @@ use crate::meta::{Meta, PortMapping, Protocol};
 use crate::tamper;
 use crate::vault::Vault;
 
-pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
-    match extra.first().map(String::as_str) {
-        Some("outbound") => match extra.get(1).map(String::as_str) {
-            Some("enable") => outbound_enable(ctx, vault, pw),
-            Some("disable") => outbound_disable(ctx, vault, pw),
-            Some("state") => outbound_state(ctx, vault),
-            _ => die!("usage: cas <vault> settings security sandbox network outbound enable|disable|state"),
-        },
-        Some("inbound") => match extra.get(1).map(String::as_str) {
-            Some("add") => inbound_add(ctx, vault, &extra[2..], pw),
-            Some("remove") => inbound_remove(ctx, vault, extra.get(2), pw),
-            Some("list") => inbound_list(ctx, vault),
-            Some("enable") => inbound_enable(ctx, vault, pw),
-            Some("disable") => inbound_disable(ctx, vault, pw),
-            Some("state") => inbound_state(ctx, vault),
-            _ => die!(
-                "usage: cas <vault> settings security sandbox network inbound add|remove|list|enable|disable|state"
-            ),
-        },
-        _ => die!("usage: cas <vault> settings security sandbox network outbound ... | inbound ..."),
+/// This subtree's own flat, position-independent id space -- see
+/// `cli/registry.kdl`'s doc comment and `src/cli_registry/mod.rs`'s for
+/// the full reasoning. Each variant is a bare number, not a semantic
+/// name: the meaningful name lives on the handler function it maps to
+/// below (`outbound_enable`, `inbound_add`, ...), never on the id
+/// itself, so renaming/moving a node in the KDL file never requires
+/// touching this. A dedicated enum per dispatch domain (not one global
+/// enum shared across the whole CLI) is what keeps `dispatch_action`'s
+/// `match` below exhaustive in a way the compiler actually enforces --
+/// a shared enum would need a catch-all arm for every other domain's
+/// ids too, and a catch-all silently swallows a forgotten new variant
+/// instead of failing the build.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ActionId {
+    Code4001,
+    Code4002,
+    Code4003,
+    Code4004,
+    Code4005,
+    Code4006,
+    Code4007,
+    Code4008,
+    Code4009,
+}
+
+impl ActionId {
+    const ALL: &'static [(&'static str, ActionId)] = &[
+        ("4001", ActionId::Code4001),
+        ("4002", ActionId::Code4002),
+        ("4003", ActionId::Code4003),
+        ("4004", ActionId::Code4004),
+        ("4005", ActionId::Code4005),
+        ("4006", ActionId::Code4006),
+        ("4007", ActionId::Code4007),
+        ("4008", ActionId::Code4008),
+        ("4009", ActionId::Code4009),
+    ];
+
+    fn from_code(s: &str) -> Option<Self> {
+        Self::ALL.iter().find(|(c, _)| *c == s).map(|(_, a)| *a)
+    }
+
+    /// Every code this domain knows how to handle -- consulted only by
+    /// `cas debug parse-cli` (via `commands::debug::network_known_ids`)
+    /// to compute the Ignored list, never by dispatch itself.
+    pub fn known_codes() -> Vec<&'static str> {
+        Self::ALL.iter().map(|(c, _)| *c).collect()
     }
 }
+
+/// Finds the `network` node inside the compiled-in registry tree
+/// (`settings -> security -> sandbox -> network`) once. If this ever
+/// returns `None` it means `cli/registry.kdl` and this file's hardcoded
+/// navigation path have drifted apart -- a build-time/test bug, not
+/// something a user can trigger, hence the `expect`.
+fn network_children() -> &'static [cli_registry::TreeNode] {
+    use std::sync::OnceLock;
+    static CHILDREN: OnceLock<Vec<cli_registry::TreeNode>> = OnceLock::new();
+    CHILDREN
+        .get_or_init(|| {
+            let path = ["settings", "security", "sandbox", "network"];
+            let mut nodes = cli_registry::get().vault.as_slice();
+            for name in path {
+                nodes = nodes.iter().find(|n| n.name == name).map(|n| n.children.as_slice()).unwrap_or(&[]);
+            }
+            nodes.to_vec()
+        })
+        .as_slice()
+}
+
+pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
+    let tokens: Vec<&str> = extra.iter().map(String::as_str).collect();
+    match cli_registry::resolve(network_children(), &tokens) {
+        Resolved::Leaf(node, consumed) => {
+            let id = match node.id.as_deref().and_then(ActionId::from_code) {
+                Some(id) => id,
+                // Declared in the KDL but no matching Rust variant --
+                // exactly the gap `debug parse-cli`'s Ignored list is
+                // for. Refuse cleanly rather than silently no-op.
+                None => die!("'{}' is declared but not wired up yet -- see 'cas debug parse-cli'", node.name),
+            };
+            dispatch_action(ctx, vault, id, &extra[consumed..], pw)
+        }
+        Resolved::Branch(_) | Resolved::NotFound => {
+            die!("usage: cas <vault> settings security sandbox network outbound ... | inbound ...")
+        }
+    }
+}
+
+fn dispatch_action(ctx: &Ctx, vault: &Vault, id: ActionId, rest: &[String], pw: Option<&str>) -> Result<()> {
+    match id {
+        ActionId::Code4001 => outbound_enable(ctx, vault, pw),
+        ActionId::Code4002 => outbound_disable(ctx, vault, pw),
+        ActionId::Code4003 => outbound_state(ctx, vault),
+        ActionId::Code4004 => inbound_add(ctx, vault, rest, pw),
+        ActionId::Code4005 => inbound_remove(ctx, vault, rest.first(), pw),
+        ActionId::Code4006 => inbound_list(ctx, vault),
+        ActionId::Code4007 => inbound_enable(ctx, vault, pw),
+        ActionId::Code4008 => inbound_disable(ctx, vault, pw),
+        ActionId::Code4009 => inbound_state(ctx, vault),
+    }
+}
+
+/// Exposed for `cas debug parse-cli`'s Ignored-list computation --
+/// see `commands::debug`.
+pub fn known_ids() -> Vec<&'static str> {
+    ActionId::known_codes()
+}
+
+inventory::submit! { Domain { known_ids } }
 
 pub fn outbound_is_enabled(meta: &Meta) -> bool {
     meta.sandbox_outbound == Some(true)

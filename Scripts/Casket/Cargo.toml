@@ -1,7 +1,7 @@
 # &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
 [package]
 name = "cas"
-version = "1.13.0"
+version = "1.16.3"
 edition = "2021"
 description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
 
@@ -17,6 +17,17 @@ panic = "abort"
 strip = true
 
 [dependencies]
+# kdl: parser for cli/registry.kdl and cli/codes.kdl -- the CLI tree's
+# single source of truth for shape (names, nesting, ids, arg/flag
+# schema). Pure Rust, no bindgen/libclang (checked before adding, same
+# diligence as the rustables/nftables crate check that led to hand-
+# rolling raw netlink instead) -- its own dependency tree is tiny and
+# shares `serde`, already a dependency here for Meta's own
+# serialization. Both files are `include_str!`-embedded into the binary
+# at compile time, never read from a runtime path -- `cas` self-
+# elevates to root, so nothing here should be externally mutable.
+kdl = "6"
+
 # No CLI-parsing crate on purpose: `cas <vault> <action> [flags...]` puts
 # the subject before the verb and lets flags land anywhere in argv,
 # which doesn't fit clap's positional/subcommand model without either
@@ -127,3 +138,4 @@ hkdf = "0.12"
 # open reasonably fast on whatever CPU the vault ends up on, not just
 # the build host. Pure RustCrypto, no host OpenSSL/libsodium dependency.
 chacha20poly1305 = "0.10"
+inventory = "0.3.24"

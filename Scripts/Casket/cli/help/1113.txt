@@ -1,0 +1,6 @@
+cas <vault> backup delete <name>
+
+Deletes a manual snapshot. The vault must be open.
+
+EXAMPLES
+  cas myvault backup delete before-upgrade

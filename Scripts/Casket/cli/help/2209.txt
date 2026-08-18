@@ -1,0 +1,9 @@
+cas <vault> settings security sandbox seccomp custom edit <name> remove [--allow <list>] [--deny <list>]
+
+Removes syscalls from a custom profile's allow and/or deny list. Same
+scoping rules as `edit <name> add` (comma-separated, --allow/--deny
+flags, bare list means --allow) -- just removes instead of adding.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp custom edit my-profile remove ptrace --deny --pass "..."
+  cas myvault settings security sandbox seccomp custom edit my-profile remove --allow openat,read --pass "..."

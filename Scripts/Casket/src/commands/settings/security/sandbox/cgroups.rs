@@ -1,4 +1,6 @@
 // &desc: "`cas <vault> settings security sandbox cgroups set --mem <val> --cpu <percent> --pids <n> | clear | state` -- per-vault resource limits for `exec` sessions, stored in Meta (sandbox_cgroup_mem/cpu/pids), not tamper-HMAC-covered (resource management, not a protection toggle -- see meta/mod.rs's doc comment on those fields). Storage/validation only; sandbox::cgroup owns the actual cgroupfs mechanics, applied fresh each `exec` from whatever's stored here."
+use crate::cli_registry::Domain;
+use crate::cli_registry::{self, Resolved};
 use crate::commands::settings::gate::gate_inner;
 use crate::commands::settings::registry;
 use crate::ctx::Ctx;
@@ -9,16 +11,84 @@ use crate::meta::Meta;
 use crate::sandbox::cgroup::Spec;
 use crate::vault::Vault;
 
+/// This subtree's own flat, position-independent id space -- see
+/// `network.rs`'s doc comment (the reference implementation this
+/// pattern is copied from) for the full reasoning.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ActionId {
+    Code1800,
+    Code1801,
+    Code1802,
+}
+
+impl ActionId {
+    const ALL: &'static [(&'static str, ActionId)] = &[("1800", ActionId::Code1800), ("1801", ActionId::Code1801), ("1802", ActionId::Code1802)];
+
+    fn from_code(s: &str) -> Option<Self> {
+        Self::ALL.iter().find(|(c, _)| *c == s).map(|(_, a)| *a)
+    }
+
+    /// Every code this domain knows how to handle -- consulted only by
+    /// `cas debug parse-cli` (via `commands::debug::*_known_ids`) to
+    /// compute the Ignored list, never by dispatch itself.
+    pub fn known_codes() -> Vec<&'static str> {
+        Self::ALL.iter().map(|(c, _)| *c).collect()
+    }
+}
+
+/// Finds the `cgroups` node inside the compiled-in registry tree
+/// (`settings -> security -> sandbox -> cgroups`) once. If this ever
+/// returns `None` it means `cli/registry.kdl` and this file's hardcoded
+/// navigation path have drifted apart -- a build-time/test bug, not
+/// something a user can trigger, hence the `expect`.
+fn cgroups_children() -> &'static [cli_registry::TreeNode] {
+    use std::sync::OnceLock;
+    static CHILDREN: OnceLock<Vec<cli_registry::TreeNode>> = OnceLock::new();
+    CHILDREN
+        .get_or_init(|| {
+            let path = ["settings", "security", "sandbox", "cgroups"];
+            let mut nodes = cli_registry::get().vault.as_slice();
+            for name in path {
+                nodes = nodes.iter().find(|n| n.name == name).map(|n| n.children.as_slice()).unwrap_or(&[]);
+            }
+            nodes.to_vec()
+        })
+        .as_slice()
+}
+
+/// Exposed for `cas debug parse-cli`'s Ignored-list computation --
+/// see `commands::debug`.
+pub fn known_ids() -> Vec<&'static str> {
+    ActionId::known_codes()
+}
+
+inventory::submit! { Domain { known_ids } }
+
 pub fn active(meta: &Meta) -> Spec {
     Spec { mem: meta.sandbox_cgroup_mem.clone(), cpu: meta.sandbox_cgroup_cpu, pids: meta.sandbox_cgroup_pids }
 }
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
-    match extra.first().map(String::as_str) {
-        Some("set") => set(ctx, vault, &extra[1..], pw),
-        Some("clear") => clear(ctx, vault, pw),
-        Some("state") => state(ctx, vault),
-        _ => die!("usage: cas <vault> settings security sandbox cgroups set [--mem <val>] [--cpu <percent>] [--pids <n>] | clear | state"),
+    let tokens: Vec<&str> = extra.iter().map(String::as_str).collect();
+    match cli_registry::resolve(cgroups_children(), &tokens) {
+        Resolved::Leaf(node, consumed) => {
+            let id = match node.id.as_deref().and_then(ActionId::from_code) {
+                Some(id) => id,
+                None => die!("'{}' is declared but not wired up yet -- see 'cas debug parse-cli'", node.name),
+            };
+            dispatch_action(ctx, vault, id, &extra[consumed..], pw)
+        }
+        Resolved::Branch(_) | Resolved::NotFound => {
+            die!("usage: cas <vault> settings security sandbox cgroups set [--mem <val>] [--cpu <percent>] [--pids <n>] | clear | state")
+        }
+    }
+}
+
+fn dispatch_action(ctx: &Ctx, vault: &Vault, id: ActionId, rest: &[String], pw: Option<&str>) -> Result<()> {
+    match id {
+        ActionId::Code1800 => set(ctx, vault, rest, pw),
+        ActionId::Code1801 => clear(ctx, vault, pw),
+        ActionId::Code1802 => state(ctx, vault),
     }
 }
 

@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::cli_registry::Domain;
+use crate::cli_registry::{self, Resolved};
 use crate::commands::settings::gate::gate_inner;
 use crate::ctx::Ctx;
 use crate::die;
@@ -16,6 +18,88 @@ use crate::sandbox::seccomp::Filter;
 use crate::sandbox::syscall_table;
 use crate::tamper;
 use crate::vault::Vault;
+
+/// This subtree's own flat, position-independent id space -- see
+/// `network.rs`'s doc comment (the reference implementation this
+/// module follows) for the full reasoning. `EditRaw` covers the bare
+/// `edit <name>` (no further token) case, which opens `$EDITOR` --
+/// it's a real leaf conceptually, but tree-wise `edit` is a branch
+/// (its children are `default`/`add`/`remove`/`status`), so it's never
+/// reached via `cli_registry::resolve`'s `Leaf` arm. It's still given
+/// an id here (and a `cli/codes.kdl` entry + help page) purely for
+/// documentation/help-text consistency; dispatch below wires it in
+/// directly rather than through `ActionId::from_code`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ActionId {
+    Code2202,
+    Code2203,
+    Code2204,
+    Code2205,
+    Code2207,
+    Code2208,
+    Code2209,
+    Code2210,
+}
+
+impl ActionId {
+    const ALL: &'static [(&'static str, ActionId)] = &[
+        ("2202", ActionId::Code2202),
+        ("2203", ActionId::Code2203),
+        ("2204", ActionId::Code2204),
+        ("2205", ActionId::Code2205),
+        ("2207", ActionId::Code2207),
+        ("2208", ActionId::Code2208),
+        ("2209", ActionId::Code2209),
+        ("2210", ActionId::Code2210),
+    ];
+
+    fn from_code(s: &str) -> Option<Self> {
+        Self::ALL.iter().find(|(c, _)| *c == s).map(|(_, a)| *a)
+    }
+
+    pub fn known_codes() -> Vec<&'static str> {
+        // "2206" (the bare `edit <name>` / EditRaw case) is included
+        // here even though it has no `ActionId` variant -- it's a
+        // deliberate, documented gap (see this enum's doc comment),
+        // not a forgotten wire-up, so it must not show up in `debug
+        // parse-cli`'s Ignored list.
+        let mut all: Vec<&'static str> = Self::ALL.iter().map(|(c, _)| *c).collect();
+        all.push("2206");
+        all
+    }
+}
+
+/// Finds the `custom` node inside the compiled-in registry tree
+/// (`settings -> security -> sandbox -> seccomp -> custom`) once.
+fn custom_children() -> &'static [cli_registry::TreeNode] {
+    use std::sync::OnceLock;
+    static CHILDREN: OnceLock<Vec<cli_registry::TreeNode>> = OnceLock::new();
+    CHILDREN
+        .get_or_init(|| {
+            let path = ["settings", "security", "sandbox", "seccomp", "custom"];
+            let mut nodes = cli_registry::get().vault.as_slice();
+            for name in path {
+                nodes = nodes.iter().find(|n| n.name == name).map(|n| n.children.as_slice()).unwrap_or(&[]);
+            }
+            nodes.to_vec()
+        })
+        .as_slice()
+}
+
+/// Finds the `edit` node's own children (`default`/`add`/`remove`/
+/// `status`) once -- one level deeper than `custom_children`.
+fn edit_children() -> &'static [cli_registry::TreeNode] {
+    custom_children().iter().find(|n| n.name == "edit").map(|n| n.children.as_slice()).unwrap_or(&[])
+}
+
+/// Exposed for `cas debug parse-cli`'s Ignored-list computation --
+/// see `commands::debug` and `seccomp::known_ids` (which folds this
+/// in alongside its own top-level `set`/`state` ids).
+pub fn known_ids() -> Vec<&'static str> {
+    ActionId::known_codes()
+}
+
+inventory::submit! { Domain { known_ids } }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Profile {
@@ -97,33 +181,63 @@ fn referencing_targets(meta: &Meta, name: &str) -> Vec<String> {
 }
 
 pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) -> Result<()> {
-    match extra.first().map(String::as_str) {
-        Some("list") => list(ctx, vault),
-        Some("create") => {
-            let Some(name) = extra.get(1) else {
+    // `edit <name> ...` is handled before `resolve()` ever sees it:
+    // the profile name sits right after `edit` in argv, but it isn't a
+    // tree node (it's vault-supplied data, same as `create <name>`'s
+    // name), so `resolve()` can only walk as far as the `edit` branch
+    // itself. See `edit_dispatch` for the rest of the navigation, one
+    // level deeper, over `default`/`add`/`remove`/`status`.
+    if extra.first().map(String::as_str) == Some("edit") {
+        let Some(name) = extra.get(1) else {
+            die!("usage: cas <vault> settings security sandbox seccomp custom edit <name> [default <allow|deny>|add ...|remove ...|status]");
+        };
+        return edit_dispatch(ctx, vault, name, &extra[2..], pw);
+    }
+
+    let tokens: Vec<&str> = extra.iter().map(String::as_str).collect();
+    match cli_registry::resolve(custom_children(), &tokens) {
+        Resolved::Leaf(node, consumed) => {
+            let id = match node.id.as_deref().and_then(ActionId::from_code) {
+                Some(id) => id,
+                None => die!("'{}' is declared but not wired up yet -- see 'cas debug parse-cli'", node.name),
+            };
+            dispatch_action(ctx, vault, id, &extra[consumed..], pw)
+        }
+        Resolved::Branch(_) | Resolved::NotFound => {
+            die!("usage: cas <vault> settings security sandbox seccomp custom list|create <name>|delete <name>|rename <old> <new>|edit <name> ...")
+        }
+    }
+}
+
+fn dispatch_action(ctx: &Ctx, vault: &Vault, id: ActionId, rest: &[String], pw: Option<&str>) -> Result<()> {
+    match id {
+        ActionId::Code2202 => list(ctx, vault),
+        ActionId::Code2203 => {
+            let Some(name) = rest.first() else {
                 die!("usage: cas <vault> settings security sandbox seccomp custom create <name>");
             };
             create(ctx, vault, name, pw)
         }
-        Some("delete") => {
-            let Some(name) = extra.get(1) else {
+        ActionId::Code2204 => {
+            let Some(name) = rest.first() else {
                 die!("usage: cas <vault> settings security sandbox seccomp custom delete <name>");
             };
             delete(ctx, vault, name, pw)
         }
-        Some("rename") => {
-            let (Some(old), Some(new)) = (extra.get(1), extra.get(2)) else {
+        ActionId::Code2205 => {
+            let (Some(old), Some(new)) = (rest.first(), rest.get(1)) else {
                 die!("usage: cas <vault> settings security sandbox seccomp custom rename <old> <new>");
             };
             rename(ctx, vault, old, new, pw)
         }
-        Some("edit") => {
-            let Some(name) = extra.get(1) else {
-                die!("usage: cas <vault> settings security sandbox seccomp custom edit <name> [default <allow|deny>|add ...|remove ...|status]");
-            };
-            edit_dispatch(ctx, vault, name, &extra[2..], pw)
+        // `edit`'s own sub-actions never reach here -- they're
+        // dispatched by `edit_dispatch` directly, since the profile
+        // name sitting between `edit` and the sub-action means the
+        // top-level `resolve()` above never walks deep enough to
+        // reach them.
+        ActionId::Code2207 | ActionId::Code2208 | ActionId::Code2209 | ActionId::Code2210 => {
+            unreachable!("edit sub-action ids are dispatched via edit_dispatch, not the top-level custom resolve()")
         }
-        _ => die!("usage: cas <vault> settings security sandbox seccomp custom list|create <name>|delete <name>|rename <old> <new>|edit <name> ..."),
     }
 }
 
@@ -243,6 +357,11 @@ fn rename(ctx: &Ctx, vault: &Vault, old: &str, new: &str, pw: Option<&str>) -> R
     Ok(())
 }
 
+/// One level deeper than `dispatch`'s own `resolve()` call -- walks
+/// `default`/`add`/`remove`/`status` against `edit`'s children in the
+/// tree. `rest` here is already past `edit <name>` (both consumed
+/// manually by `dispatch`, since `<name>` isn't a tree node), so an
+/// empty `rest` means the bare `edit <name>` form -- open `$EDITOR`.
 fn edit_dispatch(ctx: &Ctx, vault: &Vault, profile_name: &str, rest: &[String], pw: Option<&str>) -> Result<()> {
     if crate::registry::seccomp::PRESET_NAMES.contains(&profile_name) {
         die!("'{profile_name}' is a built-in seccomp preset, not a custom profile -- built-ins can't be edited or deleted");
@@ -250,18 +369,33 @@ fn edit_dispatch(ctx: &Ctx, vault: &Vault, profile_name: &str, rest: &[String], 
     if !exists(vault, profile_name) {
         die!("custom seccomp profile '{profile_name}' doesn't exist -- create it first: 'seccomp custom create {profile_name}'");
     }
-    match rest.first().map(String::as_str) {
-        None => edit_raw(ctx, vault, profile_name, pw),
-        Some("default") => {
-            let Some(action) = rest.get(1) else {
-                die!("usage: cas <vault> settings security sandbox seccomp custom edit {profile_name} default <allow|deny>");
+    if rest.is_empty() {
+        return edit_raw(ctx, vault, profile_name, pw);
+    }
+    let tokens: Vec<&str> = rest.iter().map(String::as_str).collect();
+    match cli_registry::resolve(edit_children(), &tokens) {
+        Resolved::Leaf(node, consumed) => {
+            let id = match node.id.as_deref().and_then(ActionId::from_code) {
+                Some(id) => id,
+                None => die!("'{}' is declared but not wired up yet -- see 'cas debug parse-cli'", node.name),
             };
-            edit_default(ctx, vault, profile_name, action, pw)
+            let sub_rest = &rest[consumed..];
+            match id {
+                ActionId::Code2207 => {
+                    let Some(action) = sub_rest.first() else {
+                        die!("usage: cas <vault> settings security sandbox seccomp custom edit {profile_name} default <allow|deny>");
+                    };
+                    edit_default(ctx, vault, profile_name, action, pw)
+                }
+                ActionId::Code2208 => edit_add_remove(ctx, vault, profile_name, sub_rest, pw, true),
+                ActionId::Code2209 => edit_add_remove(ctx, vault, profile_name, sub_rest, pw, false),
+                ActionId::Code2210 => status(ctx, vault, profile_name),
+                _ => unreachable!("edit_children() only yields default/add/remove/status ids"),
+            }
         }
-        Some("add") => edit_add_remove(ctx, vault, profile_name, &rest[1..], pw, true),
-        Some("remove") => edit_add_remove(ctx, vault, profile_name, &rest[1..], pw, false),
-        Some("status") => status(ctx, vault, profile_name),
-        Some(other) => die!("unknown 'seccomp custom edit' action '{other}' -- expected default|add|remove|status, or no action to open $EDITOR"),
+        Resolved::Branch(_) | Resolved::NotFound => {
+            die!("unknown 'seccomp custom edit' action -- expected default|add|remove|status, or no action to open $EDITOR")
+        }
     }
 }
 

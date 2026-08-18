@@ -1,0 +1,10 @@
+cas <vault> auth keyfile extract <carrier-file> [location]
+
+The recovery path: pulls the key bytes back out of an embedded carrier
+into a standalone raw file, if the normal keyfile is missing for some
+reason. Default location is the vault's usual keyfile path; refuses to
+overwrite anything already there.
+
+EXAMPLES
+  cas myvault auth keyfile extract ~/Pictures/holiday.jpg
+  cas myvault auth keyfile extract ~/Pictures/holiday.jpg /mnt/usb/mykey.bin

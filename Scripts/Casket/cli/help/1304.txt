@@ -1,0 +1,6 @@
+cas <vault> settings 2fa disable [--pass "..."]
+
+Deletes the keyfile and re-keys the vault back to passphrase-only.
+
+EXAMPLES
+  cas myvault settings 2fa disable --pass "mypass"

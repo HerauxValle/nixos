@@ -1,0 +1,12 @@
+cas <vault> settings security sandbox seccomp [--rootfs <name>] state
+
+Shows which filter (a built-in preset or a custom profile name) is
+currently active for a target. Defaults to "default" if nothing has
+ever been set for that target. Same target-resolution rules as `set`
+-- `--rootfs _root` for the vault's own content, omitted `--rootfs`
+auto-selects a lone rootfs environment if exactly one exists.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp state
+  cas myvault settings security sandbox seccomp --rootfs alpine state
+  cas myvault settings security sandbox seccomp --rootfs _root state

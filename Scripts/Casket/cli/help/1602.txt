@@ -1,0 +1,8 @@
+cas <vault> settings security sandbox namespaces disable <list>
+
+Removes namespace(s) from the active set. `<list>` is a
+comma-separated subset of mount,pid,uts,ipc,user,net. `user` can't be
+disabled -- it's always active regardless of this setting.
+
+EXAMPLES
+  cas myvault settings security sandbox namespaces disable net --pass "..."

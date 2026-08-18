@@ -1,0 +1,13 @@
+cas <vault> settings security sandbox seccomp custom edit <name>
+
+Opens $EDITOR (falls back to vi) on the profile's raw TOML file
+directly. On save+exit, the file is re-parsed and validated (a valid
+`default` of "allow" or "deny", no syscall in both the allow and deny
+lists) before its hash is recorded -- a syntax error or invalid value
+leaves the previous, already-verified profile in place.
+
+For narrower changes without hand-editing TOML, see `edit <name>
+default`, `edit <name> add`, and `edit <name> remove`.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp custom edit my-profile --pass "..."

@@ -1,0 +1,18 @@
+cas <vault> exec [--rootfs <name>] [-- <cmd> ...]                                [--pass "..."]
+
+Drops a shell (or runs one command) sandboxed inside the vault's own
+mount, using Linux namespaces (mount/pid/uts/ipc/user, and net if
+enabled) plus pivot_root -- the sandboxed process can't see or touch
+anything outside the vault's contents. Requires the vault open and
+`settings security sandbox` enabled first.
+
+  exec                run $SHELL (or /bin/sh if $SHELL isn't set)
+  exec -- <cmd> ...   run exactly that command, no shell, then return
+
+Which namespaces are active is controlled by
+`settings security sandbox namespaces` -- see 'cas help settings security sandbox namespaces'.
+
+EXAMPLES
+  cas myvault settings security sandbox enable --pass "..."
+  cas myvault exec
+  cas myvault exec -- ls -la

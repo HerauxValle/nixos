@@ -1,10 +1,10 @@
-// &desc: "Dispatch for `cas <vault> auth keyfile <move|reset|embed|extract|strip|activate>`, plus resolve_current() -- the shared 'find the vault's real keyfile right now' helper every subcommand but extract/strip needs (they operate on an arbitrary carrier, not necessarily the active keyfile)."
-mod activate;
-mod embed;
-mod extract;
-mod relocate;
-mod reset;
-mod strip;
+// &desc: "Handler modules for `cas <vault> auth keyfile <move|reset|embed|extract|strip|activate>`, plus resolve_current() -- the shared 'find the vault's real keyfile right now' helper every subcommand but extract/strip needs (they operate on an arbitrary carrier, not necessarily the active keyfile). Routing itself lives one level up now, in auth::dispatch (see that file's doc comment for why): cli_registry::resolve walks the whole `auth` subtree -- including these `keyfile` leaves -- in one pass, so a separate `keyfile`-only dispatch layer would just be dead code. Submodules are pub(crate) so auth::dispatch_action can call straight into each handler's unchanged run()."
+pub(crate) mod activate;
+pub(crate) mod embed;
+pub(crate) mod extract;
+pub(crate) mod relocate;
+pub(crate) mod reset;
+pub(crate) mod strip;
 
 use std::path::{Path, PathBuf};
 
@@ -14,47 +14,6 @@ use crate::error::Result;
 use crate::meta::Meta;
 use crate::secret::{resolve_keyfile, resolve_lexically};
 use crate::vault::Vault;
-
-pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], kf_override: Option<&Path>, pw: Option<&str>) -> Result<()> {
-    let sub = extra.first().map(String::as_str).unwrap_or("");
-    let arg = extra.get(1).map(Path::new);
-    let arg2 = extra.get(2).map(Path::new);
-
-    match sub {
-        "move" => {
-            let Some(location) = arg else {
-                die!("usage: cas <vault> auth keyfile move <location> [--keyfile <current-path>]");
-            };
-            relocate::run(ctx, vault, location, kf_override, pw)
-        }
-        "reset" => reset::run(ctx, vault, arg, kf_override, pw),
-        "embed" => {
-            let Some(carrier) = arg else {
-                die!("usage: cas <vault> auth keyfile embed <carrier-file> [--keyfile <current-path>]");
-            };
-            embed::run(ctx, vault, carrier, kf_override, pw)
-        }
-        "extract" => {
-            let Some(carrier) = arg else {
-                die!("usage: cas <vault> auth keyfile extract <carrier-file> [location]");
-            };
-            extract::run(ctx, vault, carrier, arg2)
-        }
-        "strip" => {
-            let Some(carrier) = arg else {
-                die!("usage: cas <vault> auth keyfile strip <carrier-file>");
-            };
-            strip::run(ctx, vault, carrier, pw)
-        }
-        "activate" => {
-            let Some(location) = arg else {
-                die!("usage: cas <vault> auth keyfile activate <location>");
-            };
-            activate::run(ctx, vault, location, pw)
-        }
-        _ => die!("usage: cas <vault> auth keyfile <move|reset|embed|extract|strip|activate> ...\n    Run 'cas help auth' for details."),
-    }
-}
 
 /// The vault's *current* keyfile, resolved via `--keyfile <path>` if
 /// given (the override, same meaning as `open`'s), otherwise the cached

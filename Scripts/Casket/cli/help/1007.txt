@@ -1,0 +1,22 @@
+cas <vault> delete [--removeKeyfile] [--shred]
+
+Permanently deletes the vault file. The vault must be closed first.
+
+The keyfile (if 2FA was enabled) is preserved by default -- nothing here
+can tell whether some other vault's 2FA also points at the same file, so
+deleting it is opt-in, not automatic. Pass --removeKeyfile to delete it
+along with the vault, same as before.
+
+--shred overwrites the .img file with random data (3 passes) before
+deleting it, instead of a plain unlink. Best-effort, not a guarantee:
+meaningful on a spinning disk, close to theater on an SSD -- TRIM and
+wear-leveling mean the overwrite likely doesn't hit the same physical
+cells the original data lived on. If you need an actual guarantee on an
+SSD, that comes from full-disk encryption at rest, not app-level shred.
+
+Asks you to type the vault name to confirm. Skipped with --no-log.
+
+EXAMPLES
+  cas myvault delete
+  cas myvault delete --removeKeyfile
+  cas myvault delete --shred

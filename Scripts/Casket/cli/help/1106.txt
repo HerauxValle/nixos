@@ -1,0 +1,9 @@
+cas <vault> auth keyfile activate <location> [--pass "..."]
+
+Points the vault at a different file (raw or embedded) as its keyfile
+-- without re-keying anything, so this only makes sense for a
+copy/relocation of the exact same key bytes. Verifies the passphrase +
+that file actually unlock the vault first; dies untouched if not.
+
+EXAMPLES
+  cas myvault auth keyfile activate ~/Pictures/holiday.jpg

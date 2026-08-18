@@ -1,6 +1,7 @@
 // &desc: "Entry point: self-elevates via sudo if not already root, then hands off to cli::run() and prints/exit-codes whatever Result comes back."
 mod btrfs;
 mod cli;
+mod cli_registry;
 mod color;
 mod commands;
 mod config;

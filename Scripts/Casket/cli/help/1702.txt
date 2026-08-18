@@ -1,0 +1,12 @@
+cas <vault> settings security sandbox rootfs update <name> [<version>] | update <name> --tarball <path>
+
+Replaces an existing environment's base/ filesystem from its original
+source (preset or tarball) -- whichever it was created with. upper/
+(anything installed or edited inside the environment) is left
+untouched. Refuses if the mode given doesn't match how the
+environment was originally created.
+
+EXAMPLES
+  cas myvault settings security sandbox rootfs update dev --pass "..."
+  cas myvault settings security sandbox rootfs update dev 22.04 --pass "..."
+  cas myvault settings security sandbox rootfs update dev --tarball /path/to/rootfs.tar.gz --pass "..."

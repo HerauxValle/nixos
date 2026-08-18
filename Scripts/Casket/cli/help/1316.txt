@@ -1,0 +1,13 @@
+cas <vault> settings security headerEncryption enable|disable|state   [--pass "..."]
+
+ChaCha20-Poly1305-encrypts the LUKS2 header's content wherever it
+currently lives (front, or a headerOffset room slot), on top of
+whatever position-hiding headerOffset already provides. The vault must
+be closed first. If headerOffset is off, the header is still at its
+normal front position -- content is hidden, but the header's location
+is not. 'disable' decrypts it back to a plain header in place.
+
+EXAMPLES
+  cas myvault settings security headerEncryption enable --pass "..."
+  cas myvault settings security headerOffset enable --pass "..."
+  cas myvault settings security headerEncryption state
