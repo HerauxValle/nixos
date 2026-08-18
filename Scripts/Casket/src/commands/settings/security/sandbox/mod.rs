@@ -12,6 +12,7 @@ use crate::vault::Vault;
 
 pub mod cgroups;
 pub mod namespaces;
+pub mod network;
 pub mod rootfs;
 pub mod seccomp;
 
@@ -25,10 +26,11 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
         Some("disable") => disable(ctx, vault, extra[1..].iter().any(|a| a == "--removeRootfs"), pw),
         Some("state") => state(ctx, vault),
         Some("namespaces") => namespaces::dispatch(ctx, vault, &extra[1..], pw),
+        Some("network") => network::dispatch(ctx, vault, &extra[1..], pw),
         Some("rootfs") => rootfs::dispatch(ctx, vault, &extra[1..], pw),
         Some("seccomp") => seccomp::dispatch(ctx, vault, &extra[1..], pw),
         Some("cgroups") => cgroups::dispatch(ctx, vault, &extra[1..], pw),
-        _ => die!("usage: cas <vault> settings security sandbox enable|disable [--removeRootfs]|state|namespaces|rootfs|seccomp|cgroups ..."),
+        _ => die!("usage: cas <vault> settings security sandbox enable|disable [--removeRootfs]|state|namespaces|network|rootfs|seccomp|cgroups ..."),
     }
 }
 

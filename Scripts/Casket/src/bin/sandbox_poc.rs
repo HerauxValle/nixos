@@ -10,20 +10,32 @@ fn main() {
     } else {
         false
     };
+    let net = if let Some(pos) = args.iter().position(|a| a == "--net") {
+        args.remove(pos);
+        true
+    } else {
+        false
+    };
+    let internet = if let Some(pos) = args.iter().position(|a| a == "--internet") {
+        args.remove(pos);
+        true
+    } else {
+        false
+    };
     let Some(sep) = args.iter().position(|a| a == "--") else {
-        eprintln!("usage: sandbox_poc [--debug] <new-root-dir> -- <cmd> [args...]");
+        eprintln!("usage: sandbox_poc [--debug] [--net] [--internet] <new-root-dir> -- <cmd> [args...]");
         std::process::exit(2);
     };
     let new_root = std::path::PathBuf::from(&args[1]);
     let argv = &args[sep + 1..];
     if argv.is_empty() {
-        eprintln!("usage: sandbox_poc [--debug] <new-root-dir> -- <cmd> [args...]");
+        eprintln!("usage: sandbox_poc [--debug] [--net] [--internet] <new-root-dir> -- <cmd> [args...]");
         std::process::exit(2);
     }
 
-    let flags = sandbox::namespaces::Flags { mount: true, pid: true, uts: true, ipc: true, user: true, net: false };
+    let flags = sandbox::namespaces::Flags { mount: true, pid: true, uts: true, ipc: true, user: true, net };
 
-    match sandbox::run(&new_root, std::path::Path::new(".sandbox_poc_oldroot"), &flags, argv, debug, None, None, None) {
+    match sandbox::run(&new_root, std::path::Path::new(".sandbox_poc_oldroot"), &flags, argv, debug, None, None, None, internet) {
         Ok(code) => std::process::exit(code),
         Err(e) => {
             eprintln!("sandbox_poc failed: {e}");

@@ -7,6 +7,7 @@ use crate::die;
 use crate::error::Result;
 use crate::logf;
 use crate::luks;
+use crate::meta::Meta;
 use crate::proc;
 use crate::prompt;
 use crate::secret::{generate_passphrase, weakness_warning};
@@ -14,7 +15,7 @@ use crate::size::parse_size;
 use crate::udisks;
 use crate::vault::Vault;
 
-pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, strength: Strength) -> Result<()> {
+pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, strength: Strength, test: bool) -> Result<()> {
     let vault = Vault::resolve(base, name);
     // Size, not `exists()` -- `Vault::lock_exclusive` (already held by
     // the caller at this point) creates a 0-byte placeholder to lock a
@@ -64,6 +65,11 @@ pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, stre
         luks::format_vault_ex(&vault.img, pw.as_bytes(), strength)?;
         udisks::chown_to_real_user(&vault.img)?;
         udisks::loop_setup(&vault.img);
+        if test {
+            let mut meta = Meta::read(&vault.img);
+            meta.ephemeral = Some(true);
+            meta.write(&vault.img)?;
+        }
         Ok(())
     })();
 
@@ -73,6 +79,9 @@ pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, stre
     }
 
     logf!(ctx, "[✓] vault created: {}", vault.img.display());
+    if test {
+        logf!(ctx, "  [i] --test vault: 'close' will delete this .img automatically");
+    }
     logf!(ctx, "    open it with:  cas {name} open");
     Ok(())
 }

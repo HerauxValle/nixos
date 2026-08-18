@@ -1,6 +1,8 @@
 // &desc: "clone(2) with every requested namespace flag combined + /proc/self/uid_map,gid_map writing for exec's sandbox -- the unprivileged 'rootless container' trick: any user can create a user namespace, and inside it gets full capabilities, but only within that namespace. A single combined clone() (not unshare()+fork() as two separate steps) matters empirically here, not just stylistically -- see clone_into_namespaces's doc comment."
+use std::ffi::CString;
 use std::fs;
 use std::io;
+use std::mem;
 
 /// Bit flags for the sandbox's namespaces, named the same as the CLI's
 /// namespace list (`sandbox::namespaces::ALL`) so callers don't have to
@@ -108,4 +110,52 @@ pub fn write_id_maps(real_uid: u32, real_gid: u32) -> io::Result<()> {
     fs::write("/proc/self/uid_map", format!("0 {real_uid} 1"))?;
     fs::write("/proc/self/gid_map", format!("0 {real_gid} 1"))?;
     Ok(())
+}
+
+/// Brings `lo` up inside whatever network namespace is currently active
+/// for the calling thread -- must be called *after* `unshare(CLONE_NEWNET)`
+/// has already taken effect (i.e. after `unshare_without_user` when
+/// `flags.net` was set), never before, or this configures the host's own
+/// loopback instead of the new namespace's.
+///
+/// A fresh `CLONE_NEWNET` namespace starts with `lo` present but
+/// administratively down and no routes -- without this, every loopback
+/// connection (many programs' own health checks, localhost DNS resolvers,
+/// anything binding `127.0.0.1`) fails outright even though the interface
+/// exists. This does not provide any route *out* of the namespace (no
+/// veth/NAT) -- an isolated `exec` session still can't reach the host's
+/// real network or the internet, by design; it only makes the namespace's
+/// own loopback usable rather than a completely dead stub.
+///
+/// Uses a raw `ioctl(SIOCGIFFLAGS/SIOCSIFFLAGS)` on a throwaway
+/// `AF_INET`/`SOCK_DGRAM` socket -- the same mechanism `ip link set lo up`
+/// itself ultimately uses, no netlink socket or external command needed.
+pub fn bring_up_loopback() -> io::Result<()> {
+    let sock = unsafe { libc::socket(libc::AF_INET, libc::SOCK_DGRAM, 0) };
+    if sock < 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    let mut ifr: libc::ifreq = unsafe { mem::zeroed() };
+    let name = CString::new("lo").expect("static string has no interior NUL");
+    let name_bytes = name.as_bytes_with_nul();
+    for (dst, &src) in ifr.ifr_name.iter_mut().zip(name_bytes.iter()) {
+        *dst = src as libc::c_char;
+    }
+
+    let result = (|| -> io::Result<()> {
+        if unsafe { libc::ioctl(sock, libc::SIOCGIFFLAGS, &mut ifr) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        unsafe {
+            ifr.ifr_ifru.ifru_flags |= libc::IFF_UP as libc::c_short;
+        }
+        if unsafe { libc::ioctl(sock, libc::SIOCSIFFLAGS, &ifr) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    })();
+
+    unsafe { libc::close(sock) };
+    result
 }

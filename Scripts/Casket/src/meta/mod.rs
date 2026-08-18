@@ -94,6 +94,13 @@ pub struct Meta {
     /// Default (absent/empty) = none included.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sandbox_backup_rootfs: Option<Vec<String>>,
+    /// Opt-in real outbound connectivity for `exec`'s `net` namespace --
+    /// see `commands::settings::security::sandbox::network` and
+    /// `sandbox::network`. Meaningless (ignored) unless `namespaces` also
+    /// has `net` active; `None`/`false` means the safe default (loopback
+    /// only, see `namespaces::bring_up_loopback`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sandbox_internet: Option<bool>,
     /// Whether the 32 MiB header-hiding "room" (see `header::room`) has
     /// been provisioned in the slack space between the LUKS2 container
     /// and this trailer. Set once, lazily, on first `enable` of either
@@ -114,6 +121,12 @@ pub struct Meta {
     /// tamper-HMAC/ground-truth treatment as `header_offset`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header_encryption: Option<bool>,
+    /// Set by `create --test` — a throwaway vault meant for testing, not
+    /// real data. `close` (see `commands::close`) deletes the `.img` file
+    /// outright right after a clean close when this is set, instead of
+    /// just locking it. Never set by anything else, never unset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ephemeral: Option<bool>,
 }
 
 /// Find the trailer on an open handle. Returns `(payload_start_offset,

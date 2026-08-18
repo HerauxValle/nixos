@@ -65,6 +65,7 @@ pub fn run() -> Result<()> {
     let force = pop_flag(&mut args, "--force");
     let remove_keyfile = pop_flag(&mut args, "--removeKeyfile");
     let shred = pop_flag(&mut args, "--shred");
+    let test = pop_flag(&mut args, "--test");
 
     let mut opts = Opts::default();
     opts.pass = pop_value(&mut args, "--pass");
@@ -139,7 +140,7 @@ pub fn run() -> Result<()> {
             // and stomp each other's `truncate`/`luksFormat`.
             let vault = Vault::resolve(&base, &vault_name);
             let _lock = vault.lock_exclusive()?;
-            commands::create::run(&ctx, &base, &vault_name, size, &create_pw, opts.strength)
+            commands::create::run(&ctx, &base, &vault_name, size, &create_pw, opts.strength, test)
         }
 
         "open" => {

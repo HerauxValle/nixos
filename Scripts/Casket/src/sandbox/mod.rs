@@ -3,6 +3,8 @@ pub mod cgroup;
 pub mod devfs;
 pub mod harden;
 pub mod namespaces;
+pub mod netlink;
+pub mod network;
 pub mod overlay;
 pub mod pivot;
 pub mod procfs;
@@ -111,6 +113,7 @@ pub fn run(
     overlay: Option<overlay::Spec>,
     seccomp_filter: Option<seccomp::Filter>,
     cgroup_handle: Option<cgroup::Handle>,
+    internet: bool,
 ) -> io::Result<i32> {
     let real_uid = unsafe { libc::getuid() };
     let real_gid = unsafe { libc::getgid() };
@@ -123,6 +126,28 @@ pub fn run(
         };
     }
 
+    // Must happen *before* the combined unshare below -- `network::
+    // setup_host_side` needs the real host netns to create the veth
+    // pair at all (see its own doc comment on why the netlink socket it
+    // opens is deliberately kept alive across the later unshare).
+    let net_handle = if flags.net && internet {
+        let h = network::setup_host_side()?;
+        trace!("network: host-side veth+NAT ok");
+        Some(h)
+    } else {
+        None
+    };
+    // Forked *here* -- strictly before the CLONE_NEWPID-including
+    // unshare below, not just before unshare_user -- see
+    // `network::spawn_teardown_waiter`'s own doc comment on why: forking
+    // after entering the new PID namespace would make this fork itself
+    // claim that namespace's PID-1 slot instead of the sandboxed
+    // command.
+    let teardown_waiter = match &net_handle {
+        Some(h) => Some(network::spawn_teardown_waiter(h)?),
+        None => None,
+    };
+
     // The user namespace is deliberately unshared *after* every
     // host-mount operation below, not combined into this call -- see
     // `namespaces::unshare_user`'s doc comment for why: `cas` already
@@ -131,6 +156,22 @@ pub fn run(
     // included) no matter how its uid map is set.
     namespaces::unshare_without_user(flags)?;
     trace!("unshare (non-user namespaces) ok");
+    if flags.net {
+        namespaces::bring_up_loopback()?;
+        trace!("net namespace: lo brought up (no route out -- isolated by design)");
+    }
+    if let Some(h) = &net_handle {
+        network::setup_sandbox_side(h)?;
+        trace!("network: sandbox-side veth+route+up ok -- real outbound connectivity active");
+    }
+    // Done actively using the Handle now -- hand real cleanup
+    // responsibility to the already-forked helper (`teardown_waiter`)
+    // before `unshare_user` below restricts this process's own
+    // capabilities. See `network::detach`'s doc comment.
+    if let Some(h) = net_handle {
+        network::detach(h);
+    }
+    let _teardown_waiter = teardown_waiter;
     pivot::make_root_private()?;
     trace!("make_root_private ok");
     if let Some(spec) = &overlay {

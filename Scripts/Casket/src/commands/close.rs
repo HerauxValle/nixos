@@ -4,7 +4,24 @@ use crate::ctx::Ctx;
 use crate::die;
 use crate::error::Result;
 use crate::logf;
+use crate::meta::Meta;
+use crate::udisks;
 use crate::vault::Vault;
+
+/// `create --test` vaults delete their own `.img` right after a clean
+/// close -- mirrors `commands::delete`'s own image-removal steps
+/// (loop-device teardown before unlink, same ordering/reasoning as
+/// there) but never touches a keyfile even if one exists, unlike
+/// `delete --removeKeyfile` -- an ephemeral vault deleting a keyfile
+/// that might be shared with another, real vault would be exactly the
+/// kind of automatic action this should never take.
+fn delete_ephemeral(ctx: &Ctx, vault: &Vault) {
+    udisks::loop_teardown(&vault.img);
+    match std::fs::remove_file(&vault.img) {
+        Ok(()) => logf!(ctx, "  [i] --test vault: '{}' deleted", vault.img.display()),
+        Err(e) => logf!(ctx, "  [!] --test vault: failed to delete '{}': {e}", vault.img.display()),
+    }
+}
 
 pub fn run(ctx: &Ctx, vault: &Vault, force: bool) -> Result<()> {
     if vault.is_mount() && lockfile::is_live(vault) {
@@ -25,9 +42,13 @@ pub fn run(ctx: &Ctx, vault: &Vault, force: bool) -> Result<()> {
         logf!(ctx, "[cas] '{}' isn't mounted but has a mapper — force-closing ...", vault.name);
         vault.close_mapper_checked()?;
         logf!(ctx, "[✓] '{}' closed", vault.name);
+        if Meta::read(&vault.img).ephemeral.unwrap_or(false) {
+            delete_ephemeral(ctx, vault);
+        }
         return Ok(());
     }
     logf!(ctx, "[cas] closing '{}' ...", vault.name);
+    let ephemeral = Meta::read(&vault.img).ephemeral.unwrap_or(false);
     vault.umount();
     if force {
         vault.close_mapper_checked()?;
@@ -36,5 +57,8 @@ pub fn run(ctx: &Ctx, vault: &Vault, force: bool) -> Result<()> {
     }
     vault.cleanup_mnt_dir();
     logf!(ctx, "[✓] '{}' closed", vault.name);
+    if ephemeral {
+        delete_ephemeral(ctx, vault);
+    }
     Ok(())
 }

@@ -90,12 +90,18 @@ pub fn dispatch(ctx: &Ctx, vault: &Vault, extra: &[String], pw: Option<&str>) ->
 fn write(ctx: &Ctx, vault: &Vault, list: Vec<String>, pw: Option<&str>) -> Result<()> {
     let verified = gate_inner(ctx, vault, "sandbox", pw)?;
     let mut meta = Meta::read(&vault.img);
+    let net_newly_active = list.iter().any(|n| n == "net") && !active(&meta).iter().any(|n| n == "net");
     meta.sandbox_namespaces = Some(list.clone());
     if let Some((_, secret)) = &verified {
         tamper::refresh(secret, &mut meta);
     }
     meta.write(&vault.img)?;
     logf!(ctx, "[✓] namespaces set to: {}", list.join(", "));
+    if net_newly_active {
+        logf!(ctx, "  [!] 'net' isolation only brings up loopback inside the sandbox --");
+        logf!(ctx, "      there is no route out (no veth/NAT). 'exec' sessions will have no");
+        logf!(ctx, "      internet or LAN access at all, only 127.0.0.1/localhost.");
+    }
     Ok(())
 }
 

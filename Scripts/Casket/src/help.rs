@@ -64,6 +64,7 @@ OPTIONS
   --path dir        look for vaults here instead of auto-searching
   --removeKeyfile   delete: also delete the 2FA keyfile (preserved by default)
   --shred           delete: overwrite the vault file before removing it (best-effort)
+  --test            create: mark the vault ephemeral -- 'close' deletes its .img
 
 Output is colored automatically on a real terminal, and plain otherwise
 (piped, redirected, or TERM=dumb). Set NO_COLOR=1 to force plain output.
@@ -80,7 +81,7 @@ Run 'cas help <action>' for details on any command, with examples.
 fn topic_text(topic: &str) -> Option<&'static str> {
     Some(match topic {
         "create" => r#"
-cas <vault> create [--size MiB] [--strength level] [--pass "..."]
+cas <vault> create [--size MiB] [--strength level] [--pass "..."] [--test]
 
 Creates a new encrypted vault. The vault is stored as a single file
 called <vault>.img in the current directory (or --path).
@@ -102,10 +103,19 @@ called <vault>.img in the current directory (or --path).
                dictionary estimation via zxcvbn) if it looks easy to
                crack offline — it's never refused, just flagged.
 
+  --test       Mark this vault ephemeral. 'close' (or 'toggle' closing it)
+               deletes the .img automatically right after a clean close —
+               no confirmation prompt, since that's the point. A keyfile
+               is never auto-deleted even if 2FA is enabled on a --test
+               vault, since it could be shared with another, real vault.
+               For throwaway testing only; there's no way to un-mark a
+               vault once created.
+
 EXAMPLES
   cas myvault create
   cas myvault create --size 4096 --strength hard
   cas myvault create --path ~/vaults
+  cas scratch create --test --pass ""
 "#,
         "open" => r#"
 cas <vault> open [--pass "..."] [--keyfile path]
@@ -385,6 +395,15 @@ the same line format 'info' rolls up for every setting at once.
     anything in there. 'disable' hands it back to you for direct browsing.
     Protects against a same-user attacker only: root, or raw access to
     the vault's underlying block device, is outside what this can stop.
+
+  settings security sandbox network internet enable|disable|state
+    Off by default. Requires 'namespaces enable net' first. 'net' alone
+    gives 'exec' an isolated network namespace with a working loopback
+    only (no route out — safe, contained). Enabling 'internet' on top of
+    that sets up a real veth pair + host NAT (MASQUERADE rule) for each
+    'exec' session, torn down automatically when it exits. This is the
+    one sandbox setting that touches the host's own routing/NAT tables,
+    not just the sandboxed process's own namespace.
 
   settings security zeroize enable|disable
     Controls whether the derived LUKS secret is locked into RAM (mlock —
