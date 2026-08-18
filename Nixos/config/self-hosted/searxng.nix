@@ -18,10 +18,10 @@
     # settings.yml symlink.
     dataDir = "${config.vars.identity.homeDirectory}/Applications/Networking/SearXNG";
 
-    # Toggled on for 24/7 availablility -- normally off and systemctl
-    # start-able by hand, just not pulled in on boot/rebuild.
-    # Same as every other service on this machine right now.
-    autoStart = false;
+    # Re-enabled 2026-08-18 now that the SelfHosted vault's stuck
+    # mid-migration state (from an interrupted shutdown) is fully
+    # resolved and it opens cleanly on boot again.
+    autoStart = true;
 
     # searxng/searxng's master HEAD as of this port -- no coreHash
     # alongside this (see default.nix's top comment for why: srcDir is a
