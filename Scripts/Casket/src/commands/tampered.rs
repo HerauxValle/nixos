@@ -16,17 +16,20 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     }
 
     let pw = gate_pw(ctx, vault, "tampered", pw)?;
-    let mut meta = Meta::read(&vault.img);
+    let (mut meta, schema_from) = Meta::read_versioned(&vault.img);
     let secret = match meta.keyfile.clone() {
         Some(cached) => {
-            let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img)?;
+            let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img, schema_from)?;
             combined_secret(&pw, &crate::keyfile::read_bytes(&kf_path)?)
         }
         None => pw.as_bytes().to_vec(),
     };
     Meta::strip(&vault.img)?;
     let ok = luks::test(&vault.img, &secret);
-    meta.write(&vault.img)?;
+    // `write_at_version`, not `write` -- same fix as `info.rs`, see
+    // `Meta::write_at_version`'s doc comment. `tampered` never runs
+    // `migrations::migrate_layout` either.
+    meta.write_at_version(&vault.img, schema_from)?;
     if !ok {
         die!("wrong passphrase — could not verify vault");
     }

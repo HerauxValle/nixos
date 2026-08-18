@@ -9,6 +9,7 @@ pub const STEP: Step = Step {
     version: 1,
     meta: None,
     layout: Some(migrate_layout),
+    requires_new_image: false,
 };
 
 const OLD_SNAP_DIR: &str = ".cas-snapshots";

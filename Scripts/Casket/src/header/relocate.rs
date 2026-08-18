@@ -283,7 +283,18 @@ fn payload_checksum(img: &Path, header: Option<&Path>, mapper: &str, secret: &[u
         crate::proc::run_silent("cryptsetup", &["close", mapper]);
     }
     let dev = match header {
-        Some(h) => luks::open_luks_detached(h, img, mapper, secret)?,
+        // See `ensure_staged_header_len`'s doc comment -- every detached
+        // header this module hands to cryptsetup, real or staged, must
+        // be at least as long as the container's real data offset. This
+        // is the one choke point every caller of `payload_checksum`
+        // (which is most of `verify_new_header`'s and every
+        // enable/disable/rotate path's real-open verification) already
+        // goes through, so fixing it here covers all of them instead of
+        // needing it at each call site.
+        Some(h) => {
+            ensure_staged_header_len(h)?;
+            luks::open_luks_detached(h, img, mapper, secret)?
+        }
         None => luks::open_luks(img, mapper, secret)?,
     };
     let result = (|| -> Result<[u8; 32]> {
@@ -298,11 +309,52 @@ fn payload_checksum(img: &Path, header: Option<&Path>, mapper: &str, secret: &[u
     result
 }
 
+/// cryptsetup refuses a `--header` file that's shorter than the real
+/// container's own recorded data offset outright ("Device ... is too
+/// small. Need at least N bytes.") -- confirmed live 2026-08-17, even
+/// though the actual data lives on the *separate* device argument, not
+/// the header file itself. Every staged header this module ever hands
+/// to cryptsetup needs to be at least that long, regardless of how much
+/// of it is real content vs. trailing zero bytes -- `set_len` is a
+/// sparse extend (sizes the file without writing real disk blocks for
+/// the padding), so this costs effectively nothing even at
+/// `config::LUKS_DATA_OFFSET_MB`'s 128 MiB. A v1/v2 minimized header is
+/// already this size or bigger by construction (built with `--offset`
+/// set to the real value) so this is a no-op there; a v3 verbatim
+/// header copy is deliberately kept small in its room slot for storage
+/// efficiency (see `room::v3_room_start`'s doc comment) and genuinely
+/// needs this before it can be used.
+fn ensure_staged_header_len(header_path: &Path) -> Result<()> {
+    // Neither `luks::data_offset_bytes(img)` (parses a live header at
+    // `img`'s own front -- gone once `headerOffset` has actually
+    // relocated it, scrubbed to filler by design) nor
+    // `data_offset_bytes_from_header(header_path, img)` (turns out
+    // cryptsetup's own "too small" size check on a `--header` file
+    // applies to `luksDump` too, not just `open`/`activate` -- confirmed
+    // live 2026-08-17, chasing this exact bug: a short, unpadded v3
+    // verbatim header copy can't even be *dumped* to learn its own
+    // offset, only a `--header`-mode-formatted one like a v1/v2
+    // minimized header can) can supply `need` here without a
+    // chicken-and-egg problem. Padding to the fixed, known
+    // `config::LUKS_DATA_OFFSET_MB` constant instead sidesteps needing
+    // to ask cryptsetup at all -- every vault this build of `cas`
+    // formats uses exactly that offset, and padding *past* whatever a
+    // given vault's real offset happens to be is always safe (cryptsetup
+    // only ever rejects "too small", never "too big").
+    let need = crate::config::LUKS_DATA_OFFSET_MB * 1024 * 1024;
+    let f = OpenOptions::new().write(true).open(header_path)?;
+    if f.metadata()?.len() < need {
+        f.set_len(need)?;
+    }
+    Ok(())
+}
+
 /// Real detached test-open PLUS a payload checksum comparison against
 /// `reference` -- `cryptsetup open` succeeding on a wrong/mismatched
 /// volume key still looks like success structurally, it just decrypts
 /// the payload to garbage, so the checksum is the actual proof.
 fn verify_new_header(vault: &Vault, header_path: &Path, secret: &[u8], reference_checksum: [u8; 32]) -> Result<()> {
+    ensure_staged_header_len(header_path)?;
     if !luks::test_detached(header_path, &vault.img, secret) {
         return Err(CasError::new("verification failed: new header does not structurally decrypt with the given secret"));
     }
@@ -330,8 +382,15 @@ pub fn stage_current_header(vault: &Vault, meta: &Meta, master: Option<&[u8; 32]
     let bytes = match (meta.header_offset == Some(true), meta.header_encryption == Some(true)) {
         (false, false) => {
             // native front -- just the container's own current header
-            // bytes, whatever size cryptsetup itself is using.
-            let len = front_region_len(&vault.img);
+            // bytes. NOT `front_region_len` (the real data offset, now
+            // 128 MiB, mostly deliberately-reserved free space -- see
+            // `config::LUKS_DATA_OFFSET_MB`'s doc comment): cryptsetup's
+            // actual header/keyslot footprint is always comfortably
+            // inside `room::v3_room_start()`'s boundary (measured live
+            // well under 1 MiB even with integrity), same generous,
+            // safe copy size `enable_offset_inner_v3` uses for the same
+            // reason.
+            let len = room::v3_room_start();
             let mut f = File::open(&vault.img)?;
             let mut buf = vec![0u8; len as usize];
             f.read_exact(&mut buf)?;
@@ -361,6 +420,15 @@ pub fn stage_current_header(vault: &Vault, meta: &Meta, master: Option<&[u8; 32]
         }
     };
     out.write_secure(&bytes)?;
+    // See `ensure_staged_header_len`'s doc comment: any staged header
+    // this function hands out gets used for a real detached
+    // open/test-open somewhere downstream (`open_dispatch`,
+    // `verify_current_secret`, every enable/disable/rotate path above),
+    // and cryptsetup refuses one shorter than the container's real data
+    // offset -- a v3 verbatim copy is deliberately smaller than that for
+    // slot-storage efficiency, so it needs the sparse extend here,
+    // exactly once, at the source, rather than at every call site.
+    ensure_staged_header_len(out.path())?;
     Ok(out)
 }
 
@@ -628,7 +696,22 @@ fn enable_offset_inner_v3(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u
     let master = header::derive_master_secret(&[secret], &salt);
     let slot = header::derive_slot_index(&master, n_slots as usize) as u64;
 
-    let offset_bytes = front_region_len(&vault.img);
+    // NOT `front_region_len` here -- that now returns the vault's real
+    // data offset (`config::LUKS_DATA_OFFSET_MB`, 128 MiB), most of
+    // which is deliberately-reserved free space, not actual header
+    // content (see that constant's doc comment). Copying that whole
+    // span verbatim would (a) massively overshoot `INTEGRITY_SLOT_SIZE`
+    // -- confirmed live 2026-08-17, this exact call used to size a slot
+    // write and started failing the instant the offset bump landed --
+    // and (b) read straight into the v3 room's own bytes once
+    // provisioned, since the room lives at the same fixed boundary this
+    // copy needs to stop before. `room::v3_room_start()` is exactly that
+    // boundary: cryptsetup's real header/keyslot footprint is always
+    // comfortably smaller than it (measured live well under 1 MiB even
+    // with integrity), so this remains a generous, safe verbatim-copy
+    // size regardless of how big the reserved offset grows in the
+    // future.
+    let offset_bytes = room::v3_room_start();
     logf!(ctx, "  [1/3] copying the real header verbatim (no rebuild -- fileIntegrity is on) ...");
     let mut plain_bytes = vec![0u8; offset_bytes as usize];
     {
@@ -821,7 +904,15 @@ fn disable_offset_inner_v3(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[
     let staged_current = stage_current_header(vault, meta, Some(&master))?;
 
     logf!(ctx, "  [1/3] reading the current (relocated) header verbatim ...");
-    let raw = std::fs::read(staged_current.path())?;
+    // `stage_current_header`'s output is padded out to the real data
+    // offset (see `ensure_staged_header_len`'s doc comment -- needed for
+    // `verify_new_header`'s detached open below), but the actual header
+    // content a v3 copy ever holds is always exactly
+    // `room::v3_room_start()` bytes (`enable_offset_inner_v3`'s own
+    // copy size) -- everything past that is zero-filled padding, not
+    // real content, and must not get written back to the front verbatim.
+    let mut raw = std::fs::read(staged_current.path())?;
+    raw.truncate(room::v3_room_start() as usize);
 
     logf!(ctx, "  [2/3] verifying against the current relocated header, unchanged ...");
     let reference = reference_checksum(vault, Some(staged_current.path()), secret)?;
@@ -1183,7 +1274,14 @@ pub fn relocate_if_enabled(ctx: &Ctx, vault: &Vault, meta: &mut Meta, old_secret
 
         logf!(ctx, "  [header] rotating relocated header to a new slot under the new passphrase ...");
         luks::slot_cycle_detached(ctx, staged_current.path(), &vault.img, old_secret, new_secret, Some(strength))?;
-        let plain = std::fs::read(staged_current.path())?;
+        // Same truncate-back-to-real-size reasoning as
+        // `disable_offset_inner_v3` -- `slot_cycle_detached` only ever
+        // touches the keyslot area, comfortably inside
+        // `room::v3_room_start()`'s bound, so truncating the padded
+        // staged file back down after rekeying discards only the
+        // zero-filled tail, never anything the rekey actually changed.
+        let mut plain = std::fs::read(staged_current.path())?;
+        plain.truncate(room::v3_room_start() as usize);
 
         let new_master = header::derive_master_secret(&[new_secret], &old_salt);
         let new_slot = header::derive_slot_index(&new_master, n as usize) as u64;

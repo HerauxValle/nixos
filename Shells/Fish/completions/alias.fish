@@ -4,6 +4,7 @@ alias sudo='sudo '
 alias hi='echo "Hello from Fish!"'                                      #&help:"Prints "Hello from Fish!""
 alias timeshift-gui="sudo GDK_BACKEND=x11 timeshift-gtk"                #&help:"Opens Timeshift GUI"
 alias grubreload="sudo grub-mkconfig -o /boot/grub/grub.cfg"            #&help:"Reloads grub config"
+alias passwd-encryption="sudo cryptsetup luksChangeKey /dev/disk/by-uuid/80b7960d-fb8d-4dc3-8b01-329770c6e027" #&help:"Change root LUKS passphrase"
 alias rebuild="pacnix rebuild 2>&1 | tee /tmp/pacnix-rebuild.log"       #&help:"Rebuilds nixos with pacnix"
 alias pri="pacnix rebuild --impure 2>&1 | tee /tmp/pacnix-rebuild.log"  #&help:"Rebuilds nixos with pacnix (impure)"
 # NIXOS (see pacnix -- Scripts/Pacnix -- for rebuild/validate/check/test-build)

@@ -60,12 +60,20 @@ struct Progress {
     done: u64,
     total: u64,
     verb: &'static str,
-    tick: usize,
+    /// Last percentage a *non-tty* line was printed at, -1 until the
+    /// first draw. A real terminal's `\r` redraw already hides
+    /// per-file update spam visually, so a tty keeps redrawing on every
+    /// `advance` (full detail, current filename each time). A piped/
+    /// captured stdout -- no `\r` redraw makes sense there -- would
+    /// otherwise print one line per file, which on a tree with
+    /// thousands of small files is unreadable spam; gate that branch
+    /// on the percentage actually having moved instead.
+    last_pct: i64,
 }
 
 impl Progress {
     fn new(ctx: &Ctx, total: u64, verb: &'static str) -> Self {
-        Progress { ctx_quiet: ctx.quiet, tty: std::io::stdout().is_terminal(), done: 0, total, verb, tick: 0 }
+        Progress { ctx_quiet: ctx.quiet, tty: std::io::stdout().is_terminal(), done: 0, total, verb, last_pct: -1 }
     }
 
     fn advance(&mut self, added: u64, file: &Path) {
@@ -79,18 +87,21 @@ impl Progress {
         }
         let pct = if self.total == 0 { 100 } else { (self.done * 100 / self.total).min(100) };
         if !self.tty {
-            // Piped/non-interactive: a periodic plain line per file, no
-            // \r redraw (that only makes sense on a real terminal).
+            if pct as i64 == self.last_pct {
+                return;
+            }
+            self.last_pct = pct as i64;
+            // Piped/non-interactive: one plain line per percentage
+            // point, no \r redraw (that only makes sense on a real
+            // terminal).
             println!("{pct}%  {}  {}", format_progress(self.done, self.total), file.display());
             return;
         }
         const WIDTH: usize = 30;
         let filled = (WIDTH * pct as usize) / 100;
         let bar = format!("{}{}", "=".repeat(filled), "-".repeat(WIDTH - filled));
-        let dots = [".", "..", "...", "..", "."][self.tick % 5];
-        self.tick += 1;
         print!(
-            "\r\x1b[K{pct:>3}%  [{bar}]  {}\n\x1b[K  {} {}{dots}\x1b[1A\r",
+            "\r\x1b[K{pct:>3}%  [{bar}]  {}  {} {}",
             format_progress(self.done, self.total),
             self.verb,
             file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),

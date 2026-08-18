@@ -56,6 +56,20 @@ pub fn confirm_named(ctx: &Ctx, expected: &str, noun: &str, warning: &str) -> Re
     Ok(typed == expected)
 }
 
+/// Plain yes/no prompt, defaulting to "no" on empty input (a rebuild is
+/// real disk work with a nonzero blast radius -- silence shouldn't be
+/// read as consent). Auto-confirmed under `--no-log`/`--no-confirm`,
+/// same shortcut `confirm_named` already uses, so scripted/automated
+/// callers aren't blocked -- they just get the work done instead of
+/// hanging on stdin.
+pub fn confirm_yes_no(ctx: &Ctx, question: &str) -> Result<bool> {
+    if ctx.quiet || ctx.no_confirm {
+        return Ok(true);
+    }
+    let ans = ask(ctx, &format!("{question} [y/N]"), Some("n"))?;
+    Ok(matches!(ans.trim().to_lowercase().as_str(), "y" | "yes"))
+}
+
 fn aborted() -> CasError {
     println!("\n{}", crate::color::auto("[x] aborted"));
     CasError::Silent

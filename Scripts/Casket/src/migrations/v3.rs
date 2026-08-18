@@ -14,6 +14,7 @@ pub const STEP: Step = Step {
     version: 3,
     meta: Some(migrate_meta),
     layout: Some(migrate_layout),
+    requires_new_image: false,
 };
 
 fn migrate_meta(map: &mut Map<String, Value>) {

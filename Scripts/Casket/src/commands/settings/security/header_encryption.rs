@@ -31,7 +31,7 @@ fn resolve_secret(ctx: &Ctx, vault: &Vault, meta: &Meta, pw: &str) -> Result<Vec
     match meta.keyfile.clone() {
         Some(cached) => {
             let mut m = meta.clone();
-            let kf_path = resolve_keyfile(ctx, &cached, &mut m, &vault.img)?;
+            let kf_path = resolve_keyfile(ctx, &cached, &mut m, &vault.img, crate::version::CURRENT)?;
             Ok(combined_secret(pw, &crate::keyfile::read_bytes(&kf_path)?))
         }
         None => Ok(pw.as_bytes().to_vec()),

@@ -23,7 +23,13 @@ pub const INTEGRITY_PROMPT_THRESHOLD_MB: u64 = 20 * 1024;
 
 pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, strength: Strength, integrity: Option<bool>, interactive: bool) -> Result<()> {
     let vault = Vault::resolve(base, name);
-    if vault.img.exists() {
+    // Size, not `exists()` -- `Vault::lock_exclusive` (already held by
+    // the caller at this point) creates a 0-byte placeholder to lock a
+    // not-yet-created vault's name against a racing concurrent `create`,
+    // so `exists()` alone can no longer tell "nothing here" from "a real
+    // vault." A real image is always non-empty (`truncate`d to its size
+    // before this check could ever see it in a race).
+    if vault.img.metadata().map(|m| m.len() > 0).unwrap_or(false) {
         die!("vault '{name}' already exists at {}", vault.img.display());
     }
 
@@ -69,7 +75,15 @@ pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, stre
     let integrity_note = if integrity { ", fileIntegrity" } else { "" };
     logf!(ctx, "[cas] creating vault '{name}' ({size} MiB, strength={strength}{integrity_note}) ...");
 
-    let size_arg = format!("{size}M");
+    // `size` is meant as usable payload, not raw file size -- cryptsetup's
+    // own historical 16 MiB default offset was already silently eaten out
+    // of it before `LUKS_DATA_OFFSET_MB` existed, so grow the truncate
+    // size by the delta beyond that old default rather than the new
+    // constant outright, keeping "cas create --size 1G" giving the same
+    // usable space it always did instead of shrinking by ~112 MiB.
+    const HISTORICAL_DEFAULT_OFFSET_MB: u64 = 16;
+    let truncate_mb = size + crate::config::LUKS_DATA_OFFSET_MB.saturating_sub(HISTORICAL_DEFAULT_OFFSET_MB);
+    let size_arg = format!("{truncate_mb}M");
     let img_str = vault.img.to_string_lossy().into_owned();
     proc::run("truncate", &["-s", &size_arg, &img_str])?;
 

@@ -1,7 +1,6 @@
 // &desc: "Raw fs-level provisioning/read/write for the 32 MiB header-hiding 'room' -- [LUKS2 container][32 MiB room][JSON trailer]. No cryptsetup calls here at all: this only knows how to find the room via meta::trailer_start, lay out its fixed-size candidate slots, and read/write raw bytes. Slot picking (which index) and header-content crypto live in header/mod.rs; enable/disable orchestration lives in header/relocate.rs."
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 
 use rand::RngCore;
@@ -87,10 +86,42 @@ pub const INTEGRITY_DEFAULT_SLOTS_THRESHOLD_MB: u64 = 1024;
 pub const INTEGRITY_DEFAULT_SLOTS_LARGE: u32 = 4;
 pub const INTEGRITY_DEFAULT_SLOTS_SMALL: u32 = 2;
 
-/// `--slots N`/`slots <N>` above this prints a one-time advisory (not a
-/// block) that more slots past this point are pure disk overhead, not
-/// added security -- see `INTEGRITY_SLOT_SIZE`'s doc comment.
-pub const INTEGRITY_SLOTS_ADVISORY_THRESHOLD: u32 = 8;
+/// Byte offset (from the start of `vault.img`) where a v3 room lives --
+/// right after the fixed-size area cryptsetup's own default LUKS2
+/// metadata/keyslots area occupies (measured 16 MiB, same value this
+/// codebase's other 16 MiB fallbacks assume, e.g. `luks::front_region_len`).
+/// Free real estate between here and `config::LUKS_DATA_OFFSET_MB`
+/// (128) exists on every vault formatted after that constant landed,
+/// specifically reserved for this -- see `config::LUKS_DATA_OFFSET_MB`'s
+/// doc comment. Fixed, not derived per-vault: `luksFormat` never
+/// receives a custom `--luks2-metadata-size`/`--luks2-keyslots-size` for
+/// a *vault's own* format (only for a relocated/rebuilt detached
+/// header), so every vault this codebase creates has the exact same
+/// 16 MiB metadata footprint regardless of its overall size.
+pub const V3_ROOM_OFFSET_MB: u64 = 16;
+
+/// Total space available to a v3 room -- the gap between
+/// `V3_ROOM_OFFSET_MB` and `config::LUKS_DATA_OFFSET_MB`. Unlike v1/v2's
+/// `ROOM_SIZE` (appended after the payload, so effectively unbounded),
+/// this is a hard ceiling: the room lives *inside* the vault's own fixed
+/// offset reservation now, not a separate file that can grow freely.
+pub const V3_ROOM_AVAILABLE_BYTES: u64 = (crate::config::LUKS_DATA_OFFSET_MB - V3_ROOM_OFFSET_MB) * 1024 * 1024;
+
+/// Hard ceiling on `--slots N`/`slots <N>` for a v3 room -- how many
+/// `INTEGRITY_SLOT_SIZE` slots actually fit in `V3_ROOM_AVAILABLE_BYTES`
+/// after the room header. Unlike the old sibling-file design (where more
+/// slots just meant a bigger separate file), this is a real, enforced
+/// maximum now -- `commands::settings::security::header_offset::run`
+/// refuses a request above it outright rather than merely advising
+/// against it.
+pub const INTEGRITY_MAX_SLOTS: u32 = ((V3_ROOM_AVAILABLE_BYTES - ROOM_HEADER_LEN) / INTEGRITY_SLOT_SIZE) as u32;
+
+/// `--slots N`/`slots <N>` above this (but still <= `INTEGRITY_MAX_SLOTS`)
+/// prints a one-time advisory that more slots past this point are pure
+/// disk overhead, not added security -- see `INTEGRITY_SLOT_SIZE`'s doc
+/// comment. Never blocks by itself; `INTEGRITY_MAX_SLOTS` is the actual
+/// hard limit.
+pub const INTEGRITY_SLOTS_ADVISORY_THRESHOLD: u32 = INTEGRITY_DEFAULT_SLOTS_LARGE;
 
 pub fn integrity_default_slots(vault_size_mb: u64) -> u32 {
     if vault_size_mb >= INTEGRITY_DEFAULT_SLOTS_THRESHOLD_MB {
@@ -104,36 +135,45 @@ fn v3_room_total_size(n_slots: u64) -> u64 {
     ROOM_HEADER_LEN + n_slots * INTEGRITY_SLOT_SIZE
 }
 
-/// Path to a vault's v3 room -- a dedicated **sibling file**, never
-/// appended to the vault image itself. This is load-bearing, not just
-/// tidiness: every vault image's LUKS2 data segment is "till end of
-/// device" dynamic (never given a fixed size -- true for every vault
-/// this codebase creates, integrity or not). Appending anything to the
-/// image file after format time inflates that dynamic calculation, and
-/// for an integrity-protected container specifically, that corrupts
-/// dm-integrity's tag/data layout the instant the header is rebuilt
-/// *or even just re-activated* -- confirmed live 2026-08-17, extensively
-/// (see `header/relocate.rs`'s module doc comment for the full trail:
-/// truncating the image to hide the room made the kernel refuse to
-/// build the dm-integrity table at all; capping the exposed size via
-/// `--size` worked in isolation but raced cryptsetup's own multi-phase
-/// activation non-deterministically in practice). A v1/v2 (non-integrity)
-/// room can safely live appended to the image because a plain LUKS2
-/// payload has no size-dependent internal structure; a v3 room can't
-/// risk it. Named `.{name}.hroom` -- same dotfile-sibling convention as
-/// `.{name}.lock`/`.{name}.backup.img` elsewhere in this codebase.
-pub fn v3_room_path(img: &Path) -> std::path::PathBuf {
-    let name = img.file_stem().unwrap_or_default().to_string_lossy().into_owned();
-    img.with_file_name(format!(".{name}.hroom"))
+/// Byte offset in `vault.img` where a v3 room starts -- always
+/// `V3_ROOM_OFFSET_MB`, a fixed constant, never derived per-vault. This
+/// deliberately does NOT append to or otherwise change the image's own
+/// length: everything a v3 room reads or writes sits strictly between
+/// the LUKS2 metadata area and `config::LUKS_DATA_OFFSET_MB`'s data
+/// segment, both fixed at format time, so the image's "till end of
+/// device" dynamic size calculation (what a plain `luksFormat`/`open`
+/// keys off of) never changes -- this is exactly the property the
+/// now-removed `.hroom` sibling-file design existed to guarantee a
+/// different way; living inside the reserved offset gets the same
+/// guarantee for free, without a second file on disk. See
+/// `config::LUKS_DATA_OFFSET_MB`'s doc comment for why the gap exists,
+/// and `V3_ROOM_AVAILABLE_BYTES` for how big it is.
+pub fn v3_room_start() -> u64 {
+    V3_ROOM_OFFSET_MB * 1024 * 1024
 }
 
-/// v3 equivalent of `read_salt`. `n_slots` isn't needed to *locate* the
-/// room (it's always byte 0 of its own dedicated file), but every call
-/// site already threads it through for the slot read/write bounds
-/// checks below, so the signature stays consistent.
+/// Byte offset of `Vault::lock_exclusive`'s advisory record-lock range --
+/// the last 4 KiB of the reserved offset gap, immediately before
+/// `config::LUKS_DATA_OFFSET_MB`'s LUKS2 payload begins. Never written by
+/// this module: even a fully-packed room (`INTEGRITY_MAX_SLOTS` slots)
+/// only reaches `ROOM_HEADER_LEN + INTEGRITY_MAX_SLOTS * INTEGRITY_SLOT_SIZE`
+/// bytes past `v3_room_start()`, which by `INTEGRITY_MAX_SLOTS`'s own
+/// construction is always comfortably under `V3_ROOM_AVAILABLE_BYTES` --
+/// there's slack left over from truncating division, so this offset is
+/// unreachable by room writes regardless of slot count, and is fixed
+/// (not slot-count-derived) so it needs no coordination with room state
+/// at all. Also below `LUKS_DATA_OFFSET_MB`, so it's never inside the
+/// LUKS2 payload dm-integrity's tag layout is computed against either.
+pub const LOCK_OFFSET: u64 = crate::config::LUKS_DATA_OFFSET_MB * 1024 * 1024 - 4096;
+
+/// v3 equivalent of `read_salt`. `n_slots` isn't needed to locate the
+/// room (its start is a fixed offset, not something the caller derives),
+/// but every call site already threads it through for the slot
+/// read/write bounds checks below, so the signature stays consistent.
 pub fn v3_read_salt(img: &Path, _n_slots: u64) -> Option<[u8; SALT_LEN]> {
-    let mut f = OpenOptions::new().read(true).open(v3_room_path(img)).ok()?;
+    let mut f = OpenOptions::new().read(true).open(img).ok()?;
     let mut header = [0u8; ROOM_HEADER_LEN as usize];
+    f.seek(SeekFrom::Start(v3_room_start())).ok()?;
     f.read_exact(&mut header).ok()?;
     if &header[0..8] != ROOM_MAGIC {
         return None;
@@ -168,12 +208,16 @@ pub fn v3_ensure_provisioned_with_salt(img: &Path, n_slots: u64, salt: &[u8; SAL
 }
 
 fn v3_write_fresh_room(img: &Path, n_slots: u64, salt: &[u8; SALT_LEN]) -> std::io::Result<()> {
+    if n_slots > INTEGRITY_MAX_SLOTS as u64 {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("{n_slots} slots exceeds the {INTEGRITY_MAX_SLOTS}-slot ceiling that fits in the vault's reserved offset region")));
+    }
     let mut header = vec![0u8; ROOM_HEADER_LEN as usize];
     header[0..8].copy_from_slice(ROOM_MAGIC);
     header[8] = ROOM_VERSION_INTEGRITY;
     header[9..9 + SALT_LEN].copy_from_slice(salt);
 
-    let mut f = OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(v3_room_path(img))?;
+    let mut f = OpenOptions::new().write(true).open(img)?;
+    f.seek(SeekFrom::Start(v3_room_start()))?;
     f.write_all(&header)?;
 
     let mut rng = rand::thread_rng();
@@ -188,15 +232,29 @@ fn v3_write_fresh_room(img: &Path, n_slots: u64, salt: &[u8; SALT_LEN]) -> std::
     f.flush()
 }
 
-/// Removes the v3 room file entirely. Used by `slots <N>` right after
-/// staging the room's live content elsewhere, so a fresh room can be
-/// provisioned at the new size in its place.
-pub fn v3_remove_room(img: &Path, _n_slots: u64) -> std::io::Result<()> {
-    match std::fs::remove_file(v3_room_path(img)) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e),
+/// Scrubs the v3 room's header + every slot with fresh random filler,
+/// in place. Used by `slots <N>` right before provisioning a fresh room
+/// at the new size in the same fixed location -- unlike the old
+/// sibling-file design (where this deleted a whole file), there's no
+/// file to remove: the room always occupies the same fixed offset
+/// region, only its logical slot count changes.
+pub fn v3_remove_room(img: &Path, n_slots: u64) -> std::io::Result<()> {
+    let mut f = match OpenOptions::new().write(true).open(img) {
+        Ok(f) => f,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e),
+    };
+    f.seek(SeekFrom::Start(v3_room_start()))?;
+    let mut rng = rand::thread_rng();
+    let mut buf = vec![0u8; 1024 * 1024];
+    let mut remaining = v3_room_total_size(n_slots.max(1));
+    while remaining > 0 {
+        let chunk = remaining.min(buf.len() as u64) as usize;
+        rng.fill_bytes(&mut buf[..chunk]);
+        f.write_all(&buf[..chunk])?;
+        remaining -= chunk as u64;
     }
+    f.flush()
 }
 
 /// v3 equivalent of `read_slot` -- `data.len()` need not match
@@ -208,9 +266,9 @@ pub fn v3_read_slot(img: &Path, n_slots: u64, index: u64) -> Option<Vec<u8>> {
     if index >= n_slots {
         return None;
     }
-    let mut f = OpenOptions::new().read(true).open(v3_room_path(img)).ok()?;
+    let mut f = OpenOptions::new().read(true).open(img).ok()?;
     let mut buf = vec![0u8; INTEGRITY_SLOT_SIZE as usize];
-    f.seek(SeekFrom::Start(ROOM_HEADER_LEN + index * INTEGRITY_SLOT_SIZE)).ok()?;
+    f.seek(SeekFrom::Start(v3_room_start() + ROOM_HEADER_LEN + index * INTEGRITY_SLOT_SIZE)).ok()?;
     f.read_exact(&mut buf).ok()?;
     Some(buf)
 }
@@ -230,8 +288,8 @@ pub fn v3_write_slot(img: &Path, n_slots: u64, index: u64, data: &[u8]) -> std::
         rand::thread_rng().fill_bytes(&mut padded[data.len()..]);
     }
 
-    let mut f = OpenOptions::new().write(true).open(v3_room_path(img))?;
-    f.seek(SeekFrom::Start(ROOM_HEADER_LEN + index * INTEGRITY_SLOT_SIZE))?;
+    let mut f = OpenOptions::new().write(true).open(img)?;
+    f.seek(SeekFrom::Start(v3_room_start() + ROOM_HEADER_LEN + index * INTEGRITY_SLOT_SIZE))?;
     f.write_all(&padded)?;
     f.flush()
 }
@@ -243,8 +301,8 @@ pub fn v3_scrub_slot(img: &Path, n_slots: u64, index: u64) -> std::io::Result<()
     if index >= n_slots {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "slot index out of range"));
     }
-    let mut f = OpenOptions::new().write(true).open(v3_room_path(img))?;
-    f.seek(SeekFrom::Start(ROOM_HEADER_LEN + index * INTEGRITY_SLOT_SIZE))?;
+    let mut f = OpenOptions::new().write(true).open(img)?;
+    f.seek(SeekFrom::Start(v3_room_start() + ROOM_HEADER_LEN + index * INTEGRITY_SLOT_SIZE))?;
     f.write_all(&filler)?;
     f.flush()
 }
@@ -311,10 +369,11 @@ pub fn read_salt(img: &Path) -> Option<[u8; SALT_LEN]> {
 ///
 /// Only used for v1/v2 (non-integrity) rooms, which are safe to append
 /// to the image because a plain LUKS2 payload has no size-dependent
-/// internal structure. A v3 room lives in its own dedicated sibling
-/// file instead (`v3_room_path`) for exactly the reason this doesn't
-/// generalize to integrity-protected containers -- see that function's
-/// doc comment for the full story.
+/// internal structure. A v3 room lives at a fixed offset inside the
+/// image's own reserved header-offset region instead
+/// (`v3_room_start`) for exactly the reason this doesn't generalize to
+/// integrity-protected containers -- see that function's doc comment
+/// for the full story.
 pub fn container_boundary(img: &Path) -> u64 {
     let full_len = std::fs::metadata(img).map(|m| m.len()).unwrap_or(0);
     if read_salt(img).is_some() {

@@ -2,7 +2,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use crate::config::Strength;
+use crate::config::{Strength, LUKS_DATA_OFFSET_MB};
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::{CasError, Result};
@@ -15,8 +15,17 @@ use crate::proc::{self, TempKeyfile, TempOutPath};
 /// `integrity` optionally adds `--integrity hmac-sha256` —
 /// per-sector authenticated encryption, used by `create --integrity` and
 /// `fileIntegrity`'s migration to build the destination container.
+/// Data offset is pinned to `LUKS_DATA_OFFSET_MB` (512-byte sectors)
+/// instead of letting cryptsetup pick its own 16 MiB default -- reserves
+/// free space between the fixed-size LUKS2 metadata/keyslots area and
+/// the data segment for `header::room`'s v3 flavor and future growth.
+/// Every other caller that needs to know a vault's actual offset reads
+/// it back dynamically (`data_offset_bytes`/`_from_header`) rather than
+/// assuming this constant, so a vault formatted under an older value of
+/// it keeps working unmodified.
 pub fn format_vault_ex(img: &Path, secret: &[u8], strength: Strength, integrity: bool) -> Result<()> {
     let img_str = img.to_string_lossy().into_owned();
+    let offset_sectors = (LUKS_DATA_OFFSET_MB * 1024 * 1024 / 512).to_string();
     let mut args: Vec<&str> = vec!["luksFormat", "--batch-mode", "--pbkdf", "argon2id"];
     args.extend_from_slice(strength.pbkdf_args());
     args.push("--pbkdf-force-iterations");
@@ -25,6 +34,8 @@ pub fn format_vault_ex(img: &Path, secret: &[u8], strength: Strength, integrity:
         args.push("--integrity");
         args.push("hmac-sha256");
     }
+    args.push("--offset");
+    args.push(&offset_sectors);
     args.push(&img_str);
     args.push("--key-file");
     args.push("-");
@@ -633,18 +644,23 @@ mod header_offset_tests {
         std::fs::create_dir_all(&dir).unwrap();
         let img = dir.join("scratch.img");
         std::fs::File::create(&img).unwrap();
-        crate::proc::run("truncate", &["-s", "96M", img.to_str().unwrap()]).unwrap();
+        // 96 MiB was enough when cryptsetup's own 16 MiB default offset
+        // applied; `format_vault_ex` now always reserves
+        // `LUKS_DATA_OFFSET_MB` (128), so the scratch image needs to be
+        // bigger than that plus room for an actual data segment.
+        crate::proc::run("truncate", &["-s", "256M", img.to_str().unwrap()]).unwrap();
 
         let old_secret = b"scratchpass-orig".to_vec();
         format_vault_ex(&img, &old_secret, Strength::Light, false).unwrap();
         assert!(test(&img, &old_secret));
 
-        // (1) full 16 MiB copy, detached test-open.
+        // (1) full header-region copy, detached test-open.
         let offset = data_offset_bytes(&img).expect("luksDump must report a data offset");
-        assert_eq!(offset, 16 * 1024 * 1024, "cryptsetup's default data offset changed -- update this assumption");
-        let header16 = dir.join("header16.img");
-        crate::proc::run("dd", &[&format!("if={}", img.display()), &format!("of={}", header16.display()), "bs=1M", "count=16", "status=none"]).unwrap();
-        assert!(test_detached(&header16, &img, &old_secret), "detached test-open from a raw 16 MiB header copy must succeed");
+        assert_eq!(offset, crate::config::LUKS_DATA_OFFSET_MB * 1024 * 1024, "format_vault_ex's --offset changed -- update this assumption");
+        let header_mb = crate::config::LUKS_DATA_OFFSET_MB.to_string();
+        let header16 = dir.join("header_full.img");
+        crate::proc::run("dd", &[&format!("if={}", img.display()), &format!("of={}", header16.display()), "bs=1M", &format!("count={header_mb}"), "status=none"]).unwrap();
+        assert!(test_detached(&header16, &img, &old_secret), "detached test-open from a raw full-offset header copy must succeed");
 
         // (2) minimized single-keyslot header, new passphrase, forced
         // same volume key -- must still unlock the same payload.

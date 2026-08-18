@@ -20,9 +20,21 @@ fn parse_slots(s: &str) -> Option<u32> {
     (n >= 1).then_some(n)
 }
 
-/// Prints the one-time "more slots buys no security" note when `n`
-/// crosses `room::INTEGRITY_SLOTS_ADVISORY_THRESHOLD` -- see
-/// `header::room`'s v3 doc comment for the full reasoning. Never blocks.
+/// Refuses `n` outright above `room::INTEGRITY_MAX_SLOTS` -- a v3 room
+/// now lives at a fixed offset inside the vault's own reserved header
+/// region (`header::room::v3_room_start`), not a freely-growable sibling
+/// file, so past that ceiling there's genuinely no room left, not just
+/// diminishing returns. Prints the one-time "more slots buys no
+/// security" advisory when `n` crosses `INTEGRITY_SLOTS_ADVISORY_THRESHOLD`
+/// but is still within the hard limit -- see `header::room`'s v3 doc
+/// comment for the full reasoning.
+fn validate_slots(n: u32) -> Result<()> {
+    if n > room::INTEGRITY_MAX_SLOTS {
+        die!("{n} slots exceeds the {}-slot ceiling that fits in the vault's reserved offset region", room::INTEGRITY_MAX_SLOTS);
+    }
+    Ok(())
+}
+
 fn maybe_advise_on_slots(ctx: &Ctx, n: u32) {
     if n > room::INTEGRITY_SLOTS_ADVISORY_THRESHOLD {
         logf!(ctx, "  [i] {n} slots reserves ~{} MiB just for header hiding -- past a handful, more slots don't add security", n as u64 * room::INTEGRITY_SLOT_SIZE / (1024 * 1024));
@@ -66,7 +78,7 @@ fn resolve_secret(ctx: &Ctx, vault: &Vault, meta: &Meta, pw: &str) -> Result<Vec
     match meta.keyfile.clone() {
         Some(cached) => {
             let mut m = meta.clone();
-            let kf_path = resolve_keyfile(ctx, &cached, &mut m, &vault.img)?;
+            let kf_path = resolve_keyfile(ctx, &cached, &mut m, &vault.img, crate::version::CURRENT)?;
             Ok(combined_secret(pw, &crate::keyfile::read_bytes(&kf_path)?))
         }
         None => Ok(pw.as_bytes().to_vec()),
@@ -89,6 +101,7 @@ fn run(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>, slots: Option<u
         die!("headerOffset is already {word} for '{}'", vault.name);
     }
     if let Some(n) = slots {
+        validate_slots(n)?;
         maybe_advise_on_slots(ctx, n);
     }
 
@@ -137,6 +150,7 @@ fn change_slots(ctx: &Ctx, vault: &Vault, n: u32, pw: Option<&str>) -> Result<()
     if meta_before.header_room_slots.is_none() {
         die!("'{}' isn't using a fileIntegrity-compatible room -- slot count only applies there", vault.name);
     }
+    validate_slots(n)?;
     maybe_advise_on_slots(ctx, n);
 
     let pw = gate_pw(ctx, vault, "headerOffset", pw)?;

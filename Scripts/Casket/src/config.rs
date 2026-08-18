@@ -37,6 +37,22 @@ pub const SECCOMP_PROFILES_DIR: &str = ".seccomp.d";
 /// well inside the container during a resize.
 pub const LUKS_OVERHEAD_MB: u64 = 32;
 
+/// `--offset` (in MiB) passed to `luksFormat` for every newly-created
+/// vault, replacing cryptsetup's own 16 MiB default. Reserves 112 MiB of
+/// genuinely free space between the end of LUKS2's own metadata/keyslots
+/// area (which stays a fixed size regardless of this offset) and the
+/// start of the actual data segment -- that gap is where a v3
+/// (integrity-compatible) `header::room` lives, plus headroom for future
+/// growth. User-specified 2026-08-17: "why not from the beginning add a
+/// 128mib free 0 to x byte room ... a 128mib start would also allow for
+/// more stuff later on. yes its more space but idc". Only affects vaults
+/// created after this change lands -- existing vaults keep whatever
+/// offset they were actually formatted with (always read dynamically via
+/// `luks::data_offset_bytes`/`_from_header`, never assumed), and pick up
+/// the new offset only via a `requires_new_image` migration step
+/// (`migrations::mod.rs`), not silently.
+pub const LUKS_DATA_OFFSET_MB: u64 = 128;
+
 pub const MIN_VAULT_MB: u64 = LUKS_OVERHEAD_MB + 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -231,12 +231,39 @@ impl Meta {
     }
 
     /// Strip any existing trailer, then append this metadata as the new
-    /// one. Always stripping first means repeated writes never stack.
+    /// one, stamped at `version::CURRENT`. Always stripping first means
+    /// repeated writes never stack. Every ordinary call site reaches
+    /// this only after `open` has already run `migrations::migrate_layout`
+    /// for the vault in this same invocation (settings/auth/backup/etc.
+    /// commands all require an already-open vault first) -- so stamping
+    /// straight to `CURRENT` is accurate for them. `info --pass`'s
+    /// opportunistic write is the one exception that doesn't go through
+    /// `open` at all; it uses `write_at_version` instead. See that fn's
+    /// doc comment for why the distinction matters.
     pub fn write(&self, img: &Path) -> std::io::Result<()> {
+        self.write_at_version(img, crate::version::CURRENT)
+    }
+
+    /// Same as `write`, but stamps `_v` as `version` instead of always
+    /// jumping to `version::CURRENT`. `_v` is the single source of truth
+    /// `migrations::applicable_steps` uses to decide which layout steps
+    /// a vault still needs -- stamping it to `CURRENT` from anywhere
+    /// that *doesn't* also run `migrations::migrate_layout` (which needs
+    /// a mounted vault, so only `open` calls it) silently tells every
+    /// future `open` "this vault's layout is already caught up" when it
+    /// isn't. Confirmed live 2026-08-18: `info --pass` on a vault whose
+    /// real schema was behind `CURRENT` stamped it forward via the plain
+    /// `write` this fn replaces, permanently orphaning that vault's
+    /// pending layout migration (a stale `.lock` sibling file never got
+    /// cleaned up, since `open` never saw a `schema_from` low enough to
+    /// re-trigger the step). Callers outside `open`'s own flow that
+    /// write meta without having just run layout migrations should
+    /// preserve whatever version they read instead of advancing it.
+    pub fn write_at_version(&self, img: &Path, version: u64) -> std::io::Result<()> {
         Self::strip(img)?;
         let mut value = serde_json::to_value(self).unwrap_or_default();
         if let serde_json::Value::Object(ref mut map) = value {
-            map.insert("_v".to_string(), serde_json::Value::from(crate::version::CURRENT));
+            map.insert("_v".to_string(), serde_json::Value::from(version));
         }
         let payload = serde_json::to_vec(&value).unwrap_or_default();
         let mut f = OpenOptions::new().append(true).open(img)?;

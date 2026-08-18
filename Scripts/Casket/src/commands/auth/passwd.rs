@@ -61,7 +61,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, old_pw: &str, new_pw: Option<&str>, strengt
 
     let mut meta = Meta::read(&vault.img);
     let (old_secret, new_secret) = if let Some(cached) = meta.keyfile.clone() {
-        let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img)?;
+        let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img, crate::version::CURRENT)?;
         let kf_bytes = crate::keyfile::read_bytes(&kf_path)?;
         (combined_secret(&old_pw, &kf_bytes), combined_secret(new_pw, &kf_bytes))
     } else {

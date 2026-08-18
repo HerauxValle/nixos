@@ -78,7 +78,7 @@ pub fn gate_inner(ctx: &Ctx, vault: &Vault, feature: &str, pw: Option<&str>) -> 
     let pw = prompt::get_pw(ctx, pw)?;
     let secret = match meta.keyfile.clone() {
         Some(cached) => {
-            let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img)?;
+            let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img, crate::version::CURRENT)?;
             combined_secret(&pw, &crate::keyfile::read_bytes(&kf_path)?)
         }
         None => pw.as_bytes().to_vec(),

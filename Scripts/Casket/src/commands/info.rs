@@ -16,7 +16,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     if !vault.img.exists() {
         die!("vault '{}' not found", vault.name);
     }
-    let mut meta = Meta::read(&vault.img);
+    let (mut meta, schema_from) = Meta::read_versioned(&vault.img);
 
     // `info` stays auth-free by default (that's the point of it), but if
     // a passphrase is given, opportunistically verify it and check the
@@ -31,14 +31,21 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     if let Some(pw) = pw {
         let secret = match meta.keyfile.clone() {
             Some(cached) => {
-                let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img)?;
+                let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img, schema_from)?;
                 combined_secret(pw, &crate::keyfile::read_bytes(&kf_path)?)
             }
             None => pw.as_bytes().to_vec(),
         };
         Meta::strip(&vault.img)?;
         let ok = luks::test(&vault.img, &secret);
-        meta.write(&vault.img)?;
+        // `write_at_version`, not `write` -- `info` never runs
+        // `migrations::migrate_layout` (that needs a mount, `open`'s
+        // job), so persisting this restore at `schema_from` instead of
+        // jumping to `version::CURRENT` keeps a future `open` able to
+        // see any layout migration this vault still actually owes. See
+        // `Meta::write_at_version`'s doc comment for the incident this
+        // fixes.
+        meta.write_at_version(&vault.img, schema_from)?;
         pw_verified = ok;
         if ok {
             match tamper::verify(&secret, &meta) {

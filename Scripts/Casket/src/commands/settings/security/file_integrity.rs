@@ -92,12 +92,19 @@ fn run(ctx: &Ctx, vault: &Vault, enable: bool, delete_backup: bool, pw: Option<&
     let secret = match meta.keyfile.clone() {
         Some(cached) => {
             let mut m = meta.clone();
-            let kf_path = resolve_keyfile(ctx, &cached, &mut m, &vault.img)?;
+            let kf_path = resolve_keyfile(ctx, &cached, &mut m, &vault.img, crate::version::CURRENT)?;
             combined_secret(&pw, &crate::keyfile::read_bytes(&kf_path)?)
         }
         None => pw.as_bytes().to_vec(),
     };
-    if !luks::test(&vault.img, &secret) {
+    // Not luks::test -- that only proves anything when the header is
+    // still native-front (see header::relocate::verify_current_secret's
+    // own doc comment / open.rs's check_lockout for the identical bug
+    // fixed there). A vault with headerOffset/headerEncryption on has a
+    // scrubbed front, so a plain luks::test always fails regardless of
+    // passphrase correctness -- which meant `fileIntegrity disable`
+    // could never succeed on such a vault even with the right passphrase.
+    if !crate::header::relocate::verify_current_secret(vault, &meta, &secret) {
         die!("wrong passphrase — could not verify vault");
     }
 

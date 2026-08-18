@@ -74,5 +74,5 @@ fn resolve_current(ctx: &Ctx, vault: &Vault, meta: &mut Meta, kf_override: Optio
         }
         return Ok(p);
     }
-    resolve_keyfile(ctx, &cached, meta, &vault.img)
+    resolve_keyfile(ctx, &cached, meta, &vault.img, crate::version::CURRENT)
 }

@@ -31,7 +31,7 @@ fn set(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>) -> Result<()> {
     // passphrase rather than trusting whatever's already stored.
     let secret = match meta.keyfile.clone() {
         Some(cached) => {
-            let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img)?;
+            let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img, crate::version::CURRENT)?;
             combined_secret(&pw, &crate::keyfile::read_bytes(&kf_path)?)
         }
         None => pw.as_bytes().to_vec(),

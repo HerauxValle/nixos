@@ -242,8 +242,16 @@ pub fn get_secret(
 
 /// Resolve a keyfile path, prompting interactively if it's not found at
 /// the cached location. Persists the updated path into `meta` (writing it
-/// to `img` immediately) if the user gave a new one.
-pub fn resolve_keyfile(ctx: &Ctx, cached: &str, meta: &mut Meta, img: &Path) -> Result<PathBuf> {
+/// to `img` immediately) if the user gave a new one. `version` is the
+/// schema version to stamp that write at -- pass `version::CURRENT` from
+/// any call site that's already downstream of `open` (its own
+/// `migrate_layout` has already run, or will run using its own captured
+/// `schema_from` regardless of what this write does), or the vault's
+/// actual `schema_from` from any call site that *isn't* (currently:
+/// `info`/`tampered`, neither of which requires an open vault) -- see
+/// `Meta::write_at_version`'s doc comment for why stamping `CURRENT` from
+/// the wrong place silently orphans a vault's pending layout migration.
+pub fn resolve_keyfile(ctx: &Ctx, cached: &str, meta: &mut Meta, img: &Path, version: u64) -> Result<PathBuf> {
     let mut kf_path = resolve_lexically(Path::new(cached));
     if kf_path.exists() {
         return Ok(kf_path);
@@ -261,7 +269,7 @@ pub fn resolve_keyfile(ctx: &Ctx, cached: &str, meta: &mut Meta, img: &Path) -> 
         die!("keyfile not found: {}", kf_path.display());
     }
     meta.keyfile = Some(kf_path.to_string_lossy().into_owned());
-    meta.write(img)?;
+    meta.write_at_version(img, version)?;
     logf!(ctx, "  [i] updated cached keyfile path");
     Ok(kf_path)
 }

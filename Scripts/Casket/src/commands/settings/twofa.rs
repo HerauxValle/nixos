@@ -140,7 +140,7 @@ fn off(ctx: &Ctx, vault: &Vault, pw: &str) -> Result<()> {
         die!("2FA is not enabled on this vault");
     }
     let cached = meta.keyfile.clone().unwrap();
-    let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img)?;
+    let kf_path = resolve_keyfile(ctx, &cached, &mut meta, &vault.img, crate::version::CURRENT)?;
     let kf_bytes = crate::keyfile::read_bytes(&kf_path)?;
     let old_secret = combined_secret(pw, &kf_bytes);
     let new_secret = pw.as_bytes().to_vec();

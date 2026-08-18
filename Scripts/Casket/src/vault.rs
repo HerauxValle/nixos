@@ -166,40 +166,50 @@ impl Vault {
         proc::run("umount", &[&mnt_str])
     }
 
-    /// Path to this vault's advisory lock file -- a dotfile sibling of
-    /// the `.img`, never the `.img` itself (locking the image directly
-    /// would conflict with the udisks/loop-device machinery that also
-    /// opens it). Same name shape as `recover_interrupted_migration`'s
-    /// staging/backup dotfiles, so it doesn't collide with a real vault
-    /// name.
-    pub fn lock_path(&self) -> PathBuf {
-        self.img.with_file_name(format!(".{}.lock", self.name))
-    }
-
-    /// Block until an exclusive advisory lock on this vault is held,
-    /// for the duration of the returned guard. Every CLI verb that
-    /// mutates a vault's on-disk state (metadata trailer, LUKS keyslots,
-    /// header room, mounted filesystem) must hold this for its entire
-    /// run -- confirmed live 2026-08-17 that two `settings` commands
-    /// racing against the same vault with no synchronization corrupt
-    /// its metadata/keyslot state badly enough to permanently lock the
-    /// owner out, even with the correct passphrase. `flock` on a plain
-    /// sibling file (not the `.img`) needs no coordination with
-    /// anything else that opens the image, and is released automatically
-    /// the moment the returned guard (and the `File` it holds) drops --
-    /// including on a crash or `kill -9`, since the kernel releases an
-    /// `flock` when the holding process's last fd to it closes, no
-    /// explicit unlock step required.
+    /// Block until an exclusive advisory lock on this vault is held, for
+    /// the duration of the returned guard. Every CLI verb that mutates a
+    /// vault's on-disk state (metadata trailer, LUKS keyslots, header
+    /// room, mounted filesystem) must hold this for its entire run --
+    /// confirmed live 2026-08-17 that two `settings` commands racing
+    /// against the same vault with no synchronization corrupt its
+    /// metadata/keyslot state badly enough to permanently lock the owner
+    /// out, even with the correct passphrase.
+    ///
+    /// This is a POSIX `fcntl` byte-range record lock on `vault.img`
+    /// itself, at `header::room::LOCK_OFFSET` -- the last 4 KiB of the
+    /// reserved offset gap, a region nothing else in this codebase ever
+    /// reads or writes (see that constant's doc comment for why it's
+    /// safe). No sibling `.lock` file: the `.img` stays the single
+    /// on-disk artifact for a vault. This doesn't conflict with
+    /// udisks/loop-device machinery opening the same image -- `losetup`
+    /// hands the block device off to the kernel loop driver and doesn't
+    /// hold a record lock on the original fd once the loop device is
+    /// set up, and cryptsetup/dm-integrity operate against `/dev/loopX`,
+    /// never re-acquiring a lock on the backing file. Released
+    /// automatically the moment the returned guard (and the `File` it
+    /// holds) drops, including on a crash or `kill -9` -- the kernel
+    /// drops `fcntl` record locks when the owning process's last fd to
+    /// the file closes, no explicit unlock step required.
+    /// `create(true)` -- `create`'s CLI path locks before the vault image
+    /// exists at all, to close the same TOCTOU race on the "already
+    /// exists" check that motivated locking in the first place. That
+    /// leaves a 0-byte placeholder behind when the target didn't exist
+    /// yet; `commands::create::run` checks size, not mere existence, to
+    /// tell that apart from a real vault (see its own comment).
     pub fn lock_exclusive(&self) -> Result<VaultLock> {
         use std::os::unix::io::AsRawFd;
-        let path = self.lock_path();
-        let file = std::fs::OpenOptions::new().write(true).create(true).open(&path)?;
+        let file = std::fs::OpenOptions::new().write(true).create(true).open(&self.img)?;
+        let mut fl: libc::flock = unsafe { std::mem::zeroed() };
+        fl.l_type = libc::F_WRLCK as libc::c_short;
+        fl.l_whence = libc::SEEK_SET as libc::c_short;
+        fl.l_start = crate::header::room::LOCK_OFFSET as libc::off_t;
+        fl.l_len = 4096;
         // SAFETY: `file` stays open for exactly as long as the lock is
-        // held (owned by the returned guard) — `flock`'s lock is tied to
-        // the open file description, not the fd number, so this is safe
-        // as long as `file` isn't dropped before the lock should
-        // release, which `VaultLock` guarantees by owning it.
-        let rc = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) };
+        // held (owned by the returned guard) -- an `fcntl` record lock
+        // is tied to the open file description, released when the last
+        // fd referencing it closes, which `VaultLock` guarantees happens
+        // no earlier than the guard's drop.
+        let rc = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_SETLKW, &fl) };
         if rc != 0 {
             return Err(crate::error::CasError::new(format!(
                 "could not lock vault '{}': {}",

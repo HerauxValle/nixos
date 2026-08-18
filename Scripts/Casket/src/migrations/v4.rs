@@ -7,6 +7,7 @@ pub const STEP: Step = Step {
     version: 4,
     meta: Some(migrate_meta),
     layout: None,
+    requires_new_image: false,
 };
 
 fn migrate_meta(map: &mut Map<String, Value>) {
