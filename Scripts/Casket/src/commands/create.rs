@@ -53,9 +53,10 @@ pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, stre
 
     logf!(ctx, "[cas] creating vault '{name}' ({size} MiB, strength={strength}) ...");
 
-    // `size` is the usable payload -- cryptsetup's own default LUKS2 data
-    // offset (no longer a codebase-pinned constant) is on top of this.
-    let size_arg = format!("{size}M");
+    // `size` is the usable payload -- `config::LUKS_DATA_OFFSET_MB` is on
+    // top of this, so the file itself needs to be that much bigger for
+    // the payload to actually come out to what was requested.
+    let size_arg = format!("{}M", size + crate::config::LUKS_DATA_OFFSET_MB);
     let img_str = vault.img.to_string_lossy().into_owned();
     proc::run("truncate", &["-s", &size_arg, &img_str])?;
 

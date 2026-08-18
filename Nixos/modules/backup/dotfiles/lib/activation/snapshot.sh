@@ -97,7 +97,17 @@ dotfilesBackup_snapshot() {
     # "dubious ownership" on every run once the scrub path was ever
     # exercised. Git doesn't track uid/gid in commits anyway, so nothing
     # here needs -o/-g preserved.
-    "$dotfilesBackupRsync" -a --no-owner --no-group --delete --exclude=.git "$dotfilesBackupDotfilesPath/" "$dotfilesBackupRepoCache/"
+    # --exclude-from here (not just the post-copy dotfilesBackupApplyExclude
+    # pass below) so excluded paths -- e.g. Scripts/Casket/target/, multiple
+    # GiB of Rust build output -- never get copied into repoCache at all,
+    # instead of being rsynced in on every single activation and then
+    # deleted straight back out. dotfilesBackupApplyExclude still runs
+    # afterward as a safety net (e.g. for any pattern rsync's syntax
+    # doesn't handle identically), but is now a near no-op for anything
+    # rsync already skipped. Confirmed live 2026-08-18: this exact gap was
+    # why `pacnix rebuild` was taking ~5 min instead of its usual pace,
+    # entirely from copying-then-discarding target/ every time.
+    "$dotfilesBackupRsync" -a --no-owner --no-group --delete --exclude=.git --exclude-from="$dotfilesBackupExcludePatternsFile" "$dotfilesBackupDotfilesPath/" "$dotfilesBackupRepoCache/"
     dotfilesBackupApplyExclude "$dotfilesBackupRepoCache"
     dotfilesBackupApplyRedact "$dotfilesBackupRepoCache"
     dotfilesBackupApplyReplace "$dotfilesBackupRepoCache"
@@ -118,8 +128,10 @@ dotfilesBackup_snapshot() {
     fi
     dotfilesBackupTmp="$(mktemp -d)"
     trap 'rm -rf "$dotfilesBackupTmp"' EXIT
-    cp -a "$dotfilesBackupDotfilesPath/." "$dotfilesBackupTmp/" 2>/dev/null || true
-    rm -rf "$dotfilesBackupTmp/.git"
+    # rsync instead of `cp -a` + after-the-fact `rm -rf` -- same
+    # exclude-at-copy-time reasoning as the repoCache path above, so this
+    # fallback doesn't pay to copy target/ either.
+    "$dotfilesBackupRsync" -a --no-owner --no-group --exclude=.git --exclude-from="$dotfilesBackupExcludePatternsFile" "$dotfilesBackupDotfilesPath/" "$dotfilesBackupTmp/" 2>/dev/null || true
     dotfilesBackupApplyExclude "$dotfilesBackupTmp"
     dotfilesBackupApplyRedact "$dotfilesBackupTmp"
     dotfilesBackupApplyReplace "$dotfilesBackupTmp"

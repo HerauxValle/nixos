@@ -19,7 +19,8 @@ use crate::proc::{self, TempKeyfile, TempOutPath};
 /// formatted under any cryptsetup default keeps working unmodified.
 pub fn format_vault_ex(img: &Path, secret: &[u8], strength: Strength) -> Result<()> {
     let img_str = img.to_string_lossy().into_owned();
-    let mut args: Vec<&str> = vec!["luksFormat", "--batch-mode", "--pbkdf", "argon2id"];
+    let offset_sectors = (crate::config::LUKS_DATA_OFFSET_MB * 1024 * 1024 / 512).to_string();
+    let mut args: Vec<&str> = vec!["luksFormat", "--batch-mode", "--pbkdf", "argon2id", "--offset", &offset_sectors];
     args.extend_from_slice(strength.pbkdf_args());
     args.push("--pbkdf-force-iterations");
     args.push(strength.iterations());

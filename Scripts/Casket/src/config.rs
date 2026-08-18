@@ -37,6 +37,18 @@ pub const SECCOMP_PROFILES_DIR: &str = ".seccomp.d";
 /// well inside the container during a resize.
 pub const LUKS_OVERHEAD_MB: u64 = 32;
 
+/// Fixed LUKS2 data offset every newly `create`d vault is formatted
+/// with, in MiB -- bigger than cryptsetup's own ~16 MiB default so the
+/// gap between the LUKS2 metadata/keyslots area and the payload stays
+/// consistent across every vault this codebase creates, matching what
+/// every vault on this machine already has (all 5 were physically
+/// rebuilt at this exact offset before the v3 in-offset room feature
+/// was removed). Nothing currently reads or writes into that gap --
+/// it's pure reserved headroom, kept only for consistency and so a
+/// future feature that wants front-of-file space doesn't need another
+/// full-vault rebuild migration to get it.
+pub const LUKS_DATA_OFFSET_MB: u64 = 128;
+
 pub const MIN_VAULT_MB: u64 = LUKS_OVERHEAD_MB + 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
