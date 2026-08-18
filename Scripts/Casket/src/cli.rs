@@ -65,8 +65,6 @@ pub fn run() -> Result<()> {
     let force = pop_flag(&mut args, "--force");
     let remove_keyfile = pop_flag(&mut args, "--removeKeyfile");
     let shred = pop_flag(&mut args, "--shred");
-    let integrity_flag = pop_flag(&mut args, "--integrity");
-    let no_integrity_flag = pop_flag(&mut args, "--no-integrity");
 
     let mut opts = Opts::default();
     opts.pass = pop_value(&mut args, "--pass");
@@ -136,19 +134,12 @@ pub fn run() -> Result<()> {
                 Some(p) if !p.is_empty() => prompt::get_pw(&ctx, Some(p))?,
                 _ => prompt::ask_secret(&ctx, "passphrase (leave empty to generate a strong one)")?,
             };
-            let integrity_choice = if integrity_flag {
-                Some(true)
-            } else if no_integrity_flag {
-                Some(false)
-            } else {
-                None
-            };
             // Lock before create so two concurrent `create`s racing on
             // the same name can't both pass the "already exists" check
             // and stomp each other's `truncate`/`luksFormat`.
             let vault = Vault::resolve(&base, &vault_name);
             let _lock = vault.lock_exclusive()?;
-            commands::create::run(&ctx, &base, &vault_name, size, &create_pw, opts.strength, integrity_choice, opts.pass.is_none())
+            commands::create::run(&ctx, &base, &vault_name, size, &create_pw, opts.strength)
         }
 
         "open" => {

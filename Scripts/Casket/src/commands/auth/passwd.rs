@@ -82,11 +82,8 @@ pub fn run(ctx: &Ctx, vault: &Vault, old_pw: &str, new_pw: Option<&str>, strengt
     // confirmed live there.
     let cycle_result: Result<()> = if !relocate::is_native_front(&meta) {
         (|| -> Result<()> {
-            let salt = match meta.header_room_slots {
-                Some(n) => crate::header::room::v3_read_salt(&vault.img, n as u64),
-                None => crate::header::room::read_salt(&vault.img),
-            }
-            .ok_or_else(|| CasError::new("header room not found — vault metadata is inconsistent"))?;
+            let salt = crate::header::room::read_salt(&vault.img)
+                .ok_or_else(|| CasError::new("header room not found — vault metadata is inconsistent"))?;
             let master = crate::header::derive_master_secret(&[old_secret.as_slice()], &salt);
             let staged = relocate::stage_current_header(vault, &meta, Some(&master))?;
             luks::slot_cycle_detached(ctx, staged.path(), &vault.img, &old_secret, &new_secret, strength)

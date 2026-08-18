@@ -51,14 +51,6 @@ fn run(ctx: &Ctx, vault: &Vault, enable: bool, pw: Option<&str>) -> Result<()> {
         let word = if enable { "enabled" } else { "disabled" };
         die!("headerEncryption is already {word} for '{}'", vault.name);
     }
-    // fileIntegrity + headerEncryption *alone* (without headerOffset)
-    // still isn't supported -- the front region has zero slack to
-    // absorb AEAD overhead on a real (unminimized) header, see
-    // `header::relocate::enable_encryption_inner`'s doc comment for why.
-    // headerOffset first, then headerEncryption, works fine (relocated
-    // content lives in a v3 room slot with generous slack) -- that path
-    // is handled inside `relocate::enable_encryption` itself, not here.
-
     let pw = gate_pw(ctx, vault, "headerEncryption", pw)?;
     let secret = resolve_secret(ctx, vault, &meta_before, &pw)?;
     if !relocate::verify_current_secret(vault, &meta_before, &secret) {

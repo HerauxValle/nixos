@@ -30,11 +30,8 @@ fn cycle_secret(ctx: &Ctx, vault: &Vault, meta: &Meta, old_secret: &[u8], new_se
     // 2026-08-17: 2fa enable under headerEncryption-alone failed with
     // "current passphrase did not match any LUKS slot" before this fix.
     if !relocate::is_native_front(meta) {
-        let salt = match meta.header_room_slots {
-            Some(n) => crate::header::room::v3_read_salt(&vault.img, n as u64),
-            None => crate::header::room::read_salt(&vault.img),
-        }
-        .ok_or_else(|| CasError::new("header room not found — vault metadata is inconsistent"))?;
+        let salt = crate::header::room::read_salt(&vault.img)
+            .ok_or_else(|| CasError::new("header room not found — vault metadata is inconsistent"))?;
         let master = crate::header::derive_master_secret(&[old_secret], &salt);
         let staged = relocate::stage_current_header(vault, meta, Some(&master))?;
         luks::slot_cycle_detached(ctx, staged.path(), &vault.img, old_secret, new_secret, None)

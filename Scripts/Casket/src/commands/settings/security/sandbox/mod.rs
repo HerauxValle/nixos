@@ -1,4 +1,4 @@
-// &desc: "`cas <vault> settings security sandbox enable|disable|state` -- top dispatch for the sandbox feature (Linux namespace isolation for `cas <vault> exec`). Not a plain enable/disable Feature -- namespaces/cgroups/seccomp/rootfs sub-nouns are dispatched from here too, each in its own file, same 'special-cased in settings/mod.rs' shape bruteforceLockout/fileIntegrity already use."
+// &desc: "`cas <vault> settings security sandbox enable|disable|state` -- top dispatch for the sandbox feature (Linux namespace isolation for `cas <vault> exec`). Not a plain enable/disable Feature -- namespaces/cgroups/seccomp/rootfs sub-nouns are dispatched from here too, each in its own file, same 'special-cased in settings/mod.rs' shape bruteforceLockout already uses."
 use crate::commands::exec::lockfile;
 use crate::commands::settings::gate::gate_inner;
 use crate::commands::settings::registry;

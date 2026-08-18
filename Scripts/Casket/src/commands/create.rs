@@ -7,7 +7,6 @@ use crate::die;
 use crate::error::Result;
 use crate::logf;
 use crate::luks;
-use crate::meta::Meta;
 use crate::proc;
 use crate::prompt;
 use crate::secret::{generate_passphrase, weakness_warning};
@@ -15,13 +14,7 @@ use crate::size::parse_size;
 use crate::udisks;
 use crate::vault::Vault;
 
-/// Below this, a fresh empty vault's initial dm-integrity wipe (the
-/// whole device gets zeroed before first use) is fast enough that
-/// defaulting the create-time prompt to "yes" doesn't surprise anyone
-/// with a multi-minute wait; at or above it, the default flips to "no".
-pub const INTEGRITY_PROMPT_THRESHOLD_MB: u64 = 20 * 1024;
-
-pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, strength: Strength, integrity: Option<bool>, interactive: bool) -> Result<()> {
+pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, strength: Strength) -> Result<()> {
     let vault = Vault::resolve(base, name);
     // Size, not `exists()` -- `Vault::lock_exclusive` (already held by
     // the caller at this point) creates a 0-byte placeholder to lock a
@@ -45,20 +38,6 @@ pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, stre
         die!("minimum vault size is {} MiB", crate::config::MIN_VAULT_MB);
     }
 
-    let integrity = match integrity {
-        Some(v) => v,
-        None if interactive => {
-            let default_yes = size < INTEGRITY_PROMPT_THRESHOLD_MB;
-            let ans = prompt::ask(
-                ctx,
-                "Enable file integrity protection? (detects corrupted/tampered files, adds ~15-20% storage overhead)",
-                Some(if default_yes { "y" } else { "n" }),
-            )?;
-            matches!(ans.trim().to_lowercase().as_str(), "y" | "yes")
-        }
-        None => false,
-    };
-
     let generated;
     let pw: &str = if pw.is_empty() {
         generated = generate_passphrase();
@@ -72,26 +51,16 @@ pub fn run(ctx: &Ctx, base: &Path, name: &str, size: Option<u64>, pw: &str, stre
         pw
     };
 
-    let integrity_note = if integrity { ", fileIntegrity" } else { "" };
-    logf!(ctx, "[cas] creating vault '{name}' ({size} MiB, strength={strength}{integrity_note}) ...");
+    logf!(ctx, "[cas] creating vault '{name}' ({size} MiB, strength={strength}) ...");
 
-    // `size` is meant as usable payload, not raw file size -- cryptsetup's
-    // own historical 16 MiB default offset was already silently eaten out
-    // of it before `LUKS_DATA_OFFSET_MB` existed, so grow the truncate
-    // size by the delta beyond that old default rather than the new
-    // constant outright, keeping "cas create --size 1G" giving the same
-    // usable space it always did instead of shrinking by ~112 MiB.
-    const HISTORICAL_DEFAULT_OFFSET_MB: u64 = 16;
-    let truncate_mb = size + crate::config::LUKS_DATA_OFFSET_MB.saturating_sub(HISTORICAL_DEFAULT_OFFSET_MB);
-    let size_arg = format!("{truncate_mb}M");
+    // `size` is the usable payload -- cryptsetup's own default LUKS2 data
+    // offset (no longer a codebase-pinned constant) is on top of this.
+    let size_arg = format!("{size}M");
     let img_str = vault.img.to_string_lossy().into_owned();
     proc::run("truncate", &["-s", &size_arg, &img_str])?;
 
     let result: Result<()> = (|| {
-        luks::format_vault_ex(&vault.img, pw.as_bytes(), strength, integrity)?;
-        if integrity {
-            Meta { file_integrity: Some(true), ..Meta::default() }.write(&vault.img)?;
-        }
+        luks::format_vault_ex(&vault.img, pw.as_bytes(), strength)?;
         udisks::chown_to_real_user(&vault.img)?;
         udisks::loop_setup(&vault.img);
         Ok(())

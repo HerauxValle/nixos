@@ -27,8 +27,7 @@ ACTIONS (run on a specific vault)
 
   info      show vault details plus every setting's enabled|disabled state
   tampered  check ransomwareProtection/verify_required/zeroize/
-            bruteforceLockout/fileIntegrity against the last
-            passphrase-verified write
+            bruteforceLockout against the last passphrase-verified write
 
   auth      passphrase + keyfile identity material:
               auth passwd
@@ -65,8 +64,6 @@ OPTIONS
   --path dir        look for vaults here instead of auto-searching
   --removeKeyfile   delete: also delete the 2FA keyfile (preserved by default)
   --shred           delete: overwrite the vault file before removing it (best-effort)
-  --integrity       create: enable fileIntegrity from the start
-  --no-integrity    create: skip the interactive fileIntegrity prompt
 
 Output is colored automatically on a real terminal, and plain otherwise
 (piped, redirected, or TERM=dumb). Set NO_COLOR=1 to force plain output.
@@ -84,7 +81,6 @@ fn topic_text(topic: &str) -> Option<&'static str> {
     Some(match topic {
         "create" => r#"
 cas <vault> create [--size MiB] [--strength level] [--pass "..."]
-                    [--integrity | --no-integrity]
 
 Creates a new encrypted vault. The vault is stored as a single file
 called <vault>.img in the current directory (or --path).
@@ -106,20 +102,9 @@ called <vault>.img in the current directory (or --path).
                dictionary estimation via zxcvbn) if it looks easy to
                crack offline — it's never refused, just flagged.
 
-  --integrity / --no-integrity
-               Whether the vault gets dm-integrity protection (see
-               'cas help settings' -> fileIntegrity) from the start.
-               If neither is given and you're prompted interactively,
-               you'll be asked — Enter defaults to yes under 20 GiB,
-               no at or above it (the initial device wipe integrity
-               needs gets slow on large vaults). --pass given non-
-               interactively defaults to no unless one of these flags
-               says otherwise.
-
 EXAMPLES
   cas myvault create
   cas myvault create --size 4096 --strength hard
-  cas myvault create --size 2048 --integrity
   cas myvault create --path ~/vaults
 "#,
         "open" => r#"
@@ -194,8 +179,8 @@ EXAMPLE
 cas <vault> tampered [--pass "..."]
 
 Checks whether ransomwareProtection/verify_required/zeroize/
-bruteforceLockout/fileIntegrity still match the last passphrase-
-verified write, using an HMAC keyed by the vault's own derived secret —
+bruteforceLockout still match the last passphrase-verified write,
+using an HMAC keyed by the vault's own derived secret —
 a plain hash wouldn't work here, since anyone editing the trailer could
 just recompute a new plain hash over their edit too. Always resolves
 and cryptographically checks a real passphrase, same as 'auth passwd'.
@@ -210,9 +195,7 @@ Reports one of:
 A tampered result doesn't get fixed by this command — run 'cas myvault
 open', which resets those settings to their safe values automatically
 and warns (bruteforceLockout resets to off, not on — see 'cas help
-settings' for why; fileIntegrity is checked against the real container
-via cryptsetup, not blindly flipped). This command only reports the
-status.
+settings' for why). This command only reports the status.
 
 EXAMPLES
   cas myvault tampered
@@ -420,24 +403,6 @@ the same line format 'info' rolls up for every setting at once.
     failure (a busy mapper, etc.) is never miscounted as a bad guess.
     Enabling it prints a one-time warning — read it before turning this on.
 
-  settings security fileIntegrity enable|disable [--delete-backup] | state
-    Migrates the vault to (enable) or off of (disable) a dm-integrity
-    protected LUKS2 container, so a corrupted or tampered byte anywhere
-    in your files gets caught instead of silently decrypting to garbage.
-    The vault must already be open — migration copies every file to a
-    fresh container, content-verifies it byte-for-byte (SHA-256 per
-    file), then swaps it in. Adds ~15-20% storage overhead and a real
-    write-throughput cost.
-    The old container isn't deleted automatically: it's kept at
-    '.<vault>.backup.img' so you can confirm the migrated vault opens
-    correctly first. Pass --delete-backup to remove it automatically once
-    verification passes. The vault ends up closed either way — open it
-    again when the command finishes.
-    A migration interrupted partway through (crash, power loss) is safe
-    to just re-run: the partially-copied staging container is reused
-    (already-matching files are skipped, not re-copied), and the
-    original vault is never touched until the very end.
-
   settings verification <feature> enable|disable
     Controls whether toggling <feature> (any setting above, or
     verification itself) requires re-proving the vault's real passphrase
@@ -456,8 +421,6 @@ EXAMPLES
   cas myvault settings security ransomwareProtection enable --pass "..."
   cas myvault settings security bruteforceLockout enable --threshold 5
   cas myvault settings security bruteforceLockout threshold 15
-  cas myvault settings security fileIntegrity enable --pass "..."
-  cas myvault settings security fileIntegrity enable --delete-backup
   cas myvault settings verification backupAuto disable --pass "..."
   cas myvault settings 2fa state
   cas myvault settings verification state

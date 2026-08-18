@@ -24,7 +24,6 @@ use sha2::{Digest, Sha256};
 
 use crate::config::Strength;
 use crate::ctx::Ctx;
-use crate::debugf;
 use crate::die;
 use crate::error::{CasError, Result};
 use crate::header::{self, room};
@@ -160,12 +159,6 @@ fn place_at_slot(img: &Path, index: usize, data: &[u8]) -> Result<()> {
 
 fn read_from_slot(img: &Path, index: usize) -> Result<Vec<u8>> {
     let buf = room::read_slot(img, index as u64).ok_or_else(|| CasError::new("header room slot not found — is the room provisioned?"))?;
-    unframe(&buf)
-}
-
-/// v3 equivalent of `read_from_slot`.
-fn read_from_slot_v3(img: &Path, n_slots: u64, index: u64) -> Result<Vec<u8>> {
-    let buf = room::v3_read_slot(img, n_slots, index).ok_or_else(|| CasError::new("v3 header room slot not found — is the room provisioned?"))?;
     unframe(&buf)
 }
 
@@ -317,31 +310,20 @@ fn payload_checksum(img: &Path, header: Option<&Path>, mapper: &str, secret: &[u
 /// to cryptsetup needs to be at least that long, regardless of how much
 /// of it is real content vs. trailing zero bytes -- `set_len` is a
 /// sparse extend (sizes the file without writing real disk blocks for
-/// the padding), so this costs effectively nothing even at
-/// `config::LUKS_DATA_OFFSET_MB`'s 128 MiB. A v1/v2 minimized header is
-/// already this size or bigger by construction (built with `--offset`
-/// set to the real value) so this is a no-op there; a v3 verbatim
-/// header copy is deliberately kept small in its room slot for storage
-/// efficiency (see `room::v3_room_start`'s doc comment) and genuinely
-/// needs this before it can be used.
+/// the padding), so this costs effectively nothing. A v1/v2 minimized
+/// header is already this size or bigger by construction (built with
+/// `--offset` set to the real value), so this is a no-op in every path
+/// that still exists -- kept as a defense-in-depth safety net rather
+/// than removed outright, since a future caller staging a smaller
+/// header copy could otherwise hit the same "too small" failure this
+/// was written to fix. Pads to a conservative floor matching
+/// `luks::front_region_len`'s own 16 MiB fallback (this codebase's
+/// other "measured 16 MiB" precedent, e.g. `room::LOCK_OFFSET`) --
+/// padding *past* whatever a given vault's real offset happens to be is
+/// always safe (cryptsetup only ever rejects "too small", never "too
+/// big").
 fn ensure_staged_header_len(header_path: &Path) -> Result<()> {
-    // Neither `luks::data_offset_bytes(img)` (parses a live header at
-    // `img`'s own front -- gone once `headerOffset` has actually
-    // relocated it, scrubbed to filler by design) nor
-    // `data_offset_bytes_from_header(header_path, img)` (turns out
-    // cryptsetup's own "too small" size check on a `--header` file
-    // applies to `luksDump` too, not just `open`/`activate` -- confirmed
-    // live 2026-08-17, chasing this exact bug: a short, unpadded v3
-    // verbatim header copy can't even be *dumped* to learn its own
-    // offset, only a `--header`-mode-formatted one like a v1/v2
-    // minimized header can) can supply `need` here without a
-    // chicken-and-egg problem. Padding to the fixed, known
-    // `config::LUKS_DATA_OFFSET_MB` constant instead sidesteps needing
-    // to ask cryptsetup at all -- every vault this build of `cas`
-    // formats uses exactly that offset, and padding *past* whatever a
-    // given vault's real offset happens to be is always safe (cryptsetup
-    // only ever rejects "too small", never "too big").
-    let need = crate::config::LUKS_DATA_OFFSET_MB * 1024 * 1024;
+    let need = 16 * 1024 * 1024;
     let f = OpenOptions::new().write(true).open(header_path)?;
     if f.metadata()?.len() < need {
         f.set_len(need)?;
@@ -382,15 +364,9 @@ pub fn stage_current_header(vault: &Vault, meta: &Meta, master: Option<&[u8; 32]
     let bytes = match (meta.header_offset == Some(true), meta.header_encryption == Some(true)) {
         (false, false) => {
             // native front -- just the container's own current header
-            // bytes. NOT `front_region_len` (the real data offset, now
-            // 128 MiB, mostly deliberately-reserved free space -- see
-            // `config::LUKS_DATA_OFFSET_MB`'s doc comment): cryptsetup's
-            // actual header/keyslot footprint is always comfortably
-            // inside `room::v3_room_start()`'s boundary (measured live
-            // well under 1 MiB even with integrity), same generous,
-            // safe copy size `enable_offset_inner_v3` uses for the same
-            // reason.
-            let len = room::v3_room_start();
+            // bytes, exactly `front_region_len` (the real LUKS data
+            // offset, queried live) long.
+            let len = front_region_len(&vault.img);
             let mut f = File::open(&vault.img)?;
             let mut buf = vec![0u8; len as usize];
             f.read_exact(&mut buf)?;
@@ -404,18 +380,12 @@ pub fn stage_current_header(vault: &Vault, meta: &Meta, master: Option<&[u8; 32]
         }
         (true, false) => {
             let master = master.ok_or_else(|| CasError::new("header master secret required to locate a relocated header"))?;
-            match meta.header_room_slots {
-                Some(n) => read_from_slot_v3(&vault.img, n as u64, header::derive_slot_index(master, n as usize) as u64)?,
-                None => read_from_slot(&vault.img, header::derive_slot_index(master, room::N_SLOTS as usize))?,
-            }
+            read_from_slot(&vault.img, header::derive_slot_index(master, room::N_SLOTS as usize))?
         }
         (true, true) => {
             let master = master.ok_or_else(|| CasError::new("header master secret required to locate a relocated header"))?;
             let key = header::derive_header_key(master);
-            let framed = match meta.header_room_slots {
-                Some(n) => read_from_slot_v3(&vault.img, n as u64, header::derive_slot_index(master, n as usize) as u64)?,
-                None => read_from_slot(&vault.img, header::derive_slot_index(master, room::N_SLOTS as usize))?,
-            };
+            let framed = read_from_slot(&vault.img, header::derive_slot_index(master, room::N_SLOTS as usize))?;
             decrypt_header(&key, &framed)?
         }
     };
@@ -425,9 +395,9 @@ pub fn stage_current_header(vault: &Vault, meta: &Meta, master: Option<&[u8; 32]
     // open/test-open somewhere downstream (`open_dispatch`,
     // `verify_current_secret`, every enable/disable/rotate path above),
     // and cryptsetup refuses one shorter than the container's real data
-    // offset -- a v3 verbatim copy is deliberately smaller than that for
-    // slot-storage efficiency, so it needs the sparse extend here,
-    // exactly once, at the source, rather than at every call site.
+    // offset -- the sparse extend here is a defense-in-depth no-op in
+    // every path that still exists, kept once at the source rather than
+    // at every call site.
     ensure_staged_header_len(out.path())?;
     Ok(out)
 }
@@ -459,10 +429,7 @@ pub fn verify_current_secret(vault: &Vault, meta: &Meta, secret: &[u8]) -> bool 
     let meta_directed = if is_native_front(meta) {
         luks::test(&vault.img, secret)
     } else {
-        let salt = match meta.header_room_slots {
-            Some(n) => room::v3_read_salt(&vault.img, n as u64),
-            None => room::read_salt(&vault.img),
-        };
+        let salt = room::read_salt(&vault.img);
         salt.is_some_and(|salt| {
             let master = header::derive_master_secret(&[secret], &salt);
             match stage_current_header(vault, meta, Some(&master)) {
@@ -596,9 +563,6 @@ pub fn enable_offset(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8], s
 }
 
 fn enable_offset_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8], strength: Strength) -> Result<()> {
-    if luks::has_integrity(&vault.img) || meta.header_room_slots.is_some() {
-        return enable_offset_inner_v3(ctx, vault, meta, secret);
-    }
     // Keep the trailer stripped for the *entire* operation, not just
     // through provisioning -- `format_minimized_detached_header`'s
     // `--sector-size` (see luks.rs) requires the device's remaining
@@ -621,14 +585,13 @@ fn enable_offset_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8],
         .ok_or_else(|| CasError::new("could not determine the current LUKS data offset"))?;
     let sector_size = luks::sector_size_bytes(&vault.img)
         .ok_or_else(|| CasError::new("could not determine the current LUKS sector size"))?;
-    let integrity = luks::has_integrity(&vault.img);
     let vk = luks::dump_volume_key(&vault.img, secret)?;
 
     let want_encryption = encryption_enabled(meta);
     logf!(ctx, "  [1/4] building a minimized header with the existing volume key ...");
     let minihdr = TempOutPath::reserve("hdr")?;
     with_room_hidden(&vault.img, || {
-        luks::format_minimized_detached_header(minihdr.path(), &vault.img, secret, vk.path(), offset_bytes, sector_size, strength, integrity)
+        luks::format_minimized_detached_header(minihdr.path(), &vault.img, secret, vk.path(), offset_bytes, sector_size, strength)
     })?;
     let plain_bytes = std::fs::read(minihdr.path())?;
 
@@ -671,131 +634,6 @@ fn enable_offset_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8],
     Ok(())
 }
 
-/// v3 (integrity-compatible) `headerOffset` enable: copies the vault's
-/// real, current front header *verbatim* into a v3 room slot instead of
-/// rebuilding a minimized one -- no `luksFormat` call anywhere in this
-/// path, so no risk of the dm-integrity payload corruption `luksFormat
-/// --integrity` causes (see this module's top doc comment). `n_slots`
-/// is fixed the first time a v3 room is provisioned for this vault
-/// (`meta.header_room_slots`, default from `room::integrity_default_slots`
-/// unless already chosen) -- changing it later goes through
-/// `change_slot_count`, not this function.
-fn enable_offset_inner_v3(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8]) -> Result<()> {
-    Meta::strip(&vault.img)?;
-    migrate_room_if_needed(ctx, vault, meta, secret)?;
-
-    let n_slots = meta.header_room_slots.unwrap_or_else(|| {
-        let size_mb = std::fs::metadata(&vault.img).map(|m| m.len() / (1024 * 1024)).unwrap_or(0);
-        room::integrity_default_slots(size_mb)
-    }) as u64;
-
-    let salt = room::v3_ensure_provisioned(&vault.img, n_slots)?;
-    meta.header_room = Some(true);
-    meta.header_room_slots = Some(n_slots as u32);
-
-    let master = header::derive_master_secret(&[secret], &salt);
-    let slot = header::derive_slot_index(&master, n_slots as usize) as u64;
-
-    // NOT `front_region_len` here -- that now returns the vault's real
-    // data offset (`config::LUKS_DATA_OFFSET_MB`, 128 MiB), most of
-    // which is deliberately-reserved free space, not actual header
-    // content (see that constant's doc comment). Copying that whole
-    // span verbatim would (a) massively overshoot `INTEGRITY_SLOT_SIZE`
-    // -- confirmed live 2026-08-17, this exact call used to size a slot
-    // write and started failing the instant the offset bump landed --
-    // and (b) read straight into the v3 room's own bytes once
-    // provisioned, since the room lives at the same fixed boundary this
-    // copy needs to stop before. `room::v3_room_start()` is exactly that
-    // boundary: cryptsetup's real header/keyslot footprint is always
-    // comfortably smaller than it (measured live well under 1 MiB even
-    // with integrity), so this remains a generous, safe verbatim-copy
-    // size regardless of how big the reserved offset grows in the
-    // future.
-    let offset_bytes = room::v3_room_start();
-    logf!(ctx, "  [1/3] copying the real header verbatim (no rebuild -- fileIntegrity is on) ...");
-    let mut plain_bytes = vec![0u8; offset_bytes as usize];
-    {
-        let mut f = File::open(&vault.img)?;
-        f.read_exact(&mut plain_bytes)?;
-    }
-    debugf!(ctx, "v3 enable_offset: header copy {} bytes, sha256={:x}, target slot {slot}/{n_slots}", plain_bytes.len(), Sha256::digest(&plain_bytes));
-
-    let want_encryption = encryption_enabled(meta);
-    let stored_bytes = if want_encryption {
-        let key = header::derive_header_key(&master);
-        encrypt_header(&key, &plain_bytes)
-    } else {
-        plain_bytes
-    };
-
-    logf!(ctx, "  [2/3] verifying against the original, unchanged front ...");
-    let reference = reference_checksum(vault, None, secret)?;
-    room::v3_write_slot(&vault.img, n_slots, slot, &frame(&stored_bytes))?;
-    let verify_result = (|| -> Result<()> {
-        let staged = TempOutPath::reserve("hdr")?;
-        let raw = if want_encryption {
-            let key = header::derive_header_key(&master);
-            decrypt_header(&key, &stored_bytes)?
-        } else {
-            stored_bytes.clone()
-        };
-        staged.write_secure(&raw)?;
-        verify_new_header(vault, staged.path(), secret, reference)
-    })();
-    if let Err(e) = verify_result {
-        return Err(e);
-    }
-
-    logf!(ctx, "  [3/3] committing ...");
-    meta.header_offset = Some(true);
-    tamper::refresh(secret, meta);
-    meta.write(&vault.img)?;
-
-    if ctx.debug {
-        let staged = TempOutPath::reserve("hdr")?;
-        let raw = if want_encryption {
-            let key = header::derive_header_key(&master);
-            decrypt_header(&key, &stored_bytes)?
-        } else {
-            stored_bytes.clone()
-        };
-        staged.write_secure(&raw)?;
-        let post_commit = payload_checksum(&vault.img, Some(staged.path()), &format!("{}_hvdbg", vault.mapper), secret)?;
-        debugf!(ctx, "v3 enable_offset: post-commit-pre-scrub payload checksum matches reference: {}", post_commit == reference);
-    }
-
-    scrub_front_region(&vault.img, offset_bytes)?;
-
-    if ctx.debug {
-        let staged = TempOutPath::reserve("hdr")?;
-        let raw = if want_encryption {
-            let key = header::derive_header_key(&master);
-            decrypt_header(&key, &stored_bytes)?
-        } else {
-            stored_bytes.clone()
-        };
-        staged.write_secure(&raw)?;
-        let post_scrub = payload_checksum(&vault.img, Some(staged.path()), &format!("{}_hvdbg", vault.mapper), secret)?;
-        debugf!(ctx, "v3 enable_offset: post-scrub payload checksum matches reference: {}", post_scrub == reference);
-    }
-    // `vault.img` is a persistent udisks loop device's backing file
-    // (see `udisks::loop_setup`, set up once at `create` time) -- every
-    // write above went straight to the file via `std::fs`, bypassing
-    // the loop device entirely, which can leave *its* cached view of
-    // the content stale. Confirmed live 2026-08-17: the very next
-    // `cryptsetup open` through that stale loop device decrypted the
-    // header correctly (proven by the payload-checksum debug checks
-    // above, run through a *fresh* mapper) but `blkid` on the actual
-    // vault mapper -- which goes through the same stale loop cache --
-    // read nothing, misreporting "unformatted" and triggering a
-    // destructive `mkfs.btrfs` over real data. `refresh_size` (already
-    // used by `resize.rs` for the same class of problem after a
-    // direct-write size change) reloads the loop device's cache via
-    // `losetup -c`; its name is size-specific but the mechanism isn't.
-    udisks::refresh_size(&vault.img);
-    Ok(())
-}
-
 /// Disable `headerOffset`: relocate the header from its room slot back
 /// to the front, restoring a normal default-sized detached header if
 /// headerEncryption is off (so plain `cryptsetup open` works again with
@@ -814,9 +652,6 @@ pub fn disable_offset(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8], 
 }
 
 fn disable_offset_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8], strength: Strength) -> Result<()> {
-    if let Some(n) = meta.header_room_slots {
-        return disable_offset_inner_v3(ctx, vault, meta, secret, n as u64);
-    }
     // Same alignment reasoning as enable_offset: keep the trailer off
     // for the whole operation so the format calls' `--sector-size`
     // device-size check isn't thrown off by a re-attached trailer.
@@ -838,14 +673,13 @@ fn disable_offset_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8]
     let sector_size = luks::sector_size_bytes_from_header(staged_current.path(), &vault.img)
         .or_else(|| luks::sector_size_bytes(&vault.img))
         .ok_or_else(|| CasError::new("could not determine the LUKS sector size from the relocated header"))?;
-    let integrity = luks::has_integrity_from_header(staged_current.path(), &vault.img);
 
     logf!(ctx, "  [2/4] building the front-resident replacement header ...");
     let front_region = front_region_len_for_restore(offset_bytes);
     let (stored_bytes, place_native): (Vec<u8>, bool) = if want_encryption {
         let minihdr = TempOutPath::reserve("hdr")?;
         with_room_hidden(&vault.img, || {
-            luks::format_minimized_detached_header(minihdr.path(), &vault.img, secret, vk.path(), offset_bytes, sector_size, strength, integrity)
+            luks::format_minimized_detached_header(minihdr.path(), &vault.img, secret, vk.path(), offset_bytes, sector_size, strength)
         })?;
         let plain = std::fs::read(minihdr.path())?;
         let key = header::derive_header_key(&master);
@@ -853,7 +687,7 @@ fn disable_offset_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8]
     } else {
         let full = TempOutPath::reserve("hdr")?;
         with_room_hidden(&vault.img, || {
-            luks::format_default_detached_header(full.path(), &vault.img, secret, vk.path(), offset_bytes, sector_size, strength, integrity)
+            luks::format_default_detached_header(full.path(), &vault.img, secret, vk.path(), offset_bytes, sector_size, strength)
         })?;
         (std::fs::read(full.path())?, true)
     };
@@ -889,118 +723,6 @@ fn disable_offset_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8]
     Ok(())
 }
 
-/// v3 equivalent of `disable_offset_inner`: copies the room slot's
-/// header bytes back to the front verbatim -- no `luksFormat` call, for
-/// the same reason `enable_offset_inner_v3` avoids one.
-fn disable_offset_inner_v3(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8], n_slots: u64) -> Result<()> {
-    Meta::strip(&vault.img)?;
-
-    let salt = room::v3_read_salt(&vault.img, n_slots).ok_or_else(|| CasError::new("v3 header room not found — vault metadata is inconsistent"))?;
-    let master = header::derive_master_secret(&[secret], &salt);
-    let slot = header::derive_slot_index(&master, n_slots as usize) as u64;
-
-    // `stage_current_header` already decrypts if `headerEncryption` is
-    // on, so `raw` below is always the plain header regardless.
-    let staged_current = stage_current_header(vault, meta, Some(&master))?;
-
-    logf!(ctx, "  [1/3] reading the current (relocated) header verbatim ...");
-    // `stage_current_header`'s output is padded out to the real data
-    // offset (see `ensure_staged_header_len`'s doc comment -- needed for
-    // `verify_new_header`'s detached open below), but the actual header
-    // content a v3 copy ever holds is always exactly
-    // `room::v3_room_start()` bytes (`enable_offset_inner_v3`'s own
-    // copy size) -- everything past that is zero-filled padding, not
-    // real content, and must not get written back to the front verbatim.
-    let mut raw = std::fs::read(staged_current.path())?;
-    raw.truncate(room::v3_room_start() as usize);
-
-    logf!(ctx, "  [2/3] verifying against the current relocated header, unchanged ...");
-    let reference = reference_checksum(vault, Some(staged_current.path()), secret)?;
-    verify_new_header(vault, staged_current.path(), secret, reference)?;
-
-    // Commit: write the verified bytes to the front, flip Meta, THEN
-    // scrub the slot — never the other order.
-    place_at_front_native(&vault.img, &raw)?;
-    meta.header_offset = Some(false);
-    tamper::refresh(secret, meta);
-    meta.write(&vault.img)?;
-
-    logf!(ctx, "  [3/3] scrubbing the old room slot ...");
-    room::v3_scrub_slot(&vault.img, n_slots, slot)?;
-    udisks::refresh_size(&vault.img); // see enable_offset_inner_v3's doc comment on this call
-    Ok(())
-}
-
-/// `settings security headerOffset slots <N>` -- resize an active v3
-/// room's slot count. Reprovisions a fresh room at the new size *using
-/// the same salt* (so the header-content encryption key, itself a
-/// function of the salt, doesn't change -- only the derived slot index
-/// does), moves the same stored bytes over unchanged, and verifies the
-/// new location before committing.
-///
-/// Unlike every other relocation in this file, this can't keep the old
-/// location fully intact until the new one is verified -- the room's
-/// total footprint changes size, and it must always sit immediately
-/// after the real payload with nothing else between it and the
-/// trailer, so there's no way to grow or shrink it without removing
-/// the old one first. The window between removing the old room and
-/// finishing the new one is a handful of synchronous local writes
-/// (sub-second) -- accepted at the same risk level as
-/// `with_room_hidden`'s truncate/restore, not a new safety model.
-pub fn change_slot_count(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8], new_n: u32) -> Result<()> {
-    let old_n = meta.header_room_slots.ok_or_else(|| CasError::new("headerOffset has no active v3 room to resize"))?;
-    if new_n == old_n {
-        die!("headerOffset is already using {new_n} slots");
-    }
-    if new_n == 0 {
-        die!("slot count must be at least 1");
-    }
-
-    let original = meta.clone();
-    let result = (|| -> Result<()> {
-        Meta::strip(&vault.img)?;
-        let salt = room::v3_read_salt(&vault.img, old_n as u64).ok_or_else(|| CasError::new("v3 header room not found"))?;
-        let master = header::derive_master_secret(&[secret], &salt);
-        let old_slot = header::derive_slot_index(&master, old_n as usize) as u64;
-
-        // Verify the current content opens before touching anything.
-        let staged_current = stage_current_header(vault, meta, Some(&master))?;
-        let reference = reference_checksum(vault, Some(staged_current.path()), secret)?;
-
-        let raw_stored = room::v3_read_slot(&vault.img, old_n as u64, old_slot).ok_or_else(|| CasError::new("could not read the current v3 slot"))?;
-
-        logf!(ctx, "  [1/3] removing the old {old_n}-slot room ...");
-        room::v3_remove_room(&vault.img, old_n as u64)?;
-
-        logf!(ctx, "  [2/3] provisioning a new {new_n}-slot room ...");
-        room::v3_ensure_provisioned_with_salt(&vault.img, new_n as u64, &salt)?;
-        let new_slot = header::derive_slot_index(&master, new_n as usize) as u64;
-        room::v3_write_slot(&vault.img, new_n as u64, new_slot, &raw_stored)?;
-
-        logf!(ctx, "  [3/3] verifying the new location ...");
-        let staged_new = TempOutPath::reserve("hdr")?;
-        let unframed = unframe(&raw_stored)?;
-        let raw = if encryption_enabled(meta) {
-            let key = header::derive_header_key(&master);
-            decrypt_header(&key, &unframed)?
-        } else {
-            unframed
-        };
-        staged_new.write_secure(&raw)?;
-        verify_new_header(vault, staged_new.path(), secret, reference)?;
-
-        meta.header_room_slots = Some(new_n);
-        tamper::refresh(secret, meta);
-        meta.write(&vault.img)?;
-        udisks::refresh_size(&vault.img); // see enable_offset_inner_v3's doc comment on this call
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = original.write(&vault.img);
-    }
-    result
-}
-
 /// Enable `headerEncryption`: AEAD-encrypt the header wherever it
 /// currently lives (front or room slot), in place — no location change,
 /// so no old/new location split. Still verify-before-mutate: the
@@ -1021,17 +743,9 @@ pub fn enable_encryption(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8
 fn enable_encryption_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8], strength: Strength) -> Result<()> {
     if offset_enabled(meta) {
         migrate_room_if_needed(ctx, vault, meta, secret)?;
-        let n_slots = meta.header_room_slots;
-        let salt = match n_slots {
-            Some(n) => room::v3_read_salt(&vault.img, n as u64),
-            None => room::read_salt(&vault.img),
-        }
-        .ok_or_else(|| CasError::new("header room not found"))?;
+        let salt = room::read_salt(&vault.img).ok_or_else(|| CasError::new("header room not found"))?;
         let master = header::derive_master_secret(&[secret], &salt);
-        let plain = match n_slots {
-            Some(n) => read_from_slot_v3(&vault.img, n as u64, header::derive_slot_index(&master, n as usize) as u64)?,
-            None => read_from_slot(&vault.img, header::derive_slot_index(&master, room::N_SLOTS as usize))?,
-        };
+        let plain = read_from_slot(&vault.img, header::derive_slot_index(&master, room::N_SLOTS as usize))?;
         let key = header::derive_header_key(&master);
         let cipher = encrypt_header(&key, &plain);
 
@@ -1047,32 +761,15 @@ fn enable_encryption_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[
         verify_new_header(vault, staged.path(), secret, reference)?;
 
         logf!(ctx, "  [2/2] committing ...");
-        match n_slots {
-            Some(n) => room::v3_write_slot(&vault.img, n as u64, header::derive_slot_index(&master, n as usize) as u64, &frame(&cipher))?,
-            None => place_at_slot(&vault.img, header::derive_slot_index(&master, room::N_SLOTS as usize), &cipher)?,
-        }
+        place_at_slot(&vault.img, header::derive_slot_index(&master, room::N_SLOTS as usize), &cipher)?;
         meta.header_encryption = Some(true);
         tamper::refresh(secret, meta);
         meta.write(&vault.img)?;
-        if n_slots.is_some() {
-            udisks::refresh_size(&vault.img); // see enable_offset_inner_v3's doc comment on this call
-        }
     } else {
         // headerEncryption alone (no headerOffset) needs slack at the
         // container's front to absorb the AEAD overhead on top of the
-        // stored header -- non-integrity vaults get that slack for
-        // free by minimizing first (16 MiB -> a few hundred KiB). An
-        // integrity vault can't minimize (see this module's top doc
-        // comment) and its front region is sized *exactly* to its real
-        // header with zero slack, so there's nowhere to put the
-        // encrypted-and-framed version at the front. headerOffset must
-        // go on first, which moves the header into a v3 room slot with
-        // generous slack (`room::INTEGRITY_SLOT_SIZE`), and *that*
-        // branch (`offset_enabled(meta)` above) handles headerEncryption
-        // fine.
-        if luks::has_integrity(&vault.img) {
-            die!("headerEncryption alone (without headerOffset) isn't supported on a fileIntegrity vault -- enable headerOffset first, then headerEncryption");
-        }
+        // stored header -- gotten for free by minimizing first (16 MiB
+        // -> a few hundred KiB).
         // Trailer stays stripped for the whole operation -- same
         // sector-size-alignment reasoning as enable_offset. header_room
         // is persisted at the single real commit below, not here;
@@ -1086,12 +783,11 @@ fn enable_encryption_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[
 
         let offset_bytes = luks::data_offset_bytes(&vault.img).ok_or_else(|| CasError::new("could not determine the LUKS data offset"))?;
         let sector_size = luks::sector_size_bytes(&vault.img).ok_or_else(|| CasError::new("could not determine the LUKS sector size"))?;
-        let integrity = luks::has_integrity(&vault.img);
         let vk = luks::dump_volume_key(&vault.img, secret)?;
         logf!(ctx, "  [1/2] building a minimized encrypted header for the front ...");
         let minihdr = TempOutPath::reserve("hdr")?;
         with_room_hidden(&vault.img, || {
-            luks::format_minimized_detached_header(minihdr.path(), &vault.img, secret, vk.path(), offset_bytes, sector_size, strength, integrity)
+            luks::format_minimized_detached_header(minihdr.path(), &vault.img, secret, vk.path(), offset_bytes, sector_size, strength)
         })?;
         let plain = std::fs::read(minihdr.path())?;
         let key = header::derive_header_key(&master);
@@ -1138,18 +834,10 @@ pub fn disable_encryption(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u
 fn disable_encryption_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &[u8], strength: Strength) -> Result<()> {
     if offset_enabled(meta) {
         migrate_room_if_needed(ctx, vault, meta, secret)?;
-        let n_slots = meta.header_room_slots;
-        let salt = match n_slots {
-            Some(n) => room::v3_read_salt(&vault.img, n as u64),
-            None => room::read_salt(&vault.img),
-        }
-        .ok_or_else(|| CasError::new("header room not found"))?;
+        let salt = room::read_salt(&vault.img).ok_or_else(|| CasError::new("header room not found"))?;
         let master = header::derive_master_secret(&[secret], &salt);
         let key = header::derive_header_key(&master);
-        let cipher = match n_slots {
-            Some(n) => read_from_slot_v3(&vault.img, n as u64, header::derive_slot_index(&master, n as usize) as u64)?,
-            None => read_from_slot(&vault.img, header::derive_slot_index(&master, room::N_SLOTS as usize))?,
-        };
+        let cipher = read_from_slot(&vault.img, header::derive_slot_index(&master, room::N_SLOTS as usize))?;
         let plain = decrypt_header(&key, &cipher)?;
 
         logf!(ctx, "  [1/2] verifying the plaintext candidate ...");
@@ -1165,16 +853,10 @@ fn disable_encryption_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &
         verify_new_header(vault, staged.path(), secret, reference)?;
 
         logf!(ctx, "  [2/2] committing ...");
-        match n_slots {
-            Some(n) => room::v3_write_slot(&vault.img, n as u64, header::derive_slot_index(&master, n as usize) as u64, &frame(&plain))?,
-            None => place_at_slot(&vault.img, header::derive_slot_index(&master, room::N_SLOTS as usize), &plain)?,
-        }
+        place_at_slot(&vault.img, header::derive_slot_index(&master, room::N_SLOTS as usize), &plain)?;
         meta.header_encryption = Some(false);
         tamper::refresh(secret, meta);
         meta.write(&vault.img)?;
-        if n_slots.is_some() {
-            udisks::refresh_size(&vault.img); // see enable_offset_inner_v3's doc comment on this call
-        }
     } else {
         // format_default_detached_header below needs the trailer off
         // for the same sector-size-alignment reason as enable_offset.
@@ -1207,12 +889,11 @@ fn disable_encryption_inner(ctx: &Ctx, vault: &Vault, meta: &mut Meta, secret: &
             .ok_or_else(|| CasError::new("could not determine the LUKS data offset from the encrypted header"))?;
         let sector_size = luks::sector_size_bytes_from_header(staged_plain.path(), &vault.img)
             .ok_or_else(|| CasError::new("could not determine the LUKS sector size from the encrypted header"))?;
-        let integrity = luks::has_integrity_from_header(staged_plain.path(), &vault.img);
         let vk = luks::dump_volume_key_detached(staged_plain.path(), &vault.img, secret)?;
 
         let full = TempOutPath::reserve("hdr")?;
         with_room_hidden(&vault.img, || {
-            luks::format_default_detached_header(full.path(), &vault.img, secret, vk.path(), offset_bytes, sector_size, strength, integrity)
+            luks::format_default_detached_header(full.path(), &vault.img, secret, vk.path(), offset_bytes, sector_size, strength)
         })?;
         let full_bytes = std::fs::read(full.path())?;
 
@@ -1258,54 +939,7 @@ pub fn relocate_if_enabled(ctx: &Ctx, vault: &Vault, meta: &mut Meta, old_secret
     Meta::strip(&vault.img)?;
     migrate_room_if_needed(ctx, vault, meta, old_secret)?;
 
-    if offset_enabled(meta) && meta.header_room_slots.is_some() {
-        let n = meta.header_room_slots.unwrap() as u64;
-        let old_salt = room::v3_read_salt(&vault.img, n).ok_or_else(|| CasError::new("v3 header room not found"))?;
-        let old_master = header::derive_master_secret(&[old_secret], &old_salt);
-        let old_slot = header::derive_slot_index(&old_master, n as usize) as u64;
-
-        let want_encryption = encryption_enabled(meta);
-        let staged_current = stage_current_header(vault, meta, Some(&old_master))?;
-
-        // Reference checksum first, while `staged_current` still holds
-        // the *old*-passphrase-keyed header -- `slot_cycle_detached`
-        // below rekeys it in place, right after.
-        let reference = reference_checksum(vault, Some(staged_current.path()), old_secret)?;
-
-        logf!(ctx, "  [header] rotating relocated header to a new slot under the new passphrase ...");
-        luks::slot_cycle_detached(ctx, staged_current.path(), &vault.img, old_secret, new_secret, Some(strength))?;
-        // Same truncate-back-to-real-size reasoning as
-        // `disable_offset_inner_v3` -- `slot_cycle_detached` only ever
-        // touches the keyslot area, comfortably inside
-        // `room::v3_room_start()`'s bound, so truncating the padded
-        // staged file back down after rekeying discards only the
-        // zero-filled tail, never anything the rekey actually changed.
-        let mut plain = std::fs::read(staged_current.path())?;
-        plain.truncate(room::v3_room_start() as usize);
-
-        let new_master = header::derive_master_secret(&[new_secret], &old_salt);
-        let new_slot = header::derive_slot_index(&new_master, n as usize) as u64;
-        let stored = if want_encryption {
-            let key = header::derive_header_key(&new_master);
-            encrypt_header(&key, &plain)
-        } else {
-            plain.clone()
-        };
-
-        let staged_new = TempOutPath::reserve("hdr")?;
-        staged_new.write_secure(&plain)?;
-        verify_new_header(vault, staged_new.path(), new_secret, reference)?;
-
-        room::v3_write_slot(&vault.img, n, new_slot, &frame(&stored))?;
-        tamper::refresh(new_secret, meta);
-        meta.write(&vault.img)?;
-
-        if new_slot != old_slot {
-            logf!(ctx, "  [header] scrubbing the old slot ...");
-            room::v3_scrub_slot(&vault.img, n, old_slot)?;
-        }
-        udisks::refresh_size(&vault.img); // see enable_offset_inner_v3's doc comment on this call
-    } else if offset_enabled(meta) {
+    if offset_enabled(meta) {
         let old_salt = room::read_salt(&vault.img).ok_or_else(|| CasError::new("header room not found"))?;
         let old_master = header::derive_master_secret(&[old_secret], &old_salt);
         let old_slot = header::derive_slot_index(&old_master, room::N_SLOTS as usize);
@@ -1317,7 +951,6 @@ pub fn relocate_if_enabled(ctx: &Ctx, vault: &Vault, meta: &mut Meta, old_secret
             .ok_or_else(|| CasError::new("could not determine the LUKS data offset from the current header"))?;
         let sector_size = luks::sector_size_bytes_from_header(staged_current.path(), &vault.img)
             .ok_or_else(|| CasError::new("could not determine the LUKS sector size from the current header"))?;
-        let integrity = luks::has_integrity_from_header(staged_current.path(), &vault.img);
 
         // Room salt is fixed at provisioning time (it's what "room"
         // means) so the new slot index is derived from the *new*
@@ -1329,7 +962,7 @@ pub fn relocate_if_enabled(ctx: &Ctx, vault: &Vault, meta: &mut Meta, old_secret
         logf!(ctx, "  [header] rotating relocated header to a new slot under the new passphrase ...");
         let minihdr = TempOutPath::reserve("hdr")?;
         with_room_hidden(&vault.img, || {
-            luks::format_minimized_detached_header(minihdr.path(), &vault.img, new_secret, vk.path(), offset_bytes, sector_size, strength, integrity)
+            luks::format_minimized_detached_header(minihdr.path(), &vault.img, new_secret, vk.path(), offset_bytes, sector_size, strength)
         })?;
         let plain = std::fs::read(minihdr.path())?;
         let stored = if want_encryption {
@@ -1377,12 +1010,11 @@ pub fn relocate_if_enabled(ctx: &Ctx, vault: &Vault, meta: &mut Meta, old_secret
             .ok_or_else(|| CasError::new("could not determine the LUKS data offset"))?;
         let sector_size = luks::sector_size_bytes_from_header(staged_old.path(), &vault.img)
             .ok_or_else(|| CasError::new("could not determine the LUKS sector size"))?;
-        let integrity = luks::has_integrity_from_header(staged_old.path(), &vault.img);
 
         let new_master = header::derive_master_secret(&[new_secret], &salt);
         let minihdr = TempOutPath::reserve("hdr")?;
         with_room_hidden(&vault.img, || {
-            luks::format_minimized_detached_header(minihdr.path(), &vault.img, new_secret, vk.path(), offset_bytes, sector_size, strength, integrity)
+            luks::format_minimized_detached_header(minihdr.path(), &vault.img, new_secret, vk.path(), offset_bytes, sector_size, strength)
         })?;
         let new_plain = std::fs::read(minihdr.path())?;
         let new_key = header::derive_header_key(&new_master);
@@ -1528,7 +1160,7 @@ mod migration_tests {
         std::fs::File::create(&vault.img).unwrap();
         crate::proc::run("truncate", &["-s", "64M", vault.img.to_str().unwrap()]).unwrap();
         let secret = b"migration-test-pass".to_vec();
-        luks::format_vault_ex(&vault.img, &secret, Strength::Light, false).unwrap();
+        luks::format_vault_ex(&vault.img, &secret, Strength::Light).unwrap();
 
         // Provision a room, then hand-roll it back down to v1 layout:
         // write the same minimized header bytes into the *v1*-addressed

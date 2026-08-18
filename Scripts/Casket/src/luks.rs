@@ -2,7 +2,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use crate::config::{Strength, LUKS_DATA_OFFSET_MB};
+use crate::config::Strength;
 use crate::ctx::Ctx;
 use crate::die;
 use crate::error::{CasError, Result};
@@ -11,65 +11,22 @@ use crate::proc::{self, TempKeyfile, TempOutPath};
 
 /// Format a freshly truncated image file as LUKS2 with the given KDF
 /// cost preset. The secret goes over stdin, same as every other
-/// cryptsetup call here — it never touches disk.
-/// `integrity` optionally adds `--integrity hmac-sha256` —
-/// per-sector authenticated encryption, used by `create --integrity` and
-/// `fileIntegrity`'s migration to build the destination container.
-/// Data offset is pinned to `LUKS_DATA_OFFSET_MB` (512-byte sectors)
-/// instead of letting cryptsetup pick its own 16 MiB default -- reserves
-/// free space between the fixed-size LUKS2 metadata/keyslots area and
-/// the data segment for `header::room`'s v3 flavor and future growth.
-/// Every other caller that needs to know a vault's actual offset reads
-/// it back dynamically (`data_offset_bytes`/`_from_header`) rather than
-/// assuming this constant, so a vault formatted under an older value of
-/// it keeps working unmodified.
-pub fn format_vault_ex(img: &Path, secret: &[u8], strength: Strength, integrity: bool) -> Result<()> {
+/// cryptsetup call here — it never touches disk. No `--offset` override
+/// -- cryptsetup's own default data offset is used, same as any other
+/// LUKS2 container. Every other caller that needs to know a vault's
+/// actual offset reads it back dynamically (`data_offset_bytes`/
+/// `_from_header`) rather than assuming a fixed constant, so a vault
+/// formatted under any cryptsetup default keeps working unmodified.
+pub fn format_vault_ex(img: &Path, secret: &[u8], strength: Strength) -> Result<()> {
     let img_str = img.to_string_lossy().into_owned();
-    let offset_sectors = (LUKS_DATA_OFFSET_MB * 1024 * 1024 / 512).to_string();
     let mut args: Vec<&str> = vec!["luksFormat", "--batch-mode", "--pbkdf", "argon2id"];
     args.extend_from_slice(strength.pbkdf_args());
     args.push("--pbkdf-force-iterations");
     args.push(strength.iterations());
-    if integrity {
-        args.push("--integrity");
-        args.push("hmac-sha256");
-    }
-    args.push("--offset");
-    args.push(&offset_sectors);
     args.push(&img_str);
     args.push("--key-file");
     args.push("-");
     proc::run_with_stdin("cryptsetup", &args, secret)
-}
-
-/// Whether an already-formatted container at `img` has integrity
-/// protection active, checked against the real on-disk structure (not
-/// any metadata flag) via `cryptsetup luksDump` — the ground truth
-/// `tamper::reset_to_safe` uses for `Meta.file_integrity`, since that
-/// field only describes the container and can't itself change it.
-pub fn has_integrity(img: &Path) -> bool {
-    let img_str = img.to_string_lossy().into_owned();
-    let out = proc::capture("cryptsetup", &["luksDump", &img_str]);
-    String::from_utf8_lossy(&out.stdout).to_lowercase().contains("integrity:")
-}
-
-/// Detached-header equivalent of `has_integrity` -- integrity is a data
-/// segment property recorded in the LUKS2 metadata, which isn't
-/// necessarily at `img`'s front anymore once `headerOffset`/
-/// `headerEncryption` has relocated it, so this must be checked against
-/// wherever the header currently is, not `img` directly. Used by
-/// `format_minimized_detached_header`/`format_default_detached_header`'s
-/// callers in `header/relocate.rs` so a rebuilt header replicates the
-/// source container's real integrity setting instead of silently
-/// dropping it (a rebuilt non-integrity header over an integrity-tagged
-/// data segment "opens" fine but decrypts every sector's payload bytes
-/// wrong, since dm-integrity's per-sector tag interleaving shifts where
-/// the actual ciphertext lives).
-pub fn has_integrity_from_header(header: &Path, img: &Path) -> bool {
-    let header_str = header.to_string_lossy().into_owned();
-    let img_str = img.to_string_lossy().into_owned();
-    let out = proc::capture("cryptsetup", &["luksDump", "--header", &header_str, &img_str]);
-    String::from_utf8_lossy(&out.stdout).to_lowercase().contains("integrity:")
 }
 
 pub fn open_luks(img: &Path, mapper: &str, secret: &[u8]) -> Result<String> {
@@ -364,12 +321,9 @@ pub fn dump_volume_key(img: &Path, secret: &[u8]) -> Result<TempOutPath> {
 /// *existing* payload starting at `offset_bytes` -- by forcing the same
 /// volume key (`volume_key_file`, from `dump_volume_key`) instead of
 /// letting `luksFormat` mint a fresh one. `--luks2-keyslots-size 512k`
-/// is fixed regardless of `integrity` (a non-integrity volume key only
-/// needs the old 252k floor, but using one constant here keeps it in
-/// sync with exactly one measured floor -- `header::room::SLOT_SIZE`'s
-/// doc comment -- instead of two conditional sizes that could drift
-/// independently). Never touches `img` beyond reading its existing bytes
-/// elsewhere (this call writes only to `header_out`).
+/// stays in sync with the one measured floor `header::room::SLOT_SIZE`'s
+/// doc comment tracks. Never touches `img` beyond reading its existing
+/// bytes elsewhere (this call writes only to `header_out`).
 pub fn format_minimized_detached_header(
     header_out: &Path,
     img: &Path,
@@ -378,7 +332,6 @@ pub fn format_minimized_detached_header(
     offset_bytes: u64,
     sector_size: u64,
     strength: Strength,
-    integrity: bool,
 ) -> Result<()> {
     if offset_bytes % 512 != 0 {
         return Err(CasError::new("data offset is not sector-aligned"));
@@ -408,20 +361,6 @@ pub fn format_minimized_detached_header(
     args.extend_from_slice(strength.pbkdf_args());
     args.push("--pbkdf-force-iterations");
     args.push(strength.iterations());
-    // Must match whether the source container's data segment is
-    // dm-integrity-tagged (`fileIntegrity`) — a rebuilt header that
-    // disagrees on this "opens" successfully (same volume key, same
-    // sector size) but decrypts every sector to garbage, since
-    // dm-integrity interleaves a per-sector auth tag into the data
-    // segment layout that a plain (non-integrity) header doesn't
-    // account for. Confirmed live 2026-08-17: this was silently
-    // dropped, causing `headerOffset`/`headerEncryption` enable to
-    // fail its own verify-before-commit step on every integrity-
-    // protected vault.
-    if integrity {
-        args.push("--integrity");
-        args.push("hmac-sha256");
-    }
     args.push(&img_str);
     args.push("--key-file");
     args.push("-");
@@ -466,7 +405,6 @@ pub fn format_default_detached_header(
     offset_bytes: u64,
     sector_size: u64,
     strength: Strength,
-    integrity: bool,
 ) -> Result<()> {
     if offset_bytes % 512 != 0 {
         return Err(CasError::new("data offset is not sector-aligned"));
@@ -488,12 +426,6 @@ pub fn format_default_detached_header(
     args.extend_from_slice(strength.pbkdf_args());
     args.push("--pbkdf-force-iterations");
     args.push(strength.iterations());
-    // Same reasoning as `format_minimized_detached_header` -- must match
-    // the source container's real dm-integrity setting.
-    if integrity {
-        args.push("--integrity");
-        args.push("hmac-sha256");
-    }
     args.push(&img_str);
     args.push("--key-file");
     args.push("-");
@@ -644,20 +576,15 @@ mod header_offset_tests {
         std::fs::create_dir_all(&dir).unwrap();
         let img = dir.join("scratch.img");
         std::fs::File::create(&img).unwrap();
-        // 96 MiB was enough when cryptsetup's own 16 MiB default offset
-        // applied; `format_vault_ex` now always reserves
-        // `LUKS_DATA_OFFSET_MB` (128), so the scratch image needs to be
-        // bigger than that plus room for an actual data segment.
-        crate::proc::run("truncate", &["-s", "256M", img.to_str().unwrap()]).unwrap();
+        crate::proc::run("truncate", &["-s", "96M", img.to_str().unwrap()]).unwrap();
 
         let old_secret = b"scratchpass-orig".to_vec();
-        format_vault_ex(&img, &old_secret, Strength::Light, false).unwrap();
+        format_vault_ex(&img, &old_secret, Strength::Light).unwrap();
         assert!(test(&img, &old_secret));
 
         // (1) full header-region copy, detached test-open.
         let offset = data_offset_bytes(&img).expect("luksDump must report a data offset");
-        assert_eq!(offset, crate::config::LUKS_DATA_OFFSET_MB * 1024 * 1024, "format_vault_ex's --offset changed -- update this assumption");
-        let header_mb = crate::config::LUKS_DATA_OFFSET_MB.to_string();
+        let header_mb = (offset / (1024 * 1024)).max(1).to_string();
         let header16 = dir.join("header_full.img");
         crate::proc::run("dd", &[&format!("if={}", img.display()), &format!("of={}", header16.display()), "bs=1M", &format!("count={header_mb}"), "status=none"]).unwrap();
         assert!(test_detached(&header16, &img, &old_secret), "detached test-open from a raw full-offset header copy must succeed");
@@ -678,7 +605,7 @@ mod header_offset_tests {
         let vk = dump_volume_key(&img, &old_secret).unwrap();
         let new_secret = b"scratchpass-relocated".to_vec();
         let minihdr = dir.join("minihdr.img");
-        format_minimized_detached_header(&minihdr, &img, &new_secret, vk.path(), offset, sector_size, Strength::Light, false).unwrap();
+        format_minimized_detached_header(&minihdr, &img, &new_secret, vk.path(), offset, sector_size, Strength::Light).unwrap();
         let meta_bytes = std::fs::metadata(&minihdr).unwrap().len();
         assert!(meta_bytes <= crate::header::room::SLOT_SIZE, "minimized header ({meta_bytes} bytes) must fit in one room slot ({} bytes)", crate::header::room::SLOT_SIZE);
         assert!(test_detached(&minihdr, &img, &new_secret), "minimized detached header with forced volume key must unlock the same payload under its own new passphrase");

@@ -51,12 +51,6 @@ pub struct Meta {
     pub bruteforce_lockout: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bruteforce_threshold: Option<u32>,
-    /// Whether the container is currently dm-integrity-protected
-    /// (per-sector authenticated encryption) — set by
-    /// `settings security fileIntegrity`'s migration, never toggled any
-    /// other way (it reflects the actual on-disk container format).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_integrity: Option<bool>,
     /// Whether `cas <vault> exec` is permitted at all — see
     /// `commands::settings::security::sandbox`. `namespaces`/`cgroups`/
     /// `seccomp`/`rootfs` sub-settings are only meaningful once this is on.
@@ -120,15 +114,6 @@ pub struct Meta {
     /// tamper-HMAC/ground-truth treatment as `header_offset`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header_encryption: Option<bool>,
-    /// Slot count for a v3 (`fileIntegrity`-compatible, full-header-copy)
-    /// room -- `None` for a v1/v2 (minimized-header) room, or before any
-    /// room exists. Chosen once at `headerOffset`'s first `enable` on an
-    /// integrity vault (`--slots N`, default `header::room::
-    /// integrity_default_slots`), changeable later via `settings security
-    /// headerOffset slots <N>`. See `header::room`'s v3 doc comment for
-    /// why slot count is a disk-overhead knob, not a security one.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub header_room_slots: Option<u32>,
 }
 
 /// Find the trailer on an open handle. Returns `(payload_start_offset,

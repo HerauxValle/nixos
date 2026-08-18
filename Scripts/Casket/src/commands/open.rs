@@ -12,32 +12,10 @@ use crate::logf;
 use crate::luks;
 use crate::meta::Meta;
 use crate::migrations;
-use crate::prompt;
 use crate::secret::{decode_autokey, get_secret};
 use crate::tamper;
 use crate::udisks;
 use crate::vault::Vault;
-
-/// Gate for any `requires_new_image` migration step (`migrations::mod.rs`) —
-/// checked generically by version number, so this never names a specific
-/// schema version: doing so would break downgrading to an older `cas`
-/// build against a vault a newer build already migrated further, since
-/// the older binary's own `migrations::STEPS` table simply wouldn't
-/// contain whatever version this message would've hardcoded. `Ok(true)`
-/// means proceed with the rebuild (either the user said yes, or
-/// `--no-confirm`/`--no-log` auto-confirmed it — same shortcut every
-/// other destructive-ish confirm in this codebase already uses);
-/// `Ok(false)` means the caller must not open the vault at all.
-fn confirm_image_rebuild(ctx: &Ctx, vault: &Vault) -> Result<bool> {
-    logf!(ctx, "  [!] '{}' needs a one-time secure rebuild before this build of cas can open it", vault.name);
-    logf!(ctx, "      (a newer schema requires a param this vault's image wasn't formatted with — nothing is touched until you confirm)");
-    let ok = prompt::confirm_yes_no(ctx, "  Rebuild now?")?;
-    if !ok {
-        logf!(ctx, "  [i] not opening '{}' — rebuild declined", vault.name);
-        logf!(ctx, "      an older cas build can still open this vault unmodified, if that's what you meant to do instead");
-    }
-    Ok(ok)
-}
 
 /// If `bruteforceLockout` is on, test the passphrase *before* the real
 /// unlock attempt so a wrong guess is unambiguous (not confused with an
@@ -146,13 +124,6 @@ pub fn run(
     if meta.is_encryption_bypassed() {
         let secret = decode_autokey(&meta)?;
         check_tamper(ctx, vault, &secret, &mut meta);
-        if migrations::requires_new_image(schema_from) {
-            if !confirm_image_rebuild(ctx, vault)? {
-                return Err(CasError::Silent);
-            }
-            migrations::image_rebuild::rebuild(ctx, vault, &meta, &secret)?;
-            meta = Meta::read(&vault.img);
-        }
         logf!(ctx, "[cas] opening '{}' ...", vault.name);
         return unlock_and_mount(ctx, vault, &secret, &meta, schema_from);
     }
@@ -162,13 +133,6 @@ pub fn run(
     check_lockout(ctx, vault, &secret, &mut new_meta)?;
     check_tamper(ctx, vault, &secret, &mut new_meta);
     let updated_meta = new_meta != meta;
-    if migrations::requires_new_image(schema_from) {
-        if !confirm_image_rebuild(ctx, vault)? {
-            return Err(CasError::Silent);
-        }
-        migrations::image_rebuild::rebuild(ctx, vault, &new_meta, &secret)?;
-        new_meta = Meta::read(&vault.img);
-    }
     logf!(ctx, "[cas] opening '{}' ...", vault.name);
     unlock_and_mount(ctx, vault, &secret, &new_meta, schema_from)?;
     if updated_meta {
@@ -196,21 +160,11 @@ fn open_dispatch(vault: &Vault, meta: &Meta, secret: &[u8]) -> Result<String> {
         return luks::open_luks(&vault.img, &vault.mapper, secret);
     }
 
-    let salt = match meta.header_room_slots {
-        Some(n) => header::room::v3_read_salt(&vault.img, n as u64),
-        None => header::room::read_salt(&vault.img),
-    }
-    .ok_or_else(|| CasError::new("vault metadata says the header is relocated/encrypted, but no header room was found — vault metadata is inconsistent"))?;
+    let salt = header::room::read_salt(&vault.img)
+        .ok_or_else(|| CasError::new("vault metadata says the header is relocated/encrypted, but no header room was found — vault metadata is inconsistent"))?;
     let master = header::derive_master_secret(&[secret], &salt);
     let staged = header::relocate::stage_current_header(vault, meta, Some(&master))
         .map_err(|e| CasError::new(format!("could not locate the relocated/encrypted header: {e}")))?;
-    // No `--size` gymnastics needed here: a v3 room lives at a fixed
-    // offset inside `vault.img`'s own reserved header-offset region
-    // (`header::room::v3_room_start`), never appended after the
-    // container, so the image's "till end of device" dynamic sizing is
-    // exactly what it was at format time, every time -- see
-    // `room::v3_room_start`'s doc comment for the full story of why that
-    // matters and what was tried (and failed) before landing here.
     luks::open_luks_detached(staged.path(), &vault.img, &vault.mapper, secret)
 }
 

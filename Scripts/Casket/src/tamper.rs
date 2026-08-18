@@ -1,4 +1,4 @@
-// &desc: "Tamper-evidence for the fields that actually gate a protection (ransomwareProtection, verify_required, zeroize, bruteforceLockout, fileIntegrity, sandbox_enabled/namespaces/seccomp) -- an HMAC-SHA256 over just those fields, keyed by the vault's own derived LUKS secret. Verifiable only when the secret is known (open, or any --pass-bearing command), by design: a check that worked without the secret would also let an attacker forge a matching tag without it."
+// &desc: "Tamper-evidence for the fields that actually gate a protection (ransomwareProtection, verify_required, zeroize, bruteforceLockout, sandbox_enabled/namespaces/seccomp) -- an HMAC-SHA256 over just those fields, keyed by the vault's own derived LUKS secret. Verifiable only when the secret is known (open, or any --pass-bearing command), by design: a check that worked without the secret would also let an attacker forge a matching tag without it."
 use hmac::{Hmac, Mac};
 use serde::Serialize;
 use sha2::Sha256;
@@ -20,7 +20,6 @@ struct Protected<'a> {
     // `tampered`/`open` kept reporting "healthy", since nothing here
     // was checking this field at all until now.
     bruteforce_threshold: &'a Option<u32>,
-    file_integrity: &'a Option<bool>,
     sandbox_enabled: &'a Option<bool>,
     sandbox_namespaces: &'a Option<Vec<String>>,
     sandbox_seccomp: &'a Option<std::collections::BTreeMap<String, String>>,
@@ -44,7 +43,6 @@ fn protected_json(meta: &Meta) -> Vec<u8> {
         zeroize: &meta.zeroize,
         bruteforce_lockout: &meta.bruteforce_lockout,
         bruteforce_threshold: &meta.bruteforce_threshold,
-        file_integrity: &meta.file_integrity,
         sandbox_enabled: &meta.sandbox_enabled,
         sandbox_namespaces: &meta.sandbox_namespaces,
         sandbox_seccomp: &meta.sandbox_seccomp,
@@ -114,14 +112,6 @@ pub fn verify(secret: &[u8], meta: &Meta) -> Status {
 /// one field forced *off* instead — losing a brute-force defense is
 /// recoverable by re-enabling it; an unwanted vault deletion is not.
 ///
-/// `fileIntegrity` — this field doesn't control anything itself, it
-/// only *describes* what the on-disk container already is (set once,
-/// at migration time; the container's real structure can't be changed
-/// by editing this flag). Blindly setting it `true` on a container
-/// that's actually plain LUKS would make `info` lie in the *other*
-/// direction — claiming a protection that isn't really there. So this
-/// checks reality instead, via `cryptsetup luksDump`, and stores
-/// whatever's actually true.
 /// `secret` is the vault's already-verified LUKS secret (available at
 /// every call site — `open.rs`'s `check_tamper` runs right after the
 /// real secret was resolved) — needed here because `header_offset`/
@@ -137,7 +127,6 @@ pub fn reset_to_safe(img: &std::path::Path, secret: &[u8], meta: &mut Meta) {
     // a tampered value is correctly *detected*), but with the feature
     // itself forced off above, a stale/tampered threshold number is
     // inert either way; nothing reads it while lockout is disabled.
-    meta.file_integrity = Some(crate::luks::has_integrity(img));
     // sandbox: forcing *on* has no destructive side effect (unlike
     // bruteforceLockout), so it follows the majority "more protective"
     // rule. Namespaces reset to the full set (every namespace isolated,

@@ -70,7 +70,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, pw: Option<&str>) -> Result<()> {
     // together so the value column lines up top to bottom, not just
     // within whichever section happens to share a `line()`/`kv_line()`
     // call together.
-    let mut names: Vec<&str> = vec!["vault", "size", "open", "slots", "passphrase", "keyfile", "keep", "threshold", "fileIntegrity"];
+    let mut names: Vec<&str> = vec!["vault", "size", "open", "slots", "passphrase", "keyfile", "keep", "threshold"];
     names.extend(FLAT_FEATURES.iter().map(|f| f.name));
     names.push("backupAuto");
     names.extend(security::FEATURES.iter().map(|f| f.name));

@@ -19,7 +19,6 @@ pub const GATED_FEATURES: &[&str] = &[
     "verification",
     "keyfileReset",
     "bruteforceLockout",
-    "fileIntegrity",
     "sandbox",
     "headerOffset",
     "headerEncryption",

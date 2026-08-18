@@ -84,9 +84,6 @@ cas
     │       ├── zeroize enable|disable|state locks the derived secret in RAM and scrubs it from memory when done
     │       ├── bruteforceLockout enable [--threshold N]|disable|threshold <N>|state
     │       │                                delete the vault after N consecutive wrong passphrases
-    │       ├── fileIntegrity enable|disable [--delete-backup]|state
-    │       │                                migrate to/from a dm-integrity per-sector-authenticated LUKS2 container
-    │       │
     │       └── sandbox
     │           ├── enable                   permit `cas <vault> exec` for this vault
     │           ├── disable [--removeRootfs] block `exec`, optionally wiping every rootfs environment too

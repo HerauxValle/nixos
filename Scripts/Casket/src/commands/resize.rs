@@ -51,8 +51,8 @@ pub fn run(ctx: &Ctx, vault: &Vault, new_mb: u64, pw: &str) -> Result<()> {
     vault.cleanup_mnt_dir();
     // Preserve whatever schema version the trailer was actually at --
     // `Meta::write()` would stamp `_v` to current unconditionally, which
-    // would silently mark a still-pending `requires_new_image` migration
-    // as done without ever having rebuilt the image (see
+    // would silently mark a still-pending layout migration as done
+    // without ever having actually run it (see
     // Documents/Claude/Casket/Bugs/resize-silently-completes-schema-migration.md).
     meta.write_at_version(&vault.img, schema_from)?;
 

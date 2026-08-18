@@ -12,7 +12,6 @@ mod keyfile;
 mod keyfile_mount;
 mod luks;
 mod meta;
-mod migrate;
 mod migrations;
 mod name;
 mod proc;
@@ -60,8 +59,7 @@ fn elevate() {
     // `--preserve-env=EDITOR` specifically, not a blanket `-E` -- sudo
     // resets the environment by default, which silently dropped a
     // user's `$EDITOR` before it ever reached commands that shell out
-    // to it (`seccomp custom edit`, `settings security fileIntegrity`'s
-    // migration prompts don't use it, but the editor flow does),
+    // to it (`seccomp custom edit`'s editor flow, specifically),
     // launching root's own default editor instead with no explanation.
     // Only this one variable is threaded through, not the whole
     // environment, to keep the elevation boundary otherwise unchanged.

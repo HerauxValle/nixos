@@ -10,7 +10,6 @@ pub const STEP: Step = Step {
     version: 7,
     meta: None,
     layout: Some(migrate_layout),
-    requires_new_image: false,
 };
 
 fn migrate_layout(ctx: &Ctx, vault: &Vault) {
