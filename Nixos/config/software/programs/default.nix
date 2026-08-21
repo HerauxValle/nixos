@@ -25,6 +25,7 @@
     ./prism
     ./silent-sddm
     ./steam
+    ./vesktop
     ./vscode
   ];
 }
