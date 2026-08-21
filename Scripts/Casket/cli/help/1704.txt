@@ -1,0 +1,9 @@
+cas <vault> settings security sandbox rootfs rename <old> <new>
+
+Renames a rootfs environment. If `<old>` was the current `default`,
+the default pointer is automatically updated to `<new>` -- unlike
+`remove`, a rename isn't destructive, so carrying the pointer forward
+is safe.
+
+EXAMPLES
+  cas myvault settings security sandbox rootfs rename dev dev-old --pass "..."

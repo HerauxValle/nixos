@@ -1,0 +1,8 @@
+cas <vault> settings security sandbox seccomp custom list
+
+Lists every custom seccomp profile that exists for this vault, and
+which targets (rootfs environments, or "_root" for the vault's own
+content) currently reference each one via `seccomp set`.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp custom list

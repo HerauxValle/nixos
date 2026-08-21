@@ -1,0 +1,163 @@
+# &desc: "QBittorrent service config -- enabled/autoStart=false, values pinned against real prior install from Media vault."
+
+{ config, ... }:
+
+# Real values -- schema + the actual behavior live in
+# ../../modules/services/self-hosted/qbittorrent/. Data only, same as
+# every other service's config/self-hosted/<name>.nix.
+#
+# Every value below is pinned against a real prior install's actual
+# config, found mid-session at
+# /run/media/herauxvalle/Media/Home/.config/qBittorrent/qBittorrent.conf
+# (a different mount than the old bash framework ever referenced) --
+# read directly, not guessed or assumed from the old main.sh alone.
+{
+  config.vars.services.selfHosted.qbittorrent = {
+    enabled = true;
+
+    # Off for now -- still exists, still systemctl start-able by hand,
+    # just not pulled in on boot/rebuild. Matches every other migrated
+    # service's real config on this machine right now.
+    autoStart = false;
+
+    # false -- WebUI\* settings (password, etc) get wiped on every
+    # restart same as upstream's own behavior; prefer `secrets
+    # qbittorrent` for the password itself (see extraServerConfig's own
+    # comment below). Flip true to instead auto-preserve whatever else
+    # you tweak under Options -> Web UI that isn't declared in Nix at
+    # all. See default.nix's own immutable comment for the full story.
+    immutable = false;
+
+    # Vault-backed real internal state (config, session/resume data,
+    # GeoDB) -- fresh, no prior profile ever existed at this exact path
+    # (the recovered real install lived under a different mount
+    # entirely, ~/.config/qBittorrent on the Media drive, not vault-
+    # backed at all there).
+    profileDir = "${config.vars.identity.homeDirectory}/Images/SelfHosted/QBitTorrent";
+
+    # Real values from the recovered qBittorrent.conf (WebUI\Port=7080,
+    # Session\Port=1729) -- not the wrapped module's own defaults
+    # (8080, unset).
+    webuiPort = 7080;
+    torrentingPort = 1729;
+
+    # null -- the recovered conf never set Preferences\WebUI\Address
+    # either, so this is the real prior value, not just a safe default.
+    host = null;
+
+    # The external Storage drive's already-existing, real torrent
+    # library (confirmed by inspecting the drive directly, and every
+    # one of these four paths matches the recovered conf's own
+    # BitTorrent.Session.* values exactly). Mounted via
+    # config.vars.system.mountpoints (modules/system/mountpoints/) at
+    # /home/${config.vars.identity.username}/Drives/Storage now, not the old
+    # udisks2-managed /run/media/<user>/Storage -- ProtectHome="tmpfs"+
+    # BindPaths below (reusing requireMounts, same proven mechanism as
+    # Immich's own /home-rooted mediaLocation) is what grants the
+    # dedicated qbittorrent system user access to a /home path, no ACL
+    # traversal grant needed (see config/self-hosted/acl-traversal.nix's
+    # now-commented-out entry for the old /run/media story).
+    paths = {
+      save = "${config.vars.system.mountpoints.device.storage.path}/Torrents/Library";
+      temp = "${config.vars.system.mountpoints.device.storage.path}/Torrents/Incomplete";
+      export = "${config.vars.system.mountpoints.device.storage.path}/Torrents/Database";
+      finished = "${config.vars.system.mountpoints.device.storage.path}/Torrents/Deprecated";
+    };
+
+    requireMounts = [
+      "${config.vars.identity.homeDirectory}/Images/SelfHosted"
+      config.vars.system.mountpoints.device.storage.path
+    ];
+
+    # Real, non-secret preferences ported straight from the recovered
+    # conf, plus a real WebUI login below -- `secrets qbittorrent`
+    # prompts for a username/password directly (PBKDF2-HMAC-SHA512,
+    # matching qBittorrent's own scheme -- see that script's own
+    # comment) and prints a ready-to-paste Preferences.WebUI = {...}
+    # block, no live qBittorrent conf ever read. Once pasted it's an
+    # ordinary declared value like everything else here and survives
+    # every restart on its own. Still lands in the Nix store and this
+    # repo's git history like any other extraServerConfig value --
+    # accepted here as a real tradeoff (this is a hash, not a plaintext
+    # password), not because that concern went away. Preferences.WebUI,
+    # not top-level WebUI -- a top-level WebUI = {...} renders as its
+    # own empty [WebUI] section header instead of the WebUI\* keys
+    # qBittorrent actually reads from inside [Preferences] (confirmed
+    # live: first attempt silently produced an unusable login).
+    extraServerConfig = {
+      Preferences.WebUI = {
+        Username = "herauxvalle";
+        Password_PBKDF2 = "@ByteArray(5XmMpILy65+aPptaS8nzdA==:Ya2q8EHJlI3v9zEiVh02a7XyyUsgdRpbGRMr/UPYfc0k6Lr52EwJl0MhvSr8wM/8cs6Bx6zHiQKhOkSU8M89VQ==)";
+        # Lets a request that's genuinely from this box's own loopback
+        # skip login -- exactly what the magnet-link handler (see
+        # Scripts/QbitMagnet) needs to POST to the API without embedding
+        # the WebUI password anywhere. Only affects 127.0.0.1 itself:
+        # ports.nix's qbittorrent entry is mode.local only (LAN, not
+        # forwarded past this machine), and any remote/LAN client still
+        # hits the real Username/Password_PBKDF2 above -- this bypass
+        # never reaches them.
+        LocalHostAuth = false;
+      };
+      BitTorrent = {
+        MergeTrackersEnabled = true;
+        Session = {
+          AnonymousModeEnabled = true;
+          ConnectionSpeed = 100;
+          Encryption = 1;
+          GlobalUPSpeedLimit = 0;
+          IgnoreLimitsOnLAN = true;
+          MaxActiveDownloads = 2;
+          MultiConnectionsPerIp = true;
+          PieceExtentAffinity = true;
+          QueueingSystemEnabled = true;
+          SSL.Port = 49999;
+          StartPaused = false;
+
+          # DHT/PeXEnabled aren't set here -- both already default to
+          # true upstream (Tools -> Options -> BitTorrent's "Enable DHT"
+          # / "Enable Peer Exchange (PeX)" ship checked), so there's
+          # nothing to override to keep them on.
+
+          # Auto-pulls ngosang/trackerslist's "best" list (curated,
+          # actively-seeded-tracker only, no dead/duplicate entries) and
+          # appends it to every new torrent's own trackers on add --
+          # this is the real key qBittorrent's own "Automatically append
+          # trackers from URL to new downloads" option in Tools ->
+          # Options -> BitTorrent writes, confirmed against qBittorrent's
+          # own conf format (not guessed).
+          AdditionalTrackersURL = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt";
+
+          # Real, separate qBittorrent field (distinct from
+          # AdditionalTrackersURL above) -- individual tracker announce
+          # URLs, one per line, statically appended to every new torrent
+          # on top of whatever AdditionalTrackersURL's own list provides.
+          # Empty for now; add more by just adding lines inside the ''...''.
+          AdditionalTrackers = ''
+          '';
+        };
+      };
+      Core.AutoDeleteAddedTorrentFile = "Never";
+      Preferences.General.Locale = "en";
+    };
+  };
+
+  # Opt-in only -- vars.selfHosted.aclWriteGrants itself (and the
+  # separate-oneshot-unit mechanism behind it) is declared once, globally,
+  # in ../../modules/services/self-hosted/lib/acl-write/ and already
+  # applies to any service key added here, no modules/ edit required per
+  # service. Real bug this fixes: the four paths above are a real,
+  # pre-existing directory tree owned by config.vars.identity.username,
+  # whose ACLs only ever granted that user's own group rwx -- the
+  # dedicated qbittorrent system user had nothing beyond `other::r-x`
+  # (read/traverse, no write), so a freshly-added torrent needing to
+  # write piece data errored out instantly (confirmed live: WebUI showed
+  # a fresh torrent stuck at 0%, "Errored"). "qbittorrent" -- the real
+  # group name services.qbittorrent's own module creates, confirmed via
+  # `systemctl cat qbittorrent`, not guessed.
+  config.vars.services.selfHosted.aclWriteGrants.qbittorrent = [
+    { group = "qbittorrent"; path = config.vars.services.selfHosted.qbittorrent.paths.save; }
+    { group = "qbittorrent"; path = config.vars.services.selfHosted.qbittorrent.paths.temp; }
+    { group = "qbittorrent"; path = config.vars.services.selfHosted.qbittorrent.paths.export; }
+    { group = "qbittorrent"; path = config.vars.services.selfHosted.qbittorrent.paths.finished; }
+  ];
+}

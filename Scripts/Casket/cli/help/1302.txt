@@ -1,0 +1,7 @@
+cas <vault> settings encryption state
+
+Shows whether the passphrase prompt is currently required on open, as
+'encryption   enabled|disabled'.
+
+EXAMPLES
+  cas myvault settings encryption state

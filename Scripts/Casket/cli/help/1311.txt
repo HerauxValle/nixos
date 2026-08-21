@@ -1,0 +1,10 @@
+cas <vault> settings security zeroize enable [--pass "..."]
+
+Locks the derived LUKS secret into RAM (mlock -- can't get swapped to
+disk unencrypted while actively in use) and scrubs it from memory the
+moment it goes out of scope, instead of sitting in freed-but-not-
+overwritten memory until something else reuses that page. Default on;
+there's no real reason to disable it.
+
+EXAMPLES
+  cas myvault settings security zeroize enable --pass "..."

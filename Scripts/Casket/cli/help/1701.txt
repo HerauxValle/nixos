@@ -1,0 +1,14 @@
+cas <vault> settings security sandbox rootfs add <name> --preset <distro> [<version>] | --tarball <path>
+
+Creates a new named rootfs environment for `exec --rootfs <name>`,
+either by fetching a known distro's rootfs live (checksum-verified
+when available) or by extracting an already-local tar archive.
+`--preset` and `--tarball` are mutually exclusive; omitting a version
+with `--preset` fetches the latest available. Tarball members are
+validated first (`tar -tf`, then symlink-target containment) before
+anything is extracted.
+
+EXAMPLES
+  cas myvault settings security sandbox rootfs add dev --preset alpine --pass "..."
+  cas myvault settings security sandbox rootfs add dev --preset ubuntu 22.04 --pass "..."
+  cas myvault settings security sandbox rootfs add dev --tarball /path/to/rootfs.tar.gz --pass "..."

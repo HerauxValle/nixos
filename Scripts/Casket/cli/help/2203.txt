@@ -1,0 +1,16 @@
+cas <vault> settings security sandbox seccomp custom create <name>
+
+Creates a new, empty custom seccomp profile: default action "deny",
+empty allow and deny lists. The name can't collide with a built-in
+preset name (default, strict, compute, none) -- `seccomp set` resolves
+both from one shared flat namespace, so a collision would be
+ambiguous.
+
+  [i] a fresh "deny by default" profile blocks everything, including
+      the syscalls exec's own PID1 supervisor needs for its own
+      bookkeeping (getpid, wait4, kill, fork, clone, exit_group) --
+      make sure `edit <name> add` covers those before relying on it.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp custom create my-profile --pass "..."
+  cas myvault settings security sandbox seccomp custom edit my-profile add --allow getpid,wait4,kill,fork,clone,exit_group --pass "..."

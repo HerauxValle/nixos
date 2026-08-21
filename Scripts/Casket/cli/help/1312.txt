@@ -1,0 +1,8 @@
+cas <vault> settings security zeroize disable [--pass "..."]
+
+Leaves the derived secret unlocked and in freed memory until something
+else reuses it. There's no real reason to do this -- the toggle exists
+to match every other security feature's enable|disable|state shape.
+
+EXAMPLES
+  cas myvault settings security zeroize disable --pass "..."

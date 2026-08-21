@@ -1,0 +1,18 @@
+cas <vault> settings security sandbox disable [--removeRootfs] [--pass "..."]
+
+Turns sandboxing back off, so 'exec' refuses again until it's
+re-enabled. Refuses outright if 'exec' currently has a live session --
+wait for it to exit first.
+
+  --removeRootfs   also permanently deletes every rootfs environment
+                   for this vault (same as 'settings security sandbox
+                   rootfs remove all'). Requires the vault to be open,
+                   since rootfs environments live inside the mount.
+                   Checked and run before sandbox is actually flipped
+                   off, so a refusal here (vault not open, etc.) leaves
+                   sandbox exactly as it was instead of disabled with
+                   leftover environments.
+
+EXAMPLES
+  cas myvault settings security sandbox disable --pass "..."
+  cas myvault settings security sandbox disable --removeRootfs

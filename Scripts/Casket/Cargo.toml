@@ -1,0 +1,141 @@
+# &desc: "Cargo manifest for cas — the Rust port of the Casket LUKS vault manager."
+[package]
+name = "cas"
+version = "1.17.0"
+edition = "2021"
+description = "Encrypted vault manager — LUKS2 image files with optional 2FA keyfile, btrfs snapshots, and safe passphrase rotation."
+
+[[bin]]
+name = "cas"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[dependencies]
+# kdl: parser for cli/registry.kdl and cli/codes.kdl -- the CLI tree's
+# single source of truth for shape (names, nesting, ids, arg/flag
+# schema). Pure Rust, no bindgen/libclang (checked before adding, same
+# diligence as the rustables/nftables crate check that led to hand-
+# rolling raw netlink instead) -- its own dependency tree is tiny and
+# shares `serde`, already a dependency here for Meta's own
+# serialization. Both files are `include_str!`-embedded into the binary
+# at compile time, never read from a runtime path -- `cas` self-
+# elevates to root, so nothing here should be externally mutable.
+kdl = "6"
+
+# No CLI-parsing crate on purpose: `cas <vault> <action> [flags...]` puts
+# the subject before the verb and lets flags land anywhere in argv,
+# which doesn't fit clap's positional/subcommand model without either
+# fighting `trailing_var_arg` (flags after the positional words get
+# swallowed as literal strings) or changing the argument order — and the
+# whole point here is that `cas myvault open --pass ...` keeps working
+# exactly as before. cli.rs mirrors the original's own pop_opt() scanner
+# instead, which is a dozen lines and has no such edge cases.
+
+# serde/serde_json: the vault's trailing metadata block is JSON on disk
+# (shared with the Python tool and any future reader) — hand-rolling a
+# JSON encoder/decoder for a format other tools also write to is exactly
+# the kind of "clever" byte-shaving that risks silently corrupting a real
+# vault's header on some escaped-character edge case. Not worth it for a
+# block that's under 200 bytes and read/written once per invocation.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# sha2: SHA-256 for the 2FA combined secret (passphrase + keyfile bytes).
+# RustCrypto's implementation auto-selects hardware SHA extensions/AVX2
+# where available — real byte-level optimization via a vetted primitive
+# instead of a hand-rolled compression function.
+sha2 = "0.10"
+
+# rand: CSPRNG for generated passphrases and 2FA keyfile bytes.
+rand = "0.8"
+
+# base64: encodes/decodes the "_autokey" field (the stored secret for
+# encryption=off vaults). Hand-rolling base64 in the one spot that holds
+# the actual key material is not where "fewer dependencies" is worth it.
+base64 = "0.22"
+
+# rpassword: hidden (no-echo) stdin reads for passphrase prompts —
+# the direct equivalent of Python's getpass.getpass().
+rpassword = "7"
+
+# zxcvbn: real passphrase-strength estimation for the create/auth passwd
+# weak-passphrase warning -- Dropbox's zxcvbn algorithm (Rust port),
+# proper entropy/crack-time estimation plus matching against its own
+# embedded large dictionaries (common passwords, English words, names,
+# keyboard patterns, l33t substitutions), not a hand-rolled wordlist or
+# a naive length/character-class check.
+zxcvbn = "3"
+
+# hmac: keyed integrity tag over the trailer's protection-relevant
+# fields (ransomwareProtection, verify_required, zeroize), keyed by the
+# vault's own derived LUKS secret. A *keyed* hash, not a plain one --
+# a plain hash (SHA256(settings)) proves nothing, since anyone editing
+# the trailer can just recompute a new plain hash over their edit too.
+# HMAC needs the secret to produce a matching tag, which an attacker
+# editing the file without the passphrase doesn't have.
+hmac = "0.12"
+
+# zeroize: scrubs the resolved passphrase and derived LUKS secret from
+# memory the moment they go out of scope, instead of leaving them in
+# freed-but-not-overwritten memory until something else happens to reuse
+# that page — closes the "core dump / swapped memory page after the
+# process exits" gap. Gated by settings security zeroize (default on).
+zeroize = "1"
+
+# filetime: preserves mtimes during migrate.rs's tree copy (fileIntegrity
+# migration) — std has no cross-platform "set a file's mtime" call, and
+# this is the same small, widely-used (cargo itself depends on it) crate
+# everyone reaches for instead of hand-rolling a utimensat wrapper.
+filetime = "0.2"
+
+# libc: raw getuid()/getgid() for the (rare) fallback path where this
+# runs as root without going through sudo, so SUDO_UID/SUDO_GID aren't
+# set. Everything else privilege-related uses std's own uid()/gid() on
+# Command, which sets the child's ids directly via posix_spawn instead of
+# Python's preexec_fn fork-time callback (which upstream's own docs flag
+# as not signal-safe).
+libc = "0.2"
+
+# toml: the rootfs-distro and seccomp-preset registries are data, not
+# code -- flat, human-editable tables a person should be able to update
+# (a new Alpine "latest" alias, a new distro entry) without touching
+# Rust at all. serde_json (already a dependency) could parse the same
+# shape, but JSON has no comments and reads worse for a file meant to be
+# hand-edited; that's specifically what this crate buys over reusing
+# serde_json here.
+toml = "0.8"
+
+# ureq: blocking, sync HTTP client for `rootfs add --preset`'s tarball/
+# checksum fetches -- no async runtime anywhere else in this codebase,
+# so pulling in an async-first client (reqwest) would mean carrying
+# tokio just for two GET requests. ureq is the minimal fit for a
+# request/response shape this simple.
+ureq = "2"
+
+# argon2: master-secret KDF for the headerOffset/headerEncryption
+# header-hiding features (src/header/mod.rs) -- same memory-hard,
+# side-channel-resistant algorithm cryptsetup itself already uses for
+# LUKS2 keyslots (`--pbkdf argon2id`), applied here to a second,
+# independent secret derived from the same passphrase (+ keyfile). Pure
+# RustCrypto, matches the existing all-RustCrypto stack.
+argon2 = "0.5"
+
+# hkdf: purpose-separated subkey expansion from the Argon2id master
+# secret -- `HKDF-Expand(secret, info="cas:header-slot"|"cas:header-key")`
+# so enabling one header-hiding toggle never leaks key material relevant
+# to the other, off one shared expensive KDF pass per open.
+hkdf = "0.12"
+
+# chacha20poly1305: AEAD for `headerEncryption`'s header-content
+# encryption. Chosen over AES-GCM for portability -- no implicit AES-NI
+# performance assumption, since the relocated/encrypted header has to
+# open reasonably fast on whatever CPU the vault ends up on, not just
+# the build host. Pure RustCrypto, no host OpenSSL/libsodium dependency.
+chacha20poly1305 = "0.10"
+inventory = "0.3.24"

@@ -1,0 +1,264 @@
+# &desc: "Self-hosted service builder function -- enabled flag drives lifecycle (live or teardown), preStart/postStart reconciliation, storage mounts, dataDir handling."
+
+{ lib, pkgs, mkTeardownActivationScript }:
+
+# The live process. Restart=on-failure replaces the old bash framework's
+# nohup+PID-file+kill-loop entirely.
+{ name
+  # Default false, matching every service's own `enabled` schema
+  # option -- inert-by-default is the safe choice, same reasoning as
+  # `ensureDataDir`/`autoStart` above. true = the live service (below)
+  # exists and runs. false = none of it exists, and
+  # mkTeardownActivationScript fires instead (see its own comment) --
+  # this one flag drives both halves of the lifecycle, so no caller
+  # has to hand-wire lib.mkIf/lib.mkMerge around this function's
+  # result itself.
+, enabled ? false
+, execStart
+, user
+, packages ? [ ]
+, environment ? { }
+, preStart ? [ ]
+  # Runs after execStart's process has actually been spawned --
+  # ExecStartPost, not ExecStartPre. For reconciliation that can only
+  # happen through the live process itself (Ollama's model
+  # pull/rm/list all go through its own HTTP API, which obviously
+  # isn't up yet during preStart). Each entry should wait until
+  # actually ready itself (poll, don't assume) -- ExecStartPost fires
+  # right after fork/exec, not once the process is confirmed serving.
+, postStart ? [ ]
+, storage ? [ ]
+, dataDir ? null
+, autoStart ? true
+  # false (default) is the safe choice: dataDir's existence isn't
+  # Nix's business unless it's told it's safe to assume. true only
+  # for services whose dataDir isn't gated by anything external (no
+  # vault, no other mount) -- it gets a tmpfiles `d` rule (so it's
+  # guaranteed to exist before the service ever tries to start) and
+  # WorkingDirectory=dataDir. For anything gated by external state
+  # (a Casket vault, say), leave this false: systemd applies
+  # WorkingDirectory= to EVERY exec step including ExecStartPre, so
+  # if dataDir doesn't exist yet, not even a prestart that was meant
+  # to check/create it can run -- found this the hard way (Stash and
+  # Ollama both hit exit code 200/CHDIR on a real rebuild). Services
+  # that need this false must do their own existence check in
+  # preStart (absolute paths, no CWD needed) and their own `cd` in
+  # execStart once that's confirmed, instead of relying on this.
+, ensureDataDir ? false
+  # Paths that must already be mountpoints before this service (or any
+  # of its preStart) runs -- generic, knows nothing about Casket,
+  # vaults, or ".img" specifically, and not limited to one: a service
+  # depending on two vaults, or a vault plus an unrelated external
+  # drive, just lists both. A service that needs none leaves this `[
+  # ]` and gets no check at all. Checked first, ahead of preStart,
+  # since the whole point is catching "not mounted" before anything
+  # that assumes it is gets a chance to run.
+, requireMounts ? [ ]
+  # Path to a root-owned KEY=VALUE file systemd reads directly at
+  # start -- Nix only ever knows this path, never the secret values
+  # themselves (never embedded in the store). "-" prefix makes it
+  # optional: a service with no real secrets yet just never has the
+  # file, no error. Written by `secrets self-hosted <name>`, not by
+  # Nix -- same hashedPasswordFile-style split as the login password.
+, environmentFile ? null
+  # Needed only to compute ancestor-directory ownership fixes below
+  # -- see the tmpfiles.rules comment. Skipped (no ancestor fixes)
+  # if not given, matching this parameter's previous absence.
+, homeDirectory ? null
+  # Passed straight through to mkTeardownActivationScript -- see its
+  # own comment for what these actually control. Not used at all
+  # unless enabled = false.
+, teardownPaths ? [ ]
+, venvDir ? null
+  # Opt-in, null by default (no change for every existing service) --
+  # raises the open-file-descriptor limit for the live process. First
+  # real need: Jellyfin's own launch.sh did `ulimit -n
+  # "$JELLYFIN_FD_LIMIT"` before exec, real behavior for large media
+  # libraries (many files watched/scanned at once), not speculative.
+, limitNoFile ? null
+  # Names of other systemd units this service's start should wait on --
+  # generic, knows nothing about Casket/vaults/autostart specifically,
+  # same reasoning as requireMounts. Real motivating case: a vault-backed
+  # service ordered only via RequiresMountsFor's own auto-added After=
+  # against the vault's *mount* unit still raced on a real reboot and,
+  # worse than the original bug, silently never started at all -- a
+  # dynamically-created (non-fstab) mount unit doesn't exist yet at the
+  # moment systemd computes the boot transaction, so an explicit
+  # `Requires=<that mount unit>` (tried first) couldn't be resolved and
+  # systemd just dropped the whole start job from the transaction, no
+  # error, no log line, confirmed live via a real reboot (Result=success,
+  # zero state-change timestamps ever, zero journal entries for the
+  # unit). Ordering against the vault-*unlock* service instead
+  # (autostart@selfHosted.service, a real, statically-known unit from
+  # early boot -- not the mount it produces) sidesteps that "doesn't
+  # exist yet" problem entirely: `After=` on an always-present unit is
+  # exactly what systemd's transaction computation handles correctly.
+  # RequiresMountsFor (below) stays as the actual wait/gate; this is
+  # just what makes sure the transaction is even computed with the right
+  # ordering in the first place.
+, afterUnits ? [ ]
+}:
+let
+  mountChecks = map
+    (path: ''
+      mountpoint -q "${path}" || {
+        echo "self-hosted-${name}: ${path} is not mounted" >&2
+        exit 1
+      }
+    '')
+    requireMounts;
+
+  # dataDir's own `d`/`z` pair only fixes dataDir itself -- if any
+  # directory *between* homeDirectory and dataDir already exists
+  # root-owned (e.g. ~/Applications, an auto-created, unmanaged
+  # parent from some earlier root-run activation), systemd-tmpfiles
+  # refuses to even walk through it to reach dataDir: "Detected
+  # unsafe path transition ... during canonicalization" -- a real
+  # safety check, not a bug, but it means dataDir's own ownership
+  # fix silently no-ops if any ancestor is wrong. Found this the
+  # hard way (ComfyUI's custom_nodes mkdir kept failing with
+  # Permission denied even after adding dataDir's own `z` rule --
+  # ~/Applications itself, one level up, was the actual culprit).
+  # Fix: emit the same d+z pair for every ancestor directory between
+  # homeDirectory (always safe -- it's the user's own home) and
+  # dataDir, so the whole chain is guaranteed walkable.
+  ancestorDirs =
+    if dataDir == null || homeDirectory == null then [ ] else
+    let
+      baseParts = lib.splitString "/" homeDirectory;
+      fullParts = lib.splitString "/" dataDir;
+      relParts = lib.sublist
+        (builtins.length baseParts)
+        (builtins.length fullParts - builtins.length baseParts - 1)
+        fullParts;
+    in
+    lib.genList
+      (i: homeDirectory + "/" + lib.concatStringsSep "/" (lib.sublist 0 (i + 1) relParts))
+      (builtins.length relParts);
+
+  # Same problem, one level down: a storage entry whose src is nested
+  # (e.g. "libraries/media-movies", not just "config") needs its own
+  # intermediate directory ("dataDir/libraries") to exist and be
+  # user-owned before the L+ line can walk through it -- systemd-tmpfiles
+  # auto-creates that intermediate as root:root as a side effect of the
+  # L+ line itself (there's no separate rule for it otherwise), which
+  # trips the identical "unsafe path transition" safety check as above.
+  # Found this the hard way (Jellyfin's libraries/<name> entries: the
+  # symlinks silently never got created, "libraries" itself sat there
+  # root-owned and empty). Fix: same d+z treatment, for every distinct
+  # intermediate directory any storage src actually needs.
+  storageSrcAncestorDirs =
+    if dataDir == null then [ ] else
+    lib.unique (lib.concatMap
+      (s:
+        let parts = lib.splitString "/" s.src; in
+        lib.genList
+          (i: dataDir + "/" + lib.concatStringsSep "/" (lib.sublist 0 (i + 1) parts))
+          (builtins.length parts - 1))
+      storage);
+in
+lib.mkMerge [
+  (lib.mkIf enabled {
+    systemd.services."self-hosted-${name}" = {
+      description = "self-hosted: ${name}";
+      # autoStart = false means it still exists and can be started by
+      # hand (`systemctl start self-hosted-<name>`), it just isn't
+      # pulled in on boot/rebuild.
+      wantedBy = lib.optionals autoStart [ "multi-user.target" ];
+      after = afterUnits;
+      # util-linux (mountpoint) only when requireMounts actually needs
+      # it -- found via a real failure: "mountpoint: command not
+      # found" on ComfyUI's live-service mount check. Not on a bare
+      # systemd service's PATH by default, unlike an interactive
+      # shell where it's already there. Callers never have to
+      # remember this themselves.
+      path = packages ++ lib.optionals (requireMounts != [ ]) [ pkgs.util-linux ];
+      inherit environment;
+      # Native systemd wait, not just a preStart check -- RequiresMountsFor
+      # orders this unit after the mount unit for each path and holds the
+      # start queued until it's actually active, instead of firing
+      # immediately and failing (which is what the mountpoint check in
+      # preStart alone does). Found the hard way: a vault-backed service
+      # starting on boot before the Casket vault unlocks fails 3x inside
+      # systemd's default 10s restart window, hits start-limit-hit, and
+      # then sits dead forever even once the vault mounts moments later --
+      # nothing retries it. This turns "race and permanently fail" into
+      # "wait for the mount, then start normally." preStart's mountpoint
+      # check stays as a belt-and-braces guard for the manual
+      # `systemctl start` case where the path was never a real mount unit
+      # to order against (e.g. a bind mount systemd doesn't track).
+      unitConfig = lib.optionalAttrs (requireMounts != [ ]) {
+        RequiresMountsFor = requireMounts;
+      } // {
+        # Companion to RequiresMountsFor above -- that only covers the
+        # *startup* race (don't start until mounted). This covers the
+        # *runtime* one: a vault-backed service that's already running
+        # fine and then the mount drops out from under it (drive blip,
+        # vault locked by hand while serving) crashes, and
+        # Restart=on-failure fires again instantly. Systemd's default
+        # restart-limit window (5 starts / 10s, no delay between tries)
+        # burns out in under a second against a mount that takes even a
+        # few seconds to come back, landing right back in the same
+        # permanent start-limit-hit dead-end the startup race did.
+        # 12x/120s with a 5s gap between each retry gives a slow
+        # unlock/remount real room to finish before the budget runs out,
+        # without waiting forever on a genuinely broken service.
+        StartLimitIntervalSec = 120;
+        StartLimitBurst = 12;
+      };
+      serviceConfig = {
+        User = user;
+        ExecStartPre = lib.imap0
+          (i: cmd: "${pkgs.writeShellScript "self-hosted-${name}-prestart-${toString i}" cmd}")
+          (mountChecks ++ preStart);
+        ExecStart = execStart;
+        ExecStartPost = lib.imap0
+          (i: cmd: "${pkgs.writeShellScript "self-hosted-${name}-poststart-${toString i}" cmd}")
+          postStart;
+        Restart = "on-failure";
+        RestartSec = 5;
+        # systemd's default 90s start timeout applies to ExecStartPre
+        # too -- found the hard way on ComfyUI's first real venv install
+        # (a multi-GB CUDA download): systemd killed it mid-download
+        # ("start-pre operation timed out"), Restart=on-failure retried
+        # the whole service, and it re-entered preStart, hit cache for
+        # whatever had actually finished, and re-downloaded whatever got
+        # killed mid-file -- a loop that never converges if any single
+        # file takes close to 90s. preStart legitimately taking a long
+        # time on a first install (or after a lock change) is expected
+        # for any service with a hash-locked venv, not a hang -- disable
+        # the timeout rather than guess at a large-enough fixed value.
+        TimeoutStartSec = "infinity";
+      } // lib.optionalAttrs (dataDir != null && ensureDataDir) {
+        WorkingDirectory = dataDir;
+      } // lib.optionalAttrs (environmentFile != null) {
+        EnvironmentFile = "-${environmentFile}";
+      } // lib.optionalAttrs (limitNoFile != null) {
+        LimitNOFILE = limitNoFile;
+      };
+    };
+
+    systemd.tmpfiles.rules =
+      lib.optionals (dataDir != null && ensureDataDir)
+        [
+          "d ${dataDir} 0755 ${user} - -"
+          # `d` only sets ownership at creation time -- if dataDir
+          # already exists (root:root, e.g. from some earlier
+          # accidental root-owned creation), `d` alone silently leaves
+          # it that way, and the service user then can't write inside
+          # it (found this the hard way: ComfyUI's custom_nodes mkdir
+          # failing with Permission denied, dataDir already existing
+          # as root:root). `z` (non-recursive -- only this path
+          # itself, not its contents) re-asserts ownership on every
+          # activation regardless of whether `d` just created it or
+          # it already existed.
+          "z ${dataDir} 0755 ${user} - -"
+        ]
+      ++ (lib.concatMap
+        (dir: [ "d ${dir} 0755 ${user} - -" "z ${dir} 0755 ${user} - -" ])
+        (ancestorDirs ++ storageSrcAncestorDirs))
+      ++ lib.optionals (storage != [ ])
+        (map (s: "L+ ${dataDir}/${s.src} - - - - ${s.dest}") storage);
+  })
+  (mkTeardownActivationScript { inherit name enabled dataDir storage teardownPaths venvDir; })
+]

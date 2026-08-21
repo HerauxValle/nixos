@@ -1,0 +1,9 @@
+cas <vault> auth keyfile strip <carrier-file> [--pass "..."]
+
+The opposite of embed: removes the trailer, restoring the carrier to
+its original content. Asks you to type the vault name to confirm if
+the carrier is the vault's ACTIVE keyfile, since that would remove the
+only copy of the key material cas knows about.
+
+EXAMPLES
+  cas myvault auth keyfile strip ~/Pictures/holiday.jpg

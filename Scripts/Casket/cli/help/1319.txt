@@ -1,0 +1,9 @@
+cas <vault> settings security sandbox state
+
+Shows whether sandboxing is currently enabled, as
+'sandbox   enabled|disabled'. Enabled means 'cas <vault> exec' is
+usable; it doesn't reflect what namespaces/seccomp/network/rootfs/
+cgroups are configured -- see each of those individually.
+
+EXAMPLES
+  cas myvault settings security sandbox state

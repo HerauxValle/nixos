@@ -1,0 +1,17 @@
+cas <vault> auth passwd [--pass "..."] [--new-pass "..."] [--strength level]
+
+Changes the passphrase. The vault must be closed first. Prompted for
+the current one, then the new one twice, unless given via
+--pass/--new-pass. Safe: old slot stays valid until the new one is
+verified, so a crash mid-way can't lock you out. If 2FA is enabled,
+only the passphrase changes -- the keyfile stays the same.
+
+Leave the new passphrase empty (interactively, or --new-pass "") to
+generate a strong random one instead, same as 'create'. A typed
+passphrase gets a non-blocking weak-passphrase warning (real
+entropy/dictionary estimation via zxcvbn, not just a length check) if
+it looks easy to crack offline -- it's never refused, just flagged.
+
+EXAMPLES
+  cas myvault auth passwd --pass "old" --new-pass "new" --no-log
+  cas myvault auth passwd --strength high

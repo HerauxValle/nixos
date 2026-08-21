@@ -1,0 +1,12 @@
+cas <vault> settings encryption disable [--pass "..."]
+
+Stores the derived LUKS secret (hashed) in the vault's own metadata so
+'open'/'toggle' unlock without prompting -- useful on a trusted machine.
+The vault stays LUKS-encrypted on disk; this only skips the prompt.
+
+  [!] WARNING: this stores LUKS key derivation material in plaintext in
+      the vault file's metadata. Only use this if the .img itself is on
+      a trusted / already-encrypted volume.
+
+EXAMPLES
+  cas myvault settings encryption disable --pass "mypass" --no-log

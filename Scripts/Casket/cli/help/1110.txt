@@ -1,0 +1,7 @@
+cas <vault> backup create <name>
+
+Creates a readonly btrfs snapshot of the vault's contents at
+/.casket/snapshots/<name> inside the vault. The vault must be open.
+
+EXAMPLES
+  cas myvault backup create before-upgrade

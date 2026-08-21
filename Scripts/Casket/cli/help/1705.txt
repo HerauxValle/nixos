@@ -1,0 +1,10 @@
+cas <vault> settings security sandbox rootfs default <name>|--clear
+
+Sets, clears, or (with no arguments) shows which rootfs environment
+`exec` falls back to when multiple environments exist and none was
+named explicitly via `--rootfs <name>`.
+
+EXAMPLES
+  cas myvault settings security sandbox rootfs default dev --pass "..."
+  cas myvault settings security sandbox rootfs default --clear --pass "..."
+  cas myvault settings security sandbox rootfs default

@@ -1,0 +1,18 @@
+cas <vault> settings security bruteforceLockout enable [--threshold N] | disable | threshold <N> | state   [--pass "..."]
+
+Off by default. When on, 'open' PERMANENTLY DELETES the vault (no
+confirmation, no undo) after N consecutive wrong-passphrase attempts --
+default N=10, change it with --threshold on enable or 'threshold <N>'
+afterward. A correct passphrase resets the counter to 0. The check
+runs before the real unlock attempt, so an unrelated open failure (a
+busy mapper, etc.) is never miscounted as a bad guess.
+
+  [!] Enabling it prints a one-time warning -- read it before turning
+      this on. A mistyped passphrase counts the same as an attacker's
+      guess.
+
+EXAMPLES
+  cas myvault settings security bruteforceLockout enable --threshold 5
+  cas myvault settings security bruteforceLockout threshold 15
+  cas myvault settings security bruteforceLockout disable --pass "..."
+  cas myvault settings security bruteforceLockout state

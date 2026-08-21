@@ -1,0 +1,10 @@
+CAS CLI REGISTRY (proof slice)
+
+This tree is generated from cli/registry.kdl, currently covering
+`debug parse-cli` and `settings security sandbox network outbound/inbound`.
+Everything else on the CLI still uses the original static help pages --
+run `cas help` (no path) for those.
+
+Run `cas help <path...>` at any depth to drill in, e.g.:
+  cas help settings security sandbox network
+  cas help settings security sandbox network inbound add

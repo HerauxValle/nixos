@@ -1,0 +1,12 @@
+cas <vault> settings security sandbox rootfs remove <name>|<name,name,...>|all
+
+Permanently deletes one, several, or every rootfs environment. Each
+environment requires its own typed confirmation (against the
+environment's own name, not the vault's). Refuses while any `cas
+exec` session is live, and refuses on the current `default` target --
+clear the default first.
+
+EXAMPLES
+  cas myvault settings security sandbox rootfs remove dev --pass "..."
+  cas myvault settings security sandbox rootfs remove dev,staging --pass "..."
+  cas myvault settings security sandbox rootfs remove all --pass "..."

@@ -1,0 +1,7 @@
+require("config.behavior.scrolloff")
+require("config.behavior.autosave")
+require("config.behavior.startupmode")
+require("config.behavior.uistate")
+require("config.behavior.explorer")
+require("config.behavior.terminal")
+require("config.behavior.undotree")

@@ -1,0 +1,13 @@
+cas <vault> settings security headerOffset enable|disable|state   [--pass "..."]
+
+Relocates the vault's LUKS2 header from the container's front to a
+passphrase-derived slot inside a header-hiding room, so a magic-byte
+scan of the front no longer finds it. The vault must be closed first.
+If headerEncryption is off, the relocated header's content is still a
+plain, parseable LUKS2 header to anyone who finds the slot -- only its
+position is hidden; 'disable' moves it back to the front.
+
+EXAMPLES
+  cas myvault settings security headerOffset enable --pass "..."
+  cas myvault settings security headerEncryption enable --pass "..."
+  cas myvault settings security headerOffset state

@@ -1,0 +1,38 @@
+cas <vault> create [--size MiB] [--strength level] [--pass "..."] [--test]
+
+Creates a new encrypted vault. The vault is stored as a single file
+called <vault>.img in the current directory (or --path).
+
+  --size       How big the vault should be, in MiB. This is usable
+               space -- the .img file on disk is 128 MiB larger, a
+               fixed reserve every vault carries (see 'cas <vault>
+               info'). Default: 1024  (= 1 GiB). You can resize it
+               later.
+
+  --strength   How hard it is to brute-force your passphrase:
+                 light    fastest to unlock, weakest against attacks
+                 medium   good for most people  (default)
+                 hard     slower to unlock, much stronger
+                 extreme  very slow to unlock, very strong
+               If in doubt, leave it at medium.
+
+  --pass       Your passphrase. You will be asked if not given here.
+               Leave it empty (interactively, or --pass "") to generate
+               a strong random one instead. A typed passphrase gets a
+               non-blocking weak-passphrase warning (real entropy/
+               dictionary estimation via zxcvbn) if it looks easy to
+               crack offline -- it's never refused, just flagged.
+
+  --test       Mark this vault ephemeral. 'close' (or 'toggle' closing it)
+               deletes the .img automatically right after a clean close --
+               no confirmation prompt, since that's the point. A keyfile
+               is never auto-deleted even if 2FA is enabled on a --test
+               vault, since it could be shared with another, real vault.
+               For throwaway testing only; there's no way to un-mark a
+               vault once created.
+
+EXAMPLES
+  cas myvault create
+  cas myvault create --size 4096 --strength hard
+  cas myvault create --path ~/vaults
+  cas scratch create --test --pass ""

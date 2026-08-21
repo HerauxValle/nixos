@@ -1,0 +1,4344 @@
+{
+  "path": "/home/herauxvalle/Dotfiles/Nixos",
+  "generated_at": "16-07-2026 21:15:04",
+  "hash_algo": "xxhash64",
+  "total": {
+    "dirs": 90,
+    "files": 285,
+    "lines": 22688,
+    "chars": 1066128
+  },
+  "by_extension": [
+    {"ext": "nix", "files": 191, "lines": 15029, "chars": 672640},
+    {"ext": "md", "files": 27, "lines": 4248, "chars": 225044},
+    {"ext": "py", "files": 24, "lines": 1466, "chars": 50632},
+    {"ext": "sh", "files": 16, "lines": 935, "chars": 40991},
+    {"ext": "pyc", "files": 20, "lines": 494, "chars": 55478},
+    {"ext": "txt", "files": 1, "lines": 201, "chars": 10474},
+    {"ext": "ps1", "files": 1, "lines": 77, "chars": 2522},
+    {"ext": "nu", "files": 1, "lines": 62, "chars": 1946},
+    {"ext": "fish", "files": 1, "lines": 57, "chars": 2152},
+    {"ext": "bash", "files": 1, "lines": 53, "chars": 1643},
+    {"ext": "zsh", "files": 1, "lines": 50, "chars": 1616},
+    {"ext": "(no ext)", "files": 1, "lines": 16, "chars": 990}
+  ],
+  "tree": 
+  {
+    "name": "/home/herauxvalle/Dotfiles/Nixos",
+    "type": "dir",
+    "symlink": false,
+    "lines": 22688,
+    "chars": 1066128,
+    "mode": "drwxr-xr-x",
+    "size": 1072139,
+    "mtime": 1784118407,
+    "hash": "8e59dd9760ff9733",
+    "children": [
+      {
+        "name": "config",
+        "type": "dir",
+        "symlink": false,
+        "lines": 2439,
+        "chars": 122149,
+        "mode": "drwxr-xr-x",
+        "size": 122189,
+        "mtime": 1783900421,
+        "hash": "7576370473bbc4ff",
+        "children": [
+          {
+            "name": "config.nix",
+            "type": "file",
+            "symlink": false,
+            "lines": 32,
+            "chars": 1038,
+            "mode": "-rw-r--r--",
+            "size": 1038,
+            "mtime": 1784045016,
+            "hash": "cf6500c8eb7dfdde"
+          },
+          {
+            "name": "default.nix",
+            "type": "file",
+            "symlink": false,
+            "lines": 11,
+            "chars": 109,
+            "mode": "-rw-r--r--",
+            "size": 109,
+            "mtime": 1783890016,
+            "hash": "a51b0f693df2fbdf"
+          },
+          {
+            "name": "github",
+            "type": "dir",
+            "symlink": false,
+            "lines": 129,
+            "chars": 6825,
+            "mode": "drwxr-xr-x",
+            "size": 6825,
+            "mtime": 1783906171,
+            "hash": "0b5513d1ab11bd18",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 9,
+                "chars": 98,
+                "mode": "-rw-r--r--",
+                "size": 98,
+                "mtime": 1783887880,
+                "hash": "8267b4a245a97c7e"
+              },
+              {
+                "name": "exclusions.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 34,
+                "chars": 1104,
+                "mode": "-rw-r--r--",
+                "size": 1104,
+                "mtime": 1783966874,
+                "hash": "279d2972daeeeb16"
+              },
+              {
+                "name": "redactions.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 22,
+                "chars": 1150,
+                "mode": "-rw-r--r--",
+                "size": 1150,
+                "mtime": 1783887993,
+                "hash": "2e42d2a7256224af"
+              },
+              {
+                "name": "replacements.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 64,
+                "chars": 4473,
+                "mode": "-rw-r--r--",
+                "size": 4473,
+                "mtime": 1783906171,
+                "hash": "7cdad276e03de46d"
+              }
+            ]
+          },
+          {
+            "name": "self-hosted",
+            "type": "dir",
+            "symlink": false,
+            "lines": 1482,
+            "chars": 87322,
+            "mode": "drwxr-xr-x",
+            "size": 87360,
+            "mtime": 1783896674,
+            "hash": "7dd266918b61fd30",
+            "children": [
+              {
+                "name": "acl-traversal.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 29,
+                "chars": 1307,
+                "mode": "-rw-r--r--",
+                "size": 1307,
+                "mtime": 1783892859,
+                "hash": "56dae73686a864dc"
+              },
+              {
+                "name": "comfyui",
+                "type": "dir",
+                "symlink": false,
+                "lines": 690,
+                "chars": 53386,
+                "mode": "drwxr-xr-x",
+                "size": 53424,
+                "mtime": 1783819384,
+                "hash": "dd945bbc78a25413",
+                "children": [
+                  {
+                    "name": "catalog",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 545,
+                    "chars": 48028,
+                    "mode": "drwxr-xr-x",
+                    "size": 48066,
+                    "mtime": 1783823488,
+                    "hash": "90cd00e907112dda",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 18,
+                        "chars": 699,
+                        "mode": "-rw-r--r--",
+                        "size": 699,
+                        "mtime": 1783819373,
+                        "hash": "d7f93aebf7e6b93c"
+                      },
+                      {
+                        "name": "models.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 156,
+                        "chars": 20652,
+                        "mode": "-rw-r--r--",
+                        "size": 20690,
+                        "mtime": 1783813894,
+                        "hash": "25ade823af69768a"
+                      },
+                      {
+                        "name": "nodes.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 117,
+                        "chars": 12938,
+                        "mode": "-rw-r--r--",
+                        "size": 12938,
+                        "mtime": 1783795346,
+                        "hash": "06e642182463a97b"
+                      },
+                      {
+                        "name": "patches.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 254,
+                        "chars": 13739,
+                        "mode": "-rw-r--r--",
+                        "size": 13739,
+                        "mtime": 1783823488,
+                        "hash": "3f7990efec9493dd"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "comfyui.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 131,
+                    "chars": 4882,
+                    "mode": "-rw-r--r--",
+                    "size": 4882,
+                    "mtime": 1783814318,
+                    "hash": "01003871189f5383"
+                  },
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 14,
+                    "chars": 476,
+                    "mode": "-rw-r--r--",
+                    "size": 476,
+                    "mtime": 1783819384,
+                    "hash": "234dd677c98fe534"
+                  }
+                ]
+              },
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 20,
+                "chars": 427,
+                "mode": "-rw-r--r--",
+                "size": 427,
+                "mtime": 1783882387,
+                "hash": "aca2da9dcb67c33f"
+              },
+              {
+                "name": "filebrowser.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 66,
+                "chars": 2781,
+                "mode": "-rw-r--r--",
+                "size": 2781,
+                "mtime": 1783855522,
+                "hash": "13f6b75a1150832c"
+              },
+              {
+                "name": "immich.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 70,
+                "chars": 3394,
+                "mode": "-rw-r--r--",
+                "size": 3394,
+                "mtime": 1783876053,
+                "hash": "17fdae38b2f1f2e1"
+              },
+              {
+                "name": "jellyfin.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 126,
+                "chars": 6450,
+                "mode": "-rw-r--r--",
+                "size": 6450,
+                "mtime": 1783893057,
+                "hash": "41782ac0b722e526"
+              },
+              {
+                "name": "odysseus.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 47,
+                "chars": 1937,
+                "mode": "-rw-r--r--",
+                "size": 1937,
+                "mtime": 1783875484,
+                "hash": "d88ace9237fd3275"
+              },
+              {
+                "name": "ollama.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 117,
+                "chars": 3947,
+                "mode": "-rw-r--r--",
+                "size": 3947,
+                "mtime": 1783863921,
+                "hash": "172b11aa5ddb715d"
+              },
+              {
+                "name": "openwebui.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 66,
+                "chars": 2350,
+                "mode": "-rw-r--r--",
+                "size": 2350,
+                "mtime": 1783814334,
+                "hash": "5b6facbdd4ba333e"
+              },
+              {
+                "name": "qbittorrent.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 110,
+                "chars": 5132,
+                "mode": "-rw-r--r--",
+                "size": 5132,
+                "mtime": 1783896674,
+                "hash": "d6c2e176200b96b8"
+              },
+              {
+                "name": "searxng.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 82,
+                "chars": 3736,
+                "mode": "-rw-r--r--",
+                "size": 3736,
+                "mtime": 1783886771,
+                "hash": "105597a8aa07fc50"
+              },
+              {
+                "name": "stash.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 59,
+                "chars": 2475,
+                "mode": "-rw-r--r--",
+                "size": 2475,
+                "mtime": 1783893073,
+                "hash": "86f5f59b67d54a2a"
+              }
+            ]
+          },
+          {
+            "name": "software",
+            "type": "dir",
+            "symlink": false,
+            "lines": 554,
+            "chars": 18011,
+            "mode": "drwxr-xr-x",
+            "size": 18012,
+            "mtime": 1784118586,
+            "hash": "473cf2bb94b841cb",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 12,
+                "chars": 137,
+                "mode": "-rw-r--r--",
+                "size": 137,
+                "mtime": 1784112614,
+                "hash": "5641f0ced08985c8"
+              },
+              {
+                "name": "packages",
+                "type": "dir",
+                "symlink": false,
+                "lines": 201,
+                "chars": 4647,
+                "mode": "drwxr-xr-x",
+                "size": 4648,
+                "mtime": 1784228449,
+                "hash": "98a842e9ac0b1b95",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 8,
+                    "chars": 71,
+                    "mode": "-rw-r--r--",
+                    "size": 71,
+                    "mtime": 1784112654,
+                    "hash": "f7d487554c8f54e9"
+                  },
+                  {
+                    "name": "packages.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 158,
+                    "chars": 3381,
+                    "mode": "-rw-r--r--",
+                    "size": 3382,
+                    "mtime": 1784228510,
+                    "hash": "0cffb4ab675eef64"
+                  },
+                  {
+                    "name": "registry.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 35,
+                    "chars": 1195,
+                    "mode": "-rw-r--r--",
+                    "size": 1195,
+                    "mtime": 1784112823,
+                    "hash": "2917f6c8432c2287"
+                  }
+                ]
+              },
+              {
+                "name": "programs.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 170,
+                "chars": 7225,
+                "mode": "-rw-r--r--",
+                "size": 7225,
+                "mtime": 1783980974,
+                "hash": "f9ef949082b0b787"
+              },
+              {
+                "name": "scripts.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 76,
+                "chars": 2353,
+                "mode": "-rw-r--r--",
+                "size": 2353,
+                "mtime": 1783888201,
+                "hash": "14d12960431f7551"
+              },
+              {
+                "name": "services.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 44,
+                "chars": 1928,
+                "mode": "-rw-r--r--",
+                "size": 1928,
+                "mtime": 1784066493,
+                "hash": "1914f2b77573a50f"
+              },
+              {
+                "name": "shells.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 22,
+                "chars": 804,
+                "mode": "-rw-r--r--",
+                "size": 804,
+                "mtime": 1784062591,
+                "hash": "60b37569366f6563"
+              },
+              {
+                "name": "venvs.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 29,
+                "chars": 917,
+                "mode": "-rw-r--r--",
+                "size": 917,
+                "mtime": 1784059219,
+                "hash": "bfc03217db41e195"
+              }
+            ]
+          },
+          {
+            "name": "system",
+            "type": "dir",
+            "symlink": false,
+            "lines": 231,
+            "chars": 8844,
+            "mode": "drwxr-xr-x",
+            "size": 8845,
+            "mtime": 1784050358,
+            "hash": "e36684c208b599c3",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 8,
+                "chars": 71,
+                "mode": "-rw-r--r--",
+                "size": 71,
+                "mtime": 1783898997,
+                "hash": "41b43ce27182d4b8"
+              },
+              {
+                "name": "mountpoints.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 62,
+                "chars": 2487,
+                "mode": "-rw-r--r--",
+                "size": 2487,
+                "mtime": 1783905722,
+                "hash": "0ca6480d2086e489"
+              },
+              {
+                "name": "ports.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 146,
+                "chars": 5952,
+                "mode": "-rw-r--r--",
+                "size": 5952,
+                "mtime": 1783964746,
+                "hash": "7cb1f81ec1b9ef61"
+              },
+              {
+                "name": "session.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 15,
+                "chars": 334,
+                "mode": "-rw-r--r--",
+                "size": 335,
+                "mtime": 1784050450,
+                "hash": "7e082fe8819195ce"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "configuration.nix",
+        "type": "file",
+        "symlink": false,
+        "lines": 12,
+        "chars": 172,
+        "mode": "-rw-r--r--",
+        "size": 172,
+        "mtime": 1784135121,
+        "hash": "4db95ec163e54e53"
+      },
+      {
+        "name": "docs",
+        "type": "dir",
+        "symlink": false,
+        "lines": 445,
+        "chars": 5645,
+        "mode": "drwxr-xr-x",
+        "size": 5645,
+        "mtime": 1784118114,
+        "hash": "e710cfeb5571bce2",
+        "children": [
+          {
+            "name": "header-comments-nix.md",
+            "type": "file",
+            "symlink": false,
+            "lines": 445,
+            "chars": 5645,
+            "mode": "-rw-r--r--",
+            "size": 5645,
+            "mtime": 1784118064,
+            "hash": "cd035b9dd18aea45"
+          }
+        ]
+      },
+      {
+        "name": "glossar",
+        "type": "dir",
+        "symlink": false,
+        "lines": 1515,
+        "chars": 71199,
+        "mode": "drwxr-xr-x",
+        "size": 71199,
+        "mtime": 1784117170,
+        "hash": "29d60c4c6b1ddd12",
+        "children": [
+          {
+            "name": "main",
+            "type": "dir",
+            "symlink": false,
+            "lines": 141,
+            "chars": 5656,
+            "mode": "drwxr-xr-x",
+            "size": 5656,
+            "mtime": 1783824581,
+            "hash": "8108b0082571fbb7",
+            "children": [
+              {
+                "name": "variables.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 141,
+                "chars": 5656,
+                "mode": "-rw-r--r--",
+                "size": 5656,
+                "mtime": 1783773876,
+                "hash": "bf7e32b011a23baa"
+              }
+            ]
+          },
+          {
+            "name": "self-hosted",
+            "type": "dir",
+            "symlink": false,
+            "lines": 712,
+            "chars": 32730,
+            "mode": "drwxr-xr-x",
+            "size": 32730,
+            "mtime": 1783880553,
+            "hash": "6eaefe569b9aac6e",
+            "children": [
+              {
+                "name": "comfyui.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 97,
+                "chars": 5014,
+                "mode": "-rw-r--r--",
+                "size": 5014,
+                "mtime": 1783824614,
+                "hash": "ab12235102f9a3c0"
+              },
+              {
+                "name": "filebrowser.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 62,
+                "chars": 2890,
+                "mode": "-rw-r--r--",
+                "size": 2890,
+                "mtime": 1783855538,
+                "hash": "e3367d7c6bb80bca"
+              },
+              {
+                "name": "immich.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 70,
+                "chars": 3153,
+                "mode": "-rw-r--r--",
+                "size": 3153,
+                "mtime": 1783871921,
+                "hash": "5134a8514edb99a2"
+              },
+              {
+                "name": "jellyfin.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 100,
+                "chars": 4663,
+                "mode": "-rw-r--r--",
+                "size": 4663,
+                "mtime": 1783865447,
+                "hash": "27918db7cd9b010c"
+              },
+              {
+                "name": "odysseus.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 60,
+                "chars": 2778,
+                "mode": "-rw-r--r--",
+                "size": 2778,
+                "mtime": 1783875496,
+                "hash": "4cdcf7cf64961dd1"
+              },
+              {
+                "name": "ollama.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 68,
+                "chars": 2818,
+                "mode": "-rw-r--r--",
+                "size": 2818,
+                "mtime": 1783863987,
+                "hash": "2e697dd89f662236"
+              },
+              {
+                "name": "openwebui.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 58,
+                "chars": 2558,
+                "mode": "-rw-r--r--",
+                "size": 2558,
+                "mtime": 1783824655,
+                "hash": "24c80125c6b4d11e"
+              },
+              {
+                "name": "qbittorrent.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 62,
+                "chars": 2716,
+                "mode": "-rw-r--r--",
+                "size": 2716,
+                "mtime": 1783880553,
+                "hash": "c5dcf383bce17402"
+              },
+              {
+                "name": "searxng.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 77,
+                "chars": 3585,
+                "mode": "-rw-r--r--",
+                "size": 3585,
+                "mtime": 1783864001,
+                "hash": "a6d891a74747c0aa"
+              },
+              {
+                "name": "stash.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 58,
+                "chars": 2555,
+                "mode": "-rw-r--r--",
+                "size": 2555,
+                "mtime": 1783824668,
+                "hash": "61d77b179d7fef51"
+              }
+            ]
+          },
+          {
+            "name": "software",
+            "type": "dir",
+            "symlink": false,
+            "lines": 272,
+            "chars": 11311,
+            "mode": "drwxr-xr-x",
+            "size": 11311,
+            "mtime": 1784228957,
+            "hash": "66f4beba3fb38b6b",
+            "children": [
+              {
+                "name": "packages.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 202,
+                "chars": 8204,
+                "mode": "-rw-r--r--",
+                "size": 8204,
+                "mtime": 1784228957,
+                "hash": "379d54ec88c54c0d"
+              },
+              {
+                "name": "venvs.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 70,
+                "chars": 3107,
+                "mode": "-rw-r--r--",
+                "size": 3107,
+                "mtime": 1784055511,
+                "hash": "64e2264aff918c5e"
+              }
+            ]
+          },
+          {
+            "name": "system",
+            "type": "dir",
+            "symlink": false,
+            "lines": 390,
+            "chars": 21502,
+            "mode": "drwxr-xr-x",
+            "size": 21502,
+            "mtime": 1783916290,
+            "hash": "ad317b16dcf6b63a",
+            "children": [
+              {
+                "name": "mountpoints.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 62,
+                "chars": 2923,
+                "mode": "-rw-r--r--",
+                "size": 2923,
+                "mtime": 1783905674,
+                "hash": "0ad391e8382931b1"
+              },
+              {
+                "name": "port-forwarding.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 328,
+                "chars": 18579,
+                "mode": "-rw-r--r--",
+                "size": 18579,
+                "mtime": 1783916290,
+                "hash": "345129319509755f"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "hardware-configuration.nix",
+        "type": "file",
+        "symlink": false,
+        "lines": 58,
+        "chars": 1582,
+        "mode": "-rw-r--r--",
+        "size": 1586,
+        "mtime": 1783006965,
+        "hash": "5a03c9c3fb4708c9"
+      },
+      {
+        "name": "home",
+        "type": "dir",
+        "symlink": false,
+        "lines": 109,
+        "chars": 4278,
+        "mode": "drwxr-xr-x",
+        "size": 4278,
+        "mtime": 1783767909,
+        "hash": "f34843598d7b97a6",
+        "children": [
+          {
+            "name": "apps.nix",
+            "type": "file",
+            "symlink": false,
+            "lines": 56,
+            "chars": 2459,
+            "mode": "-rw-r--r--",
+            "size": 2459,
+            "mtime": 1784066497,
+            "hash": "9d7e24298ab67613"
+          },
+          {
+            "name": "shells.nix",
+            "type": "file",
+            "symlink": false,
+            "lines": 12,
+            "chars": 294,
+            "mode": "-rw-r--r--",
+            "size": 294,
+            "mtime": 1784066503,
+            "hash": "0a7a9585db0606b7"
+          },
+          {
+            "name": "theming.nix",
+            "type": "file",
+            "symlink": false,
+            "lines": 41,
+            "chars": 1525,
+            "mode": "-rw-r--r--",
+            "size": 1525,
+            "mtime": 1783076416,
+            "hash": "a739af54f7e5107c"
+          }
+        ]
+      },
+      {
+        "name": "home.nix",
+        "type": "file",
+        "symlink": false,
+        "lines": 15,
+        "chars": 293,
+        "mode": "-rw-r--r--",
+        "size": 293,
+        "mtime": 1784135128,
+        "hash": "b711ebd7040f4fdc"
+      },
+      {
+        "name": "index.md",
+        "type": "file",
+        "symlink": false,
+        "lines": 193,
+        "chars": 8899,
+        "mode": "-rw-r--r--",
+        "size": 8899,
+        "mtime": 1783771729,
+        "hash": "46a65c693352b7e1"
+      },
+      {
+        "name": "modules",
+        "type": "dir",
+        "symlink": false,
+        "lines": 17838,
+        "chars": 849722,
+        "mode": "drwxr-xr-x",
+        "size": 855689,
+        "mtime": 1783777497,
+        "hash": "5eb2a286979501dc",
+        "children": [
+          {
+            "name": "backup",
+            "type": "dir",
+            "symlink": false,
+            "lines": 1518,
+            "chars": 76655,
+            "mode": "drwxr-xr-x",
+            "size": 76655,
+            "mtime": 1783729484,
+            "hash": "073ada6b1fbaaef9",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 7,
+                "chars": 62,
+                "mode": "-rw-r--r--",
+                "size": 62,
+                "mtime": 1783729484,
+                "hash": "bb8755e2a5aa1279"
+              },
+              {
+                "name": "dotfiles",
+                "type": "dir",
+                "symlink": false,
+                "lines": 1511,
+                "chars": 76593,
+                "mode": "drwxr-xr-x",
+                "size": 76593,
+                "mtime": 1783960304,
+                "hash": "be0c0d464cb4dd34",
+                "children": [
+                  {
+                    "name": ".shellcheckrc",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 16,
+                    "chars": 990,
+                    "mode": "-rw-r--r--",
+                    "size": 990,
+                    "mtime": 1783960304,
+                    "hash": "56150b82c5b94628"
+                  },
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 377,
+                    "chars": 18329,
+                    "mode": "-rw-r--r--",
+                    "size": 18329,
+                    "mtime": 1783959161,
+                    "hash": "5fce79246b8f2070"
+                  },
+                  {
+                    "name": "lib",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 1118,
+                    "chars": 57274,
+                    "mode": "drwxr-xr-x",
+                    "size": 57274,
+                    "mtime": 1783960104,
+                    "hash": "0a3ea7dd24a569d3",
+                    "children": [
+                      {
+                        "name": "activation",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 394,
+                        "chars": 23375,
+                        "mode": "drwxr-xr-x",
+                        "size": 23375,
+                        "mtime": 1783960198,
+                        "hash": "5de1bb0ed52b4d19",
+                        "children": [
+                          {
+                            "name": "_stub.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 93,
+                            "chars": 3259,
+                            "mode": "-rw-r--r--",
+                            "size": 3259,
+                            "mtime": 1783960064,
+                            "hash": "1061db45a3fce1e4"
+                          },
+                          {
+                            "name": "preflight.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 56,
+                            "chars": 3452,
+                            "mode": "-rw-r--r--",
+                            "size": 3452,
+                            "mtime": 1783959804,
+                            "hash": "77285f6109dd6248"
+                          },
+                          {
+                            "name": "push.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 111,
+                            "chars": 7458,
+                            "mode": "-rw-r--r--",
+                            "size": 7458,
+                            "mtime": 1783959418,
+                            "hash": "ebfeceaf6817b85b"
+                          },
+                          {
+                            "name": "snapshot.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 134,
+                            "chars": 9206,
+                            "mode": "-rw-r--r--",
+                            "size": 9206,
+                            "mtime": 1784045194,
+                            "hash": "2458776262ef89e7"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 351,
+                        "chars": 18023,
+                        "mode": "-rw-r--r--",
+                        "size": 18023,
+                        "mtime": 1783968745,
+                        "hash": "065d237e86116e58"
+                      },
+                      {
+                        "name": "resolve.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 64,
+                        "chars": 3260,
+                        "mode": "-rw-r--r--",
+                        "size": 3260,
+                        "mtime": 1783958798,
+                        "hash": "0fbf3226e15dee29"
+                      },
+                      {
+                        "name": "scripts",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 309,
+                        "chars": 12616,
+                        "mode": "drwxr-xr-x",
+                        "size": 12616,
+                        "mtime": 1783960320,
+                        "hash": "e53169efd1d9b24c",
+                        "children": [
+                          {
+                            "name": "exclude.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 86,
+                            "chars": 3322,
+                            "mode": "-rw-r--r--",
+                            "size": 3322,
+                            "mtime": 1783958725,
+                            "hash": "47fb8ee5691e1193"
+                          },
+                          {
+                            "name": "preflight_check.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 137,
+                            "chars": 5990,
+                            "mode": "-rw-r--r--",
+                            "size": 5990,
+                            "mtime": 1783969848,
+                            "hash": "6c633f522fffa99a"
+                          },
+                          {
+                            "name": "redact.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 48,
+                            "chars": 1806,
+                            "mode": "-rw-r--r--",
+                            "size": 1806,
+                            "mtime": 1783958700,
+                            "hash": "6f821a9b846f73f4"
+                          },
+                          {
+                            "name": "replace.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 38,
+                            "chars": 1498,
+                            "mode": "-rw-r--r--",
+                            "size": 1498,
+                            "mtime": 1783958710,
+                            "hash": "d0a6985c60653717"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "boot",
+            "type": "dir",
+            "symlink": false,
+            "lines": 377,
+            "chars": 14387,
+            "mode": "drwxr-xr-x",
+            "size": 14387,
+            "mtime": 1783729550,
+            "hash": "388ea30b072a7b59",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 11,
+                "chars": 91,
+                "mode": "-rw-r--r--",
+                "size": 91,
+                "mtime": 1783729550,
+                "hash": "bcbb8fb1544c644b"
+              },
+              {
+                "name": "grub",
+                "type": "dir",
+                "symlink": false,
+                "lines": 113,
+                "chars": 3868,
+                "mode": "drwxr-xr-x",
+                "size": 3868,
+                "mtime": 1783729521,
+                "hash": "4a7760a38ae35014",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 43,
+                    "chars": 1651,
+                    "mode": "-rw-r--r--",
+                    "size": 1651,
+                    "mtime": 1783729521,
+                    "hash": "e42459f8d5179f88"
+                  },
+                  {
+                    "name": "grub.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 70,
+                    "chars": 2217,
+                    "mode": "-rw-r--r--",
+                    "size": 2217,
+                    "mtime": 1783726994,
+                    "hash": "4b6381b037ccda9b"
+                  }
+                ]
+              },
+              {
+                "name": "luks2",
+                "type": "dir",
+                "symlink": false,
+                "lines": 124,
+                "chars": 4778,
+                "mode": "drwxr-xr-x",
+                "size": 4778,
+                "mtime": 1783737324,
+                "hash": "3a277e188d698d86",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 44,
+                    "chars": 1849,
+                    "mode": "-rw-r--r--",
+                    "size": 1849,
+                    "mtime": 1783729531,
+                    "hash": "fd0d2d17a3970c05"
+                  },
+                  {
+                    "name": "luks2.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 80,
+                    "chars": 2929,
+                    "mode": "-rw-r--r--",
+                    "size": 2929,
+                    "mtime": 1783737324,
+                    "hash": "44bfb6eb8b96dabf"
+                  }
+                ]
+              },
+              {
+                "name": "usb-required",
+                "type": "dir",
+                "symlink": false,
+                "lines": 129,
+                "chars": 5650,
+                "mode": "drwxr-xr-x",
+                "size": 5650,
+                "mtime": 1783772179,
+                "hash": "c6cb79fa87350183",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 63,
+                    "chars": 2930,
+                    "mode": "-rw-r--r--",
+                    "size": 2930,
+                    "mtime": 1783772179,
+                    "hash": "de7afa3bdeb86537"
+                  },
+                  {
+                    "name": "usb-required.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 66,
+                    "chars": 2720,
+                    "mode": "-rw-r--r--",
+                    "size": 2720,
+                    "mtime": 1783737334,
+                    "hash": "66fe133e081169d1"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "default.nix",
+            "type": "file",
+            "symlink": false,
+            "lines": 15,
+            "chars": 154,
+            "mode": "-rw-r--r--",
+            "size": 154,
+            "mtime": 1783777497,
+            "hash": "2e2ab216836997e5"
+          },
+          {
+            "name": "desktop",
+            "type": "dir",
+            "symlink": false,
+            "lines": 108,
+            "chars": 2754,
+            "mode": "drwxr-xr-x",
+            "size": 2754,
+            "mtime": 1784049991,
+            "hash": "b748fb80dfe63191",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 10,
+                "chars": 103,
+                "mode": "-rw-r--r--",
+                "size": 103,
+                "mtime": 1784050172,
+                "hash": "dd7eee9791cd18f6"
+              },
+              {
+                "name": "defaults",
+                "type": "dir",
+                "symlink": false,
+                "lines": 56,
+                "chars": 962,
+                "mode": "drwxr-xr-x",
+                "size": 962,
+                "mtime": 1784050005,
+                "hash": "161fc126b3011973",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 41,
+                    "chars": 774,
+                    "mode": "-rw-r--r--",
+                    "size": 774,
+                    "mtime": 1784050189,
+                    "hash": "3ac9343450419d5d"
+                  },
+                  {
+                    "name": "sessionVariables.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 15,
+                    "chars": 188,
+                    "mode": "-rw-r--r--",
+                    "size": 188,
+                    "mtime": 1784050536,
+                    "hash": "7cc5c01e112faa4b"
+                  }
+                ]
+              },
+              {
+                "name": "desktop.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 23,
+                "chars": 1063,
+                "mode": "-rw-r--r--",
+                "size": 1063,
+                "mtime": 1783773420,
+                "hash": "32f6786cecfccdff"
+              },
+              {
+                "name": "graphics.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 8,
+                "chars": 227,
+                "mode": "-rw-r--r--",
+                "size": 227,
+                "mtime": 1783097523,
+                "hash": "6bd916bc70cb191c"
+              },
+              {
+                "name": "theming.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 11,
+                "chars": 399,
+                "mode": "-rw-r--r--",
+                "size": 399,
+                "mtime": 1783544876,
+                "hash": "c2809f984f74b9b3"
+              }
+            ]
+          },
+          {
+            "name": "hyprland",
+            "type": "dir",
+            "symlink": false,
+            "lines": 109,
+            "chars": 3757,
+            "mode": "drwxr-xr-x",
+            "size": 3757,
+            "mtime": 1783730762,
+            "hash": "03d55cd5719c44f8",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 7,
+                "chars": 47,
+                "mode": "-rw-r--r--",
+                "size": 47,
+                "mtime": 1783730762,
+                "hash": "a280302e28ba7f03"
+              },
+              {
+                "name": "plugins",
+                "type": "dir",
+                "symlink": false,
+                "lines": 102,
+                "chars": 3710,
+                "mode": "drwxr-xr-x",
+                "size": 3710,
+                "mtime": 1783730991,
+                "hash": "44ed55e3dd00ce20",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 53,
+                    "chars": 1983,
+                    "mode": "-rw-r--r--",
+                    "size": 1983,
+                    "mtime": 1783730987,
+                    "hash": "e85dab69f6f39aea"
+                  },
+                  {
+                    "name": "plugins.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 49,
+                    "chars": 1727,
+                    "mode": "-rw-r--r--",
+                    "size": 1727,
+                    "mtime": 1783730753,
+                    "hash": "784305661ba5cc83"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "nix",
+            "type": "dir",
+            "symlink": false,
+            "lines": 67,
+            "chars": 2018,
+            "mode": "drwxr-xr-x",
+            "size": 2018,
+            "mtime": 1783773405,
+            "hash": "0a39c7f2aa2430ce",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 9,
+                "chars": 98,
+                "mode": "-rw-r--r--",
+                "size": 98,
+                "mtime": 1783737279,
+                "hash": "24fadeddeda48d9f"
+              },
+              {
+                "name": "gc.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 8,
+                "chars": 271,
+                "mode": "-rw-r--r--",
+                "size": 271,
+                "mtime": 1783737249,
+                "hash": "6fc1c02c138f2204"
+              },
+              {
+                "name": "optimise.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 43,
+                "chars": 1444,
+                "mode": "-rw-r--r--",
+                "size": 1444,
+                "mtime": 1783737256,
+                "hash": "693f24766a0c8a48"
+              },
+              {
+                "name": "settings.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 7,
+                "chars": 205,
+                "mode": "-rw-r--r--",
+                "size": 205,
+                "mtime": 1783773405,
+                "hash": "e6271563a305c390"
+              }
+            ]
+          },
+          {
+            "name": "packages",
+            "type": "dir",
+            "symlink": false,
+            "lines": 2851,
+            "chars": 100794,
+            "mode": "drwxr-xr-x",
+            "size": 100816,
+            "mtime": 1784130168,
+            "hash": "0ff453061dacd5e6",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 13,
+                "chars": 237,
+                "mode": "-rw-r--r--",
+                "size": 237,
+                "mtime": 1784112969,
+                "hash": "41636664fb469a6d"
+              },
+              {
+                "name": "packages",
+                "type": "dir",
+                "symlink": false,
+                "lines": 677,
+                "chars": 27409,
+                "mode": "drwxr-xr-x",
+                "size": 27417,
+                "mtime": 1784228380,
+                "hash": "797b258837523703",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 72,
+                    "chars": 2216,
+                    "mode": "-rw-r--r--",
+                    "size": 2216,
+                    "mtime": 1784130172,
+                    "hash": "e15e3d243a9de0e6"
+                  },
+                  {
+                    "name": "docs",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 201,
+                    "chars": 10474,
+                    "mode": "drwxr-xr-x",
+                    "size": 10482,
+                    "mtime": 1784228945,
+                    "hash": "3d24f407d8adecf3",
+                    "children": [
+                      {
+                        "name": "README.txt",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 201,
+                        "chars": 10474,
+                        "mode": "-rw-r--r--",
+                        "size": 10482,
+                        "mtime": 1784228945,
+                        "hash": "0bd37e1407838a3d"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "lib",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 296,
+                    "chars": 10835,
+                    "mode": "drwxr-xr-x",
+                    "size": 10835,
+                    "mtime": 1784228822,
+                    "hash": "cb9cc3364dbadbcb",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 24,
+                        "chars": 547,
+                        "mode": "-rw-r--r--",
+                        "size": 547,
+                        "mtime": 1784227801,
+                        "hash": "2c0ea82b8fe39cdf"
+                      },
+                      {
+                        "name": "resolve-default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 14,
+                        "chars": 302,
+                        "mode": "-rw-r--r--",
+                        "size": 302,
+                        "mtime": 1784130346,
+                        "hash": "dfa8b372b163460e"
+                      },
+                      {
+                        "name": "resolve-spec.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 115,
+                        "chars": 5002,
+                        "mode": "-rw-r--r--",
+                        "size": 5002,
+                        "mtime": 1784226223,
+                        "hash": "ac3bc74a358a1d17"
+                      },
+                      {
+                        "name": "resolve-versions.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 96,
+                        "chars": 3387,
+                        "mode": "-rw-r--r--",
+                        "size": 3387,
+                        "mtime": 1784228822,
+                        "hash": "66f93bc0205453a3"
+                      },
+                      {
+                        "name": "validate.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 13,
+                        "chars": 490,
+                        "mode": "-rw-r--r--",
+                        "size": 490,
+                        "mtime": 1784130172,
+                        "hash": "85d635e77df4c41f"
+                      },
+                      {
+                        "name": "wrap-aliased.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 18,
+                        "chars": 672,
+                        "mode": "-rw-r--r--",
+                        "size": 672,
+                        "mtime": 1784227787,
+                        "hash": "cddeef7e565d2d56"
+                      },
+                      {
+                        "name": "wrap-suffixed.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 16,
+                        "chars": 435,
+                        "mode": "-rw-r--r--",
+                        "size": 435,
+                        "mtime": 1784131328,
+                        "hash": "61ae71f27ad6108d"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "main.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 108,
+                    "chars": 3884,
+                    "mode": "-rw-r--r--",
+                    "size": 3884,
+                    "mtime": 1784228380,
+                    "hash": "9b594633521e6ca8"
+                  }
+                ]
+              },
+              {
+                "name": "programs",
+                "type": "dir",
+                "symlink": false,
+                "lines": 206,
+                "chars": 7219,
+                "mode": "drwxr-xr-x",
+                "size": 7219,
+                "mtime": 1783736999,
+                "hash": "f4f13d9df7ffe839",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 145,
+                    "chars": 5210,
+                    "mode": "-rw-r--r--",
+                    "size": 5210,
+                    "mtime": 1783886103,
+                    "hash": "6f90b768314f4bc1"
+                  },
+                  {
+                    "name": "programs.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 61,
+                    "chars": 2009,
+                    "mode": "-rw-r--r--",
+                    "size": 2009,
+                    "mtime": 1783736999,
+                    "hash": "2307bb7880937856"
+                  }
+                ]
+              },
+              {
+                "name": "scripts",
+                "type": "dir",
+                "symlink": false,
+                "lines": 62,
+                "chars": 1903,
+                "mode": "drwxr-xr-x",
+                "size": 1903,
+                "mtime": 1783731629,
+                "hash": "4a20fa14ec61ece0",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 28,
+                    "chars": 976,
+                    "mode": "-rw-r--r--",
+                    "size": 976,
+                    "mtime": 1783729746,
+                    "hash": "155e2acddcb61911"
+                  },
+                  {
+                    "name": "scripts.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 34,
+                    "chars": 927,
+                    "mode": "-rw-r--r--",
+                    "size": 927,
+                    "mtime": 1783731629,
+                    "hash": "2135aef029016209"
+                  }
+                ]
+              },
+              {
+                "name": "shells",
+                "type": "dir",
+                "symlink": false,
+                "lines": 202,
+                "chars": 6146,
+                "mode": "drwxr-xr-x",
+                "size": 6152,
+                "mtime": 1783729756,
+                "hash": "3d2b97b8f846c247",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 16,
+                    "chars": 616,
+                    "mode": "-rw-r--r--",
+                    "size": 616,
+                    "mtime": 1783729756,
+                    "hash": "fedeeb0df8354c8b"
+                  },
+                  {
+                    "name": "shells.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 186,
+                    "chars": 5530,
+                    "mode": "-rw-r--r--",
+                    "size": 5536,
+                    "mtime": 1784061061,
+                    "hash": "7a21c3a1862ca6f8"
+                  }
+                ]
+              },
+              {
+                "name": "venvs",
+                "type": "dir",
+                "symlink": false,
+                "lines": 1691,
+                "chars": 57880,
+                "mode": "drwxr-xr-x",
+                "size": 57888,
+                "mtime": 1784054818,
+                "hash": "c0ae3639af8a49bf",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 112,
+                    "chars": 4629,
+                    "mode": "-rw-r--r--",
+                    "size": 4629,
+                    "mtime": 1784054783,
+                    "hash": "8da94a94c5b4e934"
+                  },
+                  {
+                    "name": "docs",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 310,
+                    "chars": 12503,
+                    "mode": "drwxr-xr-x",
+                    "size": 12503,
+                    "mtime": 1784061529,
+                    "hash": "8868ad666674a8d5",
+                    "children": [
+                      {
+                        "name": "ARCHITECTURE.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 98,
+                        "chars": 4158,
+                        "mode": "-rw-r--r--",
+                        "size": 4158,
+                        "mtime": 1784054993,
+                        "hash": "374c6bd648858e94"
+                      },
+                      {
+                        "name": "CAVEATS.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 11,
+                        "chars": 396,
+                        "mode": "-rw-r--r--",
+                        "size": 396,
+                        "mtime": 1784061530,
+                        "hash": "0ff2a20c447fc130"
+                      },
+                      {
+                        "name": "DECISIONS.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 110,
+                        "chars": 5242,
+                        "mode": "-rw-r--r--",
+                        "size": 5242,
+                        "mtime": 1784055017,
+                        "hash": "8692b9a0e2e0bfe3"
+                      },
+                      {
+                        "name": "README.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 91,
+                        "chars": 2707,
+                        "mode": "-rw-r--r--",
+                        "size": 2707,
+                        "mtime": 1784057414,
+                        "hash": "7f5e07cc798efec1"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "lib",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 951,
+                    "chars": 29621,
+                    "mode": "drwxr-xr-x",
+                    "size": 29623,
+                    "mtime": 1784055031,
+                    "hash": "b2f25fc940ef71d1",
+                    "children": [
+                      {
+                        "name": "cli",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 159,
+                        "chars": 5333,
+                        "mode": "drwxr-xr-x",
+                        "size": 5333,
+                        "mtime": 1784054949,
+                        "hash": "26125aa1b203e542",
+                        "children": [
+                          {
+                            "name": "activate.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 53,
+                            "chars": 1806,
+                            "mode": "-rwxr-xr-x",
+                            "size": 1806,
+                            "mtime": 1784057801,
+                            "hash": "f653fa0001c39617"
+                          },
+                          {
+                            "name": "cli.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 52,
+                            "chars": 1516,
+                            "mode": "-rwxr-xr-x",
+                            "size": 1516,
+                            "mtime": 1784054933,
+                            "hash": "5aa99c8e37a6baa2"
+                          },
+                          {
+                            "name": "deactivate.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 32,
+                            "chars": 1309,
+                            "mode": "-rwxr-xr-x",
+                            "size": 1309,
+                            "mtime": 1784059226,
+                            "hash": "58545fff01182dbe"
+                          },
+                          {
+                            "name": "list.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 22,
+                            "chars": 702,
+                            "mode": "-rwxr-xr-x",
+                            "size": 702,
+                            "mtime": 1784054949,
+                            "hash": "9b4367fd8ed54be7"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "lock",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 24,
+                        "chars": 766,
+                        "mode": "drwxr-xr-x",
+                        "size": 766,
+                        "mtime": 1784054921,
+                        "hash": "f2ecb4cbe9c07b7e",
+                        "children": [
+                          {
+                            "name": "lockfile.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 24,
+                            "chars": 766,
+                            "mode": "-rwxr-xr-x",
+                            "size": 766,
+                            "mtime": 1784054921,
+                            "hash": "8067164a0078213d"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "manage",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 275,
+                        "chars": 9145,
+                        "mode": "drwxr-xr-x",
+                        "size": 9147,
+                        "mtime": 1784054915,
+                        "hash": "646bd511f3f40771",
+                        "children": [
+                          {
+                            "name": "build.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 63,
+                            "chars": 2374,
+                            "mode": "-rwxr-xr-x",
+                            "size": 2374,
+                            "mtime": 1784056359,
+                            "hash": "1478ffd21340154b"
+                          },
+                          {
+                            "name": "log.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 41,
+                            "chars": 1270,
+                            "mode": "-rwxr-xr-x",
+                            "size": 1272,
+                            "mtime": 1784054867,
+                            "hash": "3916d1a8fa10f296"
+                          },
+                          {
+                            "name": "manifest.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 56,
+                            "chars": 1754,
+                            "mode": "-rwxr-xr-x",
+                            "size": 1754,
+                            "mtime": 1784054879,
+                            "hash": "20c96837928db5cd"
+                          },
+                          {
+                            "name": "remove.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 28,
+                            "chars": 818,
+                            "mode": "-rwxr-xr-x",
+                            "size": 818,
+                            "mtime": 1784054908,
+                            "hash": "d76b34029694ab22"
+                          },
+                          {
+                            "name": "sync.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 32,
+                            "chars": 1294,
+                            "mode": "-rwxr-xr-x",
+                            "size": 1294,
+                            "mtime": 1784056349,
+                            "hash": "8a1f2d24ede62997"
+                          },
+                          {
+                            "name": "update.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 55,
+                            "chars": 1635,
+                            "mode": "-rwxr-xr-x",
+                            "size": 1635,
+                            "mtime": 1784054902,
+                            "hash": "7bbd1dc20984e1cb"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "shims",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 493,
+                        "chars": 14377,
+                        "mode": "drwxr-xr-x",
+                        "size": 14377,
+                        "mtime": 1784061906,
+                        "hash": "5d86e9672aead1bf",
+                        "children": [
+                          {
+                            "name": "activate.bash",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 53,
+                            "chars": 1643,
+                            "mode": "-rw-r--r--",
+                            "size": 1643,
+                            "mtime": 1784059115,
+                            "hash": "ad22a0e8d9a764bf"
+                          },
+                          {
+                            "name": "activate.fish",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 57,
+                            "chars": 2152,
+                            "mode": "-rw-r--r--",
+                            "size": 2152,
+                            "mtime": 1784059102,
+                            "hash": "50eaa8c2a56dec1b"
+                          },
+                          {
+                            "name": "activate.nu",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 62,
+                            "chars": 1946,
+                            "mode": "-rw-r--r--",
+                            "size": 1946,
+                            "mtime": 1784061639,
+                            "hash": "ffaa56a84ccb72e1"
+                          },
+                          {
+                            "name": "activate.ps1",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 77,
+                            "chars": 2522,
+                            "mode": "-rw-r--r--",
+                            "size": 2522,
+                            "mtime": 1784061721,
+                            "hash": "d5ff5ecbb5a19c03"
+                          },
+                          {
+                            "name": "activate.sh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 83,
+                            "chars": 2372,
+                            "mode": "-rw-r--r--",
+                            "size": 2372,
+                            "mtime": 1784061619,
+                            "hash": "e7823eebed95ad4b"
+                          },
+                          {
+                            "name": "activate.zsh",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 50,
+                            "chars": 1616,
+                            "mode": "-rw-r--r--",
+                            "size": 1616,
+                            "mtime": 1784061604,
+                            "hash": "d8fb5c064f0a393f"
+                          },
+                          {
+                            "name": "how-to.md",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 111,
+                            "chars": 2126,
+                            "mode": "-rw-r--r--",
+                            "size": 2126,
+                            "mtime": 1784061908,
+                            "hash": "9c141c336a9165e3"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "venv.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 318,
+                    "chars": 11127,
+                    "mode": "-rw-r--r--",
+                    "size": 11133,
+                    "mtime": 1784061092,
+                    "hash": "df89c60f1de7b495"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "security",
+            "type": "dir",
+            "symlink": false,
+            "lines": 400,
+            "chars": 17846,
+            "mode": "drwxr-xr-x",
+            "size": 17846,
+            "mtime": 1783729645,
+            "hash": "2a483386bf7f2ba7",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 8,
+                "chars": 87,
+                "mode": "-rw-r--r--",
+                "size": 87,
+                "mtime": 1783729645,
+                "hash": "02f4e8694dee0499"
+              },
+              {
+                "name": "sudo-keyfile",
+                "type": "dir",
+                "symlink": false,
+                "lines": 283,
+                "chars": 12237,
+                "mode": "drwxr-xr-x",
+                "size": 12237,
+                "mtime": 1783772206,
+                "hash": "250c936f3ba1a43c",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 45,
+                    "chars": 1724,
+                    "mode": "-rw-r--r--",
+                    "size": 1724,
+                    "mtime": 1783772206,
+                    "hash": "1b1df789e2616477"
+                  },
+                  {
+                    "name": "sudo-keyfile.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 238,
+                    "chars": 10513,
+                    "mode": "-rw-r--r--",
+                    "size": 10513,
+                    "mtime": 1783727439,
+                    "hash": "4eecf6009d9beda8"
+                  }
+                ]
+              },
+              {
+                "name": "usb-killswitch",
+                "type": "dir",
+                "symlink": false,
+                "lines": 109,
+                "chars": 5522,
+                "mode": "drwxr-xr-x",
+                "size": 5522,
+                "mtime": 1783772212,
+                "hash": "627ed45339f92166",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 57,
+                    "chars": 2886,
+                    "mode": "-rw-r--r--",
+                    "size": 2886,
+                    "mtime": 1783772212,
+                    "hash": "9d956fe18171e6a5"
+                  },
+                  {
+                    "name": "usb-killswitch.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 52,
+                    "chars": 2636,
+                    "mode": "-rw-r--r--",
+                    "size": 2636,
+                    "mtime": 1783737329,
+                    "hash": "2b61e5b1c9ef6ac2"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "services",
+            "type": "dir",
+            "symlink": false,
+            "lines": 8371,
+            "chars": 423887,
+            "mode": "drwxr-xr-x",
+            "size": 423887,
+            "mtime": 1783777488,
+            "hash": "396f057da449c15b",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 5,
+                "chars": 45,
+                "mode": "-rw-r--r--",
+                "size": 45,
+                "mtime": 1783777488,
+                "hash": "c3cb9af27f8285a5"
+              },
+              {
+                "name": "self-hosted",
+                "type": "dir",
+                "symlink": false,
+                "lines": 8366,
+                "chars": 423842,
+                "mode": "drwxr-xr-x",
+                "size": 423842,
+                "mtime": 1783893345,
+                "hash": "bee127f26220363c",
+                "children": [
+                  {
+                    "name": "comfyui",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 1427,
+                    "chars": 71178,
+                    "mode": "drwxr-xr-x",
+                    "size": 71178,
+                    "mtime": 1783824000,
+                    "hash": "b39f06d5d00ae303",
+                    "children": [
+                      {
+                        "name": "comfyui.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 216,
+                        "chars": 10020,
+                        "mode": "-rw-r--r--",
+                        "size": 10020,
+                        "mtime": 1783823295,
+                        "hash": "69a6fbb03ed4a481"
+                      },
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 229,
+                        "chars": 10407,
+                        "mode": "-rw-r--r--",
+                        "size": 10407,
+                        "mtime": 1783819431,
+                        "hash": "0735e43accb4d99b"
+                      },
+                      {
+                        "name": "info.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 413,
+                        "chars": 25787,
+                        "mode": "-rw-r--r--",
+                        "size": 25787,
+                        "mtime": 1783824000,
+                        "hash": "2242b6da62af3068"
+                      },
+                      {
+                        "name": "lib",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 569,
+                        "chars": 24964,
+                        "mode": "drwxr-xr-x",
+                        "size": 24964,
+                        "mtime": 1783823197,
+                        "hash": "8cb2b60d55fe6eed",
+                        "children": [
+                          {
+                            "name": "fhs.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 97,
+                            "chars": 4426,
+                            "mode": "-rw-r--r--",
+                            "size": 4426,
+                            "mtime": 1783823197,
+                            "hash": "af8f7e50aab7f074"
+                          },
+                          {
+                            "name": "models-sync.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 134,
+                            "chars": 4599,
+                            "mode": "-rw-r--r--",
+                            "size": 4599,
+                            "mtime": 1783815346,
+                            "hash": "135a9d697ee07c5e"
+                          },
+                          {
+                            "name": "node-mounting.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 83,
+                            "chars": 3688,
+                            "mode": "-rw-r--r--",
+                            "size": 3688,
+                            "mtime": 1783819431,
+                            "hash": "75b5e5584f3af10c"
+                          },
+                          {
+                            "name": "requirements.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 147,
+                            "chars": 7319,
+                            "mode": "-rw-r--r--",
+                            "size": 7319,
+                            "mtime": 1783815463,
+                            "hash": "40817a97d544c94e"
+                          },
+                          {
+                            "name": "update.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 108,
+                            "chars": 4932,
+                            "mode": "-rw-r--r--",
+                            "size": 4932,
+                            "mtime": 1783815749,
+                            "hash": "7ba751b3ed467aff"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 29,
+                    "chars": 903,
+                    "mode": "-rw-r--r--",
+                    "size": 903,
+                    "mtime": 1783882378,
+                    "hash": "40074c67133ed503"
+                  },
+                  {
+                    "name": "docs",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 770,
+                    "chars": 42294,
+                    "mode": "drwxr-xr-x",
+                    "size": 42294,
+                    "mtime": 1783824286,
+                    "hash": "ff4d382727ce8fa2",
+                    "children": [
+                      {
+                        "name": "adding-a-service.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 244,
+                        "chars": 12831,
+                        "mode": "-rw-r--r--",
+                        "size": 12831,
+                        "mtime": 1783824163,
+                        "hash": "8cb6c63fbccf0602"
+                      },
+                      {
+                        "name": "architecture.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 355,
+                        "chars": 20109,
+                        "mode": "-rw-r--r--",
+                        "size": 20109,
+                        "mtime": 1783824210,
+                        "hash": "3802a3c7b7822ada"
+                      },
+                      {
+                        "name": "conventions.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 156,
+                        "chars": 8657,
+                        "mode": "-rw-r--r--",
+                        "size": 8657,
+                        "mtime": 1783824286,
+                        "hash": "47b51fc8709f9298"
+                      },
+                      {
+                        "name": "README.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 15,
+                        "chars": 697,
+                        "mode": "-rw-r--r--",
+                        "size": 697,
+                        "mtime": 1783798681,
+                        "hash": "8b90a7f97d86792f"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "filebrowser",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 383,
+                    "chars": 18355,
+                    "mode": "drwxr-xr-x",
+                    "size": 18355,
+                    "mtime": 1783855474,
+                    "hash": "1b732e552567eb7a",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 123,
+                        "chars": 5125,
+                        "mode": "-rw-r--r--",
+                        "size": 5125,
+                        "mtime": 1783855416,
+                        "hash": "f666d5d2cc3063e9"
+                      },
+                      {
+                        "name": "filebrowser.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 79,
+                        "chars": 3466,
+                        "mode": "-rw-r--r--",
+                        "size": 3466,
+                        "mtime": 1783855438,
+                        "hash": "917cd8518a1aa394"
+                      },
+                      {
+                        "name": "info.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 98,
+                        "chars": 6232,
+                        "mode": "-rw-r--r--",
+                        "size": 6232,
+                        "mtime": 1783855474,
+                        "hash": "2b924ff3f4a772f4"
+                      },
+                      {
+                        "name": "lib",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 83,
+                        "chars": 3532,
+                        "mode": "drwxr-xr-x",
+                        "size": 3532,
+                        "mtime": 1783855590,
+                        "hash": "557763223cf00865",
+                        "children": [
+                          {
+                            "name": "package.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 44,
+                            "chars": 1595,
+                            "mode": "-rw-r--r--",
+                            "size": 1595,
+                            "mtime": 1783855590,
+                            "hash": "c3288662f3fabb24"
+                          },
+                          {
+                            "name": "update.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 39,
+                            "chars": 1937,
+                            "mode": "-rw-r--r--",
+                            "size": 1937,
+                            "mtime": 1783855396,
+                            "hash": "fc37da6b513cdffd"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "general",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 66,
+                    "chars": 3261,
+                    "mode": "drwxr-xr-x",
+                    "size": 3261,
+                    "mtime": 1783881255,
+                    "hash": "224c2b5d1d9be869",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 66,
+                        "chars": 3261,
+                        "mode": "-rw-r--r--",
+                        "size": 3261,
+                        "mtime": 1783881255,
+                        "hash": "ce082b30b6a2cbc6"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "immich",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 517,
+                    "chars": 28833,
+                    "mode": "drwxr-xr-x",
+                    "size": 28833,
+                    "mtime": 1783883419,
+                    "hash": "ffa7ed60beba6a34",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 133,
+                        "chars": 6141,
+                        "mode": "-rw-r--r--",
+                        "size": 6141,
+                        "mtime": 1783871998,
+                        "hash": "4781aa319a47c9b0"
+                      },
+                      {
+                        "name": "immich.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 140,
+                        "chars": 6780,
+                        "mode": "-rw-r--r--",
+                        "size": 6780,
+                        "mtime": 1783883400,
+                        "hash": "086f940145fe5f36"
+                      },
+                      {
+                        "name": "info.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 244,
+                        "chars": 15912,
+                        "mode": "-rw-r--r--",
+                        "size": 15912,
+                        "mtime": 1783873716,
+                        "hash": "5a005d4a8e35fcfe"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "jellyfin",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 1179,
+                    "chars": 59191,
+                    "mode": "drwxr-xr-x",
+                    "size": 59191,
+                    "mtime": 1783865469,
+                    "hash": "7efb689139644169",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 266,
+                        "chars": 13369,
+                        "mode": "-rw-r--r--",
+                        "size": 13369,
+                        "mtime": 1783864525,
+                        "hash": "eb3dd39e6d58b67c"
+                      },
+                      {
+                        "name": "info.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 331,
+                        "chars": 21153,
+                        "mode": "-rw-r--r--",
+                        "size": 21153,
+                        "mtime": 1783865469,
+                        "hash": "89a389b37a7ee71c"
+                      },
+                      {
+                        "name": "jellyfin.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 112,
+                        "chars": 5204,
+                        "mode": "-rw-r--r--",
+                        "size": 5204,
+                        "mtime": 1783863867,
+                        "hash": "b14af04e4aedf705"
+                      },
+                      {
+                        "name": "lib",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 470,
+                        "chars": 19465,
+                        "mode": "drwxr-xr-x",
+                        "size": 19465,
+                        "mtime": 1783865417,
+                        "hash": "267a3c210aa43f8c",
+                        "children": [
+                          {
+                            "name": "network-sync.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 65,
+                            "chars": 2746,
+                            "mode": "-rw-r--r--",
+                            "size": 2746,
+                            "mtime": 1783864418,
+                            "hash": "c77f80d002d24035"
+                          },
+                          {
+                            "name": "package.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 86,
+                            "chars": 4024,
+                            "mode": "-rw-r--r--",
+                            "size": 4024,
+                            "mtime": 1783861742,
+                            "hash": "6611d1b567d36580"
+                          },
+                          {
+                            "name": "plugins-sync.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 38,
+                            "chars": 1637,
+                            "mode": "-rw-r--r--",
+                            "size": 1637,
+                            "mtime": 1783864413,
+                            "hash": "073f7d0537a46ba7"
+                          },
+                          {
+                            "name": "rescan.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 101,
+                            "chars": 3588,
+                            "mode": "-rw-r--r--",
+                            "size": 3588,
+                            "mtime": 1783864826,
+                            "hash": "3ecac684c7c0cf3c"
+                          },
+                          {
+                            "name": "theme-sync.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 80,
+                            "chars": 2998,
+                            "mode": "-rw-r--r--",
+                            "size": 2998,
+                            "mtime": 1783864406,
+                            "hash": "dcceb00eb01edc3b"
+                          },
+                          {
+                            "name": "update.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 42,
+                            "chars": 1972,
+                            "mode": "-rw-r--r--",
+                            "size": 1972,
+                            "mtime": 1783860567,
+                            "hash": "a5219f14a9dbd191"
+                          },
+                          {
+                            "name": "wait-for-api.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 58,
+                            "chars": 2500,
+                            "mode": "-rw-r--r--",
+                            "size": 2500,
+                            "mtime": 1783865417,
+                            "hash": "1accd864247705d7"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "lib",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 890,
+                    "chars": 43052,
+                    "mode": "drwxr-xr-x",
+                    "size": 43052,
+                    "mtime": 1783881656,
+                    "hash": "ae7380b8531e64ba",
+                    "children": [
+                      {
+                        "name": "acl-traversal",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 253,
+                        "chars": 12529,
+                        "mode": "drwxr-xr-x",
+                        "size": 12529,
+                        "mtime": 1783893372,
+                        "hash": "921ecd84889ebcbc",
+                        "children": [
+                          {
+                            "name": "acl-traversal.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 72,
+                            "chars": 3530,
+                            "mode": "-rw-r--r--",
+                            "size": 3530,
+                            "mtime": 1783882709,
+                            "hash": "d5fa66f5052ae4ce"
+                          },
+                          {
+                            "name": "default.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 70,
+                            "chars": 3535,
+                            "mode": "-rw-r--r--",
+                            "size": 3535,
+                            "mtime": 1783881435,
+                            "hash": "d4879b1591237ea9"
+                          },
+                          {
+                            "name": "mk-acl-traversal.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 111,
+                            "chars": 5464,
+                            "mode": "-rw-r--r--",
+                            "size": 5464,
+                            "mtime": 1783893372,
+                            "hash": "c9be33efbf3286ab"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 12,
+                        "chars": 500,
+                        "mode": "-rw-r--r--",
+                        "size": 500,
+                        "mtime": 1783881656,
+                        "hash": "49c81288af70eeaa"
+                      },
+                      {
+                        "name": "mk-from-native",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 181,
+                        "chars": 9407,
+                        "mode": "drwxr-xr-x",
+                        "size": 9407,
+                        "mtime": 1783883348,
+                        "hash": "742ca930d2bcba99",
+                        "children": [
+                          {
+                            "name": "README.md",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 60,
+                            "chars": 3564,
+                            "mode": "-rw-r--r--",
+                            "size": 3564,
+                            "mtime": 1783871824,
+                            "hash": "67118dbfb5f31c91"
+                          },
+                          {
+                            "name": "services.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 55,
+                            "chars": 2409,
+                            "mode": "-rw-r--r--",
+                            "size": 2409,
+                            "mtime": 1783871786,
+                            "hash": "6894898c8f9838a0"
+                          },
+                          {
+                            "name": "update.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 66,
+                            "chars": 3434,
+                            "mode": "-rw-r--r--",
+                            "size": 3434,
+                            "mtime": 1783883348,
+                            "hash": "eb8855b504732d00"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "service",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 326,
+                        "chars": 14710,
+                        "mode": "drwxr-xr-x",
+                        "size": 14710,
+                        "mtime": 1783861441,
+                        "hash": "2ce7c4a2f467d226",
+                        "children": [
+                          {
+                            "name": "mk-action-service.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 48,
+                            "chars": 1670,
+                            "mode": "-rw-r--r--",
+                            "size": 1670,
+                            "mtime": 1783815136,
+                            "hash": "72b93b7d26364a9e"
+                          },
+                          {
+                            "name": "mk-self-hosted-service.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 207,
+                            "chars": 10230,
+                            "mode": "-rw-r--r--",
+                            "size": 10230,
+                            "mtime": 1783861441,
+                            "hash": "3b6009eff517eb9c"
+                          },
+                          {
+                            "name": "mk-teardown-activation-script.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 71,
+                            "chars": 2810,
+                            "mode": "-rw-r--r--",
+                            "size": 2810,
+                            "mtime": 1783815055,
+                            "hash": "704acdf28b724a0e"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "venv",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 118,
+                        "chars": 5906,
+                        "mode": "drwxr-xr-x",
+                        "size": 5906,
+                        "mtime": 1783815196,
+                        "hash": "71d4df33ad7bb495",
+                        "children": [
+                          {
+                            "name": "mk-deps-update-script.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 56,
+                            "chars": 2870,
+                            "mode": "-rw-r--r--",
+                            "size": 2870,
+                            "mtime": 1783815124,
+                            "hash": "d4b5d1755f72a2c8"
+                          },
+                          {
+                            "name": "mk-fhs-venv.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 25,
+                            "chars": 1517,
+                            "mode": "-rw-r--r--",
+                            "size": 1517,
+                            "mtime": 1783815096,
+                            "hash": "7726f900240a32e3"
+                          },
+                          {
+                            "name": "mk-venv-ensure-script.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 19,
+                            "chars": 739,
+                            "mode": "-rw-r--r--",
+                            "size": 739,
+                            "mtime": 1783815108,
+                            "hash": "dcda096e4d0429f9"
+                          },
+                          {
+                            "name": "mk-venv-install-script.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 18,
+                            "chars": 780,
+                            "mode": "-rw-r--r--",
+                            "size": 780,
+                            "mtime": 1783815102,
+                            "hash": "cd4564bc36adbf52"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "odysseus",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 525,
+                    "chars": 27829,
+                    "mode": "drwxr-xr-x",
+                    "size": 27829,
+                    "mtime": 1783876425,
+                    "hash": "3eef785d55f24402",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 153,
+                        "chars": 8474,
+                        "mode": "-rw-r--r--",
+                        "size": 8474,
+                        "mtime": 1783875409,
+                        "hash": "d3ad31fd410d4184"
+                      },
+                      {
+                        "name": "info.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 130,
+                        "chars": 8715,
+                        "mode": "-rw-r--r--",
+                        "size": 8715,
+                        "mtime": 1783876098,
+                        "hash": "bd0f7b1bac760ec3"
+                      },
+                      {
+                        "name": "lib",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 94,
+                        "chars": 3775,
+                        "mode": "drwxr-xr-x",
+                        "size": 3775,
+                        "mtime": 1783875421,
+                        "hash": "025eb3b7b9222e8e",
+                        "children": [
+                          {
+                            "name": "fhs.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 40,
+                            "chars": 1591,
+                            "mode": "-rw-r--r--",
+                            "size": 1591,
+                            "mtime": 1783875220,
+                            "hash": "4dcda4d82f70f876"
+                          },
+                          {
+                            "name": "update.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 54,
+                            "chars": 2184,
+                            "mode": "-rw-r--r--",
+                            "size": 2184,
+                            "mtime": 1783875421,
+                            "hash": "88c443429288e6fc"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "odysseus.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 148,
+                        "chars": 6865,
+                        "mode": "-rw-r--r--",
+                        "size": 6865,
+                        "mtime": 1783876425,
+                        "hash": "a923b041e885dc56"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "ollama",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 462,
+                    "chars": 21802,
+                    "mode": "drwxr-xr-x",
+                    "size": 21802,
+                    "mtime": 1783864053,
+                    "hash": "550af719abd0f7b5",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 125,
+                        "chars": 5770,
+                        "mode": "-rw-r--r--",
+                        "size": 5770,
+                        "mtime": 1783863729,
+                        "hash": "3b0c0c8f0b51e094"
+                      },
+                      {
+                        "name": "info.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 93,
+                        "chars": 6281,
+                        "mode": "-rw-r--r--",
+                        "size": 6281,
+                        "mtime": 1783864053,
+                        "hash": "315d88cc8dbe5481"
+                      },
+                      {
+                        "name": "lib",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 157,
+                        "chars": 5841,
+                        "mode": "drwxr-xr-x",
+                        "size": 5841,
+                        "mtime": 1783815556,
+                        "hash": "5d281007329561ff",
+                        "children": [
+                          {
+                            "name": "package.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 51,
+                            "chars": 1930,
+                            "mode": "-rw-r--r--",
+                            "size": 1930,
+                            "mtime": 1783779525,
+                            "hash": "4702e3f074f5e228"
+                          },
+                          {
+                            "name": "sync.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 66,
+                            "chars": 1968,
+                            "mode": "-rw-r--r--",
+                            "size": 1968,
+                            "mtime": 1783810418,
+                            "hash": "61224cf97944e7e3"
+                          },
+                          {
+                            "name": "update.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 40,
+                            "chars": 1943,
+                            "mode": "-rw-r--r--",
+                            "size": 1943,
+                            "mtime": 1783798096,
+                            "hash": "81b888c65b805b18"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "ollama.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 87,
+                        "chars": 3910,
+                        "mode": "-rw-r--r--",
+                        "size": 3910,
+                        "mtime": 1783863748,
+                        "hash": "116acf4d7a142dce"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "openwebui",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 400,
+                    "chars": 18228,
+                    "mode": "drwxr-xr-x",
+                    "size": 18228,
+                    "mtime": 1783854489,
+                    "hash": "caf045febca0077e",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 110,
+                        "chars": 4079,
+                        "mode": "-rw-r--r--",
+                        "size": 4079,
+                        "mtime": 1783814266,
+                        "hash": "9e28329d0dfcd823"
+                      },
+                      {
+                        "name": "info.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 130,
+                        "chars": 7830,
+                        "mode": "-rw-r--r--",
+                        "size": 7830,
+                        "mtime": 1783854489,
+                        "hash": "b32c7b1b1e250ce4"
+                      },
+                      {
+                        "name": "lib",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 42,
+                        "chars": 1382,
+                        "mode": "drwxr-xr-x",
+                        "size": 1382,
+                        "mtime": 1783815758,
+                        "hash": "5eb7ccaf0819f934",
+                        "children": [
+                          {
+                            "name": "fhs.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 32,
+                            "chars": 952,
+                            "mode": "-rw-r--r--",
+                            "size": 952,
+                            "mtime": 1783815721,
+                            "hash": "6e83f34621bf056e"
+                          },
+                          {
+                            "name": "update.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 10,
+                            "chars": 430,
+                            "mode": "-rw-r--r--",
+                            "size": 430,
+                            "mtime": 1783815758,
+                            "hash": "2bbed5ab72fc196e"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "openwebui.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 118,
+                        "chars": 4937,
+                        "mode": "-rw-r--r--",
+                        "size": 4937,
+                        "mtime": 1783815617,
+                        "hash": "620a09f26c7cd4c0"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "qbittorrent",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 663,
+                    "chars": 35476,
+                    "mode": "drwxr-xr-x",
+                    "size": 35476,
+                    "mtime": 1783896660,
+                    "hash": "e0dd6da9ecb5142d",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 217,
+                        "chars": 10624,
+                        "mode": "-rw-r--r--",
+                        "size": 10624,
+                        "mtime": 1783896362,
+                        "hash": "45b363fb6d20d271"
+                      },
+                      {
+                        "name": "info.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 255,
+                        "chars": 15633,
+                        "mode": "-rw-r--r--",
+                        "size": 15633,
+                        "mtime": 1783882956,
+                        "hash": "d323ddde94629aa9"
+                      },
+                      {
+                        "name": "qbittorrent.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 191,
+                        "chars": 9219,
+                        "mode": "-rw-r--r--",
+                        "size": 9219,
+                        "mtime": 1783896660,
+                        "hash": "7a2e7fde6bf25894"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "searxng",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 626,
+                    "chars": 32877,
+                    "mode": "drwxr-xr-x",
+                    "size": 32877,
+                    "mtime": 1784138375,
+                    "hash": "2aa56495db789e49",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 190,
+                        "chars": 9530,
+                        "mode": "-rw-r--r--",
+                        "size": 9530,
+                        "mtime": 1783863765,
+                        "hash": "772f5b3f366b6535"
+                      },
+                      {
+                        "name": "info.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 176,
+                        "chars": 12236,
+                        "mode": "-rw-r--r--",
+                        "size": 12236,
+                        "mtime": 1783864101,
+                        "hash": "7a102a9fd56fca55"
+                      },
+                      {
+                        "name": "lib",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 89,
+                        "chars": 3378,
+                        "mode": "drwxr-xr-x",
+                        "size": 3378,
+                        "mtime": 1783856777,
+                        "hash": "f565ac6144d4772c",
+                        "children": [
+                          {
+                            "name": "fhs.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 34,
+                            "chars": 1162,
+                            "mode": "-rw-r--r--",
+                            "size": 1162,
+                            "mtime": 1783856766,
+                            "hash": "691756e98f2311fb"
+                          },
+                          {
+                            "name": "update.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 55,
+                            "chars": 2216,
+                            "mode": "-rw-r--r--",
+                            "size": 2216,
+                            "mtime": 1783856777,
+                            "hash": "fa94c496858f0777"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "searxng.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 171,
+                        "chars": 7733,
+                        "mode": "-rw-r--r--",
+                        "size": 7733,
+                        "mtime": 1784138375,
+                        "hash": "fc878f930ffbb55c"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "self-hosted.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 93,
+                    "chars": 5263,
+                    "mode": "-rw-r--r--",
+                    "size": 5263,
+                    "mtime": 1783893345,
+                    "hash": "665f985f4b06a196"
+                  },
+                  {
+                    "name": "stash",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 336,
+                    "chars": 15300,
+                    "mode": "drwxr-xr-x",
+                    "size": 15300,
+                    "mtime": 1783851974,
+                    "hash": "7ff955da1cbac08a",
+                    "children": [
+                      {
+                        "name": "default.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 121,
+                        "chars": 4953,
+                        "mode": "-rw-r--r--",
+                        "size": 4953,
+                        "mtime": 1783814277,
+                        "hash": "a0aead23be013945"
+                      },
+                      {
+                        "name": "info.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 70,
+                        "chars": 4382,
+                        "mode": "-rw-r--r--",
+                        "size": 4382,
+                        "mtime": 1783823864,
+                        "hash": "0369e03b91bdee16"
+                      },
+                      {
+                        "name": "lib",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 69,
+                        "chars": 2676,
+                        "mode": "drwxr-xr-x",
+                        "size": 2676,
+                        "mtime": 1783815556,
+                        "hash": "55891d4ad2777261",
+                        "children": [
+                          {
+                            "name": "package.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 30,
+                            "chars": 821,
+                            "mode": "-rw-r--r--",
+                            "size": 821,
+                            "mtime": 1783781262,
+                            "hash": "ec035268cbe0e9d2"
+                          },
+                          {
+                            "name": "update.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 39,
+                            "chars": 1855,
+                            "mode": "-rw-r--r--",
+                            "size": 1855,
+                            "mtime": 1783798104,
+                            "hash": "98631cedecb6d050"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "stash.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 76,
+                        "chars": 3289,
+                        "mode": "-rw-r--r--",
+                        "size": 3289,
+                        "mtime": 1783851974,
+                        "hash": "52c4205841763ab1"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "system",
+            "type": "dir",
+            "symlink": false,
+            "lines": 4022,
+            "chars": 207470,
+            "mode": "drwxr-xr-x",
+            "size": 213415,
+            "mtime": 1783902342,
+            "hash": "1665551f725a169a",
+            "children": [
+              {
+                "name": "default.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 10,
+                "chars": 120,
+                "mode": "-rw-r--r--",
+                "size": 120,
+                "mtime": 1783902342,
+                "hash": "e178c3be945bda38"
+              },
+              {
+                "name": "mountpoints",
+                "type": "dir",
+                "symlink": false,
+                "lines": 311,
+                "chars": 12552,
+                "mode": "drwxr-xr-x",
+                "size": 12552,
+                "mtime": 1783905659,
+                "hash": "4d9d715cba134d80",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 49,
+                    "chars": 1941,
+                    "mode": "-rw-r--r--",
+                    "size": 1941,
+                    "mtime": 1783905641,
+                    "hash": "37d8229dde0e9194"
+                  },
+                  {
+                    "name": "lib",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 209,
+                    "chars": 7999,
+                    "mode": "drwxr-xr-x",
+                    "size": 7999,
+                    "mtime": 1783893642,
+                    "hash": "fa5b0e320c650a36",
+                    "children": [
+                      {
+                        "name": "device-type.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 100,
+                        "chars": 4022,
+                        "mode": "-rw-r--r--",
+                        "size": 4022,
+                        "mtime": 1783893614,
+                        "hash": "b9b952f349c14ff6"
+                      },
+                      {
+                        "name": "mount-entry.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 79,
+                        "chars": 3147,
+                        "mode": "-rw-r--r--",
+                        "size": 3147,
+                        "mtime": 1783893642,
+                        "hash": "19186b2753182476"
+                      },
+                      {
+                        "name": "resolve-leaf.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 30,
+                        "chars": 830,
+                        "mode": "-rw-r--r--",
+                        "size": 830,
+                        "mtime": 1783890950,
+                        "hash": "351b6fb2c214df13"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "mountpoints.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 53,
+                    "chars": 2612,
+                    "mode": "-rw-r--r--",
+                    "size": 2612,
+                    "mtime": 1783905659,
+                    "hash": "78a7084c7714ae98"
+                  }
+                ]
+              },
+              {
+                "name": "networking.nix",
+                "type": "file",
+                "symlink": false,
+                "lines": 11,
+                "chars": 425,
+                "mode": "-rw-r--r--",
+                "size": 425,
+                "mtime": 1783900436,
+                "hash": "3b0b25b4d9135093"
+              },
+              {
+                "name": "port-forwarding",
+                "type": "dir",
+                "symlink": false,
+                "lines": 3578,
+                "chars": 189063,
+                "mode": "drwxr-xr-x",
+                "size": 195008,
+                "mtime": 1784133768,
+                "hash": "2774411ec722fc98",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 138,
+                    "chars": 5496,
+                    "mode": "-rw-r--r--",
+                    "size": 5496,
+                    "mtime": 1783956082,
+                    "hash": "dbca9108927933ca"
+                  },
+                  {
+                    "name": "docs",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 419,
+                    "chars": 25852,
+                    "mode": "drwxr-xr-x",
+                    "size": 25852,
+                    "mtime": 1783957096,
+                    "hash": "a5c3d4a3debbd272",
+                    "children": [
+                      {
+                        "name": "architecture.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 136,
+                        "chars": 7454,
+                        "mode": "-rw-r--r--",
+                        "size": 7454,
+                        "mtime": 1783916381,
+                        "hash": "6b988ab88a5c12e7"
+                      },
+                      {
+                        "name": "decisions.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 182,
+                        "chars": 10224,
+                        "mode": "-rw-r--r--",
+                        "size": 10224,
+                        "mtime": 1783957053,
+                        "hash": "59cf3584a5c1ea2f"
+                      },
+                      {
+                        "name": "mapping.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 28,
+                        "chars": 4803,
+                        "mode": "-rw-r--r--",
+                        "size": 4803,
+                        "mtime": 1783957031,
+                        "hash": "58c2e671ac40588e"
+                      },
+                      {
+                        "name": "README.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 20,
+                        "chars": 1099,
+                        "mode": "-rw-r--r--",
+                        "size": 1099,
+                        "mtime": 1783957096,
+                        "hash": "8a49db54f9542a3f"
+                      },
+                      {
+                        "name": "stubs.md",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 53,
+                        "chars": 2272,
+                        "mode": "-rw-r--r--",
+                        "size": 2272,
+                        "mtime": 1783957089,
+                        "hash": "74ab4de9827edecb"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "lib",
+                    "type": "dir",
+                    "symlink": false,
+                    "lines": 2409,
+                    "chars": 125277,
+                    "mode": "drwxr-xr-x",
+                    "size": 131222,
+                    "mtime": 1783956103,
+                    "hash": "dcc0b2c3bed9c723",
+                    "children": [
+                      {
+                        "name": "__pycache__",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 45,
+                        "chars": 6416,
+                        "mode": "drwxr-xr-x",
+                        "size": 7154,
+                        "mtime": 1783956912,
+                        "hash": "96d1d8ba03610394",
+                        "children": [
+                          {
+                            "name": "ip-history.cpython-313.pyc",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 45,
+                            "chars": 6416,
+                            "mode": "-rw-r--r--",
+                            "size": 7154,
+                            "mtime": 1783956912,
+                            "hash": "917a823f1da802f6"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "cert",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 531,
+                        "chars": 28350,
+                        "mode": "drwxr-xr-x",
+                        "size": 29529,
+                        "mtime": 1783956836,
+                        "hash": "8c14ca6d7790810a",
+                        "children": [
+                          {
+                            "name": "__pycache__",
+                            "type": "dir",
+                            "symlink": false,
+                            "lines": 149,
+                            "chars": 14483,
+                            "mode": "drwxr-xr-x",
+                            "size": 15662,
+                            "mtime": 1783956912,
+                            "hash": "2b3ab1620c9f20fe",
+                            "children": [
+                              {
+                                "name": "_stub.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 7,
+                                "chars": 848,
+                                "mode": "-rw-r--r--",
+                                "size": 928,
+                                "mtime": 1783956912,
+                                "hash": "1aba8ec5765eedfe"
+                              },
+                              {
+                                "name": "ca.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 10,
+                                "chars": 1521,
+                                "mode": "-rw-r--r--",
+                                "size": 1654,
+                                "mtime": 1783956912,
+                                "hash": "b79dc530561c5b17"
+                              },
+                              {
+                                "name": "cli.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 16,
+                                "chars": 1990,
+                                "mode": "-rw-r--r--",
+                                "size": 2184,
+                                "mtime": 1783956912,
+                                "hash": "224bf6d014e377cb"
+                              },
+                              {
+                                "name": "leaf.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 28,
+                                "chars": 2685,
+                                "mode": "-rw-r--r--",
+                                "size": 2961,
+                                "mtime": 1783956912,
+                                "hash": "71ac0851d4e8902e"
+                              },
+                              {
+                                "name": "serve.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 88,
+                                "chars": 7439,
+                                "mode": "-rw-r--r--",
+                                "size": 7935,
+                                "mtime": 1783956912,
+                                "hash": "499bf0b804cc452d"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "_stub.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 22,
+                            "chars": 769,
+                            "mode": "-rw-r--r--",
+                            "size": 769,
+                            "mtime": 1783956805,
+                            "hash": "09f644746ceafa45"
+                          },
+                          {
+                            "name": "ca.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 29,
+                            "chars": 1013,
+                            "mode": "-rw-r--r--",
+                            "size": 1013,
+                            "mtime": 1783956815,
+                            "hash": "4eeb0ab382d30339"
+                          },
+                          {
+                            "name": "cli.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 44,
+                            "chars": 1147,
+                            "mode": "-rw-r--r--",
+                            "size": 1147,
+                            "mtime": 1783956831,
+                            "hash": "53875d3ac4110eda"
+                          },
+                          {
+                            "name": "default.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 53,
+                            "chars": 2227,
+                            "mode": "-rw-r--r--",
+                            "size": 2227,
+                            "mtime": 1783956082,
+                            "hash": "2151e7415b18d95d"
+                          },
+                          {
+                            "name": "leaf.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 64,
+                            "chars": 2390,
+                            "mode": "-rw-r--r--",
+                            "size": 2390,
+                            "mtime": 1783956823,
+                            "hash": "eba95baaf927b87c"
+                          },
+                          {
+                            "name": "preamble.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 34,
+                            "chars": 1217,
+                            "mode": "-rw-r--r--",
+                            "size": 1217,
+                            "mtime": 1783956015,
+                            "hash": "a17c1f7d6babfe4a"
+                          },
+                          {
+                            "name": "serve.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 136,
+                            "chars": 5104,
+                            "mode": "-rw-r--r--",
+                            "size": 5104,
+                            "mtime": 1783956836,
+                            "hash": "5f0207c3a2458d71"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "dnat.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 27,
+                        "chars": 863,
+                        "mode": "-rw-r--r--",
+                        "size": 863,
+                        "mtime": 1783914166,
+                        "hash": "e830e0d1043896f8"
+                      },
+                      {
+                        "name": "entry-type.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 295,
+                        "chars": 13066,
+                        "mode": "-rw-r--r--",
+                        "size": 13066,
+                        "mtime": 1783956092,
+                        "hash": "177b904017386742"
+                      },
+                      {
+                        "name": "ip-history.py",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 136,
+                        "chars": 4072,
+                        "mode": "-rw-r--r--",
+                        "size": 4072,
+                        "mtime": 1783956007,
+                        "hash": "d003b95d0604bcae"
+                      },
+                      {
+                        "name": "ipv6-bridge",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 640,
+                        "chars": 34457,
+                        "mode": "drwxr-xr-x",
+                        "size": 36531,
+                        "mtime": 1783956873,
+                        "hash": "aaf1f26035c66f98",
+                        "children": [
+                          {
+                            "name": "__pycache__",
+                            "type": "dir",
+                            "symlink": false,
+                            "lines": 157,
+                            "chars": 18100,
+                            "mode": "drwxr-xr-x",
+                            "size": 20174,
+                            "mtime": 1783956912,
+                            "hash": "1175ac05a1f8b83e",
+                            "children": [
+                              {
+                                "name": "_stub.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 6,
+                                "chars": 1138,
+                                "mode": "-rw-r--r--",
+                                "size": 1242,
+                                "mtime": 1783956912,
+                                "hash": "72df37d1696def2b"
+                              },
+                              {
+                                "name": "handler.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 60,
+                                "chars": 5500,
+                                "mode": "-rw-r--r--",
+                                "size": 6190,
+                                "mtime": 1783956912,
+                                "hash": "8f043c7d182619a2"
+                              },
+                              {
+                                "name": "http-request.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 25,
+                                "chars": 2614,
+                                "mode": "-rw-r--r--",
+                                "size": 2924,
+                                "mtime": 1783956912,
+                                "hash": "31ed506a65cae136"
+                              },
+                              {
+                                "name": "http-response.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 10,
+                                "chars": 2010,
+                                "mode": "-rw-r--r--",
+                                "size": 2238,
+                                "mtime": 1783956912,
+                                "hash": "563ebbc8e6950ee2"
+                              },
+                              {
+                                "name": "relay.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 7,
+                                "chars": 776,
+                                "mode": "-rw-r--r--",
+                                "size": 869,
+                                "mtime": 1783956912,
+                                "hash": "911ea5b8b8403567"
+                              },
+                              {
+                                "name": "server.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 20,
+                                "chars": 2206,
+                                "mode": "-rw-r--r--",
+                                "size": 2434,
+                                "mtime": 1783956912,
+                                "hash": "0cad21ec5c2d5210"
+                              },
+                              {
+                                "name": "tls.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 7,
+                                "chars": 736,
+                                "mode": "-rw-r--r--",
+                                "size": 800,
+                                "mtime": 1783956912,
+                                "hash": "f29fe59a3f1e7544"
+                              },
+                              {
+                                "name": "wait-backend.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 22,
+                                "chars": 3120,
+                                "mode": "-rw-r--r--",
+                                "size": 3477,
+                                "mtime": 1783956912,
+                                "hash": "ec1aacd8225fd93f"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "_stub.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 23,
+                            "chars": 881,
+                            "mode": "-rw-r--r--",
+                            "size": 881,
+                            "mtime": 1783956845,
+                            "hash": "851b27027e9898cd"
+                          },
+                          {
+                            "name": "default.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 78,
+                            "chars": 3541,
+                            "mode": "-rw-r--r--",
+                            "size": 3541,
+                            "mtime": 1783956082,
+                            "hash": "a49029801878a975"
+                          },
+                          {
+                            "name": "handler.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 101,
+                            "chars": 3056,
+                            "mode": "-rw-r--r--",
+                            "size": 3056,
+                            "mtime": 1783956865,
+                            "hash": "68ae571872d5897f"
+                          },
+                          {
+                            "name": "http-request.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 58,
+                            "chars": 1672,
+                            "mode": "-rw-r--r--",
+                            "size": 1672,
+                            "mtime": 1783956856,
+                            "hash": "29fc649739b2dd89"
+                          },
+                          {
+                            "name": "http-response.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 39,
+                            "chars": 1362,
+                            "mode": "-rw-r--r--",
+                            "size": 1362,
+                            "mtime": 1783956860,
+                            "hash": "64713659929cc0b3"
+                          },
+                          {
+                            "name": "preamble.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 28,
+                            "chars": 854,
+                            "mode": "-rw-r--r--",
+                            "size": 854,
+                            "mtime": 1783911274,
+                            "hash": "301e4a1eef080964"
+                          },
+                          {
+                            "name": "relay.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 17,
+                            "chars": 322,
+                            "mode": "-rw-r--r--",
+                            "size": 322,
+                            "mtime": 1783956401,
+                            "hash": "cb2fb3fc0464bd12"
+                          },
+                          {
+                            "name": "server.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 52,
+                            "chars": 2175,
+                            "mode": "-rw-r--r--",
+                            "size": 2175,
+                            "mtime": 1783956873,
+                            "hash": "a8744e9f97bfcc3f"
+                          },
+                          {
+                            "name": "tls.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 14,
+                            "chars": 375,
+                            "mode": "-rw-r--r--",
+                            "size": 375,
+                            "mtime": 1783956851,
+                            "hash": "b317c34404a547d8"
+                          },
+                          {
+                            "name": "wait-backend.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 73,
+                            "chars": 2119,
+                            "mode": "-rw-r--r--",
+                            "size": 2119,
+                            "mtime": 1783956392,
+                            "hash": "d1ba1c13a01ac8c5"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "mdns",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 293,
+                        "chars": 16041,
+                        "mode": "drwxr-xr-x",
+                        "size": 16951,
+                        "mtime": 1783956890,
+                        "hash": "fc5482c18ee8f2ca",
+                        "children": [
+                          {
+                            "name": "__pycache__",
+                            "type": "dir",
+                            "symlink": false,
+                            "lines": 53,
+                            "chars": 7669,
+                            "mode": "drwxr-xr-x",
+                            "size": 8579,
+                            "mtime": 1783956912,
+                            "hash": "a0ea68203f5c9ce6",
+                            "children": [
+                              {
+                                "name": "_stub.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 3,
+                                "chars": 541,
+                                "mode": "-rw-r--r--",
+                                "size": 598,
+                                "mtime": 1783956912,
+                                "hash": "4cfe471b3271889b"
+                              },
+                              {
+                                "name": "dns-codec.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 19,
+                                "chars": 2581,
+                                "mode": "-rw-r--r--",
+                                "size": 2923,
+                                "mtime": 1783956912,
+                                "hash": "c2167e8f092f626f"
+                              },
+                              {
+                                "name": "responder.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 31,
+                                "chars": 4547,
+                                "mode": "-rw-r--r--",
+                                "size": 5058,
+                                "mtime": 1783956912,
+                                "hash": "83a773293c03fd71"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "_stub.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 14,
+                            "chars": 626,
+                            "mode": "-rw-r--r--",
+                            "size": 626,
+                            "mtime": 1783956879,
+                            "hash": "9eb63753f44b63d5"
+                          },
+                          {
+                            "name": "default.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 38,
+                            "chars": 1342,
+                            "mode": "-rw-r--r--",
+                            "size": 1342,
+                            "mtime": 1783956036,
+                            "hash": "a7012e03b29063ed"
+                          },
+                          {
+                            "name": "dns-codec.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 79,
+                            "chars": 2557,
+                            "mode": "-rw-r--r--",
+                            "size": 2557,
+                            "mtime": 1783956884,
+                            "hash": "6cdaf5f353c28a02"
+                          },
+                          {
+                            "name": "preamble.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 21,
+                            "chars": 553,
+                            "mode": "-rw-r--r--",
+                            "size": 553,
+                            "mtime": 1783956092,
+                            "hash": "d96ac877538f167f"
+                          },
+                          {
+                            "name": "responder.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 88,
+                            "chars": 3294,
+                            "mode": "-rw-r--r--",
+                            "size": 3294,
+                            "mtime": 1783956890,
+                            "hash": "a10694db45fd0671"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "public-tunnel.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 73,
+                        "chars": 3776,
+                        "mode": "-rw-r--r--",
+                        "size": 3776,
+                        "mtime": 1783912581,
+                        "hash": "ab5ef53ef2aba462"
+                      },
+                      {
+                        "name": "router",
+                        "type": "dir",
+                        "symlink": false,
+                        "lines": 329,
+                        "chars": 16489,
+                        "mode": "drwxr-xr-x",
+                        "size": 17533,
+                        "mtime": 1783956903,
+                        "hash": "631064d34afb39e9",
+                        "children": [
+                          {
+                            "name": "__pycache__",
+                            "type": "dir",
+                            "symlink": false,
+                            "lines": 90,
+                            "chars": 8810,
+                            "mode": "drwxr-xr-x",
+                            "size": 9854,
+                            "mtime": 1783956912,
+                            "hash": "72b88ea076d450c1",
+                            "children": [
+                              {
+                                "name": "_stub.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 3,
+                                "chars": 354,
+                                "mode": "-rw-r--r--",
+                                "size": 390,
+                                "mtime": 1783956912,
+                                "hash": "0a278c6104985d3e"
+                              },
+                              {
+                                "name": "handler.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 62,
+                                "chars": 5563,
+                                "mode": "-rw-r--r--",
+                                "size": 6249,
+                                "mtime": 1783956912,
+                                "hash": "2d82b7d961b6c470"
+                              },
+                              {
+                                "name": "server.cpython-313.pyc",
+                                "type": "file",
+                                "symlink": false,
+                                "lines": 25,
+                                "chars": 2893,
+                                "mode": "-rw-r--r--",
+                                "size": 3215,
+                                "mtime": 1783956912,
+                                "hash": "830b5d0299e277c3"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "_stub.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 13,
+                            "chars": 551,
+                            "mode": "-rw-r--r--",
+                            "size": 551,
+                            "mtime": 1783956895,
+                            "hash": "92c5d9a5fe5c8b47"
+                          },
+                          {
+                            "name": "default.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 48,
+                            "chars": 1760,
+                            "mode": "-rw-r--r--",
+                            "size": 1760,
+                            "mtime": 1783956044,
+                            "hash": "1d350d8be6ad5183"
+                          },
+                          {
+                            "name": "handler.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 102,
+                            "chars": 2845,
+                            "mode": "-rw-r--r--",
+                            "size": 2845,
+                            "mtime": 1783956899,
+                            "hash": "6b003dbb7e120333"
+                          },
+                          {
+                            "name": "preamble.nix",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 23,
+                            "chars": 837,
+                            "mode": "-rw-r--r--",
+                            "size": 837,
+                            "mtime": 1783956092,
+                            "hash": "9dcb1dea0fa6342f"
+                          },
+                          {
+                            "name": "server.py",
+                            "type": "file",
+                            "symlink": false,
+                            "lines": 53,
+                            "chars": 1686,
+                            "mode": "-rw-r--r--",
+                            "size": 1686,
+                            "mtime": 1783956903,
+                            "hash": "03c078da818a185a"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "upnp.nix",
+                        "type": "file",
+                        "symlink": false,
+                        "lines": 40,
+                        "chars": 1747,
+                        "mode": "-rw-r--r--",
+                        "size": 1747,
+                        "mtime": 1783902501,
+                        "hash": "13c67d71e0b23848"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "port-forwarding.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 612,
+                    "chars": 32438,
+                    "mode": "-rw-r--r--",
+                    "size": 32438,
+                    "mtime": 1784133768,
+                    "hash": "ebae107fdd441ce0"
+                  }
+                ]
+              },
+              {
+                "name": "users",
+                "type": "dir",
+                "symlink": false,
+                "lines": 112,
+                "chars": 5310,
+                "mode": "drwxr-xr-x",
+                "size": 5310,
+                "mtime": 1783729675,
+                "hash": "17eefc08a91c247d",
+                "children": [
+                  {
+                    "name": "default.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 31,
+                    "chars": 1292,
+                    "mode": "-rw-r--r--",
+                    "size": 1292,
+                    "mtime": 1783738170,
+                    "hash": "0ac24c5abfed1771"
+                  },
+                  {
+                    "name": "users.nix",
+                    "type": "file",
+                    "symlink": false,
+                    "lines": 81,
+                    "chars": 4018,
+                    "mode": "-rw-r--r--",
+                    "size": 4018,
+                    "mtime": 1783883705,
+                    "hash": "6d84816b83b7dc03"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "variables.nix",
+        "type": "file",
+        "symlink": false,
+        "lines": 64,
+        "chars": 2189,
+        "mode": "-rw-r--r--",
+        "size": 2189,
+        "mtime": 1783902382,
+        "hash": "41f7d1b644d1d640"
+      }
+    ]
+  }
+}

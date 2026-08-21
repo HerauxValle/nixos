@@ -1,0 +1,8 @@
+cas <vault> settings security sandbox namespaces state
+
+Shows which namespaces are currently active for this vault's `exec`
+sessions. If nothing was ever explicitly set, the default is every
+namespace except `net` (offline-by-default).
+
+EXAMPLES
+  cas myvault settings security sandbox namespaces state

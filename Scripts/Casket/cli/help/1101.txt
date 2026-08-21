@@ -1,0 +1,12 @@
+cas <vault> auth keyfile move <location> [--keyfile path]
+
+Relocates the active keyfile (copy, verify, then delete the original
+-- never a bare rename, since the target is often a different
+filesystem like a removable drive). Preserves its form -- moving an
+embedded keyfile moves the whole carrier, doesn't flatten it to raw.
+Directory location keeps the current filename; a full file path uses
+that name instead.
+
+EXAMPLES
+  cas myvault auth keyfile move /mnt/usb/vaults/
+  cas myvault auth keyfile move /mnt/usb/vaults/mykey.bin

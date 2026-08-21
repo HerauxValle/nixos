@@ -1,0 +1,29 @@
+{
+    "colors": {
+        "AlternateBase": "#ffffff10",
+        "Base": "#0000006e",
+        "BrightText": "#ffffff",
+        "Button": "#f6f6f6",
+        "ButtonText": "#ffffff",
+        "Highlight": "#5294e2",
+        "HighlightedText": "#ffffff",
+        "Link": "#4aaff7",
+        "Text": "#ffffff",
+        "ToolTipBase": "#121212",
+        "ToolTipText": "#ffffff",
+        "Window": "#121212",
+        "WindowText": "#ffffff",
+        "fadeAmount": 0.5,
+        "fadeColor": "#121212"
+    },
+    "logColors": {
+        "Launcher": "#e040fb",
+        "Error": "#da4453",
+        "Warning": "#f67400",
+        "Debug": "#5294e2",
+        "FatalHighlight": "#da4453",
+        "Fatal": "#121212"
+    },
+    "name": "Dolphin",
+    "widgets": "kvantum"
+}

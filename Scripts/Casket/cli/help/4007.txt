@@ -1,0 +1,14 @@
+cas <vault> settings security sandbox network inbound enable
+
+Turns on forwarding for the ports already configured via `inbound add`.
+Requires `namespaces enable net` and at least one configured port.
+
+  [!] this opens the listed host port(s) to whatever's listening inside the
+      sandbox for the duration of each 'exec' session -- anything that can
+      reach this machine on those ports can reach the sandboxed process.
+      Torn down automatically when 'exec' exits (and swept on next use if a
+      previous session crashed).
+
+EXAMPLES
+  cas myvault settings security sandbox network inbound add 8080
+  cas myvault settings security sandbox network inbound enable --pass "..."

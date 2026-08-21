@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+# &desc: "Dotfiles backup snapshot activation script -- checks deploy key, auto-heals missing .git, creates/updates snapshot tag."
+# shellcheck disable=SC1091
+# shellcheck source=./_stub.sh
+if false; then
+  source "$(dirname "${BASH_SOURCE[0]}")/_stub.sh"
+fi
+
+# Concatenated by ../default.nix right after preflight.sh; called right
+# after dotfilesBackup_preflight. The early `return 0` below replaces
+# what used to be one `if [ -f "$dotfilesBackupKeyFile" ]` wrapping this
+# and dotfilesBackup_push's own entire body -- same effective behavior
+# (nothing past this point runs without a deploy key, dotfilesBackup_push
+# never got called by anything meaningfully because dotfilesBackupChanged
+# would never get set to "1" either), but expressed as a real early exit
+# from a real function instead of an `if` left open for a sibling file to
+# close, which isn't valid bash in an individual file at all.
+dotfilesBackup_snapshot() {
+  if [ ! -f "$dotfilesBackupKeyFile" ]; then
+    return 0
+  fi
+
+  # Only auto-heal if we are NOT using the repo cache, and .git doesn't exist
+  if [ "$dotfilesBackupUseRepoCache" != "1" ] && [ ! -d "$dotfilesBackupDotfilesPath/.git" ]; then
+    if [ ! -f "$dotfilesBackupKeyFile" ]; then
+      printf '%b[dotfiles-backup-error] ============================================%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+      printf '%bwarning: Local dotfiles directory is missing its .git repository AND%b\n' "$dotfilesBackupColorYellow" "$dotfilesBackupColorReset" >&2
+      printf '%bno backup deploy key exists yet at %s.%b\n' "$dotfilesBackupColorYellow" "$dotfilesBackupKeyFile" "$dotfilesBackupColorReset" >&2
+      printf 'Pushes will be completely skipped until preflight key generation finishes.\n' >&2
+      printf '%b[dotfiles-backup-error] ============================================%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+    else
+      printf '%b[dotfiles-backup-autoheal] ============================================%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+      printf '%bwarning: Local dotfiles directory is missing its .git repository tracking.%b\n' "$dotfilesBackupColorYellow" "$dotfilesBackupColorReset" >&2
+      printf 'info: Self-healing and auto-initializing fresh repository at:\n' >&2
+      printf '      %s\n' "$dotfilesBackupDotfilesPath" >&2
+      printf '%b[dotfiles-backup-autoheal] ============================================%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+
+      "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" init -q -b "$dotfilesBackupBranch"
+      "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" -c safe.directory="$dotfilesBackupDotfilesPath" remote add origin "$dotfilesBackupRemoteUrl" 2>/dev/null || true
+      "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" -c safe.directory="$dotfilesBackupDotfilesPath" add -A 2>/dev/null || true
+      "$dotfilesBackupGit" -C "$dotfilesBackupDotfilesPath" -c safe.directory="$dotfilesBackupDotfilesPath" -c user.name="$dotfilesBackupCommitUserName" -c user.email="$dotfilesBackupCommitUserEmail" commit -q -m "init empty backup state" 2>/dev/null || true
+    fi
+  fi
+
+  dotfilesBackupTag="$(date "$dotfilesBackupTagDateFormat")"
+  dotfilesBackupChanged=1
+
+  if [ "$dotfilesBackupUseRepoCache" = "1" ]; then
+    if [ ! -d "$dotfilesBackupRepoCache/.git" ]; then
+      "$dotfilesBackupGit" -c safe.directory="$dotfilesBackupRepoCache" init -q -b "$dotfilesBackupBranch" "$dotfilesBackupRepoCache"
+    fi
+    chmod 700 "$dotfilesBackupRepoCache"
+    chown root:root "$dotfilesBackupRepoCache"
+
+    # excludeFiles/redactValues/replaceValues only protect commits made
+    # AFTER an entry is added or a redacted/replaced value changes --
+    # anything already committed under the old state stays exposed in
+    # every earlier commit, both here and on the already-pushed remote,
+    # until explicitly rewritten. Runs once per actual change (hash
+    # comparison below), not on every activation.
+    if [ "$dotfilesBackupScrubHistoryOnExcludeChange" = "1" ]; then
+      if [ -d "$dotfilesBackupRepoCache/.git" ] \
+         && "$dotfilesBackupGit" -C "$dotfilesBackupRepoCache" -c safe.directory="$dotfilesBackupRepoCache" rev-parse HEAD >/dev/null 2>&1 \
+         && [ "$(cat "$dotfilesBackupExcludeHashFile" 2>/dev/null)" != "$dotfilesBackupExcludeHash" ]; then
+        # dotfilesBackupFilterRepo is chained into the SAME condition as
+        # the pushes below (not run unconditionally beforehand) -- if it
+        # fails, the hash file must not be written and this must not be
+        # reported as success. Previously this crashed silently
+        # (git-filter-repo failing) while the script still printed
+        # "successfully...rewrote history" and marked the hash done,
+        # permanently hiding that nothing was actually scrubbed.
+        if dotfilesBackupFilterRepo "$dotfilesBackupRepoCache" \
+           && "$dotfilesBackupGit" -C "$dotfilesBackupRepoCache" -c safe.directory="$dotfilesBackupRepoCache" -c core.sshCommand="$dotfilesBackupSshCommand" push -q -f "$dotfilesBackupRemoteUrl" --all \
+           && "$dotfilesBackupGit" -C "$dotfilesBackupRepoCache" -c safe.directory="$dotfilesBackupRepoCache" -c core.sshCommand="$dotfilesBackupSshCommand" push -q -f "$dotfilesBackupRemoteUrl" --tags; then
+          printf '%s' "$dotfilesBackupExcludeHash" > "$dotfilesBackupExcludeHashFile"
+          dotfilesBackupBorder "$dotfilesBackupColorYellow" >&2
+          printf '%bnote: excludeFiles/redactValues changed -- rewrote and force-pushed full%b\n' "$dotfilesBackupColorYellow" "$dotfilesBackupColorReset" >&2
+          printf '%bhistory to apply it retroactively, not just for future commits.%b\n' "$dotfilesBackupColorYellow" "$dotfilesBackupColorReset" >&2
+          dotfilesBackupBorder "$dotfilesBackupColorYellow" >&2
+        else
+          dotfilesBackupBorder "$dotfilesBackupColorRed" >&2
+          printf '%bwarning: excludeFiles/redactValues changed, but rewriting/force-pushing%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+          printf '%bhistory failed -- will retry next activation. Old commits on the remote%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+          printf '%bmay still expose the changed value(s) until this succeeds.%b\n' "$dotfilesBackupColorRed" "$dotfilesBackupColorReset" >&2
+          dotfilesBackupBorder "$dotfilesBackupColorRed" >&2
+        fi
+      fi
+    fi
+
+    # --no-owner --no-group: plain `-a` preserves ownership on the
+    # DESTINATION'S OWN top-level directory too, not just the files under
+    # it -- since dotfilesPath is owned by the regular user, that
+    # silently reassigns repoCache itself away from root (set by `git
+    # init` above) on every activation, undermining the root-owned
+    # invariant the rest of secretsDir relies on. Confirmed live: this is
+    # what made dotfilesBackupFilterRepo's internal git calls fail with
+    # "dubious ownership" on every run once the scrub path was ever
+    # exercised. Git doesn't track uid/gid in commits anyway, so nothing
+    # here needs -o/-g preserved.
+    # --exclude-from here (not just the post-copy dotfilesBackupApplyExclude
+    # pass below) so excluded paths -- e.g. Scripts/Casket/target/, multiple
+    # GiB of Rust build output -- never get copied into repoCache at all,
+    # instead of being rsynced in on every single activation and then
+    # deleted straight back out. dotfilesBackupApplyExclude still runs
+    # afterward as a safety net (e.g. for any pattern rsync's syntax
+    # doesn't handle identically), but is now a near no-op for anything
+    # rsync already skipped. Confirmed live 2026-08-18: this exact gap was
+    # why `pacnix rebuild` was taking ~5 min instead of its usual pace,
+    # entirely from copying-then-discarding target/ every time.
+    #
+    # --delete-excluded: plain --delete does NOT remove destination files
+    # that match an active --exclude/--exclude-from pattern -- rsync
+    # protects them from deletion by default, on the assumption you might
+    # want an exclude pattern to mean "don't touch this on the
+    # destination" rather than "this shouldn't exist there". That's the
+    # wrong default here: repoCache is a generated mirror, and an entry
+    # added to excludeFiles after something was already synced in should
+    # retroactively remove it, not leave it orphaned forever. Confirmed
+    # live 2026-08-21: this exact gap is why Scripts/Casket/target/ (added
+    # to excludeFiles earlier) was still sitting in repoCache at 6GB, on
+    # top of Scripts/Casket/.test/ (7.9GB, not excluded at all until this
+    # same change) -- together why repoCache ballooned to 14GB and a
+    # dotfiles-backup push died mid-transfer.
+    #
+    # --filter='P .git' (protect), not --exclude=.git: --delete-excluded
+    # deletes ANY destination file matching an exclude pattern, and .git
+    # itself is one such pattern (needed so the content sync never walks
+    # into/touches repoCache's own .git) -- so with a plain --exclude=.git,
+    # --delete-excluded wiped out the .git this same block's `git init`
+    # had just created, every single run starting from an empty repoCache.
+    # A protect rule is exempt from --delete-excluded specifically (still
+    # excluded from the copy, just never a deletion candidate), which
+    # --exclude doesn't distinguish. Found 2026-08-21, same day
+    # --delete-excluded was added, from a repoCache deleted-then-rebuilt
+    # from scratch -- untested from that exact starting state before.
+    "$dotfilesBackupRsync" -a --no-owner --no-group --delete --delete-excluded --filter='P .git' --exclude=.git --exclude-from="$dotfilesBackupExcludePatternsFile" "$dotfilesBackupDotfilesPath/" "$dotfilesBackupRepoCache/"
+    dotfilesBackupApplyExclude "$dotfilesBackupRepoCache"
+    dotfilesBackupApplyRedact "$dotfilesBackupRepoCache"
+    dotfilesBackupApplyReplace "$dotfilesBackupRepoCache"
+    "$dotfilesBackupGit" -C "$dotfilesBackupRepoCache" -c safe.directory="$dotfilesBackupRepoCache" add -A
+    if "$dotfilesBackupGit" -C "$dotfilesBackupRepoCache" -c safe.directory="$dotfilesBackupRepoCache" diff --cached --quiet; then
+      # Read by push.sh's own early-return guard, a sibling fragment
+      # concatenated after this one.
+      # shellcheck disable=SC2034
+      dotfilesBackupChanged=0
+    else
+      "$dotfilesBackupGit" -C "$dotfilesBackupRepoCache" -c safe.directory="$dotfilesBackupRepoCache" -c user.name="$dotfilesBackupCommitUserName" -c user.email="$dotfilesBackupCommitUserEmail" commit -q -m "$dotfilesBackupTag"
+    fi
+    dotfilesBackupRepoPath="$dotfilesBackupRepoCache"
+    dotfilesBackupPushForce=""
+  else
+    if [ -d "$dotfilesBackupRepoCache" ]; then
+      rm -rf "$dotfilesBackupRepoCache"
+    fi
+    dotfilesBackupTmp="$(mktemp -d)"
+    trap 'rm -rf "$dotfilesBackupTmp"' EXIT
+    # rsync instead of `cp -a` + after-the-fact `rm -rf` -- same
+    # exclude-at-copy-time reasoning as the repoCache path above, so this
+    # fallback doesn't pay to copy target/ either. --delete-excluded/
+    # --filter='P .git' are no-ops here (dotfilesBackupTmp is always a
+    # fresh mktemp -d, nothing to retroactively remove or protect) -- kept
+    # only so both rsync invocations in this file stay identical in
+    # intent, not because this branch needs it.
+    "$dotfilesBackupRsync" -a --no-owner --no-group --delete-excluded --filter='P .git' --exclude=.git --exclude-from="$dotfilesBackupExcludePatternsFile" "$dotfilesBackupDotfilesPath/" "$dotfilesBackupTmp/" 2>/dev/null || true
+    dotfilesBackupApplyExclude "$dotfilesBackupTmp"
+    dotfilesBackupApplyRedact "$dotfilesBackupTmp"
+    dotfilesBackupApplyReplace "$dotfilesBackupTmp"
+    "$dotfilesBackupGit" -c safe.directory="$dotfilesBackupTmp" init -q -b "$dotfilesBackupBranch" "$dotfilesBackupTmp"
+    "$dotfilesBackupGit" -C "$dotfilesBackupTmp" -c safe.directory="$dotfilesBackupTmp" add -A
+    "$dotfilesBackupGit" -C "$dotfilesBackupTmp" -c safe.directory="$dotfilesBackupTmp" -c user.name="$dotfilesBackupCommitUserName" -c user.email="$dotfilesBackupCommitUserEmail" commit -q -m "$dotfilesBackupTag" || true
+    # Both read by push.sh, a sibling fragment concatenated after this one.
+    # shellcheck disable=SC2034
+    dotfilesBackupRepoPath="$dotfilesBackupTmp"
+    # shellcheck disable=SC2034
+    dotfilesBackupPushForce="-f"
+  fi
+}

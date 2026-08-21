@@ -1,0 +1,6 @@
+cas <vault> settings security sandbox network inbound list
+
+Shows every configured port forward and its protocol for this vault.
+
+EXAMPLES
+  cas myvault settings security sandbox network inbound list

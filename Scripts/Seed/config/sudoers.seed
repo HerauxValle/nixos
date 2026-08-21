@@ -1,0 +1,7 @@
+# Seed container runtime — privilege helpers (NOPASSWD optional)
+# Install with: sudo tee -a /etc/sudoers.d/sd < config/sudoers.seed
+# Or use: ./install.sh --enable-root
+
+Cmnd_Alias SD_PRIV = /usr/local/lib/sd/priv/sd-priv
+Cmnd_Alias SD_PRIV_ISO = /usr/local/lib/sd/priv/sd-priv-iso
+%wheel ALL=(root) NOPASSWD: SD_PRIV, SD_PRIV_ISO

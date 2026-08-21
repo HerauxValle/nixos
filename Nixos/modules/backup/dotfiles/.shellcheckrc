@@ -1,0 +1,16 @@
+# Makes shellcheck actually follow the `if false; then source ./_stub.sh;
+# fi` blocks in every fragment here (shellcheck ignores `source=`
+# directives entirely unless external-sources is on, confirmed via its
+# own "Not following: ... (see shellcheck -x)" hint) -- without this,
+# every dotfilesBackup* var/function looks undefined (SC2154) when a
+# fragment is checked on its own, even though _stub.sh declares them all.
+external-sources=true
+# Resolves that same `source=./_stub.sh` relative to the FRAGMENT's own
+# directory, not shellcheck's invocation cwd -- confirmed live that
+# without this, `shellcheck lib/activation/preflight.sh` from the module
+# root fails to find lib/activation/_stub.sh (it looks for ./_stub.sh
+# relative to cwd instead), while `cd lib/activation && shellcheck
+# preflight.sh` happens to work by accident. SCRIPTDIR makes it work
+# regardless of where shellcheck is invoked from -- an editor's own
+# shellcheck integration included.
+source-path=SCRIPTDIR

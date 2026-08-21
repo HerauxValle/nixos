@@ -1,0 +1,6 @@
+cas <vault> settings security sandbox network inbound state
+
+Shows whether inbound forwarding is currently enabled for this vault.
+
+EXAMPLES
+  cas myvault settings security sandbox network inbound state

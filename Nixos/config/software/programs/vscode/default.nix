@@ -1,0 +1,8 @@
+{ ... }:
+
+{
+  imports = [
+    ./extensions
+    ./settings
+  ];
+}

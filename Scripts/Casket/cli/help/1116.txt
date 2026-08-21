@@ -1,0 +1,6 @@
+cas <vault> backup rootfs state
+
+Lists which rootfs environments are currently included in backups.
+
+EXAMPLES
+  cas myvault backup rootfs state

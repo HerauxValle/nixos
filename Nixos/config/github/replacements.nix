@@ -1,0 +1,174 @@
+# &desc: "Maps sensitive local config values to placeholders for published snapshot -- username/hostname become maxmustermann/nixos, MAC nulled, email/serial replaced."
+
+{ ... }:
+
+# The dotfiles-backup module's excludeFiles/redactValues -- no sensible
+# generic default (this machine's specific sensitive paths/values), same
+# reasoning as config/config.nix, just split into its own file since
+# these two lists are bulkier than a flat scalar. See
+# modules/backup/dotfiles/default.nix for what each option actually does.
+{
+  config.vars.backup.dotfilesBackup = {
+    # Real values stay in effect locally -- only the published copy has
+    # them swapped for a placeholder, and (unlike redactValues) the option
+    # stays defined, so the published copy still evaluates/builds cleanly.
+    #
+    # username/hostName/flake.nix entries: `find` is always the whole
+    # line, not just the bare value ("herauxvalle" alone would also match
+    # hostName's line above/below in config.nix, and every other
+    # occurrence in flake.nix). flake.nix hardcodes the same username 3
+    # separate times (description string, the nixosConfigurations
+    # attribute name, and the home-manager.users attribute name) with no
+    # exclude/redact/replace coverage of its own -- more exposed than
+    # config.nix since it's the first file anyone opens on a
+    # flake-based repo.
+    #
+    # macAddress: whole-line `find`, not `key` -- the fix is to DROP the
+    # override entirely (`= null;`, nixpkgs' own documented "leave empty to
+    # use the default" sentinel -- see nixos/modules/tasks/network-interfaces.nix),
+    # which needs the surrounding quotes gone too, not just the value
+    # between them swapped. A `key`-based bare-value substitution can't do
+    # that (it only ever swaps text between the quotes that are already
+    # there), so this one has to be the literal whole line, same as
+    # username/hostName above.
+    #
+    # gitCommitEmail/usbSerialShort: `key`, not `find` -- both stay a
+    # string-for-string swap inside the existing quotes, so there's no
+    # quote-removal problem, and resolving the CURRENT value from config
+    # instead of hand-copying it means these two can't silently drift out
+    # of sync with config.nix the way a hand-typed `find` could.
+    replaceValues = [
+      {
+        file = "Nixos/config/config.nix";
+        find = ''username = "maxmustermann";'';
+        replaceWith = ''username = "maxmustermann";'';
+      }
+      {
+        file = "Nixos/config/config.nix";
+        find = ''hostName = "nixos";'';
+        replaceWith = ''hostName = "nixos";'';
+      }
+      {
+        file = "flake.nix";
+        find = ''description = "maxmustermann's NixOS config";'';
+        replaceWith = ''description = "maxmustermann's NixOS config";'';
+      }
+      {
+        file = "flake.nix";
+        find = "nixosConfigurations.maxmustermann = inputs.nixpkgs.lib.nixosSystem";
+        replaceWith = "nixosConfigurations.maxmustermann = inputs.nixpkgs.lib.nixosSystem";
+      }
+      {
+        file = "flake.nix";
+        find = "home-manager.users.maxmustermann = import ./Nixos/home.nix;";
+        replaceWith = "home-manager.users.maxmustermann = import ./Nixos/home.nix;";
+      }
+      {
+        # The live-ISO flake output -- same reasoning as the two entries
+        # above, just for the second nixosConfigurations attribute.
+        # Doesn't collide with the plain "nixosConfigurations.herauxvalle
+        # = ..." find above: that string has " = " right after
+        # "herauxvalle", which isn't a substring of this one ("-iso ="
+        # instead), so both entries match exactly one line each.
+        file = "flake.nix";
+        find = "nixosConfigurations.maxmustermann-iso = inputs.nixpkgs.lib.nixosSystem";
+        replaceWith = "nixosConfigurations.maxmustermann-iso = inputs.nixpkgs.lib.nixosSystem";
+      }
+
+      {
+        # Commented out (disabled, not live) in networking.nix itself, and
+        # nested inside `networking = { ... };` -- no "networking." prefix
+        # on the line there, unlike this entry's own name. `find` still has
+        # to match verbatim including the leading "# " and 4-space indent:
+        # a commented-out line is still plain text in the published repo,
+        # so the real MAC would still leak through as a comment if left
+        # unredacted, even though it's inert as code.
+        file = "Nixos/modules/system/networking.nix";
+        find = ''    # interfaces.''${config.vars.identity.networkInterface}.macAddress = "A8:E6:21:92:2C:E1";'';
+        replaceWith = "    # interfaces.\${config.vars.identity.networkInterface}.macAddress = null;";
+      }
+
+      {
+        file = "Nixos/config/config.nix";
+        key = "vars.identity.gitCommitEmail";
+        replaceWith = "maxmustermann@example.com";
+      }
+      {
+        file = "Nixos/config/config.nix";
+        key = "vars.security.usbKillswitch.usbSerialShort";
+        replaceWith = "0000000000000000000";
+      }
+
+      # Reset the opt-in toggles back to their own off default in the
+      # published copy -- config.nix real values shouldn't imply a
+      # stranger cloning this repo also wants your exact security posture
+      # turned on. Whole-line `find`, not `key`: usbRequired.enable,
+      # sudoKeyfile.enable, and dotfilesBackup.enable are all literally
+      # "= true;" in the same file, so a bare-value substitution on "true"
+      # would hit all three (and any other "= true;" line) at once instead
+      # of just the one meant here.
+      {
+        file = "Nixos/config/config.nix";
+        find = "usbRequired.enable = false;";
+        replaceWith = "usbRequired.enable = false;";
+      }
+      {
+        file = "Nixos/config/config.nix";
+        find = "sudoKeyfile.enable = false;";
+        replaceWith = "sudoKeyfile.enable = false;";
+      }
+      {
+        file = "Nixos/config/config.nix";
+        find = ''usbKillswitch.killMode = "disabled";'';
+        replaceWith = ''usbKillswitch.killMode = "disabled";'';
+      }
+      {
+        file = "Nixos/config/config.nix";
+        # Bare "enable = false;" is also a substring of
+        # usbRequired.enable/sudoKeyfile.enable's lines above -- `line`
+        # confines the swap to this one, so it can't corrupt (or, applied
+        # after them, silently miss) those. Update this number if
+        # config.nix's dotfilesBackup block ever moves.
+        find = "enable = false;";
+        replaceWith = "enable = false;";
+        line = 37;
+      }
+
+      {
+        # The creative server's real RCON password -- see server.nix's own
+        # comment for why it's pinned in plain Nix instead of an external
+        # file. Whole-line `find` (not `key`): the attr name itself
+        # contains a literal dot ("rcon.password"), which would collide
+        # with `key`'s dotted-path-into-config resolution (it'd try to
+        # walk into a nested `rcon`.`password`, not this flat attr).
+        file = "Nixos/config/software/programs/minecraft/servers/creative/server.nix";
+        find = ''"rcon.password" = "changeme";'';
+        replaceWith = ''"rcon.password" = "changeme";'';
+      }
+
+      {
+        # Same reasoning as the creative entry above, for hardcore's own
+        # (separate, freshly generated) RCON password.
+        file = "Nixos/config/software/programs/minecraft/servers/hardcore/server.nix";
+        find = ''"rcon.password" = "changeme";'';
+        replaceWith = ''"rcon.password" = "changeme";'';
+      }
+
+      {
+        # Hardcore's MCPanel web console -- the JWT signing secret.
+        file = "Nixos/config/software/programs/minecraft/servers/hardcore/files.nix";
+        find = ''auth.jwt-secret = "changeme";'';
+        replaceWith = ''auth.jwt-secret = "changeme";'';
+      }
+
+      {
+        # Same MCPanel config -- the real admin account's bcrypt hash
+        # (users.json). Not the plaintext password, but a bcrypt hash is
+        # still crackable offline given enough time, so redacted anyway.
+        file = "Nixos/config/software/programs/minecraft/servers/hardcore/files.nix";
+        find = ''passwordHash = "changeme";'';
+        replaceWith = ''passwordHash = "changeme";'';
+      }
+    ];
+  };
+}

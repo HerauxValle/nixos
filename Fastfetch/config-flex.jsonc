@@ -1,0 +1,37 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
+  "logo": { "type": "auto", "padding": { "left": 6, "top": 2, "right": 6, "bottom": 0 } },
+  "display": {
+    "separator": "  ",
+    "key": { "type": "both" },
+    "color": { "keys": "38;5;110" },
+    "brightColor": false,
+    "constants": ["─────────────────────────", "─────────────────────────────────────────────────────────", "\u001b[114G\u001b[38;5;110m│\u001b[0m\u001b[68G"]
+  },
+  "modules": [
+    { "type": "custom", "format": "" },
+    { "type": "custom", "format": "" },
+    { "type": "custom", "format": "" },
+    { "type": "title",    "format": "{#38;5;110}╭── 󰹖  {user-name}@{host-name} ──{$1}╮{#}" },
+    { "type": "os",       "keyIcon": "󰹖",       "key": "distro  ",   "format": "{$3}{pretty-name} {arch}" },
+    { "type": "custom",   "keyIcon": "󰇄",     "key": "host    ",     "format": "{$3}ASRock WRX90 WS EVO (Rev 1.xx)" },
+    { "type": "kernel",   "keyIcon": "󰌊",   "key": "kernel  ",   "format": "{$3}{sysname} {release}" },
+    { "type": "uptime",   "keyIcon": "󰔟",   "key": "uptime  ",   "format": "{$3}{?days}{days} days, {?}{hours} hours, {minutes} mins" },
+    { "type": "packages", "keyIcon": "󰏗", "key": "packages", "format": "{$3}{nix-system} (nix-system), {nix-user} (nix-user)" },
+    { "type": "shell",    "keyIcon": "󰒉",    "key": "shell   ",    "format": "{$3}{pretty-name} {version}" },
+    { "type": "wm",       "keyIcon": "󱂬",       "key": "wm      ",       "format": "{$3}{pretty-name} {version} ({protocol-name})" },
+    { "type": "terminal", "keyIcon": "󰄠", "key": "term    ",     "format": "{$3}{pretty-name}{?version} {version}{?}" },
+    { "type": "custom",   "keyIcon": "󰒼",      "key": "cpu     ",      "format": "{$3}96C/192T  AMD Ryzen Threadripper PRO 7995WX" },
+    { "type": "custom",   "keyIcon": "󰙸",      "key": "gpu     ",      "format": "{$3}NVIDIA RTX 6000 Ada Generation (48GB)" },
+    { "type": "custom",   "keyIcon": "󰍛",   "key": "memory  ",   "format": "{$3}86.54 GiB / 512.00 GiB (17%) - ECC DDR5 RDIMM" },
+    { "type": "custom",   "keyIcon": "󰋊",     "key": "disk    ",     "format": "{$3}614.87 GiB / 7.28 TiB (8%) - btrfs" },
+    { "type": "localip",  "keyIcon": "󰖩",  "key": "local ip", "format": "{$3}{ipv4}" },
+    { "type": "custom",   "format": "{#38;5;110}󰐾 colors  {#}  {$3}{#30}●{#} {#31}●{#} {#32}●{#} {#33}●{#} {#34}●{#} {#35}●{#} {#36}●{#} {#37}●{#}" },
+    { "type": "custom",   "format": "{#38;5;110}╰{$2}╯{#}" },
+    { "type": "custom", "format": "" },
+    { "type": "custom", "format": "" },
+    { "type": "custom", "format": "" },
+    { "type": "custom", "format": "" },
+    { "type": "custom", "format": "" }
+  ]
+}

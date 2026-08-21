@@ -1,0 +1,14 @@
+cas <vault> settings security sandbox cgroups set [--mem <val>] [--cpu <percent>] [--pids <n>]
+
+Sets one or more resource limits applied to every `exec` session for
+this vault. At least one of --mem/--cpu/--pids is required. None of
+these can be set to 0 (that would make every exec session unusable).
+
+  --mem   e.g. 512M, 1G, or a plain byte count
+  --cpu   percent, e.g. 50; values over 100 are fine on a multi-core
+          host (e.g. 400 = up to 4 cores)
+  --pids  max number of processes/threads
+
+EXAMPLES
+  cas myvault settings security sandbox cgroups set --mem 512M --pass "..."
+  cas myvault settings security sandbox cgroups set --mem 1G --cpu 200 --pids 64 --pass "..."

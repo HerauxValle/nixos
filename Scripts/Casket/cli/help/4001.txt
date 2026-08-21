@@ -1,0 +1,15 @@
+cas <vault> settings security sandbox network outbound enable
+
+Turns on real outbound connectivity for `exec` sessions -- a veth pair
+plus a host-side NAT (MASQUERADE) rule, scoped to the sandbox's own
+veth interface only. Requires `namespaces enable net` first.
+
+  [!] this sets up a real veth pair + host NAT (MASQUERADE) rule for the
+      duration of each 'exec' session -- a step up from the isolated,
+      contained loopback-only default. Torn down automatically when
+      'exec' exits (and swept on next use if a previous session crashed).
+
+EXAMPLES
+  cas myvault settings security sandbox namespaces enable net --pass "..."
+  cas myvault settings security sandbox network outbound enable --pass "..."
+  cas myvault exec -- curl https://example.com

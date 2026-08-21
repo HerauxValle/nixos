@@ -1,0 +1,8 @@
+# This file contains fish universal variable definitions.
+# VERSION: 3.0
+SETUVAR __fish_initialized:4300
+SETUVAR fish_color_cancel:normal
+SETUVAR fish_color_error:normal
+SETUVAR fish_color_status:normal
+SETUVAR fish_user_paths:/home/herauxvalle/\x2elocal/bin
+SETUVAR test:It\x20works\x20now

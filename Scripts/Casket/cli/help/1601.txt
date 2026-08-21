@@ -1,0 +1,13 @@
+cas <vault> settings security sandbox namespaces enable <list>
+
+Adds namespace(s) to the active set without disturbing the rest.
+`<list>` is a comma-separated subset of mount,pid,uts,ipc,user,net.
+
+  [!] enabling 'net' only brings up loopback inside the sandbox --
+      there is no route out (no veth/NAT) until 'network outbound
+      enable' is also turned on. 'exec' sessions get no internet or
+      LAN access at all, only 127.0.0.1/localhost.
+
+EXAMPLES
+  cas myvault settings security sandbox namespaces enable net --pass "..."
+  cas myvault settings security sandbox namespaces enable pid,uts --pass "..."

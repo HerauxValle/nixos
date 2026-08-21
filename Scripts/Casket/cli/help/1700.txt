@@ -1,0 +1,9 @@
+cas <vault> settings security sandbox rootfs list
+
+Shows every named rootfs environment for this vault, and which one (if
+any) is the current `default`. This is also the default action when
+`rootfs` is run with no subcommand at all.
+
+EXAMPLES
+  cas myvault settings security sandbox rootfs list
+  cas myvault settings security sandbox rootfs

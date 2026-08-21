@@ -1,0 +1,18 @@
+cas <vault> resize <size>   (alias: shrink)
+
+Grow or shrink the vault. Size accepts any common unit (case-insensitive):
+  20G  20GB  20GiB  20g  -- gigabytes
+  500M 500MB 500MiB      -- megabytes (default if no unit)
+  1T   1TB   1TiB        -- terabytes
+  2048                   -- bare number = MiB
+
+  Growing is safe and instant.
+  Shrinking is destructive -- cas will:
+    1. Check that the new size is at least 110% of the data already inside
+    2. Ask you to type the vault name to confirm (skipped with --no-log)
+    3. Shrink the filesystem, then the LUKS container, then the file
+
+EXAMPLES
+  cas myvault resize 2GiB
+  cas myvault resize 20 GB
+  cas myvault resize 512M

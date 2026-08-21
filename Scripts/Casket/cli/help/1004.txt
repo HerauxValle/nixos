@@ -1,0 +1,7 @@
+cas <vault> toggle [--pass "..."]
+
+Opens the vault if it's closed, closes it if it's open.
+Great for assigning to a keyboard shortcut or launcher.
+
+EXAMPLE
+  cas myvault toggle

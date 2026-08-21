@@ -1,0 +1,7 @@
+cas <vault> backup list
+
+Lists snapshots (newest first, with creation date), manual and auto
+separately. The vault must be open.
+
+EXAMPLES
+  cas myvault backup list

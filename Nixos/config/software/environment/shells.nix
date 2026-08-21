@@ -1,0 +1,24 @@
+# &desc: "Per-directory shells with context-sensitive $PATH -- Dotfiles/ gets tmux only when inside that directory via direnv."
+
+{ config, pkgs, ... }:
+
+# Personal picks -- which per-directory shells YOU want. No options.vars
+# declaration needed here, same as config/config.nix -- that lives in
+# modules/packages/shells/default.nix instead.
+#
+# Each entry: a path, the packages that should be on $PATH while inside
+# it, and whether that also applies to subdirectories (default true --
+# e.g. Dotfiles/Hyprland inherits Dotfiles' shell unless recursive is
+# set false here). Nothing is installed system-wide; packages only
+# exist on $PATH while cwd matches. See modules/packages/shells/shells.nix
+# for the direnv-generation logic that consumes this.
+{
+  config.vars.packages.shells = [
+
+    {
+      path = "${config.vars.identity.homeDirectory}/Dotfiles";
+      packages = with pkgs; [ tmux ];
+      # recursive = true; # default
+    }
+  ];
+}

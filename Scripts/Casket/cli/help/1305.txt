@@ -1,0 +1,6 @@
+cas <vault> settings 2fa state
+
+Shows whether 2FA is currently enabled, as '2fa   enabled|disabled'.
+
+EXAMPLES
+  cas myvault settings 2fa state

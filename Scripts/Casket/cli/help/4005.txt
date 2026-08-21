@@ -1,0 +1,7 @@
+cas <vault> settings security sandbox network inbound remove <hostPort>
+
+Stops forwarding a host port. Takes effect on the next `exec` session --
+an already-running one keeps its forward until it exits.
+
+EXAMPLES
+  cas myvault settings security sandbox network inbound remove 8080

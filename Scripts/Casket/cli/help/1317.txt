@@ -1,0 +1,12 @@
+cas <vault> settings security sandbox enable [--pass "..."]
+
+Off by default. Turns on sandboxing, which is required before 'cas
+<vault> exec' will run anything -- until this is enabled, 'exec' refuses
+with a message pointing back here. Sets meta.sandbox_enabled and is
+safe to run again while already enabled (no error, no state change).
+Doesn't touch namespaces/seccomp/network/rootfs/cgroups configuration --
+those are independent and can be set up before or after enabling.
+
+EXAMPLES
+  cas myvault settings security sandbox enable --pass "..."
+  cas myvault exec -- id

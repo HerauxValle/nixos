@@ -1,0 +1,91 @@
+# &desc: "Boot-time systemd jobs from old smg manifest -- 6 Casket vault unlocks with PIN, clean LUKS close on shutdown via execStop."
+
+{ ... }:
+
+# Real values -- schema + the actual unit-building logic live in
+# ../../modules/system/autostart/. Data only, same reasoning as every
+# config/<category>/<name>.nix file. See glossar/system/autostart.nix
+# for a fully-annotated example entry.
+#
+# Ported straight from the old ~/Projects/Autostart (smg) manifest.json:
+# only its 6 Casket vault-unlock jobs, nothing else. Every other old job
+# (every self-hosted service restart, PortManager, QBitTorrentNox,
+# FileBrowser) is already superseded by its own native NixOS module
+# (config.vars.services.selfHosted.* autoStart, config.vars.system.ports) -- see this
+# module's own docs/architecture.md. JellyfinMpvShim/RemoteAccess aren't
+# here either -- both need the real logged-in session, out of scope for
+# this root/boot-time engine by design.
+#
+# The keyfile PIN below is piped in plaintext, verbatim from the old
+# manifest -- known, deliberately not fixed here (no secret data in the
+# .img files themselves, just a known-insecure prompt bypass; a real
+# fix is a separate task, not blocking this port). `sudo`/the outer
+# `bash -c '...'` wrapper from the old command are dropped -- every job
+# here already runs as root inside its own real bash script, so both
+# were pure dead weight. No execRestart -- only execStart/execStop are
+# used. execStop runs `cas <name> close` for each vault: with
+# Type=oneshot + RemainAfterExit=true (see ../../modules/system/autostart/autostart.nix),
+# systemd invokes ExecStop when the unit stops -- which includes normal
+# shutdown/reboot ordering, before the generic filesystem unmount stage
+# -- so every vault gets a clean LUKS close instead of relying purely on
+# that generic unmount. This can't help against an actual power cut
+# (no graceful shutdown happens at all then); LUKS mappers are in-kernel
+# state anyway and never survive any reboot regardless, and `cas open`
+# already tolerates a stale mapper/mountpoint left behind either way.
+{
+  config.vars.system.autostart = {
+    enabled = true;
+
+    jobs = {
+      vaults = {
+        execStart.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          printf %s "314159265" | cas Vaults open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/vaults.key --no-log
+        '';
+        execStop.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          cas Vaults close --no-log
+        '';
+      };
+
+      media = {
+        execStart.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          printf %s "314159265" | cas Media open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Media.key --no-log
+        '';
+        execStop.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          cas Media close --no-log
+        '';
+      };
+
+      selfHosted = {
+        execStart.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          printf %s "314159265" | cas SelfHosted open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/SelfHosted.key --no-log
+        '';
+        execStop.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          cas SelfHosted close --no-log
+        '';
+      };
+
+      # Holds services.minecraft-servers.dataDir (servers/), Prism
+      # Launcher's portable data dir (modrinth/, prism/ -- see
+      # config/software/programs/minecraft/), and the old,
+      # no-longer-maintained Modrinth vault's migrated content
+      # (modrinth/, folded in here since it never got its own autostart
+      # job worth keeping once that vault was deleted).
+      minecraft = {
+        execStart.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          printf %s "314159265" | cas Minecraft open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Minecraft.key --no-log
+        '';
+        execStop.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          cas Minecraft close --no-log
+        '';
+      };
+    };
+  };
+}

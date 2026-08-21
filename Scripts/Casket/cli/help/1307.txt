@@ -1,0 +1,19 @@
+cas <vault> settings verification state
+cas <vault> settings verification <feature> enable|disable|state   [--pass "..."]
+
+Controls whether toggling <feature> (any setting under 'settings', or
+verification itself) requires re-proving the vault's real passphrase
+first -- so plain root/sudo access alone can't defeat a protection.
+Disabling a currently-required verification still needs the passphrase,
+including disabling it on itself. 'state' with no feature shows every
+gated feature at once; 'state' after a feature name shows just that one.
+
+Defaults: on for ransomwareProtection, backupAuto, verification, auth
+keyfile reset (irreversible), bruteforceLockout, sandbox, headerOffset,
+and headerEncryption; off for encryption/2fa, which already re-verify
+the real passphrase as part of their own crypto operation.
+
+EXAMPLES
+  cas myvault settings verification state
+  cas myvault settings verification backupAuto disable --pass "..."
+  cas myvault settings verification backupAuto state

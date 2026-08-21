@@ -1,0 +1,7 @@
+cas <vault> backup restore <name>
+
+Replaces the vault's contents with a snapshot. The vault must be open.
+Asks for confirmation (skipped with --no-log).
+
+EXAMPLES
+  cas myvault backup restore before-upgrade

@@ -1,0 +1,8 @@
+cas <vault> settings security sandbox seccomp custom rename <old> <new>
+
+Renames a custom seccomp profile. Every target currently pointed at
+<old> via `seccomp set` follows the rename automatically. <new> can't
+collide with a built-in preset name, same rule as `create`.
+
+EXAMPLES
+  cas myvault settings security sandbox seccomp custom rename my-profile my-profile-v2 --pass "..."

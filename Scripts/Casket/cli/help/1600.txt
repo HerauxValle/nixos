@@ -1,0 +1,11 @@
+cas <vault> settings security sandbox namespaces set <list>
+
+Replaces the active namespace set outright. `<list>` is a
+comma-separated subset of mount,pid,uts,ipc,user,net. `user` can't be
+omitted -- it's always active regardless of this setting, and leaving
+it out of the stored list would misrepresent what `exec` actually
+does.
+
+EXAMPLES
+  cas myvault settings security sandbox namespaces set mount,pid,uts,ipc,user --pass "..."
+  cas myvault settings security sandbox namespaces set mount,pid,uts,ipc,user,net --pass "..."
