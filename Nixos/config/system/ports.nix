@@ -110,6 +110,13 @@
         net.loopbackOnly = true;
       };
 
+      hostpath = {
+        port = 9876;
+        mode.local = {
+          name = "hostpath";
+        };
+      };
+
       # {
       #   uuid-style key -- doesn't have to be meaningful, just how
       #   you'll address it (config.vars.system.ports.entries.jellyfin).
