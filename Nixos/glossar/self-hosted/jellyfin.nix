@@ -80,7 +80,7 @@
   #   # no separate server, no hostname -- works from any device that can
   #   # already reach Jellyfin at all. See info.md.
   #   theme = {
-  #     enable = false;
+  #     enable = true;
   #     cssPath = ../../Themes/Jellyfin/ElegantFin/theme.css;
   #   };
 

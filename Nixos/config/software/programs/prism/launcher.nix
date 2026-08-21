@@ -17,7 +17,7 @@
   # home-manager module, unlike modrinth-app (plain package only, no
   # module).
   config.home-manager.users.${config.vars.identity.username}.programs.prismlauncher = {
-    enable = false;
+    enable = true;
 
     # Upstream's package only ships qtbase/qtimageformats/qtsvg/qtwayland
     # in buildInputs, so wrapQtAppsHook's QT_PLUGIN_PATH never gets a

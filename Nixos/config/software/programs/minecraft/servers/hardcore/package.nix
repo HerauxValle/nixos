@@ -4,7 +4,7 @@
 
 {
   services.minecraft-servers.servers.hardcore = {
-    enable = false;
+    enable = true;
 
     # Same reasoning as creative/package.nix -- nix-minecraft is required
     # for anything above the base module's v1.21.9 cap, and this matches

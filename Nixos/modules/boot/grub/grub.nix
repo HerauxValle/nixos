@@ -43,7 +43,7 @@ in
 
     grub = {
 
-      enable = false;
+      enable = true;
       # "nodev": EFI-only install -- don't write GRUB to a disk's MBR/boot
       # sector, only to the EFI System Partition.
       device = "nodev";

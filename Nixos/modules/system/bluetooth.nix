@@ -4,8 +4,8 @@
 
 {
   hardware.bluetooth = {
-    enable = false;
+    enable = true;
     powerOnBoot = true;
   };
-  services.blueman.enable = false;
+  services.blueman.enable = true;
 }

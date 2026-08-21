@@ -21,7 +21,7 @@
 
   config = lib.mkIf config.vars.system.openrazer.enable {
     hardware.openrazer = {
-      enable = false;
+      enable = true;
       users = [ config.vars.identity.username ];
     };
   };

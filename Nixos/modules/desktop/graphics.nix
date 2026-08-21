@@ -5,8 +5,8 @@
 {
   services.xserver.videoDrivers = [ "nvidia" ];
   hardware.nvidia.open = false;
-  hardware.nvidia.modesetting.enable = false;
-  hardware.graphics.enable = false;
+  hardware.nvidia.modesetting.enable = true;
+  hardware.graphics.enable = true;
   hardware.graphics.enable32Bit = true;
 
   # Without this, VRAM state isn't preserved across suspend -- confirmed
@@ -20,7 +20,7 @@
   # this driver crash's fallout, not a config bug. This wires up
   # nvidia-suspend/nvidia-resume.service + NVreg_PreserveVideoMemoryAllocations,
   # NVIDIA's own documented fix for exactly this failure mode.
-  hardware.nvidia.powerManagement.enable = false;
+  hardware.nvidia.powerManagement.enable = true;
 
   # PowerMizer defaults to "Adaptive" (clocks down aggressively under low
   # load, common cause of stutter on the proprietary driver going idle-clock

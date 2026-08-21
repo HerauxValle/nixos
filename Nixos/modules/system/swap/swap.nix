@@ -16,7 +16,7 @@ in
     ];
 
     zramSwap = lib.mkIf cfg.zram.enabled {
-      enable = false;
+      enable = true;
       memoryPercent = cfg.zram.memoryPercent;
       algorithm = cfg.zram.algorithm;
       priority = cfg.zram.priority;

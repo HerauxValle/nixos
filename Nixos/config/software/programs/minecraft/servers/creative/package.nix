@@ -18,7 +18,7 @@
   };
 
   services.minecraft-servers.servers.creative = {
-    enable = false;
+    enable = true;
 
     # The minecraft module itself does not expose anything above v1.21.9
     # nix-minecraft is essential to play the latest version here!

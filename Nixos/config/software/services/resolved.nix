@@ -4,7 +4,7 @@
 
 {
   services.resolved = {
-    enable = false;
+    enable = true;
     settings = {
       Resolve = {
         DNSSEC = "true";

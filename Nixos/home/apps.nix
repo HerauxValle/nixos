@@ -19,7 +19,7 @@
     noDisplay = true;
     mimeType = [ "x-scheme-handler/magnet" ];
   };
-  xdg.mimeApps.enable = false;
+  xdg.mimeApps.enable = true;
   xdg.mimeApps.defaultApplications = {
     # Pre-existing associations, previously set imperatively (whatever
     # app/dolphin's "always use this" dialog wrote straight into

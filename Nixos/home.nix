@@ -13,5 +13,5 @@
     ./home/theming.nix
   ];
 
-  programs.home-manager.enable = false;
+  programs.home-manager.enable = true;
 }

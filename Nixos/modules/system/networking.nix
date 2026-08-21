@@ -5,7 +5,7 @@
 {
   networking = {
     hostName = config.vars.identity.hostName;
-    networkmanager.enable = false;
+    networkmanager.enable = true;
 
     # Pinned deliberately, not the hardware default -- see local notes for why.
     # Currently disabled -- not in use.
