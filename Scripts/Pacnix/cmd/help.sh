@@ -64,6 +64,15 @@ usage: pacnix <command> [args]
       to reboot and run install.sh --setup afterward, same as running
       install.sh --format manually would.
 
+  run <pkg> [pkg...]
+      Drops you into a temporary shell with the given package(s)
+      available (nix shell nixpkgs#<pkg>...) -- NOT installed, not added
+      to any config or profile. Gone the moment the shell exits, and its
+      store paths sit unreferenced until the next garbage collection
+      (pacnix orphaned) just like any other nix shell. Use `pacnix
+      packages` instead for an actual persistent install.
+        e.g. pacnix run ripgrep
+
   optimise
       Hardlinks duplicate files across the store to save space
       (nix-store --optimise). Pure dedup, deletes nothing. Prints

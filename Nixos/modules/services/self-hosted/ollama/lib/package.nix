@@ -49,5 +49,18 @@ pkgs.stdenv.mkDerivation {
     cp -r source/lib "$out/lib"
   '';
 
+  # addDriverRunpath's setup hook only patches $out/bin and the top level
+  # of $out/lib -- it never recurses into lib/ollama/cuda_v12 or
+  # cuda_v13, where the actual CUDA backend (libggml-cuda.so) lives.
+  # Without this, libcuda.so.1 (the host's real driver, never bundled)
+  # can't be found at runtime, the CUDA backend silently fails to load,
+  # and every model falls back to CPU inference. Confirmed via readelf -d
+  # showing /run/opengl-driver/lib missing from libggml-cuda.so's RUNPATH.
+  postFixup = ''
+    for so in "$out"/lib/ollama/cuda_v12/*.so "$out"/lib/ollama/cuda_v13/*.so; do
+      addDriverRunpath "$so"
+    done
+  '';
+
   meta.mainProgram = "ollama";
 }
