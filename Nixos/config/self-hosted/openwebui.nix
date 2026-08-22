@@ -42,6 +42,18 @@
 
     environment = {
       OLLAMA_BASE_URL = "http://localhost:11434";
+
+      # Title/tags/autocomplete default to whatever model the active chat
+      # uses. Ollama hard-caps multimodal models (mmproj/vision baked into
+      # the GGUF, e.g. all Qwen3.5 tags here) to n_slots=1 regardless of
+      # OLLAMA_NUM_PARALLEL -- confirmed via logs, not VRAM-driven, no env
+      # var lifts it. So every title/tag/autocomplete call shared the
+      # chat model's one slot and blew away its prompt-cache checkpoint,
+      # forcing a full reprocess on the next message. Pointing these at a
+      # separate model gives them their own independent slot pool --
+      # doesn't matter that this one is also multimodal, since separate
+      # models never share slots with each other.
+      TASK_MODEL = "qwen3.5:0.8b";
       OPENAI_API_KEY = "";
       OPENAI_API_BASE_URL = "";
       ENABLE_API_KEYS = "True";
