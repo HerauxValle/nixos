@@ -62,7 +62,7 @@ current_css = branding.get("CustomCss") or ""
 pattern = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END), re.DOTALL)
 
 if pattern.search(current_css):
-    new_css = pattern.sub(block, current_css)
+    new_css = pattern.sub(lambda _m: block, current_css)
 else:
     new_css = (current_css.rstrip() + "\n\n" + block).strip()
 
