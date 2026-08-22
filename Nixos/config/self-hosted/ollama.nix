@@ -88,13 +88,13 @@
       "ikiru/dolphin-mistral-24b-venice-edition:latest"
       # "mdhm_hmmd/gemma4-e4b-uncensored-q8:latest"
       # "baytout3/Gemma-4-Uncensored-HauhauCS-Aggressive:e4b"
-      # "fredrezones55/Gemma-4-Uncensored-HauhauCS-Aggressive:e4b"
-      # "llama2-uncensored:7b"
+      "fredrezones55/Gemma-4-Uncensored-HauhauCS-Aggressive:e4b"
+      "llama2-uncensored:7b"
       "baytout3/gemma4-12b-qat-uncensored-hauhaucs-balanced:q4_k_m"
 
       # GEMMA FAMILY
       # "gemma4:26b-a4b-it-q4_K_M"
-      # "gemma4:e4b"
+      "gemma4:e4b"
       # "translategemma:4b"
       # "translategemma:12b"
       # "functiongemma:270m"
@@ -109,7 +109,7 @@
       # "qwen3-vl:8b-thinking-q4_K_M"
       # "qwen3-vl:8b-thinking-q8_0"
       # "qwen3-vl:2b-thinking"
-      # "fredrezones55/Qwen3.5-Uncensored-HauhauCS-Aggressive:4b"
+      "fredrezones55/Qwen3.5-Uncensored-HauhauCS-Aggressive:4b"
       "fredrezones55/Qwen3.5-Uncensored-HauhauCS-Aggressive:9b"
 
       # VISION
