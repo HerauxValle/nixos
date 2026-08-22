@@ -49,14 +49,18 @@ pkgs.stdenv.mkDerivation {
     cp -r source/lib "$out/lib"
   '';
 
-  # addDriverRunpath's setup hook only patches $out/bin and the top level
-  # of $out/lib -- it never recurses into lib/ollama/cuda_v12 or
-  # cuda_v13, where the actual CUDA backend (libggml-cuda.so) lives.
-  # Without this, libcuda.so.1 (the host's real driver, never bundled)
-  # can't be found at runtime, the CUDA backend silently fails to load,
-  # and every model falls back to CPU inference. Confirmed via readelf -d
-  # showing /run/opengl-driver/lib missing from libggml-cuda.so's RUNPATH.
+  # autoPatchelfHook's own postFixup hook runs *after* this attribute and
+  # unconditionally `patchelf --set-rpath`s every ELF it touches
+  # (including cuda_v12/cuda_v13/libggml-cuda.so), which clobbers any
+  # addDriverRunpath addition made here first. Confirmed via build log:
+  # our loop left no trace, and autoPatchelf's own "setting RPATH to: ..."
+  # lines for those files came after, missing /run/opengl-driver/lib.
+  # dontAutoPatchelf + calling `autoPatchelf` ourselves first forces the
+  # order the other way: patchelf sets deps-based RPATH, *then*
+  # addDriverRunpath appends the host driver path on top, so it survives.
+  dontAutoPatchelf = true;
   postFixup = ''
+    autoPatchelf "$out"
     for so in "$out"/lib/ollama/cuda_v12/*.so "$out"/lib/ollama/cuda_v13/*.so; do
       addDriverRunpath "$so"
     done
