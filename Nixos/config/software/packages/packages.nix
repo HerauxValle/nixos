@@ -130,6 +130,8 @@
       ntfs3g = { };
       btrfs-progs = { };
       tpm2-tools = { };
+      fuse = { }; # libfuse.so.2, required by AppImages
+      appimage-run = { }; # wraps AppImages with FUSE + an FHS env for their assumed lib layout
 
       # Servers
       mcrcon = { }; # RCON client, for remote-administering the Minecraft servers

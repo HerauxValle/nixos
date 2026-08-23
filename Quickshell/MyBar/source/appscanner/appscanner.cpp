@@ -1,4 +1,5 @@
-// Scans XDG application directories for .desktop files and prints
+// Scans XDG application directories for .desktop files, plus every
+// PATH dir for .AppImage/.desktop/.executable files, and prints
 // tab-separated "Name\tExec" lines, sorted, skipping NoDisplay entries.
 // Much faster than the equivalent shell pipeline over 100+ files.
 
@@ -21,6 +22,39 @@ struct App {
     std::string exec;
 };
 
+// Parses a single .desktop file. Returns false (app left untouched) on
+// missing Name/Exec or NoDisplay=true.
+static bool parseDesktopFile(const std::string &path, App &app) {
+    std::ifstream f(path);
+    if (!f) return false;
+
+    std::string line, name, exec;
+    bool noDisplay = false;
+    bool inDesktopEntry = false;
+
+    while (std::getline(f, line)) {
+        if (line == "[Desktop Entry]") { inDesktopEntry = true; continue; }
+        if (!line.empty() && line[0] == '[') { inDesktopEntry = false; continue; }
+        if (!inDesktopEntry) continue;
+
+        if (name.empty() && line.rfind("Name=", 0) == 0)
+            name = line.substr(5);
+        else if (exec.empty() && line.rfind("Exec=", 0) == 0)
+            exec = line.substr(5);
+        else if (line.rfind("NoDisplay=", 0) == 0 && line.substr(10) == "true")
+            noDisplay = true;
+    }
+
+    if (name.empty() || exec.empty() || noDisplay) return false;
+    app = {name, exec};
+    return true;
+}
+
+static bool hasSuffix(const std::string &s, const std::string &suffix) {
+    return s.size() >= suffix.size() &&
+           s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
 static void scanDir(const std::string &dir, std::vector<App> &out) {
     DIR *d = opendir(dir.c_str());
     if (!d) return;
@@ -31,30 +65,64 @@ static void scanDir(const std::string &dir, std::vector<App> &out) {
         size_t len = strlen(n);
         if (len < 9 || strcmp(n + len - 8, ".desktop") != 0) continue;
 
-        std::ifstream f(dir + "/" + n);
-        if (!f) continue;
-
-        std::string line, name, exec;
-        bool noDisplay = false;
-        bool inDesktopEntry = false;
-
-        while (std::getline(f, line)) {
-            if (line == "[Desktop Entry]") { inDesktopEntry = true; continue; }
-            if (!line.empty() && line[0] == '[') { inDesktopEntry = false; continue; }
-            if (!inDesktopEntry) continue;
-
-            if (name.empty() && line.rfind("Name=", 0) == 0)
-                name = line.substr(5);
-            else if (exec.empty() && line.rfind("Exec=", 0) == 0)
-                exec = line.substr(5);
-            else if (line.rfind("NoDisplay=", 0) == 0 && line.substr(10) == "true")
-                noDisplay = true;
-        }
-
-        if (!name.empty() && !exec.empty() && !noDisplay)
-            out.push_back({name, exec});
+        App app;
+        if (parseDesktopFile(dir + "/" + n, app))
+            out.push_back(app);
     }
     closedir(d);
+}
+
+// Scans one PATH dir for launchable files by extension. .AppImage is
+// self-explanatory; .desktop lets an AppImage that ships its own
+// desktop file (dropped straight in a PATH dir, not
+// ~/.local/share/applications) still show up; .executable is a
+// made-up marker extension so ordinary .sh scripts on PATH don't all
+// flood the launcher -- only ones deliberately renamed to end in
+// .executable get exposed. Name is the filename with that extension
+// stripped; Exec is the full path.
+static void scanPathDir(const std::string &dir, std::vector<App> &out) {
+    DIR *d = opendir(dir.c_str());
+    if (!d) return;
+
+    static const std::string kAppImage = ".AppImage";
+    static const std::string kDesktop = ".desktop";
+    static const std::string kExecutable = ".executable";
+
+    dirent *ent;
+    while ((ent = readdir(d)) != nullptr) {
+        std::string name = ent->d_name;
+        if (name == "." || name == "..") continue;
+        std::string path = dir + "/" + name;
+
+        if (hasSuffix(name, kDesktop)) {
+            App app;
+            if (parseDesktopFile(path, app))
+                out.push_back(app);
+        } else if (hasSuffix(name, kAppImage)) {
+            out.push_back({name.substr(0, name.size() - kAppImage.size()), path});
+        } else if (hasSuffix(name, kExecutable)) {
+            out.push_back({name.substr(0, name.size() - kExecutable.size()), path});
+        }
+    }
+    closedir(d);
+}
+
+// Splits $PATH on ':', same convention as xdgApplicationDirs below.
+static std::vector<std::string> pathDirs() {
+    std::vector<std::string> dirs;
+    const char *path = std::getenv("PATH");
+    if (!path || !*path) return dirs;
+
+    std::string p = path;
+    size_t pos = 0;
+    while (pos <= p.size()) {
+        size_t next = p.find(':', pos);
+        if (next == std::string::npos) next = p.size();
+        std::string part = p.substr(pos, next - pos);
+        if (!part.empty()) dirs.push_back(part);
+        pos = next + 1;
+    }
+    return dirs;
 }
 
 // XDG Base Directory spec: search $XDG_DATA_HOME/applications (falling back
@@ -94,6 +162,9 @@ int main() {
 
     for (const auto &dir : xdgApplicationDirs())
         scanDir(dir, apps);
+
+    for (const auto &dir : pathDirs())
+        scanPathDir(dir, apps);
 
     std::sort(apps.begin(), apps.end(), [](const App &a, const App &b) {
         return a.name < b.name;
