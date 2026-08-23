@@ -1,7 +1,23 @@
 # &desc: "Symlinks home-manager XDG config directories to Dotfiles subdirs (Hyprland, Kitty, Mpv, Neovim, Scripts, Fastfetch, etc)."
 
-{ pkgs, config, osConfig, ... }:
+{ pkgs, lib, config, osConfig, ... }:
 
+let
+  # Mime types routed to a single default app -- one genAttrs call per
+  # category instead of repeating the same desktop file on every line.
+  imageMimeTypes = [
+    "image/png" "image/jpeg" "image/webp" "image/gif" "image/bmp"
+    "image/tiff" "image/avif" "image/heic" "image/svg+xml"
+  ];
+  videoMimeTypes = [
+    "video/mp4" "video/x-matroska" "video/webm" "video/quicktime"
+    "video/mpeg" "video/x-msvideo" "video/ogg"
+  ];
+  textMimeTypes = [ "text/plain" ];
+
+  defaultAppsByType = mimeTypes: desktopFile:
+    lib.genAttrs mimeTypes (_: [ desktopFile ]);
+in
 {
   # x-scheme-handler/magnet -- overrides the stock qBittorrent GUI
   # package's own org.qbittorrent.qBittorrent.desktop (installed only for
@@ -26,20 +42,13 @@
     # ~/.config/mimeapps.list) -- folded in here so home-manager can own
     # the file outright instead of refusing to touch it.
     "x-scheme-handler/mailto" = [ "vivaldi-stable.desktop" ];
-    "image/png" = [ "oculante.desktop" ];
-    "image/jpeg" = [ "oculante.desktop" ];
-    "image/webp" = [ "oculante.desktop" ];
-    "image/gif" = [ "oculante.desktop" ];
-    "image/bmp" = [ "oculante.desktop" ];
-    "image/tiff" = [ "oculante.desktop" ];
-    "image/avif" = [ "oculante.desktop" ];
-    "image/heic" = [ "oculante.desktop" ];
-    "image/svg+xml" = [ "oculante.desktop" ];
     "x-scheme-handler/claude-cli" = [ "claude-code-url-handler.desktop" ];
     "x-scheme-handler/claude" = [ "com.anthropic.Claude.desktop" ];
 
     "x-scheme-handler/magnet" = [ "qbit-magnet.desktop" ];
-  };
+  } // defaultAppsByType imageMimeTypes "org.kde.gwenview.desktop"
+    // defaultAppsByType videoMimeTypes "mpv.desktop"
+    // defaultAppsByType textMimeTypes "code.desktop";
   xdg.configFile."mimeapps.list".force = true;
 
   xdg.configFile = {
