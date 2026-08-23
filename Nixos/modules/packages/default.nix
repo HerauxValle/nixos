@@ -6,6 +6,7 @@
 # purely personal, lives in Nixos/config/packages.nix instead.
 {
   imports = [
+    ./paths
     ./programs
     ./repos
     ./scripts
