@@ -99,6 +99,15 @@
       description = "programs.gamescope.enable.";
     };
 
+    # registers a binfmt_misc handler so any *.AppImage becomes directly
+    # executable via appimage-run's FHS wrapper, instead of needing
+    # `appimage-run ./foo.AppImage` typed out by hand every time.
+    appimage.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "programs.appimage.enable + programs.appimage.binfmt.";
+    };
+
     # /etc/gamemode.ini -- gpu/cpu tuning applied while gamemoded is active.
     gamemodeSettings = lib.mkOption {
       type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);

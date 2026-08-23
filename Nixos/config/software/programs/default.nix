@@ -15,6 +15,7 @@
 # app -- same reasoning as config/self-hosted's per-service split.
 {
   imports = [
+    ./appimage
     ./dconf
     ./easyeffects
     ./fresh-editor

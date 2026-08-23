@@ -1,0 +1,4 @@
+# &desc: "Keeps cargo build output outside Dotfiles -- target/ living under the flake's own dir got copied wholesale into the Nix store on every rebuild eval (path: input, no git filtering), which is what made pacnix rebuild take 6+ minutes."
+
+[build]
+target-dir = "/home/herauxvalle/.cache/casket-target"

@@ -130,7 +130,7 @@
       ntfs3g = { };
       btrfs-progs = { };
       tpm2-tools = { };
-      fuse = { }; # libfuse.so.2, required by AppImages
+      fuse = { }; # libfuse.so.2 -- irrelevant to raw AppImage execution on NixOS: a non-Nix-built binary can't resolve /nix/store paths via its own dynamic linker regardless of what's "installed". Only appimage-run's FHS wrapper (config/software/programs/appimage) actually finds it.
       appimage-run = { }; # wraps AppImages with FUSE + an FHS env for their assumed lib layout
 
       # Servers

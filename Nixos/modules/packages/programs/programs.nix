@@ -33,6 +33,11 @@ in
     };
     gamescope.enable = cfg.gamescope.enable;
 
+    appimage = {
+      enable = cfg.appimage.enable;
+      binfmt = cfg.appimage.enable;
+    };
+
     silentSDDM = {
       enable = cfg.silentSDDM.enable;
       theme = cfg.silentSDDM.theme;

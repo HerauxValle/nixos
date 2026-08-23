@@ -22,7 +22,18 @@
         packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = "cas";
           version = "1.10.1";
-          src = ./.;
+          # Not `./.` -- that copies target/ and .test/ (dev build cache +
+          # VM test fixtures, multi-GB) into the store on every eval,
+          # which is what was making rebuilds take 6+ minutes.
+          src = pkgs.lib.fileset.toSource {
+            root = ./.;
+            fileset = pkgs.lib.fileset.unions [
+              ./src
+              ./cli
+              ./Cargo.toml
+              ./Cargo.lock
+            ];
+          };
 
           cargoLock.lockFile = ./Cargo.lock;
 
