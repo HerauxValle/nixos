@@ -45,9 +45,9 @@
     {
       name = "scrolloverview";
       url = "https://github.com/yayuuu/hyprland-scroll-overview.git";
-      rev = "8b6d2b6943f82067febc4ecd6b4a73cb9bf8b3ba";
-      hash = "sha256-5E1JlhrvH7sXt+zPCRGnb0f617IJe+FFqTlUN7Vw99Y=";
-      version = "0-unstable-2026-07-07";
+      rev = "f9248ab6bee770e9d68813b48cc6ca12b3271254";
+      hash = "sha256-SEa8XQtrNg90AUeZFE9+lGvYEWd0T2ht/+sKx+kWUak=";
+      version = "0-unstable-2026-08-08";
       extraBuildInputs = [ pkgs.lua5_4 pkgs.systemd ];
     }
 
