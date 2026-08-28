@@ -174,7 +174,11 @@ Rectangle {
     Timer { id: refreshTimer; interval: 5000; repeat: true; running: true; triggeredOnStart: true; onTriggered: root.refresh() }
 
     // ── Processes ─────────────────────────────────────────────────────────
-    Process { id: scanOnProc;   command: ["bluetoothctl", "scan", "on"]  }
+    // bluetoothctl ties discovery to its own D-Bus connection: a plain
+    // "scan on" call returns (and exits) almost instantly, which tears
+    // discovery down right away instead of leaving it running. --timeout
+    // keeps the process (and discovery) alive for the scan window instead.
+    Process { id: scanOnProc;   command: ["bluetoothctl", "--timeout", "8", "scan", "on"] }
     Process { id: scanOffProc;  command: ["bluetoothctl", "scan", "off"] }
     Process { id: powerOnProc;  command: ["bluetoothctl", "power", "on"];  onExited: (c,s) => { if (c===0) { root.btPowered = true;  refreshTimer.restart() } } }
     Process { id: powerOffProc; command: ["bluetoothctl", "power", "off"]; onExited: (c,s) => { if (c===0) root.btPowered = false } }

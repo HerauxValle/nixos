@@ -269,15 +269,22 @@ static void btThread() {
 
     bool lastOn = false;
     std::string lastDev;
+    bool first = true;
 
     while (g_btRunning) {
         std::string powered = btPollPowered();
         bool on = (powered == "true");
         std::string dev = on ? btPollConnectedDevice() : "";
 
-        if (on != lastOn || dev != lastDev) {
+        // Always emit on the first poll: the QML side's cached state may
+        // already say "on" (from before this process was last restarted,
+        // e.g. by Network.refresh()), and change-detection against the
+        // false-by-default lastOn would silently skip announcing a real
+        // "off" state, leaving the UI stuck on stale data.
+        if (first || on != lastOn || dev != lastDev) {
             lastOn  = on;
             lastDev = dev;
+            first   = false;
             emitBt(on, dev);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(interval));
