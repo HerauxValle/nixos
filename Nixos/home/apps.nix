@@ -46,6 +46,17 @@ in
     "x-scheme-handler/claude" = [ "com.anthropic.Claude.desktop" ];
 
     "x-scheme-handler/magnet" = [ "qbit-magnet.desktop" ];
+
+    # Default browser. Without an explicit default here, xdg-open falls
+    # back to the first entry for x-scheme-handler/http(s) in
+    # mimeinfo.cache (nixpkgs' generated app registry, ordered by package
+    # registration, not by anything configured) -- on this system that
+    # happened to be Tor Browser instead of Vivaldi.
+    "text/html" = [ "vivaldi-stable.desktop" ];
+    "x-scheme-handler/http" = [ "vivaldi-stable.desktop" ];
+    "x-scheme-handler/https" = [ "vivaldi-stable.desktop" ];
+    "x-scheme-handler/about" = [ "vivaldi-stable.desktop" ];
+    "x-scheme-handler/unknown" = [ "vivaldi-stable.desktop" ];
   } // defaultAppsByType imageMimeTypes "org.kde.gwenview.desktop"
     // defaultAppsByType videoMimeTypes "mpv.desktop"
     // defaultAppsByType textMimeTypes "code.desktop";

@@ -62,6 +62,11 @@ if status is-interactive
     # Alt+C runs the clear function (screen clear + fresh fastfetch), taking
     # over the clear-screen role fish's default Ctrl+L binding has.
     bind alt-c 'clear; commandline -f repaint'
+
+    # Shift+Enter opens whatever is currently typed as a browser search
+    # instead of running it -- plain Enter is untouched and still behaves
+    # normally (runs the command, errors via fish_command_not_found, etc).
+    bind shift-enter '__search_commandline_in_browser'
 end
 
 if status is-interactive
