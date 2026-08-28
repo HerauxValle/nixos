@@ -1,7 +1,8 @@
 // netmonitor -- reactive WiFi + Bluetooth + LAN state monitor.
 //
-// Uses libnm (GLib/GObject) for WiFi/ethernet (reactive, no polling),
-// and a polling thread for BlueZ via dbus-1 (BlueZ is system bus).
+// Uses libnm (GLib/GObject) for WiFi/ethernet, and a system-bus
+// PropertiesChanged subscription for BlueZ -- both fully event-driven,
+// no polling loop for either.
 //
 // Emits JSON lines to stdout on state changes:
 //   {"type":"wifi","on":bool,"radio":bool,"ssid":"...","signal":0-100,"ip":"..."}
@@ -161,7 +162,12 @@ static void refreshWifi(NMClient *client) {
 
     s.radio = nm_client_wireless_get_enabled(client);
 
-    if (wdev && NM_IS_DEVICE_WIFI(wdev)) {
+    // When the radio's software toggle flips off, NM's wireless-enabled
+    // property updates before the device itself has fully deactivated (that
+    // transition is async and can lag a beat behind, the same gap "ip link"
+    // would show at the kernel level). Don't report a stale active AP/SSID
+    // during that window -- a disabled radio can't have a real connection.
+    if (wdev && NM_IS_DEVICE_WIFI(wdev) && s.radio) {
         NMDeviceWifi *wifiDev = NM_DEVICE_WIFI(wdev);
         NMAccessPoint *ap = nm_device_wifi_get_active_access_point(wifiDev);
         if (ap) {
@@ -209,16 +215,14 @@ static void onDeviceAdded(NMClient *client, NMDevice *dev, gpointer) {
     refreshLan(client);
 }
 
-// ── BlueZ D-Bus polling thread (BT uses system bus, libnm is async-safe) ─────
+// ── BlueZ D-Bus state (reactive: driven off PropertiesChanged signals, ─────
+// no polling loop). BlueZ lives on the system bus; we subscribe once and
+// recompute state only when BlueZ itself tells us something changed, so
+// updates land within milliseconds instead of waiting out a poll interval.
 
-static std::atomic<bool> g_btRunning{true};
+static std::string g_btAdapterPath = "/org/bluez/hci0";
 
-static std::string btPollPowered() {
-    // Adapter object path varies (hci0, hci1, ...) -- discover it instead of
-    // assuming /org/bluez/hci0, then query Properties.Get on that path.
-    // (An earlier version queried /org/bluez directly, which has no
-    // Adapter1 interface and always failed, so the tile never reflected
-    // real power state.)
+static std::string discoverBtAdapterPath() {
     FILE *afp = popen(
         "dbus-send --system --dest=org.bluez --print-reply "
         "/org/bluez org.freedesktop.DBus.Introspectable.Introspect 2>/dev/null "
@@ -233,10 +237,13 @@ static std::string btPollPowered() {
         }
         pclose(afp);
     }
+    return "/org/bluez/" + adapter;
+}
 
+static std::string btPollPowered() {
     std::string cmd =
         "dbus-send --system --dest=org.bluez --print-reply "
-        "/org/bluez/" + adapter + " org.freedesktop.DBus.Properties.Get "
+        + g_btAdapterPath + " org.freedesktop.DBus.Properties.Get "
         "string:org.bluez.Adapter1 string:Powered 2>/dev/null "
         "| awk '/variant/{print $3}'";
     FILE *fp = popen(cmd.c_str(), "r");
@@ -261,34 +268,29 @@ static std::string btPollConnectedDevice() {
     return r;
 }
 
-static void btThread() {
-    int interval = 8000;
-    const char *env = std::getenv("AETHERA_BT_POLL_MS");
-    if (env) interval = std::atoi(env);
-    if (interval < 1000) interval = 1000;
+static bool        g_btLastOn = false;
+static std::string g_btLastDev;
+static bool         g_btFirst = true;
 
-    bool lastOn = false;
-    std::string lastDev;
-    bool first = true;
+static void refreshBt() {
+    std::string powered = btPollPowered();
+    bool on = (powered == "true");
+    std::string dev = on ? btPollConnectedDevice() : "";
 
-    while (g_btRunning) {
-        std::string powered = btPollPowered();
-        bool on = (powered == "true");
-        std::string dev = on ? btPollConnectedDevice() : "";
-
-        // Always emit on the first poll: the QML side's cached state may
-        // already say "on" (from before this process was last restarted,
-        // e.g. by Network.refresh()), and change-detection against the
-        // false-by-default lastOn would silently skip announcing a real
-        // "off" state, leaving the UI stuck on stale data.
-        if (first || on != lastOn || dev != lastDev) {
-            lastOn  = on;
-            lastDev = dev;
-            first   = false;
-            emitBt(on, dev);
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+    // Always emit the first time: the QML side's cached state may already
+    // say "on" from before this process last (re)started, and skipping an
+    // unchanged-looking "off" would leave the UI stuck on stale data.
+    if (g_btFirst || on != g_btLastOn || dev != g_btLastDev) {
+        g_btLastOn  = on;
+        g_btLastDev = dev;
+        g_btFirst   = false;
+        emitBt(on, dev);
     }
+}
+
+static void onBtPropertiesChanged(GDBusConnection *, const gchar *, const gchar *,
+                                   const gchar *, const gchar *, GVariant *, gpointer) {
+    refreshBt();
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -296,7 +298,6 @@ static void btThread() {
 static GMainLoop *g_loop = nullptr;
 
 static gboolean onSigterm(gpointer) {
-    g_btRunning = false;
     if (g_loop) g_main_loop_quit(g_loop);
     return G_SOURCE_REMOVE;
 }
@@ -339,13 +340,29 @@ int main() {
     refreshWifi(client);
     refreshLan(client);
 
-    // Start BT polling thread (BlueZ doesn't need GLib main loop for simple reads)
-    std::thread btThr(btThread);
+    // Bluetooth: reactive via system-bus PropertiesChanged, no polling loop.
+    g_btAdapterPath = discoverBtAdapterPath();
+    GError *btErr = nullptr;
+    GDBusConnection *sysBus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, nullptr, &btErr);
+    if (sysBus) {
+        g_dbus_connection_signal_subscribe(
+            sysBus,
+            "org.bluez",                          // sender
+            "org.freedesktop.DBus.Properties",     // interface
+            "PropertiesChanged",                   // member
+            nullptr,                                // any object path under org.bluez
+            nullptr,                                // any arg0
+            G_DBUS_SIGNAL_FLAGS_NONE,
+            onBtPropertiesChanged, nullptr, nullptr);
+    } else {
+        std::cerr << "[netmonitor] system bus connect failed: "
+                  << (btErr ? btErr->message : "unknown") << "\n";
+        if (btErr) g_error_free(btErr);
+    }
+    refreshBt();
 
     g_main_loop_run(g_loop);
 
-    g_btRunning = false;
-    btThr.join();
     g_object_unref(client);
     g_main_loop_unref(g_loop);
     return 0;

@@ -360,33 +360,6 @@ Rectangle {
                 }
             }
 
-            // ── Ethernet ───────────────────────────────────────────────
-            Rectangle {
-                width: parent.width; height: ethCol.implicitHeight + 20; radius: BarConfig.sp(12)
-                color: Network.lanConnected ? Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.10) : Colors.surfaceContainerHigh
-                border.color: Network.lanConnected ? Colors.primary : Colors.popupBorder; border.width: 1
-                Column {
-                    id: ethCol
-                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: BarConfig.sp(12) }
-                    spacing: BarConfig.sp(4)
-                    Row {
-                        spacing: BarConfig.sp(8)
-                        Text { font.pixelSize: BarConfig.fsLg; font.family: "Symbols Nerd Font Mono"; color: Network.lanConnected ? Colors.primary : Colors.outline; text: ""; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: Network.lanConnected ? (Network.lanInterface || "Ethernet") : "No Ethernet"; color: Colors.colOnSurface; font.pixelSize: BarConfig.fs; font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
-                    }
-                    component LR: Row {
-                        id: lr; required property string k; required property string v; visible: !!v; width: parent.width; spacing: BarConfig.sp(6)
-                        Text { text: lr.k; color: Colors.colOnSurfaceVariant; font.pixelSize: BarConfig.fsSm; opacity: 0.65; width: 60 }
-                        Text { text: lr.v; color: Colors.colOnSurface; font.pixelSize: BarConfig.fsSm; font.family: "monospace"; elide: Text.ElideRight; width: parent.width - 66 }
-                    }
-                    Column { visible: Network.lanConnected; width: parent.width; spacing: BarConfig.sp(3)
-                        LR { k: "IPv4";  v: Network.lanIP }
-                        LR { k: "MAC";   v: Network.lanMAC }
-                        LR { k: "Speed"; v: Network.lanSpeed }
-                    }
-                }
-            }
-
             // ── Scan header ────────────────────────────────────────────
             Item {
                 width: parent.width; height: BarConfig.sp(20)
@@ -436,17 +409,6 @@ Rectangle {
                 Text { anchors.centerIn: parent; text: "Connecting…"; color: Colors.primary; font.pixelSize: BarConfig.fsMd }
             }
 
-            // ── ACTIVE network ─────────────────────────────────────────
-            Column {
-                visible: root.activeNetwork !== null; width: parent.width; spacing: BarConfig.sp(4)
-                WifiNetworkItem {
-                    wifiNet: root.activeNetwork ?? { ssid: "", signal: 0, security: "", active: true, saved: true }
-                    itemMode: "active"
-                    onDisconnectRequested: disconnectProc.running = true
-                    onForgetRequested: { forgetProc.ssid = wifiNet.ssid; forgetProc.running = true }
-                    onConnectRequested: {}
-                }
-            }
 
             // ── KNOWN NETWORKS ─────────────────────────────────────────
             Column {
@@ -527,6 +489,40 @@ Rectangle {
                 width: parent.width; height: BarConfig.sp(44); radius: BarConfig.sp(10)
                 color: Colors.surfaceContainerHigh; border.color: Colors.popupBorder; border.width: 1
                 Text { anchors.centerIn: parent; text: "No networks found"; color: Colors.colOnSurfaceVariant; font.pixelSize: BarConfig.fs }
+            }
+
+            // ── LAN (only shown when actually plugged in) ──────────────
+            Column {
+                visible: Network.lanConnected; width: parent.width; spacing: BarConfig.sp(4)
+
+                Text {
+                    text: "LAN"; color: Colors.primary; font.pixelSize: BarConfig.fsSm
+                    font.weight: Font.Medium; font.letterSpacing: 1; opacity: 0.75
+                }
+
+                Rectangle {
+                    width: parent.width; height: ethCol.implicitHeight + 20; radius: BarConfig.sp(12)
+                    color: Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.10)
+                    border.color: Colors.primary; border.width: 1
+                    Column {
+                        id: ethCol
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: BarConfig.sp(12) }
+                        spacing: BarConfig.sp(4)
+                        Row {
+                            spacing: BarConfig.sp(8)
+                            Text { font.pixelSize: BarConfig.fsLg; font.family: "Symbols Nerd Font Mono"; color: Colors.primary; text: ""; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: Network.lanInterface || "Ethernet"; color: Colors.colOnSurface; font.pixelSize: BarConfig.fs; font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
+                        }
+                        component LR: Row {
+                            id: lr; required property string k; required property string v; visible: !!v; width: parent.width; spacing: BarConfig.sp(6)
+                            Text { text: lr.k; color: Colors.colOnSurfaceVariant; font.pixelSize: BarConfig.fsSm; opacity: 0.65; width: 60 }
+                            Text { text: lr.v; color: Colors.colOnSurface; font.pixelSize: BarConfig.fsSm; font.family: "monospace"; elide: Text.ElideRight; width: parent.width - 66 }
+                        }
+                        LR { k: "IPv4";  v: Network.lanIP }
+                        LR { k: "MAC";   v: Network.lanMAC }
+                        LR { k: "Speed"; v: Network.lanSpeed }
+                    }
+                }
             }
 
             Item { height: BarConfig.sp(8) }

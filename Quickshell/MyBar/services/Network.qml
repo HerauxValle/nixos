@@ -57,10 +57,11 @@ Singleton {
     }
 
     // ── Actions ───────────────────────────────────────────────────────────
-    function refresh() {
-        _monitor.running = false
-        _monitor.running = true
-    }
+    // netmonitor is fully reactive (libnm signals for wifi/lan, a system-bus
+    // PropertiesChanged subscription for bt) and runs continuously, so there
+    // is nothing to poll here -- kept as a no-op so existing callers (popup
+    // open handlers, WiFiSettings.qml) don't need to change.
+    function refresh() {}
 
     function toggleBluetooth() {
         _btToggle.command = ["bluetoothctl", "power", root.btOn ? "off" : "on"]
@@ -127,14 +128,4 @@ Singleton {
 
     function _runAirplaneOn()  { _airplaneOnProc.command  = ["bash", "-c", root._buildAirplaneOnCmd()];  _airplaneOnProc.running  = true }
     function _runAirplaneOff() { _airplaneOffProc.command = ["bash", "-c", root._buildAirplaneOffCmd()]; _airplaneOffProc.running = true }
-
-    // ── Refresh when relevant popup opens ─────────────────────────────────
-    Connections {
-        target: BarConfig
-        function onCurrentPopupChanged() {
-            const p = BarConfig.currentPopup
-            if (p === "controlcenter" || p === "wifi" || p === "bluetooth" || p === "airplanesettings")
-                root.refresh()
-        }
-    }
 }
