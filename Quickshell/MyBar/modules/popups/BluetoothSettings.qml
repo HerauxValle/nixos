@@ -170,7 +170,7 @@ Rectangle {
     // ── Timers ────────────────────────────────────────────────────────────
     Timer { id: scanDotTimer; interval: 500; repeat: true; onTriggered: root.scanDots++ }
     Timer { id: scanStopTimer; interval: 8000; repeat: false
-        onTriggered: { scanOnProc.running = false; scanOffProc.running = true; scanDotTimer.stop(); root.scanning = false; root.refreshDevices() } }
+        onTriggered: { scanOnProc.running = false; scanOffProc.running = true; scanDotTimer.stop(); root.scanning = false; root.refreshDevices(); root.refreshDiscovered() } }
     Timer { id: refreshTimer; interval: 5000; repeat: true; running: true; triggeredOnStart: true; onTriggered: root.refresh() }
 
     // ── Processes ─────────────────────────────────────────────────────────

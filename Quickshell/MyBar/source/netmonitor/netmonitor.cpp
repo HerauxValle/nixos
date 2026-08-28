@@ -214,12 +214,32 @@ static void onDeviceAdded(NMClient *client, NMDevice *dev, gpointer) {
 static std::atomic<bool> g_btRunning{true};
 
 static std::string btPollPowered() {
-    // gdbus call is clean and doesn't require moc/Qt
-    FILE *fp = popen(
+    // Adapter object path varies (hci0, hci1, ...) -- discover it instead of
+    // assuming /org/bluez/hci0, then query Properties.Get on that path.
+    // (An earlier version queried /org/bluez directly, which has no
+    // Adapter1 interface and always failed, so the tile never reflected
+    // real power state.)
+    FILE *afp = popen(
         "dbus-send --system --dest=org.bluez --print-reply "
-        "/org/bluez org.freedesktop.DBus.Properties.Get "
+        "/org/bluez org.freedesktop.DBus.Introspectable.Introspect 2>/dev/null "
+        "| grep -o 'hci[0-9]*' | head -1", "r");
+    std::string adapter = "hci0";
+    if (afp) {
+        char abuf[32] = {};
+        if (fgets(abuf, sizeof(abuf), afp)) {
+            std::string a(abuf);
+            while (!a.empty() && (a.back() == '\n' || a.back() == ' ')) a.pop_back();
+            if (!a.empty()) adapter = a;
+        }
+        pclose(afp);
+    }
+
+    std::string cmd =
+        "dbus-send --system --dest=org.bluez --print-reply "
+        "/org/bluez/" + adapter + " org.freedesktop.DBus.Properties.Get "
         "string:org.bluez.Adapter1 string:Powered 2>/dev/null "
-        "| awk '/variant/{print $3}'", "r");
+        "| awk '/variant/{print $3}'";
+    FILE *fp = popen(cmd.c_str(), "r");
     if (!fp) return "";
     char buf[64] = {};
     if (fgets(buf, sizeof(buf), fp)) { /* read result */ }
