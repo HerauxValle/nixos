@@ -50,6 +50,17 @@ pub fn run(ctx: &Ctx, vault: &Vault, force: bool) -> Result<()> {
         }
         logf!(ctx, "[cas] '{}' isn't mounted but has a mapper — force-closing ...", vault.name);
         vault.close_mapper_checked()?;
+        // `create`'s `udisks::loop_setup` registers a loop device for the
+        // .img that nothing else ever reuses (`cryptsetup open` manages
+        // its own, separate loop internally, torn down with the mapper) --
+        // previously only `delete`/an ephemeral vault's auto-delete ever
+        // called this, so a real vault's create-time loop leaked forever
+        // across every ordinary close, left dangling and unlabeled in
+        // udisks/Dolphin until the vault was deleted or the machine
+        // rebooted. Best-effort/silent by design (see its own doc
+        // comment) -- a no-op here whenever there's nothing left to tear
+        // down.
+        udisks::loop_teardown(&vault.img);
         logf!(ctx, "[✓] '{}' closed", vault.name);
         if Meta::read(&vault.img).ephemeral.unwrap_or(false) {
             delete_ephemeral(ctx, vault);
@@ -65,6 +76,7 @@ pub fn run(ctx: &Ctx, vault: &Vault, force: bool) -> Result<()> {
         vault.close_mapper();
     }
     vault.cleanup_mnt_dir();
+    udisks::loop_teardown(&vault.img);
     logf!(ctx, "[✓] '{}' closed", vault.name);
     if ephemeral {
         delete_ephemeral(ctx, vault);

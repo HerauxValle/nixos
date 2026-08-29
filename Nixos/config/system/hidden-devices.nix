@@ -16,5 +16,6 @@
     "1f06e9b3-01f3-4663-bf03-50857e075bac" # SelfHosted vault -- raw LUKS container
     "7c0c6661-6339-4fda-8cf6-7bff2a49294e" # Media vault -- raw LUKS container
     "fbc05a0b-f324-44bf-af90-b3027163cb84" # Minecraft vault -- raw LUKS container (the .img duplicate)
+    "8c391800-2d3e-4582-b321-474cd9ee879c" # Impure vault -- raw LUKS container (the .img duplicate)
   ];
 }

@@ -1,4 +1,4 @@
-# &desc: "Boot-time systemd jobs from old smg manifest -- 6 Casket vault unlocks with PIN, clean LUKS close on shutdown via execStop."
+# &desc: "Boot-time systemd jobs from old smg manifest -- 7 Casket vault unlocks with PIN, clean LUKS close on shutdown via execStop."
 
 { ... }:
 
@@ -8,7 +8,8 @@
 # for a fully-annotated example entry.
 #
 # Ported straight from the old ~/Projects/Autostart (smg) manifest.json:
-# only its 6 Casket vault-unlock jobs, nothing else. Every other old job
+# only its original 6 Casket vault-unlock jobs, plus Impure (added later,
+# same shared PIN). Every other old job
 # (every self-hosted service restart, PortManager, QBitTorrentNox,
 # FileBrowser) is already superseded by its own native NixOS module
 # (config.vars.services.selfHosted.* autoStart, config.vars.system.ports) -- see this
@@ -84,6 +85,17 @@
         execStop.cmd = ''
           cd /home/herauxvalle/Images || exit 1
           cas Minecraft close --no-log
+        '';
+      };
+
+      impure = {
+        execStart.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          printf %s "314159265" | cas Impure open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Impure.key --no-log
+        '';
+        execStop.cmd = ''
+          cd /home/herauxvalle/Images || exit 1
+          cas Impure close --no-log
         '';
       };
     };

@@ -147,6 +147,7 @@ pub fn run(
     vault: &Vault,
     pw: &str,
     kf_override: Option<&Path>,
+    explicit_kf: bool,
     kf_cache_hint: Option<&Path>,
 ) -> Result<()> {
     if vault.is_mount() {
@@ -185,7 +186,7 @@ pub fn run(
     }
 
     let (secret, mut new_meta) =
-        get_secret(ctx, &vault.img, pw, kf_override, kf_cache_hint, Some(meta.clone()))?;
+        get_secret(ctx, &vault.img, pw, kf_override, explicit_kf, kf_cache_hint, Some(meta.clone()))?;
     check_lockout(ctx, vault, &secret, &mut new_meta)?;
     check_tamper(ctx, vault, &secret, &mut new_meta);
     let updated_meta = new_meta != meta;

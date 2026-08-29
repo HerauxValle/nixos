@@ -125,6 +125,7 @@ pub fn run() -> Result<()> {
             &vault,
             opts.pass.as_deref(),
             kfm.path.as_deref(),
+            opts.keyfile.is_some(),
             effective_kf.as_deref().map(Path::new),
         );
     }
@@ -167,10 +168,24 @@ pub fn run() -> Result<()> {
             let effective_kf = opts.keyfile.clone().or_else(|| meta.keyfile.clone());
             let kfm = ensure_keyfile_mounted(&ctx, effective_kf.as_deref().map(Path::new));
             if meta.is_encryption_bypassed() {
-                commands::open::run(&ctx, &vault, "", kfm.path.as_deref(), effective_kf.as_deref().map(Path::new))
+                commands::open::run(
+                    &ctx,
+                    &vault,
+                    "",
+                    kfm.path.as_deref(),
+                    opts.keyfile.is_some(),
+                    effective_kf.as_deref().map(Path::new),
+                )
             } else {
                 let pw = prompt::get_pw(&ctx, opts.pass.as_deref())?;
-                commands::open::run(&ctx, &vault, &pw, kfm.path.as_deref(), effective_kf.as_deref().map(Path::new))
+                commands::open::run(
+                    &ctx,
+                    &vault,
+                    &pw,
+                    kfm.path.as_deref(),
+                    opts.keyfile.is_some(),
+                    effective_kf.as_deref().map(Path::new),
+                )
             }
         }
 
@@ -197,6 +212,7 @@ pub fn run() -> Result<()> {
                 &vault,
                 opts.pass.as_deref(),
                 kfm.path.as_deref(),
+                opts.keyfile.is_some(),
                 effective_kf.as_deref().map(Path::new),
             )
         }

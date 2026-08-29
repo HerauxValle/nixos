@@ -179,6 +179,7 @@ pub fn get_secret(
     img: &Path,
     pw: &str,
     kf_override: Option<&Path>,
+    explicit_override: bool,
     kf_cache_hint: Option<&Path>,
     meta: Option<Meta>,
 ) -> Result<(Secret, Meta)> {
@@ -202,7 +203,17 @@ pub fn get_secret(
     let mut kf_path = resolve_lexically(&candidate);
 
     if !kf_path.exists() {
-        if ctx.quiet || kf_override.is_some() {
+        // Only a *user-supplied* `--keyfile` justifies a hard failure --
+        // the caller told us exactly where to look, so silently
+        // substituting a prompted path would ignore their explicit
+        // instruction. `kf_override` alone can't distinguish that from
+        // an auto-resolved cached path (e.g. staged from removable media
+        // by `ensure_keyfile_mounted`), which is always `Some` once any
+        // keyfile is on record -- confirmed live: this used to `die!`
+        // on every vault whose cached keyfile path moved/vanished,
+        // instead of prompting like the cache-miss path below already
+        // does correctly.
+        if ctx.quiet || explicit_override {
             die!("keyfile not found: {}", kf_path.display());
         }
         logf!(ctx, "  [!] keyfile not found at cached path: {}", kf_path.display());
