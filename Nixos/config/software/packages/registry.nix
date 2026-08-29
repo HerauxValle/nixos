@@ -52,6 +52,11 @@
             --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath [ pkgs.libxkbcommon ]}
         '';
       });
+      # nixpkgs shows an "Unsupported Environment" popup on every launch
+      # because Bottles is only officially validated inside a sandbox
+      # (e.g. flatpak); this is the package's own sanctioned override to
+      # silence it, not a workaround.
+      bottlesFixed = pkgs.bottles.override { removeWarningPopup = true; };
     };
   };
 }

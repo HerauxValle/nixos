@@ -149,7 +149,6 @@
       trivy = { }; # scans images for known CVEs
       skopeo = { }; # inspect/copy/sign images across registries, no daemon needed
       act = { }; # run GitHub Actions workflows locally via Docker
-      bottles = { }; # Wine prefix manager for running Windows apps/games
 
       # Shell tooling
       shellcheck = { };
@@ -228,6 +227,10 @@
         };
         default = "1.3.14@sd";
       };
+
+      # removeWarningPopup override (see registry.nix) -- still ships its
+      # binary/desktop entry as "bottles" itself, so no alias needed.
+      bottlesFixed = { };
     };
 
     kde = {
