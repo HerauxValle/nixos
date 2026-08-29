@@ -56,6 +56,8 @@ in
     direnv.silent = cfg.direnv.silent;
 
     nix-ld.enable = cfg.nixLd.enable;
+
+    dconf.enable = cfg.dconf.enable;
   };
 
   # Some programs.* options only exist under home-manager, not as NixOS
@@ -77,5 +79,7 @@ in
     };
 
     services.easyeffects.enable = cfg.easyeffects.enable;
+
+    dconf.settings = cfg.dconf.settings;
   };
 }

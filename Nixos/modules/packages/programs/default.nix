@@ -169,10 +169,17 @@
       description = "home-manager services.easyeffects.enable.";
     };
 
-    dconf.enable = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "programs.dconf.enable -- globally enables the dconf configuration system.";
+    dconf = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "programs.dconf.enable -- globally enables the dconf configuration system.";
+      };
+      settings = lib.mkOption {
+        type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
+        default = { };
+        description = "home-manager dconf.settings -- keyed by dconf path (e.g. \"org/gnome/desktop/interface\"), see dconf.settings(5) for value shapes.";
+      };
     };
 
 
