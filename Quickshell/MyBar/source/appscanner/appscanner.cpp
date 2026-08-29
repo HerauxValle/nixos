@@ -99,9 +99,11 @@ static void scanPathDir(const std::string &dir, std::vector<App> &out) {
             if (parseDesktopFile(path, app))
                 out.push_back(app);
         } else if (hasSuffix(name, kAppImage)) {
-            out.push_back({name.substr(0, name.size() - kAppImage.size()), path});
+            // quoted: launcher runs Exec unquoted in `bash -c`, and a raw
+            // path with spaces would otherwise split into separate argv
+            out.push_back({name.substr(0, name.size() - kAppImage.size()), "'" + path + "'"});
         } else if (hasSuffix(name, kExecutable)) {
-            out.push_back({name.substr(0, name.size() - kExecutable.size()), path});
+            out.push_back({name.substr(0, name.size() - kExecutable.size()), "'" + path + "'"});
         }
     }
     closedir(d);
