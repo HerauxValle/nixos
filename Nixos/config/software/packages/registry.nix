@@ -40,6 +40,7 @@
       # packages.nix instead, since "sd" is the short muscle-memory name
       # here rather than the project's own name.
       seed = inputs.seed.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      hlm = inputs.hardlinks.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
       # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups
       # (shifted symbol keybinds like ctrl+dollar/asterisk/exclam).

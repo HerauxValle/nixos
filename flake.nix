@@ -53,6 +53,7 @@
     ltree.url = "path:./Scripts/LTree";
     casket.url = "path:./Scripts/Casket";
     seed.url = "path:./Scripts/Seed";
+    hardlinks.url = "path:./Scripts/Managers/Hardlinks";
 
     # ================================ INFO-ABOUT ================================
     # CLAUDE-DESKTOP | CLAUDE-COWORK

@@ -231,6 +231,8 @@
       # removeWarningPopup override (see registry.nix) -- still ships its
       # binary/desktop entry as "bottles" itself, so no alias needed.
       bottlesFixed = { };
+
+      hlm = { }; # hardlink manager -- Scripts/Managers/Hardlinks
     };
 
     kde = {
