@@ -1,9 +1,1 @@
-{
-    "github.copilot.nextEditSuggestions.enabled": false,
-    "github.copilot.enable": {
-        "*": false,
-        "plaintext": false,
-        "markdown": false,
-        "scminput": false
-    }
-}
+/nix/store/fh42i7zryi6ai19bl6200jh1jdhi8rrc-home-manager-files/.config/Code/User/settings.json

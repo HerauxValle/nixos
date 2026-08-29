@@ -54,6 +54,10 @@ declare -A BACKUPS=(
     # Media scraper -- lives on the Storage drive, not under Dotfiles, so
     # it's otherwise untracked/unbacked-up.
     ["scrape.py"]="$HOME/Drives/Storage/Scraped/scrape.py"
+
+    # NFS Unbound save data -- lives inside the game's Proton prefix
+    # (compatdata/1846380), not Nix/git-tracked at all otherwise.
+    ["nfs-unbound-savegame"]="$HOME/Applications/Steam/steamapps/compatdata/*/pfx/drive_c/users/steamuser/Documents/Need For Speed(TM) Unbound/SaveGame/savegame"
 )
 
 # A file's hash is just its content hash. A directory's hash is the combined
@@ -143,12 +147,29 @@ _sync() {
     _set_cached_hash "$src" "$hash"
 }
 
+# Resolves a `*`-glob path (e.g. an unstable Steam app ID in a compatdata
+# path) to its first match. Plain paths with no glob chars pass through
+# unchanged, matched or not -- _sync's own [ -e "$src" ] check handles those.
+_resolve_glob() {
+    local path="$1"
+    case "$path" in
+        *'*'*)
+            local m
+            m="$(compgen -G "$path" | head -n1)"
+            printf '%s' "${m:-$path}"
+            ;;
+        *)
+            printf '%s' "$path"
+            ;;
+    esac
+}
+
 mode="${1:-}"
 
 case "$mode" in
     --restore)
         for key in "${!BACKUPS[@]}"; do
-            target="${BACKUPS[$key]}"
+            target="$(_resolve_glob "${BACKUPS[$key]}")"
             src="$BACKUP_DIR/$key"
             if [ -e "$src" ]; then
                 echo "restoring: $key -> $target"
@@ -161,7 +182,7 @@ case "$mode" in
     "")
         mkdir -p "$BACKUP_DIR"
         for key in "${!BACKUPS[@]}"; do
-            target="${BACKUPS[$key]}"
+            target="$(_resolve_glob "${BACKUPS[$key]}")"
             dest="$BACKUP_DIR/$key"
             if [ -e "$target" ]; then
                 echo "backing up: $key <- $target"
