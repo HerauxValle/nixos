@@ -149,7 +149,10 @@ in
             cookies_path = "${config.home.homeDirectory}/.config/gamdl/cookies.txt";
             wvd_path = "${config.home.homeDirectory}/.config/gamdl/device.wvd";
             output_path = "${config.home.homeDirectory}/Music/AppleMusic";
-            song_codec_priority = "alac";
+            # "piority" is not a typo -- it matches gamdl's actual (typo'd)
+            # CliConfig field name; the correct spelling gets silently
+            # dropped as an unknown key and reset to gamdl's default.
+            song_codec_piority = "alac";
             download_mode = "ytdlp";
             cover_format = "jpg";
             album_folder_template = "{artist}/{album}";
