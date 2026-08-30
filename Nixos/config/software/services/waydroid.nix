@@ -1,7 +1,6 @@
 # &desc: "Waydroid / android emulator"
 
 { ... }:
-
 {
-  services.waydroid.enable = true;
+  virtualisation.waydroid.enable = true;
 }
