@@ -42,6 +42,8 @@
       seed = inputs.seed.packages.${pkgs.stdenv.hostPlatform.system}.default;
       hlm = inputs.hardlinks.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
+      gamdl = pkgs.callPackage ./custom/gamdl.nix { };
+
       # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups
       # (shifted symbol keybinds like ctrl+dollar/asterisk/exclam).
       # libxkbcommon is loaded dynamically, so it must be injected into

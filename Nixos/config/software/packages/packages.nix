@@ -234,6 +234,8 @@
       bottlesFixed = { };
 
       hlm = { }; # hardlink manager -- Scripts/Managers/Hardlinks
+
+      gamdl = { }; # Apple Music downloader, not in nixpkgs -- see custom/gamdl.nix; config at ~/.gamdl/config.ini (home/apps.nix)
     };
 
     kde = {
