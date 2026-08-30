@@ -1,22 +1,39 @@
 # &desc: "Symlinks home-manager XDG config directories to Dotfiles subdirs (Hyprland, Kitty, Mpv, Neovim, Scripts, Fastfetch, etc)."
 
-{ pkgs, lib, config, osConfig, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  osConfig,
+  ...
+}:
 
 let
   # Mime types routed to a single default app -- one genAttrs call per
   # category instead of repeating the same desktop file on every line.
   imageMimeTypes = [
-    "image/png" "image/jpeg" "image/webp" "image/gif" "image/bmp"
-    "image/tiff" "image/avif" "image/heic" "image/svg+xml"
+    "image/png"
+    "image/jpeg"
+    "image/webp"
+    "image/gif"
+    "image/bmp"
+    "image/tiff"
+    "image/avif"
+    "image/heic"
+    "image/svg+xml"
   ];
   videoMimeTypes = [
-    "video/mp4" "video/x-matroska" "video/webm" "video/quicktime"
-    "video/mpeg" "video/x-msvideo" "video/ogg"
+    "video/mp4"
+    "video/x-matroska"
+    "video/webm"
+    "video/quicktime"
+    "video/mpeg"
+    "video/x-msvideo"
+    "video/ogg"
   ];
   textMimeTypes = [ "text/plain" ];
 
-  defaultAppsByType = mimeTypes: desktopFile:
-    lib.genAttrs mimeTypes (_: [ desktopFile ]);
+  defaultAppsByType = mimeTypes: desktopFile: lib.genAttrs mimeTypes (_: [ desktopFile ]);
 in
 {
   # x-scheme-handler/magnet -- overrides the stock qBittorrent GUI
@@ -57,9 +74,10 @@ in
     "x-scheme-handler/https" = [ "vivaldi-stable.desktop" ];
     "x-scheme-handler/about" = [ "vivaldi-stable.desktop" ];
     "x-scheme-handler/unknown" = [ "vivaldi-stable.desktop" ];
-  } // defaultAppsByType imageMimeTypes "org.kde.gwenview.desktop"
-    // defaultAppsByType videoMimeTypes "mpv.desktop"
-    // defaultAppsByType textMimeTypes "code.desktop";
+  }
+  // defaultAppsByType imageMimeTypes "org.kde.gwenview.desktop"
+  // defaultAppsByType videoMimeTypes "mpv.desktop"
+  // defaultAppsByType textMimeTypes "code.desktop";
   xdg.configFile."mimeapps.list".force = true;
 
   xdg.configFile = {
@@ -104,6 +122,7 @@ in
         ColorScheme=BreezeDarkTransparent
       '';
     };
+
   };
 
   xdg.dataFile = {
@@ -116,6 +135,32 @@ in
     # Properties > Compatibility after a version bump.
     "Steam/compatibilitytools.d/GE-Proton".source = pkgs.proton-ge-bin;
   };
+
+  # gamdl reads/rewrites ~/.gamdl/config.ini (configparser INI, not JSON --
+  # see gamdl/cli/config_file.py) and adds any of its own missing default
+  # keys back into the file on every run, which fails if the file is a
+  # read-only symlink into the Nix store. Copy it in via activation instead
+  # of xdg.configFile so it stays a normal writable file gamdl can update.
+  home.activation.gamdlConfig =
+    let
+      gamdlConfigIni = pkgs.writeText "gamdl-config.ini" (
+        lib.generators.toINI { } {
+          gamdl = {
+            cookies_path = "${config.home.homeDirectory}/.config/gamdl/cookies.txt";
+            wvd_path = "${config.home.homeDirectory}/.config/gamdl/device.wvd";
+            output_path = "${config.home.homeDirectory}/Music/AppleMusic";
+            song_codec_priority = "alac";
+            download_mode = "ytdlp";
+            cover_format = "jpg";
+            album_folder_template = "{artist}/{album}";
+            single_disc_file_template = "{track:02d} - {title}";
+          };
+        }
+      );
+    in
+    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      install -Dm644 ${gamdlConfigIni} "$HOME/.gamdl/config.ini"
+    '';
 
   # ~/Applications/Desktop holds hand-placed/imperative .desktop files (e.g.
   # per-instance Prism Launcher shortcuts) -- not tracked in Dotfiles, and

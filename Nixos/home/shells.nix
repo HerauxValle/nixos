@@ -11,4 +11,5 @@
   };
 
   home.file.".bashrc".source = ../../Shells/Bash/bashrc;
+  home.file."Music/AppleMusic/.keep".text = "";
 }

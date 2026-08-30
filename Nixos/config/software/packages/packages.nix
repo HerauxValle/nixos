@@ -112,6 +112,7 @@
       pinta = { };
 
       # Media
+      ffmpeg-full = { };
       mpv = { };
       oculante = { };
       youtube-tui = { };
