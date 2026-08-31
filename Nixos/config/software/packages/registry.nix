@@ -44,6 +44,23 @@
 
       gamdl = pkgs.callPackage ./custom/gamdl.nix { };
 
+      # Custom-composed Android SDK -- android-studio-full's own bundled
+      # SDK (see packages.nix) only ships platforms 33-37. This adds
+      # API 28 (Pie) with the google_apis_playstore system image
+      # declaratively, since Android Studio's SDK Manager can't write
+      # into the (read-only) Nix store to install it itself. Exposed to
+      # Android Studio via ANDROID_SDK_ROOT/ANDROID_HOME in
+      # sessionVariables.nix.
+      androidSdk =
+        (pkgs.androidenv.composeAndroidPackages {
+          platformVersions = [ "28" ];
+          systemImageTypes = [ "google_apis_playstore" ];
+          abiVersions = [ "x86_64" ];
+          includeSystemImages = true;
+          includeEmulator = false; # already provided by android-studio-full's SDK
+          includeSources = false;
+        }).androidsdk;
+
       # kitty dlopen()s libxkbcommon at runtime for keysym-name lookups
       # (shifted symbol keybinds like ctrl+dollar/asterisk/exclam).
       # libxkbcommon is loaded dynamically, so it must be injected into

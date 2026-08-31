@@ -242,6 +242,8 @@
       hlm = { }; # hardlink manager -- Scripts/Managers/Hardlinks
 
       gamdl = { }; # Apple Music downloader, not in nixpkgs -- see custom/gamdl.nix; config at ~/.gamdl/config.ini (home/apps.nix)
+
+      androidSdk = { }; # API 28 (Pie) + google_apis_playstore image, see registry.nix -- pointed at via ANDROID_SDK_ROOT in sessionVariables.nix
     };
 
     kde = {
