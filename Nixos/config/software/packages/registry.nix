@@ -46,15 +46,22 @@
 
       # Custom-composed Android SDK -- android-studio-full's own bundled
       # SDK (see packages.nix) only ships platforms 33-37. This adds
-      # API 28 (Pie) with the google_apis_playstore system image
+      # API 28 (Pie) with the plain google_apis system image
       # declaratively, since Android Studio's SDK Manager can't write
       # into the (read-only) Nix store to install it itself. Exposed to
       # Android Studio via ANDROID_SDK_ROOT/ANDROID_HOME in
       # sessionVariables.nix.
+      #
+      # Deliberately google_apis, not google_apis_playstore -- the
+      # playstore variant is signed as a production/"user" build and
+      # permanently refuses `adb root` ("cannot run as root in
+      # production builds"). Plain google_apis is a userdebug build,
+      # rootable, at the cost of no Play Store app / Play Billing /
+      # Play Integrity testing.
       androidSdk =
         (pkgs.androidenv.composeAndroidPackages {
           platformVersions = [ "28" ];
-          systemImageTypes = [ "google_apis_playstore" ];
+          systemImageTypes = [ "google_apis" ];
           abiVersions = [ "x86_64" ];
           includeSystemImages = true;
           # ANDROID_SDK_ROOT/ANDROID_HOME (sessionVariables.nix) points
