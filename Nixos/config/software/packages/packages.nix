@@ -63,6 +63,12 @@
 
       dotnet-sdk = { };
 
+      # Android SDK -- nixpkgs.config.android_sdk.accept_license lives in
+      # modules/nix/settings.nix. Emulator needs the "kvm" group, already
+      # granted in modules/system/users/users.nix.
+      android-studio-full = { };
+      android-tools = { };
+
       # Build tools
       gcc = { };
       gnumake = { };
