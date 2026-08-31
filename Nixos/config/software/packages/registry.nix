@@ -57,7 +57,11 @@
           systemImageTypes = [ "google_apis_playstore" ];
           abiVersions = [ "x86_64" ];
           includeSystemImages = true;
-          includeEmulator = false; # already provided by android-studio-full's SDK
+          # ANDROID_SDK_ROOT/ANDROID_HOME (sessionVariables.nix) points
+          # Studio at ONLY this SDK, not android-studio-full's bundled
+          # one -- the emulator must live here too, or Virtual Device
+          # Manager greys itself out entirely for lacking it.
+          includeEmulator = true;
           includeSources = false;
         }).androidsdk;
 
