@@ -139,7 +139,6 @@
       tmux = { }; # attaches to the Minecraft servers' live console (mcli log <name>) -- nix-minecraft's own management system, not a terminal-multiplexing pick
 
       # Virtualization
-      android-tools = { }; # adb/fastboot -- Waydroid shell access (config/software/services/waydroid.nix)
       qemu = { };
       virtiofsd = { };
       OVMF = { };

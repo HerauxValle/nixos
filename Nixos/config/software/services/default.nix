@@ -8,6 +8,5 @@
     ./polkit.nix
     ./resolved.nix
     ./systemd-user-defaults.nix
-    ./waydroid.nix
   ];
 }
