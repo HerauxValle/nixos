@@ -115,7 +115,12 @@ fn find_uuid(devices: &[Value], probe: &str) -> Option<String> {
     for d in devices {
         let label = d.get("label").and_then(Value::as_str).unwrap_or("");
         let uuid = d.get("uuid").and_then(Value::as_str).unwrap_or("");
-        if (!label.is_empty() && probe.contains(label)) || (!uuid.is_empty() && probe.contains(uuid)) {
+        // Match the full trailing path component, not a bare substring --
+        // a loop device labeled "/" (e.g. waydroid's rootfs) is trivially
+        // contained in every path and would otherwise win by tree order.
+        if (!label.is_empty() && probe.ends_with(&format!("/{label}")))
+            || (!uuid.is_empty() && probe.ends_with(&format!("/{uuid}")))
+        {
             return Some(uuid.to_string());
         }
         if let Some(children) = d.get("children").and_then(Value::as_array) {
