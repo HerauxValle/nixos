@@ -75,8 +75,16 @@ in
       serviceConfig = {
         Type = "simple";
         WorkingDirectory = cfg.srcDir;
-        ExecStart = "${pkgs.docker-compose}/bin/docker-compose up --build --remove-orphans";
-        ExecStop = "${pkgs.docker-compose}/bin/docker-compose down";
+        # Invoked through `docker compose`, not the standalone
+        # docker-compose binary directly -- plugin discovery (finding
+        # buildx, needed for the Dockerfile's --mount=type=cache) lives in
+        # the docker CLI's dispatcher, not in the compose plugin binary
+        # itself when run standalone. Confirmed: standalone docker-compose
+        # logs "Docker Compose requires buildx plugin to be installed" and
+        # fails even with DOCKER_BUILDKIT=1 set, despite `docker info`
+        # already listing buildx as a registered plugin.
+        ExecStart = "${pkgs.docker}/bin/docker compose up --build --remove-orphans";
+        ExecStop = "${pkgs.docker}/bin/docker compose down";
         Restart = "on-failure";
         RestartSec = 5;
       };
