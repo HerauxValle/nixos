@@ -71,6 +71,7 @@ in
         # rejects it ("the --mount option requires BuildKit").
         DOCKER_BUILDKIT = "1";
         COMPOSE_DOCKER_CLI_BUILD = "1";
+        WRAPPER_RUNTIME_TRACE = "1";
       };
       serviceConfig = {
         Type = "simple";
