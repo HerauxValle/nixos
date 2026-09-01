@@ -66,6 +66,11 @@ in
         TARGET_ARCH = cfg.targetArch;
         HTTP_PORT = toString cfg.httpPort;
         DECRYPT_PORT = toString cfg.decryptPort;
+        # Dockerfile uses --mount=type=cache, a BuildKit-only Dockerfile
+        # directive -- plain classic-builder `docker-compose up --build`
+        # rejects it ("the --mount option requires BuildKit").
+        DOCKER_BUILDKIT = "1";
+        COMPOSE_DOCKER_CLI_BUILD = "1";
       };
       serviceConfig = {
         Type = "simple";
