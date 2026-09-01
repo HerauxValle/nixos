@@ -1,4 +1,4 @@
-# &desc: "gamdl (Apple Music downloader) -- not in nixpkgs; builds from GitHub via maturin/pyo3 for its Rust ammuxer extension, plus dataclass-click which nixpkgs also lacks."
+# &desc: "gamdl (Apple Music downloader) -- not in nixpkgs; builds from GitHub via maturin/pyo3 for its Rust ammuxer extension, plus dataclass-click which nixpkgs also lacks. Also pins pymp4 to the original beardypig PyPI release (1.4.0) + construct 2.8.8: nixpkgs ships the devine-dl pymp4 fork patched for construct 2.10.70, but that combo still throws StringError building type=b\"pssh\" inside pywidevine's PSSH box construction. beardypig pymp4 1.4.0 + construct 2.8.8 is the combo verified working (tested in ~/.impure/python-venvs/widevine)."
 
 {
   pkgs,
@@ -9,6 +9,54 @@
 }:
 
 let
+  construct288 = python3Packages.buildPythonPackage rec {
+    pname = "construct";
+    version = "2.8.8";
+    format = "setuptools";
+
+    src = pkgs.fetchurl {
+      url = "https://files.pythonhosted.org/packages/b6/2c/66bab4fef920ef8caa3e180ea601475b2cbbe196255b18f1c58215940607/construct-2.8.8.tar.gz";
+      hash = "sha256-G4S4FH9v0VvPZLc3w+isUQCBGtgMgwy0slRRQFEcQVc=";
+    };
+
+    doCheck = false;
+    pythonImportsCheck = [ "construct" ];
+
+    meta = {
+      description = "Powerful declarative parser (and builder) for binary data (legacy 2.8 API)";
+      homepage = "https://construct.readthedocs.org/";
+      license = lib.licenses.mit;
+    };
+  };
+
+  pymp4Old = python3Packages.buildPythonPackage rec {
+    pname = "pymp4";
+    version = "1.4.0";
+
+    src = pkgs.fetchurl {
+      url = "https://files.pythonhosted.org/packages/aa/a2/27fea39af627c0ce5dbf6108bf969ea8f5fc9376d29f11282a80e3426f1d/pymp4-1.4.0-py3-none-any.whl";
+      hash = "sha256-NAFmbB4ql6yU3/sYxaXcvUbQpDbaUnLTeKb59lBt0S0=";
+    };
+
+    format = "wheel";
+    dependencies = [ construct288 ];
+
+    pythonImportsCheck = [ "pymp4" ];
+
+    meta = {
+      description = "Python library for parsing and manipulating MP4 files (pre-2.10 construct API)";
+      homepage = "https://github.com/beardypig/pymp4";
+      license = lib.licenses.asl20;
+    };
+  };
+
+  pywidevineFixed = python3Packages.pywidevine.overridePythonAttrs (old: {
+    patches = [ ];
+    dependencies = (builtins.filter (p: (p.pname or "") != "pymp4") old.dependencies) ++ [
+      pymp4Old
+    ];
+  });
+
   dataclass-click = python3Packages.buildPythonPackage rec {
     pname = "dataclass-click";
     version = "1.0.4";
@@ -67,7 +115,7 @@ python3Packages.buildPythonApplication rec {
     m3u8
     mutagen
     pillow
-    pywidevine
+    pywidevineFixed
     structlog
     yt-dlp
   ];
