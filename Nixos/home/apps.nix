@@ -146,8 +146,8 @@ in
       gamdlConfigIni = pkgs.writeText "gamdl-config.ini" (
         lib.generators.toINI { } {
           gamdl = {
-            cookies_path = "${config.home.homeDirectory}/.config/gamdl/cookies.txt";
-            wvd_path = "${config.home.homeDirectory}/.config/gamdl/device.wvd";
+            cookies_path = "${config.home.homeDirectory}/.gamdl/cookies.txt";
+            wvd_path = "${config.home.homeDirectory}/.gamdl/device.wvd";
             output_path = "${config.home.homeDirectory}/Music/AppleMusic";
             # "piority" is not a typo -- it matches gamdl's actual (typo'd)
             # CliConfig field name; the correct spelling gets silently

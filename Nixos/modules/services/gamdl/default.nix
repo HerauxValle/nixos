@@ -20,8 +20,8 @@
 
     srcDir = lib.mkOption {
       type = lib.types.str;
-      default = "${config.vars.identity.homeDirectory}/.local/share/gamdl-wrapper";
-      description = "Writable directory holding the staged wrapper-v2 source (Dockerfile, compose.yaml, vendor AOSP libs -- restaged from the pinned Nix store copy on every rebuild) plus rootfs/system/lib64 and data/, which are real runtime state (Apple's staged .so files, session cache) and are never touched by that restaging.";
+      default = "${config.vars.identity.homeDirectory}/.gamdl/wrapper";
+      description = "Writable directory holding the staged wrapper-v2 source (Dockerfile, compose.yaml, vendor AOSP libs -- restaged from the pinned Nix store copy on every rebuild) plus rootfs/system/lib64 and data/, which are real runtime state (Apple's staged .so files, session cache) and are never touched by that restaging. Lives under ~/.gamdl (gamdl's own config dir) so all of gamdl's state -- CLI config, cookies/wvd, and the wrapper -- sits in one place.";
     };
 
     httpPort = lib.mkOption {
