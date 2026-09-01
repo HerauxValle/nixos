@@ -34,7 +34,7 @@ let
     fi
     bundle="$1"
     shift
-    exec "${wrapperSrc}/tools/extract-libs.sh" \
+    exec ${pkgs.bash}/bin/bash "${wrapperSrc}/tools/extract-libs.sh" \
       --bundle "$bundle" \
       --arch ${cfg.targetArch} \
       --out "${cfg.srcDir}/rootfs/system/lib64" \
