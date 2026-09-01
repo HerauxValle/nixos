@@ -3,5 +3,5 @@
 { ... }:
 
 {
-  config.vars.packages.programs.easyeffects.enable = true;
+  config.vars.packages.programs.easyeffects.enable = false;
 }
