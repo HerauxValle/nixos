@@ -46,6 +46,7 @@ alias owui="~/Scripts/Self-hosted/OpenWebUI/main.sh"                    #&help:"
 alias ollama="~/Scripts/Self-hosted/Ollama/main.sh"                     #&help:"Manage Ollama service"
 alias immich="~/Scripts/Self-hosted/Immich/main.sh"                     #&help:"Manage Immich service"
 alias odysseus="~/Scripts/Self-hosted/Odysseus/main.sh"                 #&help:"Manage Odysseus service"
+alias amcli="~/Downloads/GAMDL/gamdl.sh"                                #&help:"Apple Music downloader (gamdl+wrapper-v2) -- start/stop/auth/download"
 alias modules="~/Scripts/Self-hosted/General/scripts/main.sh --module"  #&help:"Run self-hosted module scripts"
 alias startall="comfyui --restart --no-debug && owui --restart --no-debug && ollama --restart --no-debug" #&help:"Restart ComfyUI + OpenWebUI + Ollama"
 
