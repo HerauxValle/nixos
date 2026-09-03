@@ -175,6 +175,15 @@ async def bridge_device(path: str) -> None:
         active.pop(path, None)
 
 
+def needs_bridging(path: str) -> bool:
+    # Not just "not in active" -- a path can be in `active` pointing at a
+    # task that has already finished (device unplugged, bridge_device's
+    # finally block popped it). See handle_udev's "remove" branch below
+    # for why this is now actually reliable instead of racy.
+    task = active.get(path)
+    return task is None or task.done()
+
+
 def schedule_bridge(devnode: str, loop: asyncio.AbstractEventLoop) -> None:
     active[devnode] = asyncio.run_coroutine_threadsafe(bridge_device(devnode), loop)
 
@@ -191,14 +200,31 @@ async def main() -> None:
 
     def handle_udev(action: str, device: "pyudev.Device") -> None:
         # pyudev.MonitorObserver runs this callback in its own thread, not
-        # the asyncio loop's thread -- asyncio.ensure_future() would raise
-        # "no current event loop" there. run_coroutine_threadsafe is the
-        # correct cross-thread scheduling call.
+        # the asyncio loop's thread -- asyncio.ensure_future()/calling
+        # task.cancel() directly would either raise ("no current event
+        # loop") or not be thread-safe. run_coroutine_threadsafe /
+        # loop.call_soon_threadsafe are the correct cross-thread calls.
         devnode = device.device_node
         if not devnode or "/event" not in devnode:
             return
-        if action == "add" and devnode not in active:
+        if action == "add" and needs_bridging(devnode):
             schedule_bridge(devnode, loop)
+        elif action == "remove":
+            # Cancel the task immediately instead of waiting for its
+            # async_read_loop's next read() to fail on its own -- that
+            # wait was the actual bug behind a fast disconnect+reconnect
+            # sometimes never getting noticed (confirmed live: a
+            # controller was unplugged and immediately re-paired over
+            # Bluetooth, and the bridge kept thinking the old, now-dead
+            # connection was still the active one). Cancelling here makes
+            # cleanup (and active.pop() in the finally block) happen
+            # synchronously with the "remove" event instead of depending
+            # on the OS eventually surfacing a read error, which is what
+            # actually created the race with the immediately-following
+            # "add" for the new connection.
+            task = active.get(devnode)
+            if task is not None and not task.done():
+                loop.call_soon_threadsafe(task.cancel)
 
     observer = pyudev.MonitorObserver(monitor, handle_udev)
     observer.start()
