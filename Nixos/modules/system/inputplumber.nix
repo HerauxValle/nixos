@@ -1,6 +1,6 @@
 # &desc: "Declares + wires config.vars.system.inputplumber (services.inputplumber daemon + a DualShock4-to-XInput override profile) -- system-wide controller-translation, remaps the PS4 pad into a virtual XInput device so Wine/Bottles/Proton apps see a gamepad without per-game Steam Input."
 
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 
 # One flat file -- same reasoning as ./openrazer.nix. Real value lives in
 # config/system/inputplumber.nix.
@@ -36,6 +36,16 @@
 # 60-ps4_gamepad.yaml, but hidraw match via idVendor/idProduct which -
 # unlike the input-subsystem name/id attrs - do live directly on the
 # hidraw sysfs node) so only the translated xb360 device is visible.
+#
+# Still didn't work after that: `blocked: true` doesn't hide/chmod the raw
+# nodes itself -- InputPlumber tries to do that separately via a real
+# `setfacl` call to strip the seat's uaccess ACL, and the systemd unit's
+# PATH (just coreutils/findutils/grep/sed/systemd) never included the acl
+# package, so every hide attempt failed with "Unable to determine setfacl
+# command location" (confirmed in the journal) and the raw hidraw/event
+# nodes stayed fully world-accessible via logind's uaccess grant -- Wine
+# kept opening them directly alongside our virtual xb360 device regardless
+# of `blocked: true`. Fix: give the unit's PATH access to setfacl.
 {
   options.vars.system.inputplumber.enable = lib.mkOption {
     type = lib.types.bool;
@@ -45,6 +55,7 @@
 
   config = lib.mkIf config.vars.system.inputplumber.enable {
     services.inputplumber.enable = true;
+    systemd.services.inputplumber.path = [ pkgs.acl ];
 
     environment.etc."inputplumber/devices.d/05-dualshock4_xinput.yaml".text = ''
       # yaml-language-server: $schema=https://raw.githubusercontent.com/ShadowBlip/InputPlumber/main/rootfs/usr/share/inputplumber/schema/composite_device_v1.json
