@@ -69,6 +69,21 @@
           Type = "simple";
           User = cfg.user;
           ExecStart = "${cfg.package}/bin/scc-daemon " + lib.concatStringsSep " " cfg.daemonFlags + " start";
+          # scc-daemon defaults every newly-seen controller to the
+          # "Desktop" profile (mouse/keyboard emulation) rather than the
+          # gamepad-passthrough one -- without this it silently never
+          # feeds the virtual Xbox360 device at all. Retry loop because
+          # the daemon's control socket isn't ready the instant the
+          # process starts.
+          ExecStartPost = pkgs.writeShellScript "scc-set-xbox-profile" ''
+            for i in $(seq 1 20); do
+              if ${cfg.package}/bin/scc set-profile "XBox Controller" 2>/dev/null; then
+                exit 0
+              fi
+              sleep 0.5
+            done
+            exit 1
+          '';
           Restart = cfg.restart;
           RestartSec = cfg.restartSec;
         };
