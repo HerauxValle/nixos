@@ -71,6 +71,18 @@
 # places, but the source confirms the composite device only ever loads
 # ONE capability map, from its own top-level field, applied globally to
 # all its sources. Moved it there below.
+#
+# Still no effect -- RUST_LOG=debug showed exactly why: the by-ID lookup
+# path ("Found capability mapping in config: ds4_correct_axes") only ever
+# checks one hardcoded path, "./rootfs/usr/share/inputplumber/
+# capability_maps", relative to the daemon's cwd -- it never falls
+# through to /etc/inputplumber/capability_maps.d (that dir only feeds a
+# separate, generic bulk-scan-and-match code path, not by-ID lookups).
+# Since our override was only ever placed under /etc, by-ID resolution
+# always failed silently and the broken built-in default translation kept
+# running unchanged. Fix: point the unit's WorkingDirectory at a
+# declarative /etc/inputplumber/rootfs tree that reproduces the exact
+# relative structure the by-ID lookup goes looking for.
 {
   options.vars.system.inputplumber.enable = lib.mkOption {
     type = lib.types.bool;
@@ -81,6 +93,9 @@
   config = lib.mkIf config.vars.system.inputplumber.enable {
     services.inputplumber.enable = true;
     systemd.services.inputplumber.path = [ pkgs.acl ];
+    # Matches the by-ID capability_map_id lookup's hardcoded relative
+    # search path -- see the comment above.
+    systemd.services.inputplumber.serviceConfig.WorkingDirectory = "/etc/inputplumber";
 
     environment.etc."inputplumber/devices.d/05-dualshock4_xinput.yaml".text = ''
       # yaml-language-server: $schema=https://raw.githubusercontent.com/ShadowBlip/InputPlumber/main/rootfs/usr/share/inputplumber/schema/composite_device_v1.json
@@ -130,7 +145,7 @@
         - xb360
     '';
 
-    environment.etc."inputplumber/capability_maps.d/ds4_correct_axes.yaml".text = ''
+    environment.etc."inputplumber/rootfs/usr/share/inputplumber/capability_maps/ds4_correct_axes.yaml".text = ''
       # yaml-language-server: $schema=https://raw.githubusercontent.com/ShadowBlip/InputPlumber/main/rootfs/usr/share/inputplumber/schema/capability_map_v2.json
       version: 2
       kind: CapabilityMap
