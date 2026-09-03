@@ -69,11 +69,14 @@
         description = "Gamepad-to-XInput bridge (any real controller -> virtual Xbox360 device)";
         wantedBy = [ "multi-user.target" ];
         after = [ "multi-user.target" ];
-        # setfacl -- confirmed live (game running, camera actively
-        # drifting) that Wine also has the raw controller's /dev/hidraw
-        # open directly, alongside our clean virtual pad. The script
-        # strips its seat ACL so only root can still open it.
-        path = [ pkgs.acl ];
+        # setfacl + chmod -- confirmed live (game running, camera
+        # actively drifting) that Wine also has the raw controller's
+        # /dev/hidraw AND touchpad/motion evdev nodes open directly,
+        # alongside our clean virtual pad. The script strips their seat
+        # ACL (hidraw) and chmods out world access (the touchpad/motion
+        # nodes turned out to have crw-rw-rw- base permissions, where
+        # ACL stripping alone changes nothing).
+        path = [ pkgs.acl pkgs.coreutils ];
         serviceConfig = {
           Type = "simple";
           # Root: needs /dev/uinput write access and the ability to open

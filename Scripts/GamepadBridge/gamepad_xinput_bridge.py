@@ -95,6 +95,12 @@ def hide_sibling_raw_devices(devnode: str) -> None:
                 if not sib_node or sib_node == devnode:
                     continue
                 subprocess.run(["setfacl", "-b", sib_node], check=False)
+                # The touchpad/motion evdev nodes turned out to have
+                # world-readable base permission bits (crw-rw-rw-,
+                # confirmed live) -- stripping ACL entries alone changes
+                # nothing when "other" already has access regardless.
+                # chmod is the only thing that actually blocks it.
+                subprocess.run(["chmod", "o-rw", sib_node], check=False)
     except Exception as ex:
         print(f"Failed to hide sibling raw devices for {devnode}: {ex}", flush=True)
 
