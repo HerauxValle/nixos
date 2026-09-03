@@ -46,6 +46,23 @@
 # nodes stayed fully world-accessible via logind's uaccess grant -- Wine
 # kept opening them directly alongside our virtual xb360 device regardless
 # of `blocked: true`. Fix: give the unit's PATH access to setfacl.
+#
+# L2/R2 were dragging the camera and sticking until another input reset
+# state. Root cause: without an explicit `capability_map_id`, InputPlumber
+# falls back to a generic evdev->gamepad translation that doesn't know
+# the DS4's real axis layout, and (same bug as the bundled
+# dinput_generic.yaml capability map) ends up reading the trigger axes as
+# right-stick movement. Confirmed by capturing raw events on the virtual
+# xb360 device while pressing R2 alone: ABS code 3/4 (RightStick X/Y)
+# fired, not a trigger axis. hid_playstation's real DS4 layout is
+# ABS_X/Y=LeftStick, ABS_RX/RY=RightStick, ABS_Z=LeftTrigger,
+# ABS_RZ=RightTrigger -- our own capability map below is dinput_generic's
+# button/dpad/stick-click section verbatim (that part was already
+# correct) with the axis codes fixed to match hid_playstation's actual
+# layout instead of the older ABS_GAS/ABS_BRAKE-trigger convention
+# dinput_generic assumes. No West/North swap included -- buttons already
+# worked correctly under the old implicit default, so this only changes
+# what was actually broken (the axes).
 {
   options.vars.system.inputplumber.enable = lib.mkOption {
     type = lib.types.bool;
@@ -72,6 +89,7 @@
             vendor_id: "054c"
             product_id: "{09cc,05c4}"
             handler: event*
+          capability_map_id: ds4_correct_axes
 
         - group: gamepad
           blocked: true
@@ -102,6 +120,115 @@
         auto_manage: true
       target_devices:
         - xb360
+    '';
+
+    environment.etc."inputplumber/capability_maps.d/ds4_correct_axes.yaml".text = ''
+      # yaml-language-server: $schema=https://raw.githubusercontent.com/ShadowBlip/InputPlumber/main/rootfs/usr/share/inputplumber/schema/capability_map_v2.json
+      version: 2
+      kind: CapabilityMap
+      name: DualShock 4 (correct axis layout)
+      id: ds4_correct_axes
+      mapping:
+        - name: Guide Button
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_MODE, value_type: button }
+          target_event: { gamepad: { button: Guide } }
+
+        - name: South Button
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_SOUTH, value_type: button }
+          target_event: { gamepad: { button: South } }
+
+        - name: West Button
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_WEST, value_type: button }
+          target_event: { gamepad: { button: West } }
+
+        - name: North Button
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_NORTH, value_type: button }
+          target_event: { gamepad: { button: North } }
+
+        - name: East Button
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_EAST, value_type: button }
+          target_event: { gamepad: { button: East } }
+
+        - name: Start Button
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_START, value_type: button }
+          target_event: { gamepad: { button: Start } }
+
+        - name: Select Button
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_SELECT, value_type: button }
+          target_event: { gamepad: { button: Select } }
+
+        - name: Right Bumper
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_TR, value_type: button }
+          target_event: { gamepad: { button: RightBumper } }
+
+        - name: Left Bumper
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_TL, value_type: button }
+          target_event: { gamepad: { button: LeftBumper } }
+
+        # hid_playstation reports L2/R2 as analog axes ABS_Z / ABS_RZ, not
+        # the ABS_BRAKE/ABS_GAS the bundled dinput_generic map assumes.
+        - name: Right Trigger
+          source_events:
+            - evdev: { event_type: ABS, event_code: ABS_RZ, value_type: trigger }
+          target_event: { gamepad: { trigger: { name: RightTrigger } } }
+
+        - name: Left Trigger
+          source_events:
+            - evdev: { event_type: ABS, event_code: ABS_Z, value_type: trigger }
+          target_event: { gamepad: { trigger: { name: LeftTrigger } } }
+
+        # Right stick is ABS_RX/ABS_RY on hid_playstation, not ABS_Z/ABS_RZ
+        # (those are the triggers, mapped above).
+        - name: Right Stick
+          source_events:
+            - evdev: { event_type: ABS, event_code: ABS_RX, value_type: joystick_x }
+            - evdev: { event_type: ABS, event_code: ABS_RY, value_type: joystick_y }
+          target_event: { gamepad: { axis: { name: RightStick } } }
+
+        - name: Left Stick
+          source_events:
+            - evdev: { event_type: ABS, event_code: ABS_X, value_type: joystick_x }
+            - evdev: { event_type: ABS, event_code: ABS_Y, value_type: joystick_y }
+          target_event: { gamepad: { axis: { name: LeftStick } } }
+
+        - name: Right Stick Click
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_THUMBR, value_type: button }
+          target_event: { gamepad: { button: RightStick } }
+
+        - name: Left Stick Click
+          source_events:
+            - evdev: { event_type: KEY, event_code: BTN_THUMBL, value_type: button }
+          target_event: { gamepad: { button: LeftStick } }
+
+        - name: Dpad Left
+          source_events:
+            - evdev: { event_type: ABS, event_code: ABS_HAT0X, value_type: button, axis_direction: negative }
+          target_event: { gamepad: { button: DPadLeft } }
+
+        - name: Dpad Right
+          source_events:
+            - evdev: { event_type: ABS, event_code: ABS_HAT0X, value_type: button, axis_direction: positive }
+          target_event: { gamepad: { button: DPadRight } }
+
+        - name: Dpad Down
+          source_events:
+            - evdev: { event_type: ABS, event_code: ABS_HAT0Y, value_type: button, axis_direction: positive }
+          target_event: { gamepad: { button: DPadDown } }
+
+        - name: Dpad Up
+          source_events:
+            - evdev: { event_type: ABS, event_code: ABS_HAT0Y, value_type: button, axis_direction: negative }
+          target_event: { gamepad: { button: DPadUp } }
     '';
   };
 }
