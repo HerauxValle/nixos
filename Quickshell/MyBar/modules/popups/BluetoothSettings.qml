@@ -180,23 +180,53 @@ Rectangle {
     // keeps the process (and discovery) alive for the scan window instead.
     Process { id: scanOnProc;   command: ["bluetoothctl", "--timeout", "8", "scan", "on"] }
     Process { id: scanOffProc;  command: ["bluetoothctl", "scan", "off"] }
+    // Bluetooth SIG-standard UUID for the HID (Human Interface Device)
+    // profile -- the same constant every Bluetooth stack uses to mean
+    // "this is a keyboard/mouse/gamepad-type device", not anything
+    // controller-specific. bluetoothctl's `connect <mac> <profile>`
+    // only accepts the raw UUID, no friendly alias exists.
+    readonly property string hidProfileUuid: "00001124-0000-1000-8000-00805f9b34fb"
+
     Process { id: powerOnProc;  command: ["bluetoothctl", "power", "on"];  onExited: (c,s) => { if (c===0) { root.btPowered = true;  refreshTimer.restart() } } }
     Process { id: powerOffProc; command: ["bluetoothctl", "power", "off"]; onExited: (c,s) => { if (c===0) root.btPowered = false } }
-    // Connect a paired device -- also (re-)trusts it first. BlueZ won't
+    // Only retry the explicit HID profile connect (see below) for
+    // devices that actually advertise it -- `bluetoothctl info` lists a
+    // device's UUIDs, so grep that first. Without this a non-HID device
+    // (headphones, etc.) would just burn ~5s retrying a profile it will
+    // never have, before falling through to its normal connection.
+    function hidRetrySnippet(mac) {
+        return "if bluetoothctl info " + mac + " | grep -qi " + hidProfileUuid + "; then " +
+               "for i in 1 2 3 4 5; do " +
+               "bluetoothctl connect " + mac + " " + hidProfileUuid + " && break; " +
+               "sleep 1; done; fi"
+    }
+
+    // Connect a paired device -- also (re-)trusts it first, then
+    // explicitly connects the HID input profile as its own step (only
+    // for devices that have it, see hidRetrySnippet above). BlueZ won't
     // auto-attach some profiles (e.g. HID gamepads) to an untrusted
     // device even after the link connects, and trust can silently get
-    // reset (e.g. after certain disconnect/re-pair cycles), so a plain
-    // "connect" with no trust step can succeed at the link layer while
-    // never actually producing an input device. Idempotent if already
-    // trusted.
+    // reset (e.g. after certain disconnect/re-pair cycles). Separately,
+    // a plain "connect" establishes the ACL link but its *implicit* HID
+    // profile attach frequently fails outright (bluetoothd logs
+    // "control_connect_cb(): Host is down") even once trusted --
+    // confirmed live that the HID profile has to be connected as an
+    // explicit follow-up call, with a short retry since it can still
+    // race the link coming up. Trust and the retry are both idempotent/
+    // harmless once already connected.
     Process { id: btConnectProc;  property string mac: ""
-        command: ["bash", "-c", "bluetoothctl trust " + mac + " && bluetoothctl connect " + mac]
+        command: ["bash", "-c",
+            "bluetoothctl trust " + mac + " && bluetoothctl connect " + mac + "; " + hidRetrySnippet(mac)
+        ]
         onExited: (c,s) => refreshTimer.restart()
     }
     Process { id: disconnectProc; property string mac: ""; command: ["bluetoothctl", "disconnect", mac]; onExited: (c,s) => refreshTimer.restart() }
-    // Pair a new device: pair → trust → connect (all via bluetoothctl so PIN prompts work via agent)
+    // Pair a new device: pair → trust → connect → explicit HID profile
+    // retry (see btConnectProc above for why the last step is needed).
     Process { id: btPairProc; property string mac: ""
-        command: ["bash", "-c", "bluetoothctl pair " + mac + " && bluetoothctl trust " + mac + " && bluetoothctl connect " + mac]
+        command: ["bash", "-c",
+            "bluetoothctl pair " + mac + " && bluetoothctl trust " + mac + " && bluetoothctl connect " + mac + "; " + hidRetrySnippet(mac)
+        ]
         onExited: (c,s) => refreshTimer.restart()
     }
 
