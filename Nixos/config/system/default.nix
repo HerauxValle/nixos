@@ -1,4 +1,4 @@
-# &desc: "System config imports -- ACL grants, autostart jobs, hidden devices, keyring setup, mountpoints, openrazer, port forwarding, and swap."
+# &desc: "System config imports -- ACL grants, autostart jobs, hidden devices, keyring setup, mountpoints, openrazer, port forwarding, sc-controller, and swap."
 
 { ... }:
 
@@ -11,6 +11,7 @@
     ./mountpoints.nix
     ./openrazer.nix
     ./ports.nix
+    ./sc-controller.nix
     ./swap.nix
   ];
 }
