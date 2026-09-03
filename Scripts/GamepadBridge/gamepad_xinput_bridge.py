@@ -75,19 +75,26 @@ def hide_sibling_raw_devices(devnode: str) -> None:
     try:
         context = pyudev.Context()
         device = pyudev.Devices.from_device_file(context, devnode)
-        # The physical controller: whichever ancestor is either a hidraw
-        # device's own USB/Bluetooth HID parent, or (for the evdev
-        # gamepad node itself) walk up to the "hid" subsystem parent.
+        # Walk up to the physical controller's own "hid" subsystem
+        # parent -- the common ancestor of the gamepad, touchpad, and
+        # motion-sensor evdev nodes *and* the raw hidraw device, however
+        # many tree levels apart they each are.
         parent = device.find_parent("hid")
         if parent is None:
             return
-        for sibling in context.list_devices(parent=parent):
-            sib_node = sibling.device_node
-            if not sib_node or sib_node == devnode:
-                continue
-            if sibling.subsystem not in ("input", "hidraw"):
-                continue
-            subprocess.run(["setfacl", "-b", sib_node], check=False)
+        parent_path = str(parent.sys_path)
+        # list_devices(parent=...) only returns *direct* children, which
+        # misses the touchpad/motion nodes (confirmed live: their ACLs
+        # were untouched after a first pass using that) -- a sysfs path
+        # prefix match catches every descendant regardless of depth.
+        for subsystem in ("input", "hidraw"):
+            for sibling in context.list_devices(subsystem=subsystem):
+                if not str(sibling.sys_path).startswith(parent_path):
+                    continue
+                sib_node = sibling.device_node
+                if not sib_node or sib_node == devnode:
+                    continue
+                subprocess.run(["setfacl", "-b", sib_node], check=False)
     except Exception as ex:
         print(f"Failed to hide sibling raw devices for {devnode}: {ex}", flush=True)
 
