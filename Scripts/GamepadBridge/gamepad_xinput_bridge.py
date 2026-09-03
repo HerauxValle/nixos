@@ -89,8 +89,31 @@ async def bridge_device(path: str) -> None:
 
     ui = UInput(events=XBOX360_CAPS, name=BRIDGE_NAME, vendor=0x045E, product=0x028E, version=0x0110)
     try:
+        # python-evdev's UInput does not reliably honor per-axis AbsInfo
+        # ranges passed at construction (confirmed by hand: every axis
+        # ends up with the same declared range regardless of what's
+        # requested per-code) -- and separately, the real DS4 kernel
+        # driver reports ALL axes (sticks included, not just triggers) on
+        # a 0..255 range, not the -32768..32767 a genuine xpad-driven
+        # Xbox 360 pad uses. So every axis, not just triggers, needs
+        # rescaling from the source's real range to whatever range the
+        # output device actually ended up with -- both read live via
+        # ioctl (dev.absinfo / ui.device.absinfo) instead of assumed.
+        abs_rescale: dict[int, tuple[int, int, int, int]] = {}
+        for code in (e.ABS_X, e.ABS_Y, e.ABS_RX, e.ABS_RY, e.ABS_Z, e.ABS_RZ):
+            try:
+                src = dev.absinfo(code)
+                dst = ui.device.absinfo(code)
+            except Exception:
+                continue
+            abs_rescale[code] = (src.min, max(src.max - src.min, 1), dst.min, dst.max - dst.min)
+
         async for event in dev.async_read_loop():
-            if event.type in (e.EV_KEY, e.EV_ABS, e.EV_SYN):
+            if event.type == e.EV_ABS and event.code in abs_rescale:
+                src_min, src_span, dst_min, dst_span = abs_rescale[event.code]
+                scaled = dst_min + int((event.value - src_min) / src_span * dst_span)
+                ui.write(e.EV_ABS, event.code, scaled)
+            elif event.type in (e.EV_KEY, e.EV_ABS, e.EV_SYN):
                 ui.write_event(event)
     except OSError:
         pass
@@ -105,7 +128,13 @@ async def bridge_device(path: str) -> None:
         active.pop(path, None)
 
 
+def schedule_bridge(devnode: str, loop: asyncio.AbstractEventLoop) -> None:
+    active[devnode] = asyncio.run_coroutine_threadsafe(bridge_device(devnode), loop)
+
+
 async def main() -> None:
+    loop = asyncio.get_running_loop()
+
     for path in evdev.list_devices():
         active[path] = asyncio.ensure_future(bridge_device(path))
 
@@ -114,11 +143,15 @@ async def main() -> None:
     monitor.filter_by(subsystem="input")
 
     def handle_udev(action: str, device: "pyudev.Device") -> None:
+        # pyudev.MonitorObserver runs this callback in its own thread, not
+        # the asyncio loop's thread -- asyncio.ensure_future() would raise
+        # "no current event loop" there. run_coroutine_threadsafe is the
+        # correct cross-thread scheduling call.
         devnode = device.device_node
         if not devnode or "/event" not in devnode:
             return
         if action == "add" and devnode not in active:
-            active[devnode] = asyncio.ensure_future(bridge_device(devnode))
+            schedule_bridge(devnode, loop)
 
     observer = pyudev.MonitorObserver(monitor, handle_udev)
     observer.start()
