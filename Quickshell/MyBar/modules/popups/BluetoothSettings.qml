@@ -182,8 +182,17 @@ Rectangle {
     Process { id: scanOffProc;  command: ["bluetoothctl", "scan", "off"] }
     Process { id: powerOnProc;  command: ["bluetoothctl", "power", "on"];  onExited: (c,s) => { if (c===0) { root.btPowered = true;  refreshTimer.restart() } } }
     Process { id: powerOffProc; command: ["bluetoothctl", "power", "off"]; onExited: (c,s) => { if (c===0) root.btPowered = false } }
-    // Connect a paired device
-    Process { id: btConnectProc;  property string mac: ""; command: ["bluetoothctl", "connect",    mac]; onExited: (c,s) => refreshTimer.restart() }
+    // Connect a paired device -- also (re-)trusts it first. BlueZ won't
+    // auto-attach some profiles (e.g. HID gamepads) to an untrusted
+    // device even after the link connects, and trust can silently get
+    // reset (e.g. after certain disconnect/re-pair cycles), so a plain
+    // "connect" with no trust step can succeed at the link layer while
+    // never actually producing an input device. Idempotent if already
+    // trusted.
+    Process { id: btConnectProc;  property string mac: ""
+        command: ["bash", "-c", "bluetoothctl trust " + mac + " && bluetoothctl connect " + mac]
+        onExited: (c,s) => refreshTimer.restart()
+    }
     Process { id: disconnectProc; property string mac: ""; command: ["bluetoothctl", "disconnect", mac]; onExited: (c,s) => refreshTimer.restart() }
     // Pair a new device: pair → trust → connect (all via bluetoothctl so PIN prompts work via agent)
     Process { id: btPairProc; property string mac: ""
