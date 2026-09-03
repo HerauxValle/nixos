@@ -2,7 +2,7 @@
 
 # Controller Support Saga -- Full Writeup
 
-**Date:** 2026-09-03, roughly 13:00 to 17:35 CEST (~4.5 hours).
+**Date:** 2026-09-03, roughly 13:00 to 17:57 CEST (~5 hours).
 **Goal:** any real gamepad (PlayStation DualShock 4 confirmed, wired or Bluetooth,
 any number simultaneously) works as a proper XInput controller in Bottles/Wine,
 specifically for Elden Ring, with zero manual steps after boot -- plug in (or
@@ -509,6 +509,46 @@ the systemd service's `path`.
 nodes after the fix, matching what the earlier live-running-game inspection
 showed was open (i.e., the fix targets exactly the four nodes that were
 observed to be the problem, not a broader guess).
+
+### 4.5 -- Bug: fast disconnect+reconnect sometimes never noticed (reconnect race)
+
+**Symptom:** unplugged the wired controller, paired the wireless one fresh
+through MyBar's panel (showed "Connected" in the UI, red status dot), but the
+controller didn't work in-game. Checked the bridge's journal: the *last* line
+was `"Unbridging Wireless Controller"` -- no new `"Bridging"` line ever
+followed, even though a real kernel input device existed for the fresh
+reconnection (confirmed via `/proc/bus/input/devices`).
+
+Root cause: the original hotplug handler only listened for udev `"add"`
+actions, and relied purely on `bridge_device()`'s own `async_read_loop()`
+eventually hitting an `OSError` (when the old device disappears) to trigger
+its `finally` block's `active.pop(path, None)` cleanup. That's a real race: if
+a device disconnects and a *new* connection reusing the same event-node path
+arrives before the OS has surfaced a read failure on the old (now-dead) file
+descriptor, the udev `"add"` handler sees `devnode in active` (pointing at the
+stale, not-yet-cleaned-up old task) and skips bridging the new connection
+entirely -- the bridge silently gets stuck thinking a dead connection is still
+the live one.
+
+**First fix attempt, rejected:** a periodic 2-second rescan loop (re-run
+`evdev.list_devices()` + bridge anything not currently tracked, as a
+polling-based safety net). Explicitly rejected per instruction -- "loops are
+not instant and cause performance drops". Correct call: it papered over the
+race with polling latency instead of actually fixing the ordering problem, and
+adds needless recurring work for a case that should just be event-driven.
+
+**Real fix:** handle udev `"remove"` actions explicitly, and actively cancel
+the corresponding task the moment `"remove"` fires (`loop.call_soon_threadsafe
+(task.cancel)`, since the udev callback runs in `pyudev.MonitorObserver`'s own
+thread, not the asyncio loop's) instead of waiting for the read loop to
+eventually notice on its own. Python guarantees `bridge_device()`'s `finally`
+block runs on cancellation same as on a normal exception, so `active.pop()`
+happens synchronously with the `"remove"` event -- by the time the *following*
+`"add"` event for the new connection arrives, the dict entry is already gone,
+no race window at all. `needs_bridging()` (used by both the `"add"` handler
+and the startup scan) now also treats a `.done()` task as available, not just
+a missing dict key, in case some other code path leaves a finished task
+sitting in `active`.
 
 ---
 

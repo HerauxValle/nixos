@@ -38,16 +38,16 @@
     enabled = true;
 
     jobs = {
-      vaults = {
-        execStart.cmd = ''
-          cd /home/herauxvalle/Images || exit 1
-          printf %s "314159265" | cas Vaults open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/vaults.key --no-log
-        '';
-        execStop.cmd = ''
-          cd /home/herauxvalle/Images || exit 1
-          cas Vaults close --no-log
-        '';
-      };
+      # vaults = {
+      #   execStart.cmd = ''
+      #     cd /home/herauxvalle/Images || exit 1
+      #     printf %s "314159265" | cas Vaults open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/vaults.key --no-log
+      #   '';
+      #   execStop.cmd = ''
+      #     cd /home/herauxvalle/Images || exit 1
+      #     cas Vaults close --no-log
+      #   '';
+      # };
 
       media = {
         execStart.cmd = ''
@@ -88,16 +88,16 @@
         '';
       };
 
-      impure = {
-        execStart.cmd = ''
-          cd /home/herauxvalle/Images || exit 1
-          printf %s "314159265" | cas Impure open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Impure.key --no-log
-        '';
-        execStop.cmd = ''
-          cd /home/herauxvalle/Images || exit 1
-          cas Impure close --no-log
-        '';
-      };
+      # impure = {
+      #   execStart.cmd = ''
+      #     cd /home/herauxvalle/Images || exit 1
+      #     printf %s "314159265" | cas Impure open --keyfile /run/media/herauxvalle/VirtualKeys/vaults/Impure.key --no-log
+      #   '';
+      #   execStop.cmd = ''
+      #     cd /home/herauxvalle/Images || exit 1
+      #     cas Impure close --no-log
+      #   '';
+      # };
     };
   };
 }
