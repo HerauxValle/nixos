@@ -56,20 +56,6 @@ XBOX360_CAPS = {
 EXCLUDE_NAME_SUBSTRINGS = ("Touchpad", "Motion Sensors", "Consumer Control", "System Control")
 BRIDGE_NAME = "Microsoft X-Box 360 pad"
 
-# The DS4's main gamepad node sends more than just what a real Xbox pad
-# has -- e.g. BTN_TL2/BTN_TR2 fire as *digital* trigger-press buttons
-# alongside the analog ABS_Z/ABS_RZ axis for the same L2/R2 press (XInput
-# has no such digital trigger button at all). Forwarding a KEY code the
-# output device never declared makes the uinput write fail -- and that
-# exception was propagating out of the whole async_read_loop, silently
-# killing the bridge task for that controller mid-session. The stick/
-# trigger axes then stay frozen at whatever they were at the moment of
-# the crash forever (no more events ever arrive to re-center them),
-# which looks exactly like "the camera keeps rotating on its own".
-# Confirmed live: DS4's capabilities() listed BTN_TL2 (312) and BTN_TR2
-# (313) on the same node as ABS_Z/ABS_RZ, neither declared here.
-DECLARED_KEYS = frozenset(XBOX360_CAPS[e.EV_KEY])
-
 active: dict[str, asyncio.Task] = {}
 
 
@@ -123,26 +109,12 @@ async def bridge_device(path: str) -> None:
             abs_rescale[code] = (src.min, max(src.max - src.min, 1), dst.min, dst.max - dst.min)
 
         async for event in dev.async_read_loop():
-            # Any single write raising here (undeclared code, whatever)
-            # must never kill the whole loop -- that's exactly what froze
-            # the stick/trigger axes mid-press before. Skip that one
-            # event and keep going instead.
-            try:
-                if event.type == e.EV_ABS and event.code in abs_rescale:
-                    src_min, src_span, dst_min, dst_span = abs_rescale[event.code]
-                    scaled = dst_min + int((event.value - src_min) / src_span * dst_span)
-                    ui.write(e.EV_ABS, event.code, scaled)
-                elif event.type == e.EV_KEY:
-                    if event.code in DECLARED_KEYS:
-                        ui.write_event(event)
-                    # else: e.g. BTN_TL2/BTN_TR2 (digital trigger-press,
-                    # only the analog ABS_Z/ABS_RZ above matters for
-                    # XInput) or a touchpad-click code -- not declared on
-                    # the output device on purpose, drop it.
-                elif event.type in (e.EV_ABS, e.EV_SYN):
-                    ui.write_event(event)
-            except OSError as ex:
-                print(f"Dropped event {event} for {dev.name}: {ex}", flush=True)
+            if event.type == e.EV_ABS and event.code in abs_rescale:
+                src_min, src_span, dst_min, dst_span = abs_rescale[event.code]
+                scaled = dst_min + int((event.value - src_min) / src_span * dst_span)
+                ui.write(e.EV_ABS, event.code, scaled)
+            elif event.type in (e.EV_KEY, e.EV_ABS, e.EV_SYN):
+                ui.write_event(event)
     except OSError:
         pass
     finally:
