@@ -20,6 +20,8 @@
 # (045e:028e), which Wine's XInput layer recognizes natively.
 
 import asyncio
+import subprocess
+
 import evdev
 import pyudev
 from evdev import UInput, ecodes as e
@@ -59,6 +61,37 @@ BRIDGE_NAME = "Microsoft X-Box 360 pad"
 active: dict[str, asyncio.Task] = {}
 
 
+def hide_sibling_raw_devices(devnode: str) -> None:
+    # Confirmed live (Elden Ring running, camera actively drifting): Wine
+    # has BOTH our clean bridged virtual pad open AND the controller's
+    # raw /dev/hidraw node open at the same time, for both the wired and
+    # wireless controller. Grabbing the evdev gamepad node only stops
+    # events flowing through *that* node -- it does nothing about the
+    # sibling hidraw device (same physical unit, completely separate
+    # device file) or the touchpad/motion evdev nodes, all of which stay
+    # fully readable by anything else, Wine included, the whole time.
+    # Strip the seat's uaccess ACL grant from every sibling device under
+    # the same physical parent so only root can still open them.
+    try:
+        context = pyudev.Context()
+        device = pyudev.Devices.from_device_file(context, devnode)
+        # The physical controller: whichever ancestor is either a hidraw
+        # device's own USB/Bluetooth HID parent, or (for the evdev
+        # gamepad node itself) walk up to the "hid" subsystem parent.
+        parent = device.find_parent("hid")
+        if parent is None:
+            return
+        for sibling in context.list_devices(parent=parent):
+            sib_node = sibling.device_node
+            if not sib_node or sib_node == devnode:
+                continue
+            if sibling.subsystem not in ("input", "hidraw"):
+                continue
+            subprocess.run(["setfacl", "-b", sib_node], check=False)
+    except Exception as ex:
+        print(f"Failed to hide sibling raw devices for {devnode}: {ex}", flush=True)
+
+
 def is_candidate(device: "evdev.InputDevice") -> bool:
     if device.name == BRIDGE_NAME:
         return False
@@ -86,6 +119,7 @@ async def bridge_device(path: str) -> None:
         print(f"Failed to grab {path}: {ex}", flush=True)
         dev.close()
         return
+    hide_sibling_raw_devices(path)
 
     ui = UInput(events=XBOX360_CAPS, name=BRIDGE_NAME, vendor=0x045E, product=0x028E, version=0x0110)
     try:

@@ -69,6 +69,11 @@
         description = "Gamepad-to-XInput bridge (any real controller -> virtual Xbox360 device)";
         wantedBy = [ "multi-user.target" ];
         after = [ "multi-user.target" ];
+        # setfacl -- confirmed live (game running, camera actively
+        # drifting) that Wine also has the raw controller's /dev/hidraw
+        # open directly, alongside our clean virtual pad. The script
+        # strips its seat ACL so only root can still open it.
+        path = [ pkgs.acl ];
         serviceConfig = {
           Type = "simple";
           # Root: needs /dev/uinput write access and the ability to open
