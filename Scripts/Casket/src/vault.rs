@@ -2,6 +2,8 @@
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
+use sha2::{Digest, Sha256};
+
 use crate::config::MAPPER_PREFIX;
 use crate::die;
 use crate::error::Result;
@@ -222,7 +224,23 @@ impl Vault {
     /// up later; nothing else in this codebase reads/writes that region
     /// regardless).
     ///
-    /// Locks a sibling `<name>.img.lock` file, NOT `self.img` itself.
+    /// Locks a file under `/run/cas/`, NOT a sibling of `self.img` and
+    /// NOT `self.img` itself.
+    ///
+    /// It used to flock a `<name>.img.lock` sibling of `.img` -- correct
+    /// (a plain sibling file avoids both the fcntl-drops-early bug above
+    /// and the cryptsetup-deadlock below), but it leaves a permanent
+    /// 0-byte file sitting next to every vault image forever, since
+    /// deleting it after use would reopen the same TOCTOU race locking
+    /// was added to close (see below). Moving it to `/run/cas/` (tmpfs,
+    /// wiped on every reboot) gets the same safety with nothing left
+    /// behind on disk -- keyed by a hash of the vault's *canonicalized*
+    /// parent dir + filename (not `self.img` verbatim) so two paths that
+    /// resolve to the same real vault (a symlinked `base`, `../foo` vs.
+    /// `foo`) still serialize against each other, and so `create` -- run
+    /// before `self.img` exists -- can still compute a stable key purely
+    /// from the (already-existing) parent directory.
+    ///
     /// This used to flock the `.img` directly, on the (false) assumption
     /// that cryptsetup only ever touches `/dev/loopX` and never the
     /// backing file. That's wrong for the direct-file invocations this
@@ -235,22 +253,40 @@ impl Vault {
     /// `auth passwd`, `settings encryption enable`, ...) -- confirmed
     /// live via strace: our process holds the flock, `cryptsetup
     /// luksFormat` blocks forever re-acquiring it on its own fd. A
-    /// sibling lock file sidesteps this entirely since cryptsetup never
-    /// opens it.
+    /// dedicated lock file (whether a sibling or, now, under `/run/cas/`)
+    /// sidesteps this entirely since cryptsetup never opens it.
     ///
     /// `create(true)` -- `create`'s CLI path locks before the vault image
     /// exists at all, to close the same TOCTOU race on the "already
     /// exists" check that motivated locking in the first place. Since the
-    /// lock file is now separate from the image, `create` no longer needs
-    /// a 0-byte image placeholder for this -- `vault.img.exists()` alone
-    /// is enough again.
+    /// lock file is keyed off the parent directory (always present) and
+    /// never the image itself, `create` needs no 0-byte image placeholder
+    /// for this -- `vault.img.exists()` alone is enough.
+    /// Stable identifier for `/run/cas/` lock files: SHA-256 of the
+    /// vault's canonicalized parent directory joined with its image
+    /// filename. Canonicalizing only the parent (not `self.img`) means
+    /// this works even when `self.img` doesn't exist yet (`create`'s
+    /// whole reason for locking in the first place) -- `base` (the
+    /// directory a vault lives in) always exists by the time any command
+    /// resolves a `Vault`. Falls back to the parent as given, uncanon-
+    /// icalized, if it can't be resolved (e.g. removed mid-race) rather
+    /// than failing the lock outright -- worst case two different-looking
+    /// paths to the same vault get separate locks, no worse than the old
+    /// sibling-file scheme ever guaranteed.
+    fn lock_key(&self) -> String {
+        let parent = self.img.parent().unwrap_or(Path::new("."));
+        let resolved = std::fs::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf());
+        let key_path = resolved.join(self.img.file_name().unwrap_or_default());
+        let mut hasher = Sha256::new();
+        hasher.update(key_path.to_string_lossy().as_bytes());
+        format!("{:x}", hasher.finalize())
+    }
+
     pub fn lock_exclusive(&self) -> Result<VaultLock> {
         use std::os::unix::io::AsRawFd;
-        let lock_path = {
-            let mut p = self.img.clone().into_os_string();
-            p.push(".lock");
-            PathBuf::from(p)
-        };
+        let lock_dir = Path::new("/run/cas");
+        std::fs::create_dir_all(lock_dir)?;
+        let lock_path = lock_dir.join(format!("{}.lock", self.lock_key()));
         let file = std::fs::OpenOptions::new().write(true).create(true).open(&lock_path)?;
         // SAFETY: `file` stays open for exactly as long as the lock is
         // held (owned by the returned guard) -- `flock` releases the
