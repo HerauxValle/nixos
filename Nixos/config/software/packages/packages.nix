@@ -107,6 +107,7 @@
       jq = { };
 
       # Desktop
+      bibata-cursors = { }; # Bibata-Modern-Ice cursor theme, see env.lua HYPRCURSOR_THEME
       grim = { };
       slurp = { };
       wl-clipboard = { };

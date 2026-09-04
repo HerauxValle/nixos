@@ -3,9 +3,10 @@
 -- Cursor
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
+hl.env("XCURSOR_THEME", "Bibata-Modern-Ice")
+hl.env("HYPRCURSOR_THEME", "Bibata-Modern-Ice")
 
 -- Force dark mode for Chromium/Vivaldi
-hl.env("XCURSOR_THEME", "Adwaita")
 -- hl.env("QT_STYLE_OVERRIDE", "Adwaita-Dark")
 
 -- Wayland Support
