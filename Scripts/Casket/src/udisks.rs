@@ -21,8 +21,25 @@ pub fn real_user_ids() -> (u32, u32) {
     (uid, gid)
 }
 
+/// Chowns `path` back to the real invoking user. SUDO_UID/GID are only
+/// reliably set when `cas` self-elevated through the actual `sudo`
+/// binary (see `elevate()` in main.rs) -- any other route to root (a
+/// pre-existing root shell, a script that already ran as root, etc.)
+/// leaves them unset, and falling back to our own euid then silently
+/// stamps root ownership instead of erroring. Since `path`'s parent
+/// directory always belongs to the real user already (`cas create`
+/// only ever writes into a directory the invoking user picked, e.g.
+/// under their home), that ownership is a reliable fallback that
+/// doesn't depend on how this process got its root privilege.
 pub fn chown_to_real_user(path: &Path) -> Result<()> {
-    let (uid, gid) = real_user_ids();
+    let (uid, gid) = if std::env::var("SUDO_UID").is_ok() {
+        real_user_ids()
+    } else {
+        use std::os::unix::fs::MetadataExt;
+        let parent = path.parent().unwrap_or(path);
+        let meta = std::fs::metadata(parent)?;
+        (meta.uid(), meta.gid())
+    };
     std::os::unix::fs::chown(path, Some(uid), Some(gid))?;
     Ok(())
 }
