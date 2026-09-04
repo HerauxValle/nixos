@@ -56,7 +56,7 @@
         '';
         execStop.cmd = ''
           cd /home/herauxvalle/Images || exit 1
-          cas Media close --no-log
+          cas Media close --force --no-log
         '';
       };
 
@@ -67,7 +67,7 @@
         '';
         execStop.cmd = ''
           cd /home/herauxvalle/Images || exit 1
-          cas SelfHosted close --no-log
+          cas SelfHosted close --force --no-log
         '';
       };
 
@@ -84,7 +84,7 @@
         '';
         execStop.cmd = ''
           cd /home/herauxvalle/Images || exit 1
-          cas Minecraft close --no-log
+          cas Minecraft close --force --no-log
         '';
       };
 
