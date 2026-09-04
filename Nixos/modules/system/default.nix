@@ -1,4 +1,4 @@
-# &desc: "System module schema -- imports acl-grants, autostart, bluetooth, storage mounts, networking, port forwarding, device hiding, openrazer, gamepad-bridge, power, swap, and users submodules."
+# &desc: "System module schema -- imports acl-grants, autostart, bluetooth, ddc, storage mounts, networking, port forwarding, device hiding, openrazer, gamepad-bridge, power, swap, and users submodules."
 
 { config, pkgs, ... }:
 
@@ -7,6 +7,7 @@
     ./acl-grants.nix
     ./autostart
     ./bluetooth.nix
+    ./ddc.nix
     ./gamepad-bridge.nix
     ./hidden-devices.nix
     ./mountpoints
