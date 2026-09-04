@@ -12,7 +12,7 @@
     # venvDir, srcDir, and dataDir (minus the settings.yml symlink)
     # removed automatically; the real settings.yml inside the vault is
     # never touched by that teardown.
-    enabled = true;
+    enabled = false;
 
     # Plain, always-available -- holds nothing on its own but the
     # settings.yml symlink.
