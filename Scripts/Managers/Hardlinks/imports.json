@@ -1,3 +1,4 @@
 {
-  "jellyfin": "/home/herauxvalle/Dotfiles/Scripts/Managers/Hardlinks/links/jellyfin.json"
+  "jellyfin": "/home/herauxvalle/Dotfiles/Scripts/Managers/Hardlinks/links/jellyfin.json",
+  "applications": "/home/herauxvalle/Dotfiles/Scripts/Managers/Hardlinks/links/applications.json"
 }

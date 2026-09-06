@@ -119,6 +119,8 @@
       pinta = { };
 
       # Media
+      blender = { };
+      f3d = { };
       ffmpeg-full = { };
       mpv = { };
       oculante = { };

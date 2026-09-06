@@ -32,6 +32,10 @@ let
     "video/ogg"
   ];
   textMimeTypes = [ "text/plain" ];
+  model3dMimeTypes = [
+    "model/obj"
+    "model/gltf-binary"
+  ];
 
   defaultAppsByType = mimeTypes: desktopFile: lib.genAttrs mimeTypes (_: [ desktopFile ]);
 in
@@ -77,7 +81,8 @@ in
   }
   // defaultAppsByType imageMimeTypes "org.kde.gwenview.desktop"
   // defaultAppsByType videoMimeTypes "mpv.desktop"
-  // defaultAppsByType textMimeTypes "code.desktop";
+  // defaultAppsByType textMimeTypes "code.desktop"
+  // defaultAppsByType model3dMimeTypes "f3d.desktop";
   xdg.configFile."mimeapps.list".force = true;
 
   xdg.configFile = {
