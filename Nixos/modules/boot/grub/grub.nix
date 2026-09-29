@@ -39,7 +39,7 @@ in
   boot.loader = {
 
     timeout = if cfg.hidden then 0 else 5;
-    efi.canTouchEfiVariables = true;
+    efi.canTouchEfiVariables = false;
 
     grub = {
 
@@ -48,6 +48,12 @@ in
       # sector, only to the EFI System Partition.
       device = "nodev";
       efiSupport = true;
+      # Also installs the fallback EFI/BOOT/BOOTX64.EFI path so this ESP
+      # boots on firmware/VMs with no NixOS NVRAM entry (e.g. QEMU, another
+      # machine). Requires efi.canTouchEfiVariables = false (NixOS asserts
+      # this pairing) -- rebuilds no longer touch NVRAM boot entries at all,
+      # existing ones are left alone.
+      efiInstallAsRemovable = true;
       gfxpayloadEfi = "keep";
       gfxmodeEfi = cfg.gfxResolution;
       theme = if cfg.graphical then cfg.grubThemePath else null;
